@@ -307,8 +307,8 @@ mod tests {
     #[test_case]
     fn process_group_manager_creation() {
         let mut mgr = ProcessGroupManager::new();
-        let pid = 1001;
-        let pgrp = ProcessGroupId(1100);
+        let pid = ProcessId(1001);
+        let pgrp = ProcessGroupId(ProcessId(1100));
 
         mgr.create_or_join_group(pid, pgrp).unwrap();
         let procs = mgr.processes_in_group(pgrp);
@@ -319,10 +319,10 @@ mod tests {
     #[test_case]
     fn process_group_suspend_resume() {
         let mut mgr = ProcessGroupManager::new();
-        let pgrp = ProcessGroupId(1100);
+        let pgrp = ProcessGroupId(ProcessId(1100));
 
-        mgr.create_or_join_group(1001, pgrp).unwrap();
-        mgr.create_or_join_group(1002, pgrp).unwrap();
+        mgr.create_or_join_group(ProcessId(1001), pgrp).unwrap();
+        mgr.create_or_join_group(ProcessId(1002), pgrp).unwrap();
 
         mgr.suspend_group(pgrp).unwrap();
         assert_eq!(mgr.group_state(pgrp), Some(JobControlStateType::Stopped));
@@ -334,15 +334,15 @@ mod tests {
     #[test_case]
     fn process_removal_from_group() {
         let mut mgr = ProcessGroupManager::new();
-        let pgrp = ProcessGroupId(1100);
+        let pgrp = ProcessGroupId(ProcessId(1100));
 
-        mgr.create_or_join_group(1001, pgrp).unwrap();
-        mgr.create_or_join_group(1002, pgrp).unwrap();
+        mgr.create_or_join_group(ProcessId(1001), pgrp).unwrap();
+        mgr.create_or_join_group(ProcessId(1002), pgrp).unwrap();
 
         let procs = mgr.processes_in_group(pgrp);
         assert_eq!(procs.unwrap().len(), 2);
 
-        mgr.remove_process(1001, pgrp);
+        mgr.remove_process(ProcessId(1001), pgrp);
         let procs = mgr.processes_in_group(pgrp);
         assert_eq!(procs.unwrap().len(), 1);
     }
@@ -350,10 +350,10 @@ mod tests {
     #[test_case]
     fn empty_group_cleanup() {
         let mut mgr = ProcessGroupManager::new();
-        let pgrp = ProcessGroupId(1100);
+        let pgrp = ProcessGroupId(ProcessId(1100));
 
-        mgr.create_or_join_group(1001, pgrp).unwrap();
-        mgr.remove_process(1001, pgrp);
+        mgr.create_or_join_group(ProcessId(1001), pgrp).unwrap();
+        mgr.remove_process(ProcessId(1001), pgrp);
 
         let procs = mgr.processes_in_group(pgrp);
         assert!(procs.is_none()); // Group should be removed when empty
@@ -362,8 +362,8 @@ mod tests {
     #[test_case]
     fn session_creation() {
         let mut mgr = ProcessGroupManager::new();
-        let pgrp = ProcessGroupId(1100);
-        let sid = SessionId(1100);
+        let pgrp = ProcessGroupId(ProcessId(1100));
+        let sid = SessionId(ProcessId(1100));
 
         mgr.create_or_join_session(pgrp, sid).unwrap();
         // Sessions are valid if they don't error

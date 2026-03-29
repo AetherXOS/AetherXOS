@@ -1,4 +1,5 @@
 use super::*;
+use crate::modules::linux_compat::poll::helpers::kernel_tick_ns;
 
 #[test_case]
 fn retries_from_total_ns_rounds_up() {

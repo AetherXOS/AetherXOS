@@ -136,19 +136,19 @@ pub mod category_reference {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_autonomous_message_generation() {
         let msg = serial_autonomous(Boot, "test message");
         assert_eq!(msg, "[BOOT] test message\n");
     }
 
-    #[test]
+    #[test_case]
     fn test_autonomous_hex_generation() {
         let msg = serial_autonomous_hex(Memory, "addr", 0xDEADBEEF);
         assert_eq!(msg, "[MEMORY] addr=0xdeadbeef\n");
     }
 
-    #[test]
+    #[test_case]
     fn test_category_strings() {
         assert_eq!(Core.as_str(), "CORE");
         assert_eq!(Boot.as_str(), "BOOT");
@@ -234,3 +234,4 @@ mod tests {
 // After:  let msg = serial_autonomous_hex(Memory, "addr", frame);
 //
 // ============================================================================
+

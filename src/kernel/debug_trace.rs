@@ -503,7 +503,7 @@ pub fn recent_records_copy() -> [TraceRecord; CORE_CRASH_LOG_CAPACITY] {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn trace_ring_records_recent_events_in_order() {
         record("trace.test", "alpha", None, false);
         record("trace.test", "beta", Some(0x44), false);
@@ -520,7 +520,7 @@ mod tests {
         assert_eq!(last.value, 0x44);
     }
 
-    #[test]
+    #[test_case]
     fn trace_ring_truncates_long_scope_and_stage_names() {
         record(
             "trace.scope.name.is.longer.than.limit",
@@ -535,7 +535,7 @@ mod tests {
         assert_eq!(recent[0].stage_len as usize, TRACE_TEXT_LIMIT);
     }
 
-    #[test]
+    #[test_case]
     fn bytes_preview_records_folded_value_and_length() {
         record_bytes_preview("trace.dump", "preview", &[0x11, 0x22, 0x33, 0x44]);
 
@@ -552,7 +552,7 @@ mod tests {
         assert_eq!(len.value, 4);
     }
 
-    #[test]
+    #[test_case]
     fn severity_and_category_are_preserved() {
         record_with_metadata(
             "trace.loader",
@@ -572,7 +572,7 @@ mod tests {
         assert_eq!(last.value, 0x55);
     }
 
-    #[test]
+    #[test_case]
     fn category_stats_count_records() {
         record_with_metadata(
             "trace.launch",
@@ -595,7 +595,7 @@ mod tests {
         assert!(stats.task >= 1);
     }
 
-    #[test]
+    #[test_case]
     fn kernel_context_records_stage_even_without_runtime_context() {
         record_kernel_context("trace.ctx", "hit", Some(0x55));
 
@@ -606,7 +606,7 @@ mod tests {
         assert_eq!(last.scope_str(), "trace.ctx");
     }
 
-    #[test]
+    #[test_case]
     fn trace_stats_report_recent_totals() {
         record("trace.stats", "plain", None, false);
         record("trace.stats", "valued", Some(7), false);
@@ -623,10 +623,11 @@ mod tests {
         assert!(stats.latest_seq >= 1);
     }
 
-    #[test]
+    #[test_case]
     fn recent_records_copy_returns_trace_buffer_snapshot() {
         record("trace.copy", "alpha", None, false);
         let copied = recent_records_copy();
         assert!(copied.iter().any(|record| record.scope_str() == "trace.copy"));
     }
 }
+

@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::modules::linux_compat::fs::io as fs_io;
 use crate::modules::linux_compat::{linux, linux_inval};
 
 #[derive(Clone, Copy)]
@@ -52,9 +53,9 @@ pub(super) fn apply_linux_open_post_flags(fd: u32, flags: usize) {
         );
     }
     if (flags & linux::open_flags::O_CLOEXEC) != 0 {
-        super::io::linux_fd_set_descriptor_flags(fd, super::io::LINUX_FD_CLOEXEC);
+        fs_io::linux_fd_set_descriptor_flags(fd, fs_io::LINUX_FD_CLOEXEC);
     } else {
-        super::io::linux_fd_clear_descriptor_flags(fd);
+        fs_io::linux_fd_clear_descriptor_flags(fd);
     }
 }
 

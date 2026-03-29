@@ -1,0 +1,10 @@
+[
+  {
+    "name": "dashboard-agent-bg",
+    "command": "cargo xtask dashboard agent-start"
+  },
+  {
+    "name": "dashboard-agent-nosafe-bg",
+    "command": "cargo xtask dashboard agent-start --no-safe"
+  }
+]

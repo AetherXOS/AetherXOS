@@ -199,7 +199,7 @@ pub fn collect() -> BootInfo {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn kernel_cmdline_contains_matches_raw_bytes_without_utf8_roundtrip() {
         let mut info = BootInfo::default();
         let cmdline = b"foo HYPERCORE_RUN_LINKED_PROBE=1 bar";
@@ -210,7 +210,7 @@ mod tests {
         assert!(!info.kernel_cmdline_contains(b"HYPERCORE_RUN_LINKED_PROBE=0"));
     }
 
-    #[test]
+    #[test_case]
     fn kernel_cmdline_bytes_stops_at_nul_and_preserves_raw_bytes() {
         let mut info = BootInfo::default();
         let cmdline = b"alpha beta";

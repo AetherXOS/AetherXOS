@@ -298,7 +298,7 @@ mod tests {
         let tty = TtyDevice::new(TtyId::new(0));
         assert_eq!(tty.foreground_pgrp(), None);
 
-        let pgrp = ProcessGroupId(1000);
+        let pgrp = ProcessGroupId(crate::interfaces::task::ProcessId(1000));
         tty.set_foreground_pgrp(Some(pgrp));
         assert_eq!(tty.foreground_pgrp(), Some(pgrp));
 
@@ -311,7 +311,7 @@ mod tests {
         let tty = TtyDevice::new(TtyId::new(0));
         assert_eq!(tty.session_id(), None);
 
-        let sid = SessionId(2000);
+        let sid = SessionId(crate::interfaces::task::ProcessId(2000));
         tty.set_session_id(Some(sid));
         assert_eq!(tty.session_id(), Some(sid));
 

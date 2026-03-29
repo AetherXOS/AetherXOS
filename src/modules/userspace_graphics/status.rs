@@ -44,6 +44,9 @@ pub fn readiness_snapshot() -> UserspaceGraphicsReadiness {
                 if crate::modules::userspace_graphics::wayland::has_wire_header_parser() {
                     score = score.saturating_add(5);
                 }
+                if crate::modules::userspace_graphics::wayland::wayland_protocol_semantics_supported() {
+                    score = score.saturating_add(10);
+                }
                 score.min(100)
             } else {
                 0
@@ -73,6 +76,9 @@ pub fn readiness_snapshot() -> UserspaceGraphicsReadiness {
                     score = score.saturating_add(4);
                 }
                 if crate::modules::userspace_graphics::x11::x11_core_protocol_supported() {
+                    score = score.saturating_add(10);
+                }
+                if crate::modules::userspace_graphics::x11::x11_reply_event_semantics_supported() {
                     score = score.saturating_add(10);
                 }
                 score.min(100)

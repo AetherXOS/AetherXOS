@@ -466,7 +466,16 @@ pub(super) fn service_linked_probe_once() {
 
 #[cfg(all(test, feature = "process_abstraction"))]
 mod tests {
-    #[test]
+    use core::sync::atomic::Ordering;
+    use crate::kernel_runtime::main_loop::{
+        LINKED_PROBE_ENABLED,
+        LINKED_PROBE_PID,
+        LINKED_PROBE_SPAWNED,
+        LINKED_PROBE_VERIFIED,
+        LINUX_COMPAT_INITED,
+    };
+
+    #[test_case]
     fn linked_probe_can_spawn_only_when_compat_ready_and_not_spawned() {
         assert!(super::linked_probe_can_spawn(true, false));
         assert!(!super::linked_probe_can_spawn(false, false));
@@ -474,7 +483,7 @@ mod tests {
         assert!(!super::linked_probe_can_spawn(false, true));
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_action_matches_runtime_expectations() {
         assert_eq!(
             super::linked_probe_service_action(false, false),
@@ -494,7 +503,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_decision_preserves_state_and_action() {
         let decision = super::linked_probe_service_decision(true, false);
         assert!(decision.linux_compat_inited);
@@ -502,7 +511,7 @@ mod tests {
         assert_eq!(decision.action, super::LinkedProbeServiceAction::Spawn);
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_runtime_state_can_be_constructed_from_flags() {
         let state = super::LinkedProbeRuntimeState {
             linux_compat_inited: true,
@@ -512,13 +521,13 @@ mod tests {
         assert!(!state.spawned);
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_decision_helper_matches_direct_decision() {
         let direct = super::linked_probe_service_decision(true, false);
         assert_eq!(direct.action, super::LinkedProbeServiceAction::Spawn);
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_spawn_request_uses_expected_static_bootstrap_contract() {
         let request = super::linked_probe_spawn_request();
         assert_eq!(request.process_name, b"hyper_init");
@@ -529,19 +538,19 @@ mod tests {
         assert_eq!(request.kernel_stack_top, 0);
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_spawn_request_is_copy_stable() {
         let request = super::linked_probe_spawn_request();
         let copied = request;
         assert_eq!(copied, request);
     }
 
-    #[test]
-    fn linked_probe_spawn_branch_helper_is_callable() {
+    #[test_case]
+    fn linked_probe_spawn_branch_helper_is_callable_repeat() {
         super::enter_linked_probe_spawn_branch();
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_transition_includes_spawn_request_only_for_spawn() {
         let transition = super::PreparedLinkedProbeServiceDecision {
             decision: super::linked_probe_service_decision(true, false),
@@ -551,13 +560,13 @@ mod tests {
         assert!(transition.spawn_request.is_some());
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_spawn_request_keeps_zero_stack_top_contract() {
         let request = super::linked_probe_spawn_request();
         assert_eq!(request.kernel_stack_top, 0);
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_transition_dispatch_returns_early_for_spawn() {
         let transition = super::PreparedLinkedProbeServiceDecision {
             decision: super::linked_probe_service_decision(true, false),
@@ -566,7 +575,7 @@ mod tests {
         assert!(super::dispatch_linked_probe_service_transition(transition));
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_entry_helper_keeps_spawn_transition_shape() {
         let transition = super::PreparedLinkedProbeServiceDecision {
             decision: super::linked_probe_service_decision(true, false),
@@ -575,63 +584,63 @@ mod tests {
         assert_eq!(transition.decision.action, super::LinkedProbeServiceAction::Spawn);
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_spawn_transition_helper_is_callable() {
         super::dispatch_linked_probe_spawn_transition(super::linked_probe_spawn_request());
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_transition_runner_returns_early_for_spawn() {
-        super::LINUX_COMPAT_INITED.store(true, Ordering::Relaxed);
-        super::LINKED_PROBE_SPAWNED.store(false, Ordering::Relaxed);
+        LINUX_COMPAT_INITED.store(true, Ordering::Relaxed);
+        LINKED_PROBE_SPAWNED.store(false, Ordering::Relaxed);
         assert!(super::run_linked_probe_service_transition());
     }
 
-    #[test]
-    fn linked_probe_spawn_branch_helper_is_callable() {
+    #[test_case]
+    fn linked_probe_spawn_branch_helper_is_callable_again() {
         super::enter_linked_probe_spawn_branch();
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_transition_helper_preserves_spawn_request_shape() {
-        super::LINUX_COMPAT_INITED.store(true, Ordering::Relaxed);
-        super::LINKED_PROBE_SPAWNED.store(false, Ordering::Relaxed);
+        LINUX_COMPAT_INITED.store(true, Ordering::Relaxed);
+        LINKED_PROBE_SPAWNED.store(false, Ordering::Relaxed);
         let transition = super::prepare_linked_probe_service_transition();
         assert_eq!(transition.decision.action, super::LinkedProbeServiceAction::Spawn);
         assert!(transition.spawn_request.is_some());
     }
 
-    #[test]
+    #[test_case]
     fn entered_service_transition_helper_matches_spawn_shape() {
-        super::LINUX_COMPAT_INITED.store(true, Ordering::Relaxed);
-        super::LINKED_PROBE_SPAWNED.store(false, Ordering::Relaxed);
+        LINUX_COMPAT_INITED.store(true, Ordering::Relaxed);
+        LINKED_PROBE_SPAWNED.store(false, Ordering::Relaxed);
         let transition = super::prepare_entered_linked_probe_service_transition();
         assert_eq!(transition.decision.action, super::LinkedProbeServiceAction::Spawn);
         assert!(transition.spawn_request.is_some());
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_entry_helper_is_callable() {
         super::prepare_linked_probe_service_entry();
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_body_helper_reflects_active_state() {
-        super::LINKED_PROBE_ENABLED.store(true, Ordering::Relaxed);
-        super::LINKED_PROBE_VERIFIED.store(false, Ordering::Relaxed);
+        LINKED_PROBE_ENABLED.store(true, Ordering::Relaxed);
+        LINKED_PROBE_VERIFIED.store(false, Ordering::Relaxed);
         assert!(super::enter_linked_probe_service_body());
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_exit_observer_is_callable_without_pid() {
-        super::LINKED_PROBE_PID.store(0, Ordering::Relaxed);
+        LINKED_PROBE_PID.store(0, Ordering::Relaxed);
         super::observe_linked_probe_exit();
     }
 
-    #[test]
+    #[test_case]
     fn entered_linked_probe_service_runner_returns_early_when_inactive() {
-        super::LINKED_PROBE_ENABLED.store(false, Ordering::Relaxed);
-        super::LINKED_PROBE_VERIFIED.store(false, Ordering::Relaxed);
+        LINKED_PROBE_ENABLED.store(false, Ordering::Relaxed);
+        LINKED_PROBE_VERIFIED.store(false, Ordering::Relaxed);
         assert!(super::run_entered_linked_probe_service());
     }
 }

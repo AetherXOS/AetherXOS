@@ -228,6 +228,71 @@ pub(crate) fn sys_linux_unlinkat(dirfd: isize, path_ptr: usize, flags: usize) ->
 }
 
 #[cfg(not(feature = "linux_compat"))]
+pub(crate) fn sys_linux_linkat(
+    olddirfd: isize,
+    oldpath_ptr: usize,
+    newdirfd: isize,
+    newpath_ptr: usize,
+    flags: usize,
+) -> usize {
+    #[cfg(feature = "posix_fs")]
+    {
+        const AT_SYMLINK_FOLLOW: usize = 0x400;
+        if (flags & !AT_SYMLINK_FOLLOW) != 0 {
+            return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+        }
+
+        let (old_fs_id, old_resolved) = match resolve_path_at(olddirfd, oldpath_ptr) {
+            Ok(v) => v,
+            Err(err) => return err,
+        };
+        let (new_fs_id, new_resolved) = match resolve_path_at(newdirfd, newpath_ptr) {
+            Ok(v) => v,
+            Err(err) => return err,
+        };
+        if old_fs_id != new_fs_id {
+            return linux_errno(crate::modules::posix_consts::errno::EXDEV);
+        }
+
+        match crate::modules::posix::fs::link(old_fs_id, &old_resolved, &new_resolved) {
+            Ok(()) => 0,
+            Err(err) => linux_errno(err.code()),
+        }
+    }
+    #[cfg(not(feature = "posix_fs"))]
+    {
+        let _ = (olddirfd, oldpath_ptr, newdirfd, newpath_ptr, flags);
+        linux_errno(crate::modules::posix_consts::errno::ENOENT)
+    }
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(crate) fn sys_linux_symlinkat(target_ptr: usize, newdirfd: isize, linkpath_ptr: usize) -> usize {
+    #[cfg(feature = "posix_fs")]
+    {
+        let target = match read_user_path_like_string(target_ptr) {
+            Ok(p) => p,
+            Err(e) => return e,
+        };
+
+        let (fs_id, link_resolved) = match resolve_path_at(newdirfd, linkpath_ptr) {
+            Ok(v) => v,
+            Err(err) => return err,
+        };
+
+        match crate::modules::posix::fs::symlink(fs_id, &target, &link_resolved) {
+            Ok(()) => 0,
+            Err(err) => linux_errno(err.code()),
+        }
+    }
+    #[cfg(not(feature = "posix_fs"))]
+    {
+        let _ = (target_ptr, newdirfd, linkpath_ptr);
+        linux_errno(crate::modules::posix_consts::errno::ENOENT)
+    }
+}
+
+#[cfg(not(feature = "linux_compat"))]
 pub(crate) fn sys_linux_renameat(
     olddirfd: isize,
     oldpath_ptr: usize,
@@ -388,6 +453,30 @@ mod tests {
     fn unlinkat_invalid_path_pointer_returns_efault() {
         assert_eq!(
             sys_linux_unlinkat(LINUX_AT_FDCWD, 0, 0),
+            linux_errno(crate::modules::posix_consts::errno::EFAULT)
+        );
+    }
+
+    #[test_case]
+    fn linkat_invalid_oldpath_pointer_returns_efault() {
+        let newp = b"/tmp_new\0";
+        assert_eq!(
+            sys_linux_linkat(
+                LINUX_AT_FDCWD,
+                0,
+                LINUX_AT_FDCWD,
+                newp.as_ptr() as usize,
+                0,
+            ),
+            linux_errno(crate::modules::posix_consts::errno::EFAULT)
+        );
+    }
+
+    #[test_case]
+    fn symlinkat_invalid_target_pointer_returns_efault() {
+        let link = b"/tmp_link\0";
+        assert_eq!(
+            sys_linux_symlinkat(0, LINUX_AT_FDCWD, link.as_ptr() as usize),
             linux_errno(crate::modules::posix_consts::errno::EFAULT)
         );
     }

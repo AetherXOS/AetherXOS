@@ -1,5 +1,8 @@
 use super::*;
 use alloc::vec;
+use crate::modules::network::metrics_ops::update_loopback_high_water;
+#[cfg(feature = "network_transport")]
+use crate::modules::network::filter_support::apply_filters;
 
 #[test_case]
 fn runtime_polling_toggle_roundtrip() {

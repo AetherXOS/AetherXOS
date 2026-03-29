@@ -67,7 +67,7 @@ fn prepare_runtime_main_loop_handoff() {
 
 #[cfg(test)]
 mod tests {
-    #[test]
+    #[test_case]
     fn runtime_main_loop_handoff_helper_is_callable() {
         super::prepare_runtime_main_loop_handoff();
     }

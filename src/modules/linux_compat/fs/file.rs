@@ -122,7 +122,7 @@ pub fn sys_linux_openat(dirfd: Fd, pathname_ptr: UserPtr<u8>, flags: usize, _mod
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn tmpfile_requires_write_access_mode() {
         let ro_flags = linux::open_flags::O_TMPFILE;
         let wo_flags = linux::open_flags::O_TMPFILE | linux::open_flags::O_WRONLY;
@@ -133,7 +133,7 @@ mod tests {
         assert!(linux_tmpfile_write_mode_valid(rw_flags));
     }
 
-    #[test]
+    #[test_case]
     fn build_tmpfile_path_is_root_safe() {
         assert_eq!(build_linux_tmpfile_path("/", 7), "/.tmpfile-7");
         assert_eq!(build_linux_tmpfile_path("/tmp", 11), "/tmp/.tmpfile-11");

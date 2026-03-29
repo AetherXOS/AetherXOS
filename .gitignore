@@ -18,7 +18,6 @@ target/
 *.elf
 *.md
 *.md.resolved
-*.json
 *.toml.example
 *.clippy
 npm-debug.log*

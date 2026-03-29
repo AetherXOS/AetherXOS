@@ -1,0 +1,44 @@
+[
+  {
+    "key": "guided-bootstrap",
+    "aliases": ["smart-run"],
+    "risk_level": "medium",
+    "category": "setup",
+    "cmds": ["workspace-bootstrap"]
+  },
+  {
+    "key": "quality-gate",
+    "aliases": ["full-check"],
+    "risk_level": "high",
+    "category": "validation",
+    "cmds": ["quality-gate"]
+  },
+  {
+    "key": "agent-service-start",
+    "aliases": ["start-dashboard-agent"],
+    "risk_level": "medium",
+    "category": "dashboard",
+    "cmds": ["dashboard-agent-bg"]
+  },
+  {
+    "key": "agent-service-start-unsafe",
+    "aliases": ["start-dashboard-agent-nosafe"],
+    "risk_level": "high",
+    "category": "dashboard",
+    "cmds": ["dashboard-agent-nosafe-bg"]
+  },
+  {
+    "key": "build-boot-iso",
+    "aliases": ["create-iso"],
+    "risk_level": "high",
+    "category": "build",
+    "cmds": ["build-iso"]
+  },
+  {
+    "key": "run-emulator-smoke",
+    "aliases": ["run-qemu"],
+    "risk_level": "medium",
+    "category": "run",
+    "cmds": ["qemu-smoke"]
+  }
+]

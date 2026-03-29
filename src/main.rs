@@ -19,11 +19,71 @@ use hypercore::modules::allocators::selector::ActiveHeapAllocator;
 #[global_allocator]
 pub static ALLOCATOR: ActiveHeapAllocator = ActiveHeapAllocator::new();
 
+// ============================================================================
+// Multiboot2 Header - Required for QEMU x86_64 boot
+// ============================================================================
+// MUST be placed in first 32KB of binary, 8-byte aligned, and BEFORE entry point
+#[repr(C, align(8))]
+pub struct MultibootHeader {
+    // Multiboot2 header
+    magic: u32,              // 0xE85250D6 (magic number)
+    architecture: u32,       // 0 = i386, 4 = x86_64
+    header_length: u32,      // 12 bytes (header + architecture + reserved) before tags
+    checksum: u32,           // -(magic + architecture + header_length)
+    
+    // End tag (required)
+    end_tag_type: u16,       // 0 = end tag
+    end_tag_flags: u16,      // 0
+    end_tag_size: u32,       // 8 bytes
+}
+
+impl MultibootHeader {
+    const fn new() -> Self {
+        let magic = 0xE85250D6u32;
+        let architecture = 0u32;  // i386
+        let header_length = 12u32; // Through checksum field
+        let checksum = (0u32).wrapping_sub(magic).wrapping_sub(architecture).wrapping_sub(header_length);
+        
+        MultibootHeader {
+            magic,
+            architecture,
+            header_length,
+            checksum,
+            end_tag_type: 0,
+            end_tag_flags: 0,
+            end_tag_size: 8,
+        }
+    }
+}
+
+#[link_section = ".multiboot2"]
+#[no_mangle]
+pub static MULTIBOOT2_HEADER: MultibootHeader = MultibootHeader::new();
+
+// Declare test_main as an external symbol when in test mode with kernel_test_mode feature
+#[cfg(all(test, feature = "kernel_test_mode"))]
+extern "Rust" {
+    fn test_main();
+}
+
 // 3. The Kernel Entry Point
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    let kernel = kernel_runtime::KernelRuntime::new();
-    kernel.run();
+    #[cfg(all(test, feature = "kernel_test_mode"))]
+    {
+        // Run tests instead of normal kernel boot
+        unsafe {
+            test_main();
+        }
+        // After tests complete, halt
+        loop {}
+    }
+
+    #[cfg(not(all(test, feature = "kernel_test_mode")))]
+    {
+        let kernel = kernel_runtime::KernelRuntime::new();
+        kernel.run();
+    }
 }
 
 /// Panic Handler

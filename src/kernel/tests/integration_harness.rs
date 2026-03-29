@@ -293,7 +293,7 @@
 ///
 /// Phase 3: Test Harness Creation
 /// - When test crate available
-/// - Create #[test] functions for integration tests
+/// - Create #[test_case] functions for integration tests
 /// - Execute full test suite
 /// - Generate pass/fail report
 ///
@@ -1099,3 +1099,4 @@ impl IntegrationHarness {
 		None
 	}
 }
+

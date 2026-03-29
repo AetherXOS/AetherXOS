@@ -1,7 +1,7 @@
 use super::*;
 use core::sync::atomic::AtomicU32;
 
-#[test]
+#[test_case]
 fn unload_fails_when_plt_references_symbol() {
     let mut loader = SharedObjectLoader::new();
 
@@ -31,3 +31,4 @@ fn unload_fails_when_plt_references_symbol() {
     loader.plt_slots.clear();
     assert!(loader.unload("libx.so").is_ok());
 }
+

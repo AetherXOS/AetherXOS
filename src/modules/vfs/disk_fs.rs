@@ -256,7 +256,7 @@ impl DiskFsLibrary {
                             }
                         }
                         if device_found {
-                            Err("fatfs block device found but fatfs crate mapping is read-only pending")
+                            Err("fatfs bridge detected block device but DiskFs mount wiring is not enabled in this path")
                         } else {
                             Err("fatfs mount failed: no compatible block device found")
                         }
@@ -344,7 +344,7 @@ impl DiskFsLibrary {
                     Err("ext4 backend disabled")
                 }
             }
-            FsBackendKind::SquashFs => Err("squashfs mount bridge pending read-only image mapping"),
+            FsBackendKind::SquashFs => Err("squashfs mount bridge unavailable in DiskFs runtime path"),
         }
     }
 

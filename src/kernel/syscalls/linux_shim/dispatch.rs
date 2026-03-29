@@ -92,6 +92,14 @@ pub(super) fn sys_linux_shim(
         linux_nr::OPENAT2 => Some(fs::sys_linux_openat2(arg1 as isize, arg2, arg3, arg4)),
         linux_nr::MKDIRAT => Some(fs::sys_linux_mkdirat(arg1 as isize, arg2, arg3)),
         linux_nr::UNLINKAT => Some(fs::sys_linux_unlinkat(arg1 as isize, arg2, arg3)),
+        linux_nr::LINKAT => Some(fs::sys_linux_linkat(
+            arg1 as isize,
+            arg2,
+            arg3 as isize,
+            arg4,
+            arg5,
+        )),
+        linux_nr::SYMLINKAT => Some(fs::sys_linux_symlinkat(arg1, arg2 as isize, arg3)),
         linux_nr::RENAMEAT => Some(fs::sys_linux_renameat(
             arg1 as isize,
             arg2,

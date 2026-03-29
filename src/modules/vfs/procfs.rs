@@ -422,10 +422,10 @@ mod tests {
     fn procfs_rejects_mutating_operations_as_read_only_fs() {
         let fs = ProcFs::new();
 
-        assert_eq!(fs.create("/foo", TaskId(1)), Err("EROFS"));
-        assert_eq!(fs.remove("/foo", TaskId(1)), Err("EROFS"));
-        assert_eq!(fs.mkdir("/foo", TaskId(1)), Err("EROFS"));
-        assert_eq!(fs.rmdir("/foo", TaskId(1)), Err("EROFS"));
+        assert!(matches!(fs.create("/foo", TaskId(1)), Err("EROFS")));
+        assert!(matches!(fs.remove("/foo", TaskId(1)), Err("EROFS")));
+        assert!(matches!(fs.mkdir("/foo", TaskId(1)), Err("EROFS")));
+        assert!(matches!(fs.rmdir("/foo", TaskId(1)), Err("EROFS")));
     }
 
     #[test_case]

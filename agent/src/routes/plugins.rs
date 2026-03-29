@@ -51,48 +51,76 @@ fn count_crash_artifacts() -> usize {
 }
 
 fn scan_plugins() -> Vec<Value> {
-    let candidates = ["scripts/plugins", "../scripts/plugins", "../../scripts/plugins"];
+    let candidates = ["config/plugins", "../config/plugins", "../../config/plugins"];
     for dir in &candidates {
         if let Ok(entries) = std::fs::read_dir(dir) {
-            return entries
+            let discovered = entries
                 .filter_map(|e| e.ok())
                 .filter_map(|e| {
                     let name = e.file_name().to_string_lossy().to_string();
-                    if name.ends_with(".ps1") || name.ends_with(".py") {
-                        let runtime = if name.ends_with(".ps1") { "powershell" } else { "python" };
-                        let plugin_name = name.rsplit_once('.').map(|(base, _)| base.to_string()).unwrap_or_else(|| name.clone());
+                    if name.ends_with(".json") {
+                        let path = e.path();
+                        let content = std::fs::read_to_string(&path).ok()?;
+                        let manifest = serde_json::from_str::<Value>(&content).ok()?;
+                        let plugin_name = manifest
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .map(|v| v.to_string())
+                            .or_else(|| name.rsplit_once('.').map(|(base, _)| base.to_string()))
+                            .unwrap_or(name.clone());
+                        let capabilities = manifest
+                            .get("capabilities")
+                            .and_then(|v| v.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                                    .collect::<Vec<String>>()
+                            })
+                            .filter(|arr| !arr.is_empty())
+                            .unwrap_or_else(|| infer_plugin_capabilities(&plugin_name));
+
                         Some(json!({
                             "name": plugin_name,
                             "file_name": name,
-                            "path": e.path().display().to_string(),
+                            "path": path.display().to_string(),
                             "status": "discovered",
-                            "runtime": runtime,
-                            "capabilities": infer_plugin_capabilities(&plugin_name),
+                            "runtime": manifest.get("runtime").and_then(|v| v.as_str()).unwrap_or("xtask"),
+                            "capabilities": capabilities,
                         }))
                     } else {
                         None
                     }
                 })
-                .collect();
+                .collect::<Vec<Value>>();
+            if !discovered.is_empty() {
+                return discovered;
+            }
         }
     }
-    vec![]
+    vec![json!({
+        "name": "native-xtask",
+        "file_name": "builtin",
+        "path": "xtask",
+        "status": "builtin",
+        "runtime": "xtask",
+        "capabilities": ["build", "run", "validate", "release", "dashboard"]
+    })]
 }
 
-fn infer_plugin_capabilities(plugin_name: &str) -> Vec<&'static str> {
+fn infer_plugin_capabilities(plugin_name: &str) -> Vec<String> {
     let lower = plugin_name.to_lowercase();
-    let mut capabilities = vec!["run"];
+    let mut capabilities = vec!["run".to_string()];
     if lower.contains("secureboot") {
-        capabilities.push("secureboot");
+        capabilities.push("secureboot".to_string());
     }
     if lower.contains("report") || lower.contains("diagnostic") {
-        capabilities.push("report");
+        capabilities.push("report".to_string());
     }
     if lower.contains("gate") {
-        capabilities.push("gate");
+        capabilities.push("gate".to_string());
     }
     if lower.contains("sign") {
-        capabilities.push("sign");
+        capabilities.push("sign".to_string());
     }
     capabilities
 }

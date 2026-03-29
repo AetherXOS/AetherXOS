@@ -1,0 +1,99 @@
+{
+  "config_version": 2,
+  "profiles": {
+    "quick": {
+      "rounds": 2,
+      "memory_mb": "512",
+      "cores": "1",
+      "round_timeout_sec": 30,
+      "chaos_rate": 0.0,
+      "allow_timeout_success": true
+    },
+    "strict": {
+      "rounds": 5,
+      "memory_mb": "1024",
+      "cores": "2",
+      "round_timeout_sec": 60,
+      "chaos_rate": 0.1,
+      "allow_timeout_success": false
+    }
+  },
+  "paths": {
+    "limine_bin_dir": "artifacts/limine/bin",
+    "qemu_default_out_dir": "artifacts/qemu_soak",
+    "doctor_report_path": "reports/tooling/doctor_report.json",
+    "health_report_path": "reports/tooling/health_report.json",
+    "telemetry_jsonl_path": "reports/tooling/hypercore_telemetry.jsonl",
+    "tasks_path": "config/hypercore.tasks.cjson",
+    "plugin_dir": "config/plugins"
+  },
+  "tooling": {
+    "version": "2.0.0",
+    "language": "tr"
+  },
+  "agent": {
+    "port": 7401,
+    "auth_mode": "strict",
+    "auth_token": "hypercore-local-dev-token",
+    "tokens": {
+      "viewer": "viewer-local-token",
+      "operator": "operator-local-token",
+      "admin": "hypercore-local-dev-token"
+    },
+    "allowed_origins": [
+      "http://127.0.0.1",
+      "http://localhost",
+      "http://127.0.0.1:5173",
+      "http://localhost:5173"
+    ],
+    "max_concurrency": 1,
+    "max_queue": 100,
+    "log_retention_days": 14,
+    "scheduler": {
+      "enabled": true,
+      "tasks": [
+        {
+          "id": "nightly_smoke",
+          "action": "qemu_smoke",
+          "interval_sec": 86400,
+          "priority": "low",
+          "enabled": true
+        }
+      ]
+    },
+    "policy": {
+      "roles": {
+        "viewer": {
+          "max_risk": "low",
+          "denied_actions": ["run_async"],
+          "denied_categories": ["release"]
+        },
+        "operator": {
+          "max_risk": "high",
+          "denied_actions": ["policy_apply"],
+          "denied_categories": ["admin"]
+        },
+        "admin": {
+          "max_risk": "critical",
+          "denied_actions": [],
+          "denied_categories": []
+        }
+      }
+    },
+    "hosts": [
+      {
+        "id": "local",
+        "name": "Localhost",
+        "url": "http://127.0.0.1:7401",
+        "enabled": true,
+        "role_hint": "admin",
+        "token": "hypercore-local-dev-token"
+      }
+    ]
+  },
+  "ui": {
+    "launcher_token": "launcher-local-token",
+    "launcher_rate_limit_per_minute": 60,
+    "launcher_audit_retention_days": 14
+  }
+}

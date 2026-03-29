@@ -4,7 +4,7 @@ use crate::kernel::symbol::{Symbol, SymbolTable};
 #[path = "early_part1.rs"]
 mod early_part1;
 
-#[test]
+#[test_case]
 fn test_plt32_image_signed_wrap() {
     let mut image = vec![0u8; 0x200];
     let base: u64 = 0;
@@ -48,7 +48,7 @@ fn test_plt32_image_signed_wrap() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_plt32_inplace_signed_wrap() {
     let mut mem = vec![0u8; 0x200];
     let base: u64 = 0;
@@ -106,7 +106,7 @@ fn test_plt32_inplace_signed_wrap() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_tlsgd_image_writes_u64() {
     // Image relocation for TLSGD/TLSLD should write S + A when symbol present
     let mut image = vec![0u8; 0x2000];
@@ -150,7 +150,7 @@ fn test_tlsgd_image_writes_u64() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_tlsgd_inplace_writes_u64() {
     // In-place relocation should write S + A when symbol present
     let mut mem = vec![0u8; 0x3000];
@@ -208,7 +208,7 @@ fn test_tlsgd_inplace_writes_u64() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_irelative_image_writes_b_plus_addend() {
     // Image relocation for IRELATIVE should write B + A when resolver not available
     let mut image = vec![0u8; 0x200];
@@ -242,4 +242,5 @@ fn test_irelative_image_writes_b_plus_addend() {
     );
     assert_eq!(written, base.wrapping_add(addend));
 }
+
 

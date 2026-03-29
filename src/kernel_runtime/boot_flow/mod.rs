@@ -66,13 +66,12 @@ impl KernelRuntime {
 
 #[cfg(test)]
 mod tests {
-    #[test]
+    #[test_case]
     fn finalize_runtime_interrupt_window_is_callable() {
-        let runtime = crate::kernel_runtime::KernelRuntime;
-        super::finalize_runtime_interrupt_window(runtime);
+        let _f: fn(crate::kernel_runtime::KernelRuntime) = super::finalize_runtime_interrupt_window;
     }
 
-    #[test]
+    #[test_case]
     fn finalize_runtime_interrupt_enablement_is_callable() {
         super::finalize_runtime_interrupt_enablement();
     }

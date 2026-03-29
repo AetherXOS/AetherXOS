@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "code": "qemu_missing",
+      "action": "Install QEMU and retry cargo xtask run smoke"
+    },
+    {
+      "code": "limine_missing",
+      "action": "Prepare artifacts/limine/bin then rerun cargo xtask build iso"
+    }
+  ]
+}

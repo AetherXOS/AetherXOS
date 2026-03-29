@@ -4,7 +4,7 @@ use crate::kernel::symbol::{Symbol, SymbolTable};
 #[path = "tests/early.rs"]
 mod early;
 
-#[test]
+#[test_case]
 fn test_tpoff32_image_writes_s32() {
     let mut image = vec![0u8; 0x200];
     let base: u64 = 0;
@@ -48,7 +48,7 @@ fn test_tpoff32_image_writes_s32() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_tpoff32_inplace_writes_s32() {
     let mut mem = vec![0u8; 0x200];
     let base: u64 = 0;
@@ -106,7 +106,7 @@ fn test_tpoff32_inplace_writes_s32() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_tpoff64_image_writes_u64() {
     let mut image = vec![0u8; 0x200];
     let base: u64 = 0;
@@ -150,7 +150,7 @@ fn test_tpoff64_image_writes_u64() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_tpoff64_inplace_writes_u64() {
     let mut mem = vec![0u8; 0x200];
     let base: u64 = 0;
@@ -208,7 +208,7 @@ fn test_tpoff64_inplace_writes_u64() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_globdat_image_writes_u64_with_addend() {
     let mut image = vec![0u8; 0x200];
     let base: u64 = 0;
@@ -251,7 +251,7 @@ fn test_globdat_image_writes_u64_with_addend() {
     assert_eq!(written, sym_addr.wrapping_add(addend));
 }
 
-#[test]
+#[test_case]
 fn test_globdat_inplace_writes_u64_with_addend() {
     let mut mem = vec![0u8; 0x200];
     let base: u64 = 0;
@@ -308,7 +308,7 @@ fn test_globdat_inplace_writes_u64_with_addend() {
     assert_eq!(written, sym_addr.wrapping_add(addend));
 }
 
-#[test]
+#[test_case]
 fn test_got32_image_writes_u32() {
     let mut image = vec![0u8; 0x200];
     let base: u64 = 0;
@@ -350,7 +350,7 @@ fn test_got32_image_writes_u32() {
     assert_eq!(written as u64, sym_addr);
 }
 
-#[test]
+#[test_case]
 fn test_got32_inplace_writes_u32() {
     let mut mem = vec![0u8; 0x200];
     let base: u64 = 0;
@@ -405,3 +405,4 @@ fn test_got32_inplace_writes_u32() {
     );
     assert_eq!(written as u64, sym_addr);
 }
+

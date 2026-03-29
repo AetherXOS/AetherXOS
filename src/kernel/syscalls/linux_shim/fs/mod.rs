@@ -59,6 +59,20 @@ pub(super) fn sys_linux_unlinkat(dirfd: isize, pathname_ptr: usize, flags: usize
     io::sys_linux_unlinkat(dirfd, pathname_ptr, flags)
 }
 #[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_linkat(
+    olddirfd: isize,
+    oldpath_ptr: usize,
+    newdirfd: isize,
+    newpath_ptr: usize,
+    flags: usize,
+) -> usize {
+    io::sys_linux_linkat(olddirfd, oldpath_ptr, newdirfd, newpath_ptr, flags)
+}
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_symlinkat(target_ptr: usize, newdirfd: isize, linkpath_ptr: usize) -> usize {
+    io::sys_linux_symlinkat(target_ptr, newdirfd, linkpath_ptr)
+}
+#[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_renameat(
     olddirfd: isize,
     oldpath_ptr: usize,

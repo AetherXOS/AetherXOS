@@ -179,7 +179,7 @@ mod tests {
     use super::should_emit_timer_scheduler_serial;
     use hypercore::interfaces::SchedulerAction;
 
-    #[test]
+    #[test_case]
     fn timer_scheduler_serial_gate_stays_quiet_when_idle_and_empty() {
         assert!(!should_emit_timer_scheduler_serial(
             0,
@@ -188,7 +188,7 @@ mod tests {
         ));
     }
 
-    #[test]
+    #[test_case]
     fn timer_scheduler_serial_gate_logs_when_scheduler_work_exists() {
         assert!(should_emit_timer_scheduler_serial(
             1,

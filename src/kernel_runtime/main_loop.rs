@@ -471,7 +471,9 @@ pub(super) fn runtime_main_loop() -> ! {
 
 #[cfg(test)]
 mod one_shot_tests {
-    #[test]
+    use core::sync::atomic::Ordering as AtomicOrdering;
+
+    #[test_case]
     fn one_shot_actions_only_attempt_when_not_already_done() {
         assert_eq!(
             super::initrd_mount_action(false),
@@ -491,7 +493,7 @@ mod one_shot_tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn main_loop_iteration_decision_combines_one_shot_actions() {
         let decision = super::main_loop_iteration_decision(
             false,
@@ -507,7 +509,7 @@ mod one_shot_tests {
         assert_eq!(decision.linked_probe, super::LinkedProbeMainLoopAction::Service);
     }
 
-    #[test]
+    #[test_case]
     fn iteration_preparation_matches_direct_decision() {
         super::INITRD_MOUNTED.store(false, AtomicOrdering::Relaxed);
         super::LINUX_COMPAT_INITED.store(true, AtomicOrdering::Relaxed);
@@ -532,7 +534,7 @@ mod one_shot_tests {
         assert_eq!(prepared.linked_probe, direct.linked_probe);
     }
 
-    #[test]
+    #[test_case]
     fn one_shot_bootstrap_helper_is_callable_for_attempt_and_skip_mix() {
         super::service_one_shot_bootstrap_for_iteration(super::MainLoopIterationDecision {
             initrd_mount: super::MainLoopOneShotAction::Attempt,
@@ -542,7 +544,7 @@ mod one_shot_tests {
         });
     }
 
-    #[test]
+    #[test_case]
     fn bootstrap_iteration_helper_is_callable_for_service_mix() {
         super::service_bootstrap_iteration(super::MainLoopIterationDecision {
             initrd_mount: super::MainLoopOneShotAction::Attempt,
@@ -552,18 +554,18 @@ mod one_shot_tests {
         });
     }
 
-    #[test]
+    #[test_case]
     fn boot_state_loader_is_callable() {
         super::load_main_loop_boot_state();
     }
 
-    #[test]
+    #[test_case]
     fn boot_state_preparation_is_callable() {
         let state = super::prepare_main_loop_boot_state();
         assert!(matches!(state.boot_info_present, true | false));
     }
 
-    #[test]
+    #[test_case]
     fn main_loop_cycle_preparation_matches_iteration_decision() {
         super::INITRD_MOUNTED.store(false, AtomicOrdering::Relaxed);
         super::LINUX_COMPAT_INITED.store(false, AtomicOrdering::Relaxed);
@@ -581,12 +583,12 @@ mod one_shot_tests {
         assert_eq!(prepared.linked_probe, direct.linked_probe);
     }
 
-    #[test]
+    #[test_case]
     fn runtime_main_loop_head_helper_is_callable() {
         super::enter_runtime_main_loop_head();
     }
 
-    #[test]
+    #[test_case]
     fn one_shot_bootstrap_runner_is_callable() {
         super::run_one_shot_bootstrap_iteration(super::MainLoopIterationDecision {
             initrd_mount: super::MainLoopOneShotAction::Attempt,
@@ -596,12 +598,12 @@ mod one_shot_tests {
         });
     }
 
-    #[test]
+    #[test_case]
     fn initrd_mount_transition_helper_is_callable() {
         super::run_initrd_mount_transition(super::MainLoopOneShotAction::Attempt);
     }
 
-    #[test]
+    #[test_case]
     fn linux_compat_transition_helper_is_callable() {
         super::run_linux_compat_transition(super::MainLoopOneShotAction::Attempt);
     }
@@ -609,7 +611,7 @@ mod one_shot_tests {
 
 #[cfg(all(test, feature = "process_abstraction"))]
 mod process_abstraction_tests {
-    #[test]
+    #[test_case]
     fn linked_probe_main_loop_action_matches_gate_state() {
         assert_eq!(
             super::linked_probe_main_loop_action(false, false),
@@ -629,7 +631,7 @@ mod process_abstraction_tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_main_loop_state_preserves_action() {
         assert_eq!(
             super::linked_probe_main_loop_state(true, false).action,
@@ -641,40 +643,40 @@ mod process_abstraction_tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_gate_matches_main_loop_action_service_only_when_open() {
         assert!(super::linked_probe_service_gate(true, false));
         assert!(!super::linked_probe_service_gate(true, true));
         assert!(!super::linked_probe_service_gate(false, false));
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_main_loop_state_round_trips_service_action() {
         let state = super::linked_probe_main_loop_state(true, false);
         assert_eq!(state.action, super::LinkedProbeMainLoopAction::Service);
     }
 
-    #[test]
+    #[test_case]
     fn service_open_helper_is_callable() {
         super::service_open_linked_probe_for_iteration();
     }
 
-    #[test]
+    #[test_case]
     fn service_dispatch_helper_is_callable() {
         super::dispatch_open_linked_probe_service();
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_dispatch_invoke_helper_is_callable() {
         super::invoke_linked_probe_service_dispatch();
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_iteration_service_helper_is_callable() {
         super::run_linked_probe_iteration_service(super::LinkedProbeMainLoopAction::Skip);
     }
 
-    #[test]
+    #[test_case]
     fn linked_probe_service_attempt_dispatch_helper_is_callable() {
         super::dispatch_linked_probe_service_attempt();
     }
@@ -683,7 +685,7 @@ mod process_abstraction_tests {
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "process_abstraction")]
-    #[test]
+    #[test_case]
     fn linked_probe_service_gate_only_runs_when_enabled_and_unverified() {
         assert!(super::linked_probe_service_gate(true, false));
         assert!(!super::linked_probe_service_gate(false, false));

@@ -1,0 +1,18 @@
+{
+  "tasks": [
+    {
+      "name": "p0",
+      "description": "P0 gate",
+      "profile_args": {
+        "strict": true
+      }
+    },
+    {
+      "name": "p1",
+      "description": "P1 nightly",
+      "profile_args": {
+        "strict": false
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::modules::linux_compat::fs::io as fs_io;
 use crate::modules::linux_compat::{linux, linux_errno, linux_fault, linux_inval, Fd, UserPtr};
 
 const LINUX_CLOSE_RANGE_UNSHARE: usize = 1 << 1;
@@ -26,7 +27,7 @@ pub fn sys_linux_close_range(first: usize, last: usize, flags: usize) -> usize {
 
         if (flags & LINUX_CLOSE_RANGE_CLOEXEC) != 0 {
             for fd in open_fds {
-                super::io::linux_fd_set_descriptor_flags(fd, super::io::LINUX_FD_CLOEXEC);
+                fs_io::linux_fd_set_descriptor_flags(fd, fs_io::LINUX_FD_CLOEXEC);
             }
             return 0;
         }
@@ -56,11 +57,11 @@ pub fn sys_linux_pipe2(pipefd_ptr: UserPtr<i32>, flags: usize) -> usize {
         match crate::modules::posix::pipe::pipe2_flags(flags as i32) {
             Ok((rfd, wfd)) => {
                 if (flags & linux::open_flags::O_CLOEXEC) != 0 {
-                    super::io::linux_fd_set_descriptor_flags(rfd, super::io::LINUX_FD_CLOEXEC);
-                    super::io::linux_fd_set_descriptor_flags(wfd, super::io::LINUX_FD_CLOEXEC);
+                    fs_io::linux_fd_set_descriptor_flags(rfd, fs_io::LINUX_FD_CLOEXEC);
+                    fs_io::linux_fd_set_descriptor_flags(wfd, fs_io::LINUX_FD_CLOEXEC);
                 } else {
-                    super::io::linux_fd_clear_descriptor_flags(rfd);
-                    super::io::linux_fd_clear_descriptor_flags(wfd);
+                    fs_io::linux_fd_clear_descriptor_flags(rfd);
+                    fs_io::linux_fd_clear_descriptor_flags(wfd);
                 }
 
                 let fds = [rfd as i32, wfd as i32];
@@ -94,7 +95,7 @@ pub fn sys_linux_close(fd: Fd) -> usize {
     if fd.as_usize() >= linux::PIPE_BASE_FD {
         return match crate::modules::posix::pipe::close(fd.as_u32()) {
             Ok(()) => {
-                super::io::linux_fd_clear_descriptor_flags(fd.as_u32());
+                fs_io::linux_fd_clear_descriptor_flags(fd.as_u32());
                 0
             }
             Err(e) => linux_errno(e as i32),
@@ -105,7 +106,7 @@ pub fn sys_linux_close(fd: Fd) -> usize {
     {
         match crate::modules::posix::fs::close(fd.as_u32()) {
             Ok(()) => {
-                super::io::linux_fd_clear_descriptor_flags(fd.as_u32());
+                fs_io::linux_fd_clear_descriptor_flags(fd.as_u32());
                 0
             }
             Err(e) => linux_errno(e.code()),
@@ -122,7 +123,7 @@ pub fn sys_linux_dup(oldfd: Fd) -> usize {
     crate::require_posix_fs!((oldfd) => {
         match crate::modules::posix::fs::dup(oldfd.as_u32()) {
             Ok(newfd) => {
-                super::io::linux_fd_clear_descriptor_flags(newfd);
+                fs_io::linux_fd_clear_descriptor_flags(newfd);
                 newfd as usize
             }
             Err(e) => linux_errno(e.code()),
@@ -134,7 +135,7 @@ pub fn sys_linux_dup2(oldfd: Fd, newfd: Fd) -> usize {
     crate::require_posix_fs!((oldfd, newfd) => {
         match crate::modules::posix::fs::dup2(oldfd.as_u32(), newfd.as_u32()) {
             Ok(fd) => {
-                super::io::linux_fd_clear_descriptor_flags(fd);
+                fs_io::linux_fd_clear_descriptor_flags(fd);
                 fd as usize
             }
             Err(e) => linux_errno(e.code()),
@@ -154,9 +155,9 @@ pub fn sys_linux_dup3(oldfd: Fd, newfd: Fd, flags: usize) -> usize {
         match crate::modules::posix::fs::dup2(oldfd.as_u32(), newfd.as_u32()) {
             Ok(fd) => {
                 if (flags & linux::open_flags::O_CLOEXEC) != 0 {
-                    super::io::linux_fd_set_descriptor_flags(fd, super::io::LINUX_FD_CLOEXEC);
+                    fs_io::linux_fd_set_descriptor_flags(fd, fs_io::LINUX_FD_CLOEXEC);
                 } else {
-                    super::io::linux_fd_clear_descriptor_flags(fd);
+                    fs_io::linux_fd_clear_descriptor_flags(fd);
                 }
                 fd as usize
             }

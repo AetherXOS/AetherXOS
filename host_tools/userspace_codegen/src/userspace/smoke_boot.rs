@@ -232,8 +232,11 @@ pub fn publish_linked_probe(
             "$probeIso = Join-Path $workspaceRoot 'artifacts\\boot_image\\hypercore-probe.iso'".to_string(),
             "$liveLog = Join-Path $workspaceRoot 'artifacts\\boot_image\\qemu_linked_probe_live.log'".to_string(),
             "$artifactLog = Join-Path $workspaceRoot 'artifacts\\boot_image\\qemu_linked_probe.log'".to_string(),
-            "$buildScript = Join-Path $workspaceRoot 'scripts\\hypercore.ps1'".to_string(),
-            "& powershell -ExecutionPolicy Bypass -File $buildScript -Command build-iso".to_string(),
+            "Push-Location $workspaceRoot".to_string(),
+            "& cargo xtask build iso".to_string(),
+            "$buildExit = $LASTEXITCODE".to_string(),
+            "Pop-Location".to_string(),
+            "if ($buildExit -ne 0) { throw \"cargo xtask build iso failed\" }".to_string(),
             probe_ps1_command,
             String::new(),
         ]

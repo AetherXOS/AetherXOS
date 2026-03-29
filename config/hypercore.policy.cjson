@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "roles": {
+    "viewer": {
+      "max_risk": "low"
+    },
+    "operator": {
+      "max_risk": "high"
+    },
+    "admin": {
+      "max_risk": "critical"
+    }
+  }
+}

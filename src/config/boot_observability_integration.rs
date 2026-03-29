@@ -24,7 +24,7 @@ mod boot_observability_examples {
     ///     serial::write_raw(&msg);
     /// }
     /// ```
-    #[test]
+    #[test_case]
     fn example_ap_bootstrap() {
         // Enable Boot category for this sequence
         KernelConfig::set_observability_category_enabled(ObservabilityCategory::Boot, Some(true));
@@ -44,7 +44,7 @@ mod boot_observability_examples {
     /// Example: Memory initialization with granular category control
     ///
     /// Shows how to control memory observability independently from boot
-    #[test]
+    #[test_case]
     fn example_memory_init() {
         // Enable memory observability explicitly
         KernelConfig::set_observability_category_enabled(ObservabilityCategory::Memory, Some(true));
@@ -64,7 +64,7 @@ mod boot_observability_examples {
     /// Example: Fault handler with priority gating
     ///
     /// Fault observability can be disabled independently to reduce noise
-    #[test]
+    #[test_case]
     fn example_fault_handling() {
         // During normal boot, we might disable fault tracing
         KernelConfig::set_observability_category_enabled(ObservabilityCategory::Fault, Some(false));
@@ -85,7 +85,7 @@ mod boot_observability_examples {
     }
 
     /// Example: Category reset (for testing)
-    #[test]
+    #[test_case]
     fn example_category_reset() {
         use alloc::format;
 
@@ -108,7 +108,7 @@ mod boot_observability_examples {
     }
 
     /// Example: Formatted messages without manual newlines
-    #[test]
+    #[test_case]
     fn example_formatted_messages() {
         // Old way:
         // let msg = format!("[EARLY SERIAL] cpu {} online at {}ms\n", cpu_id, timestamp);
@@ -137,7 +137,7 @@ mod boot_observability_examples {
     ///
     /// When compiled with `debug_observability_boot` feature,
     /// this code path is optimizable, when not compiled, it may be dead code.
-    #[test]
+    #[test_case]
     fn example_feature_gating() {
         // This check is constant at compile-time
         if is_category_enabled_compile_time(ObservabilityCategory::Boot) {
@@ -174,3 +174,4 @@ mod boot_observability_examples {
 //         hal::serial::SERIAL1.write_str(&msg);
 //     }
 // }
+

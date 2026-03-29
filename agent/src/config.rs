@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Loaded from scripts/config/hypercore.defaults.json → .agent section
+/// Loaded from config/hypercore.defaults.cjson → .agent section
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
     #[serde(default = "default_port")]
@@ -86,7 +86,7 @@ pub struct HostConfig {
     pub token: String,
 }
 
-/// Top-level hypercore.defaults.json shape (only the `agent` key matters here)
+/// Top-level hypercore.defaults.cjson shape (only the `agent` key matters here)
 #[derive(Debug, Deserialize)]
 struct HypercoreDefaults {
     #[serde(default)]
@@ -184,7 +184,7 @@ impl Default for AgentConfig {
 
 /// Loads agent config from the given path (or falls back to defaults).
 pub fn load_agent_config(path: Option<&str>) -> AgentConfig {
-    let path = path.unwrap_or("scripts/config/hypercore.defaults.json");
+    let path = path.unwrap_or("config/hypercore.defaults.cjson");
     let content = match std::fs::read_to_string(path) {
         Ok(c) => c,
         Err(e) => {
@@ -216,3 +216,4 @@ pub fn load_agent_config(path: Option<&str>) -> AgentConfig {
         }
     }
 }
+

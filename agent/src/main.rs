@@ -27,7 +27,7 @@ struct Args {
     #[arg(short, long)]
     port: Option<u16>,
 
-    /// Path to hypercore.defaults.json
+    /// Path to hypercore.defaults.cjson
     #[arg(short, long)]
     config: Option<String>,
 
@@ -191,3 +191,4 @@ pub(crate) fn build_rocket(cfg: config::AgentConfig, address: &str) -> rocket::R
 
 #[cfg(test)]
 mod tests;
+

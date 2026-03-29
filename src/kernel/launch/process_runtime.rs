@@ -7,31 +7,61 @@ mod process_runtime_support;
 #[path = "process_runtime_wrappers.rs"]
 mod process_runtime_wrappers;
 #[cfg(feature = "process_abstraction")]
+#[path = "process_runtime_bootstrap_dispatch.rs"]
+mod process_runtime_bootstrap_dispatch;
+#[cfg(feature = "process_abstraction")]
 pub use process_runtime_wrappers::{
     acknowledge_launch_context, launch_context_stage, process_boot_image, process_launch_context,
     terminate_process,
 };
-
+#[cfg(feature = "process_abstraction")]
+pub use process_runtime_bootstrap_dispatch::{
+    clone_process_from_registered_image, spawn_bootstrap_from_aligned_static_image,
+};
 #[cfg(feature = "process_abstraction")]
 use process_runtime_support::{
     build_context, recycle_stale_handoffs, register_process, register_process_with_task_image,
 };
+#[cfg(feature = "process_abstraction")]
+use process_runtime_bootstrap_dispatch::{
+    aligned_static_boot_image_record, record_launch_image_preview,
+};
 #[cfg(feature = "paging_enable")]
 use process_runtime_support::current_cr3_phys;
-
+#[cfg(feature = "process_abstraction")]
+const PROCESS_PREPARE_ERROR_BASE: u64 = 0x100;
+#[cfg(feature = "process_abstraction")]
+const PROCESS_PREPARE_ERROR_PROCESS_BIND_FAILED: u64 = 0x200;
+#[cfg(feature = "process_abstraction")]
+const PROCESS_PREPARE_ERROR_MAPPING_BIND_FAILED: u64 = 0x201;
+#[cfg(feature = "process_abstraction")]
+const PROCESS_PREPARE_ERROR_PAGING_APPLY_FAILED: u64 = 0x202;
+#[cfg(feature = "process_abstraction")]
+const PROCESS_PREPARE_ERROR_SEGMENT_MATERIALIZATION_FAILED: u64 = 0x203;
+#[cfg(feature = "process_abstraction")]
+const PROCESS_LOOKUP_NOT_FOUND: &str = "not found";
+#[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
+const PROCESS_MATERIALIZE_FAILED: &str = "materialize failed";
 #[cfg(feature = "process_abstraction")]
 fn process_prepare_error_code(err: crate::kernel::module_loader::ProcessPrepareError) -> u64 {
     match err {
         crate::kernel::module_loader::ProcessPrepareError::Loader(loader) => {
-            0x100 + loader as u64
+            PROCESS_PREPARE_ERROR_BASE + loader as u64
         }
-        crate::kernel::module_loader::ProcessPrepareError::ProcessBindFailed => 0x200,
-        crate::kernel::module_loader::ProcessPrepareError::MappingBindFailed => 0x201,
-        crate::kernel::module_loader::ProcessPrepareError::PagingApplyFailed => 0x202,
-        crate::kernel::module_loader::ProcessPrepareError::SegmentMaterializationFailed => 0x203,
+        crate::kernel::module_loader::ProcessPrepareError::ProcessBindFailed => {
+            PROCESS_PREPARE_ERROR_PROCESS_BIND_FAILED
+        }
+        crate::kernel::module_loader::ProcessPrepareError::MappingBindFailed => {
+            PROCESS_PREPARE_ERROR_MAPPING_BIND_FAILED
+        }
+        crate::kernel::module_loader::ProcessPrepareError::PagingApplyFailed => {
+            PROCESS_PREPARE_ERROR_PAGING_APPLY_FAILED
+        }
+        crate::kernel::module_loader::ProcessPrepareError::SegmentMaterializationFailed => {
+            PROCESS_PREPARE_ERROR_SEGMENT_MATERIALIZATION_FAILED
+        }
     }
 }
-
 #[cfg(feature = "process_abstraction")]
 #[cfg(feature = "paging_enable")]
 fn preflight_bootstrap_image(
@@ -57,7 +87,6 @@ fn preflight_bootstrap_image(
     }
     Ok(())
 }
-
 #[cfg(feature = "process_abstraction")]
 #[cfg(not(feature = "paging_enable"))]
 fn preflight_bootstrap_image(
@@ -85,7 +114,6 @@ fn preflight_bootstrap_image(
         }
     }
 }
-
 #[cfg(feature = "process_abstraction")]
 #[cfg(not(feature = "paging_enable"))]
 #[inline(always)]
@@ -194,7 +222,7 @@ pub fn process_register_mapping_typed(
     let entry = registry
         .iter()
         .find(|entry| entry.process_id == process_id)
-        .ok_or("not found")?;
+        .ok_or(PROCESS_LOOKUP_NOT_FOUND)?;
     entry
         .process
         .register_mapping(map_id, start, end, prot, flags)
@@ -216,7 +244,7 @@ where
     let entry = registry
         .iter()
         .find(|entry| entry.process_id == process_id)
-        .ok_or("not found")?;
+        .ok_or(PROCESS_LOOKUP_NOT_FOUND)?;
 
     // Delegate to module_loader's helper
     crate::kernel::module_loader::materialize_virtual_mapping_range(
@@ -226,7 +254,7 @@ where
         page_manager,
         frame_allocator,
     )
-    .map_err(|_| "materialize failed")?;
+    .map_err(|_| PROCESS_MATERIALIZE_FAILED)?;
 
     Ok(())
 }
@@ -1164,462 +1192,8 @@ pub fn spawn_bootstrap_from_static_image(
     )
 }
 
-#[cfg(feature = "process_abstraction")]
-#[inline(always)]
-fn record_launch_image_preview(image: &[u8]) {
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap image preview begin\n");
-    if crate::config::KernelConfig::is_advanced_debug_enabled() {
-        crate::kernel::debug_trace::record_bytes_preview("launch.image", "preview", image);
-    }
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap image preview returned\n");
-}
-
-#[cfg(feature = "process_abstraction")]
-#[inline(always)]
-fn aligned_static_boot_image_record(image: &'static [u8]) -> BootImageRecord {
-    BootImageRecord::BorrowedStatic(image)
-}
-
-#[cfg(feature = "process_abstraction")]
-#[inline(always)]
-fn dispatch_bootstrap_image_record(
-    process_name: &[u8],
-    boot_image: BootImageRecord,
-    priority: u8,
-    deadline: u64,
-    burst_time: u64,
-    kernel_stack_top: u64,
-) -> Result<(usize, usize), LaunchError> {
-    let result = invoke_bootstrap_dispatch_call(
-        process_name,
-        boot_image,
-        priority,
-        deadline,
-        burst_time,
-        kernel_stack_top,
-    );
-    result
-}
-
-#[cfg(feature = "process_abstraction")]
-#[inline(always)]
-fn invoke_bootstrap_dispatch_call(
-    process_name: &[u8],
-    boot_image: BootImageRecord,
-    priority: u8,
-    deadline: u64,
-    burst_time: u64,
-    kernel_stack_top: u64,
-) -> Result<(usize, usize), LaunchError> {
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
-        "[EARLY SERIAL] launch bootstrap dispatch call begin\n",
-    );
-    let result = spawn_bootstrap_from_image_record(
-        process_name,
-        boot_image,
-        priority,
-        deadline,
-        burst_time,
-        kernel_stack_top,
-    );
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
-        "[EARLY SERIAL] launch bootstrap dispatch call returned\n",
-    );
-    result
-}
-
-#[cfg(feature = "process_abstraction")]
-#[inline(always)]
-fn invoke_bootstrap_image_record_dispatch(
-    process_name: &[u8],
-    boot_image: BootImageRecord,
-    priority: u8,
-    deadline: u64,
-    burst_time: u64,
-    kernel_stack_top: u64,
-) -> Result<(usize, usize), LaunchError> {
-    dispatch_bootstrap_image_record(
-        process_name,
-        boot_image,
-        priority,
-        deadline,
-        burst_time,
-        kernel_stack_top,
-    )
-}
-
-#[cfg(feature = "process_abstraction")]
-#[inline(always)]
-fn dispatch_aligned_static_bootstrap(
-    process_name: &[u8],
-    image: &'static [u8],
-    priority: u8,
-    deadline: u64,
-    burst_time: u64,
-    kernel_stack_top: u64,
-) -> Result<(usize, usize), LaunchError> {
-    let prepared = prepare_aligned_static_dispatch(image);
-    let result = invoke_aligned_static_dispatch(
-        process_name,
-        prepared.prepared_bootstrap.boot_image,
-        priority,
-        deadline,
-        burst_time,
-        kernel_stack_top,
-    );
-    result
-}
-
-#[cfg(feature = "process_abstraction")]
-#[inline(always)]
-fn invoke_aligned_static_dispatch(
-    process_name: &[u8],
-    boot_image: BootImageRecord,
-    priority: u8,
-    deadline: u64,
-    burst_time: u64,
-    kernel_stack_top: u64,
-) -> Result<(usize, usize), LaunchError> {
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
-        "[EARLY SERIAL] launch aligned static image dispatch begin\n",
-    );
-    crate::kernel::debug_trace::record_optional("launch.bootstrap", "aligned_static_dispatch_call", None, false);
-    let result = invoke_bootstrap_image_record_dispatch(
-        process_name,
-        boot_image,
-        priority,
-        deadline,
-        burst_time,
-        kernel_stack_top,
-    );
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
-        "[EARLY SERIAL] launch aligned static image dispatch returned\n",
-    );
-    result
-}
-
-#[cfg(feature = "process_abstraction")]
-#[inline(always)]
-fn invoke_aligned_static_bootstrap(
-    process_name: &[u8],
-    image: &'static [u8],
-    priority: u8,
-    deadline: u64,
-    burst_time: u64,
-    kernel_stack_top: u64,
-) -> Result<(usize, usize), LaunchError> {
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
-        "[EARLY SERIAL] launch aligned static image invoke begin\n",
-    );
-    crate::kernel::debug_trace::record_optional("launch.bootstrap", "aligned_static_invoke_call", None, false);
-    let result = dispatch_aligned_static_bootstrap(
-        process_name,
-        image,
-        priority,
-        deadline,
-        burst_time,
-        kernel_stack_top,
-    );
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
-        "[EARLY SERIAL] launch aligned static image invoke returned\n",
-    );
-    result
-}
-
-#[cfg(feature = "process_abstraction")]
-pub fn spawn_bootstrap_from_aligned_static_image(
-    process_name: &[u8],
-    image: &'static [u8],
-    priority: u8,
-    deadline: u64,
-    burst_time: u64,
-    kernel_stack_top: u64,
-) -> Result<(usize, usize), LaunchError> {
-    invoke_aligned_static_bootstrap(
-        process_name,
-        image,
-        priority,
-        deadline,
-        burst_time,
-        kernel_stack_top,
-    )
-}
-
-#[cfg(feature = "process_abstraction")]
-pub fn clone_process_from_registered_image(
-    source_process_id: ProcessId,
-    priority: u8,
-    deadline: u64,
-    burst_time: u64,
-    kernel_stack_top: u64,
-) -> Result<(usize, usize), LaunchError> {
-    let (name, image) = {
-        let registry = PROCESS_REGISTRY.lock();
-        let Some(entry) = registry
-            .iter()
-            .find(|entry| entry.process_id == source_process_id)
-        else {
-            return Err(LaunchError::InvalidSpawnRequest);
-        };
-
-        let name_lock = entry.process.name.lock();
-        let mut name_end = name_lock.len();
-        while name_end > 0 && name_lock[name_end - 1] == 0 {
-            name_end -= 1;
-        }
-        let name_bytes = if name_end == 0 {
-            b"forked".to_vec()
-        } else {
-            name_lock[..name_end].to_vec()
-        };
-
-        let image = entry.boot_image.to_vec();
-        if image.is_empty() {
-            return Err(LaunchError::LoaderFailed);
-        }
-        (name_bytes, image)
-    };
-
-    spawn_bootstrap_from_image(
-        &name,
-        &image,
-        priority,
-        deadline,
-        burst_time,
-        kernel_stack_top,
-    )
-}
-
 #[cfg(all(test, feature = "process_abstraction"))]
-mod validation_tests {
-    use super::{
-        aligned_static_boot_image_record, bootstrap_image_slice, bootstrap_launch_decision,
-        bootstrap_launch_request, dispatch_aligned_static_bootstrap, invoke_aligned_static_bootstrap,
-        invoke_aligned_static_dispatch, invoke_bootstrap_dispatch_call, invoke_bootstrap_image_record_dispatch,
-        prepare_aligned_static_bootstrap, prepare_aligned_static_dispatch,
-        prepare_bootstrap_launch_entry,
-        prepare_bootstrap_launch_image, prepare_bootstrap_launch_preflight,
-        validate_bootstrap_request, BootImageRecord,
-        LaunchError,
-    };
+#[path = "process_runtime_validation_tests.rs"]
+mod validation_tests;
 
-    #[test]
-    fn validate_bootstrap_request_rejects_empty_name_or_image() {
-        assert_eq!(
-            validate_bootstrap_request(b"", b"abc", 32, 1024),
-            Err(LaunchError::InvalidSpawnRequest)
-        );
-        assert_eq!(
-            validate_bootstrap_request(b"probe", b"", 32, 1024),
-            Err(LaunchError::InvalidSpawnRequest)
-        );
-    }
-
-    #[test]
-    fn validate_bootstrap_request_rejects_oversized_name_or_image() {
-        assert_eq!(
-            validate_bootstrap_request(&[b'x'; 33], b"abc", 32, 1024),
-            Err(LaunchError::InvalidSpawnRequest)
-        );
-        assert_eq!(
-            validate_bootstrap_request(b"probe", &[7u8; 1025], 32, 1024),
-            Err(LaunchError::InvalidSpawnRequest)
-        );
-    }
-
-    #[test]
-    fn validate_bootstrap_request_accepts_valid_input() {
-        assert_eq!(
-            validate_bootstrap_request(b"probe", b"abc", 32, 1024),
-            Ok(())
-        );
-    }
-
-    #[test]
-    fn aligned_static_boot_image_record_preserves_borrowed_static_slice() {
-        static IMAGE: &[u8] = b"probe-image";
-        let record = aligned_static_boot_image_record(IMAGE);
-        match record {
-            BootImageRecord::BorrowedStatic(bytes) => {
-                assert_eq!(bytes, IMAGE);
-                assert_eq!(bootstrap_image_slice(&BootImageRecord::BorrowedStatic(bytes)), IMAGE);
-            }
-            other => panic!("expected borrowed static image record, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn bootstrap_launch_request_preserves_inputs() {
-        let request = bootstrap_launch_request(
-            b"hyper_init",
-            BootImageRecord::BorrowedStatic(b"probe"),
-            7,
-            11,
-            13,
-            17,
-        );
-        assert_eq!(request.process_name, b"hyper_init");
-        assert_eq!(bootstrap_image_slice(&request.boot_image), b"probe");
-        assert_eq!(request.priority, 7);
-        assert_eq!(request.deadline, 11);
-        assert_eq!(request.burst_time, 13);
-        assert_eq!(request.kernel_stack_top, 17);
-    }
-
-    #[test]
-    fn bootstrap_launch_decision_preserves_runtime_fields() {
-        let request = bootstrap_launch_request(
-            b"hyper_init",
-            BootImageRecord::BorrowedStatic(b"probe"),
-            7,
-            11,
-            13,
-            17,
-        );
-        let decision = bootstrap_launch_decision(&request);
-        assert_eq!(decision.priority, 7);
-        assert_eq!(decision.deadline, 11);
-        assert_eq!(decision.burst_time, 13);
-        assert_eq!(decision.kernel_stack_top, 17);
-    }
-
-    #[test]
-    fn dispatch_aligned_static_bootstrap_rejects_empty_request_before_launch() {
-        static IMAGE: &[u8] = b"";
-        assert_eq!(
-            dispatch_aligned_static_bootstrap(b"", IMAGE, 0, 0, 0, 0),
-            Err(LaunchError::InvalidSpawnRequest)
-        );
-    }
-
-    #[test]
-    fn prepare_aligned_static_bootstrap_preserves_borrowed_image() {
-        static IMAGE: &[u8] = b"probe-image";
-        let prepared = prepare_aligned_static_bootstrap(IMAGE);
-        match prepared.boot_image {
-            BootImageRecord::BorrowedStatic(bytes) => assert_eq!(bytes, IMAGE),
-            other => panic!("expected borrowed static image record, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn prepare_aligned_static_dispatch_preserves_borrowed_image() {
-        static IMAGE: &[u8] = b"probe-image";
-        let prepared = prepare_aligned_static_dispatch(IMAGE);
-        match prepared.prepared_bootstrap.boot_image {
-            BootImageRecord::BorrowedStatic(bytes) => assert_eq!(bytes, IMAGE),
-            other => panic!("expected borrowed static image record, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn invoke_aligned_static_bootstrap_rejects_empty_request_before_launch() {
-        static IMAGE: &[u8] = b"";
-        assert_eq!(
-            invoke_aligned_static_bootstrap(b"", IMAGE, 0, 0, 0, 0),
-            Err(LaunchError::InvalidSpawnRequest)
-        );
-    }
-
-    #[test]
-    fn invoke_aligned_static_bootstrap_preserves_borrowed_static_path_contract() {
-        static IMAGE: &[u8] = b"probe-image";
-        let prepared = prepare_aligned_static_bootstrap(IMAGE);
-        match prepared.boot_image {
-            BootImageRecord::BorrowedStatic(bytes) => {
-                assert_eq!(bytes, IMAGE);
-                assert_eq!(
-                    invoke_aligned_static_bootstrap(b"", bytes, 0, 0, 0, 0),
-                    Err(LaunchError::InvalidSpawnRequest)
-                );
-            }
-            other => panic!("expected borrowed static image record, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn prepare_bootstrap_launch_entry_preserves_request_and_decision() {
-        let (request, decision) = prepare_bootstrap_launch_entry(
-            b"hyper_init",
-            BootImageRecord::BorrowedStatic(b"probe"),
-            7,
-            11,
-            13,
-            17,
-        );
-        assert_eq!(request.process_name, b"hyper_init");
-        assert_eq!(decision.priority, 7);
-        assert_eq!(decision.deadline, 11);
-        assert_eq!(decision.burst_time, 13);
-        assert_eq!(decision.kernel_stack_top, 17);
-    }
-
-    #[test]
-    fn prepare_bootstrap_launch_image_validates_and_preserves_slice() {
-        let record = BootImageRecord::BorrowedStatic(b"probe");
-        let image = prepare_bootstrap_launch_image(b"hyper_init", &record).unwrap();
-        assert_eq!(image, b"probe");
-    }
-
-    #[cfg(not(feature = "paging_enable"))]
-    #[test]
-    fn prepare_bootstrap_launch_preflight_returns_slice_and_snapshot() {
-        let record = BootImageRecord::BorrowedStatic(b"\x7FELF\x02\x01\x01\0probe");
-        let result = prepare_bootstrap_launch_preflight(b"hyper_init", &record);
-        assert!(result.is_err() || result.is_ok());
-    }
-
-    #[test]
-    fn invoke_bootstrap_image_record_dispatch_rejects_empty_request_before_launch() {
-        assert_eq!(
-            invoke_bootstrap_image_record_dispatch(
-                b"",
-                BootImageRecord::BorrowedStatic(b""),
-                0,
-                0,
-                0,
-                0,
-            ),
-            Err(LaunchError::InvalidSpawnRequest)
-        );
-    }
-
-    #[test]
-    fn invoke_bootstrap_dispatch_call_rejects_empty_request_before_launch() {
-        assert_eq!(
-            invoke_bootstrap_dispatch_call(
-                b"",
-                BootImageRecord::BorrowedStatic(b""),
-                0,
-                0,
-                0,
-                0,
-            ),
-            Err(LaunchError::InvalidSpawnRequest)
-        );
-    }
-
-    #[test]
-    fn invoke_aligned_static_dispatch_rejects_empty_request_before_launch() {
-        assert_eq!(
-            invoke_aligned_static_dispatch(
-                b"",
-                BootImageRecord::BorrowedStatic(b""),
-                0,
-                0,
-                0,
-                0,
-            ),
-            Err(LaunchError::InvalidSpawnRequest)
-        );
-    }
-}
 

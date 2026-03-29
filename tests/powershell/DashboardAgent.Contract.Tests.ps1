@@ -1,8 +1,7 @@
 Describe "Dashboard Agent Contract" {
     BeforeAll {
         $script:RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
-        $script:AgentScript = Join-Path $script:RepoRoot "scripts\dashboard_agent.ps1"
-        $script:CfgTemplate = Join-Path $script:RepoRoot "scripts\config\hypercore.defaults.json"
+        $script:CfgTemplate = Join-Path $script:RepoRoot "config\hypercore.defaults.cjson"
         $script:TempCfg = Join-Path $env:TEMP ("hc_agent_contract_{0}.json" -f [guid]::NewGuid().ToString("N"))
         $script:StdOutLog = Join-Path $env:TEMP ("hc_agent_contract_out_{0}.log" -f [guid]::NewGuid().ToString("N"))
         $script:StdErrLog = Join-Path $env:TEMP ("hc_agent_contract_err_{0}.log" -f [guid]::NewGuid().ToString("N"))
@@ -110,13 +109,16 @@ Describe "Dashboard Agent Contract" {
         $cfg | ConvertTo-Json -Depth 20 | Set-Content -Path $script:TempCfg -Encoding UTF8
 
         $args = @(
-            "-ExecutionPolicy", "Bypass",
-            "-File", $script:AgentScript,
-            "-Port", [string]$script:Port,
-            "-ConfigPath", $script:TempCfg,
-            "-NoLock"
+            "--manifest-path",
+            "agent/Cargo.toml",
+            "run",
+            "--",
+            "--port",
+            [string]$script:Port,
+            "--config",
+            $script:TempCfg
         )
-        $script:AgentProcess = Start-Process -FilePath "powershell" -ArgumentList $args -PassThru -WindowStyle Hidden -RedirectStandardOutput $script:StdOutLog -RedirectStandardError $script:StdErrLog
+        $script:AgentProcess = Start-Process -FilePath "cargo" -ArgumentList $args -PassThru -WindowStyle Hidden -WorkingDirectory $script:RepoRoot -RedirectStandardOutput $script:StdOutLog -RedirectStandardError $script:StdErrLog
 
         $healthy = $false
         for ($i = 0; $i -lt 40; $i++) {
@@ -370,3 +372,4 @@ Describe "Dashboard Agent Contract" {
         }
     }
 }
+

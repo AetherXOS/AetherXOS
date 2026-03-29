@@ -1,0 +1,6 @@
+{
+  "name": "sample-plugin",
+  "runtime": "xtask",
+  "capabilities": ["run", "report"],
+  "checksum_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+}

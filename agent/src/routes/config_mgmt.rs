@@ -134,9 +134,9 @@ pub fn config_compose_apply(_role: RequireAdmin) -> Value {
 
 fn load_config_file() -> Value {
     let candidates = [
-        "scripts/config/hypercore.defaults.json",
-        "../scripts/config/hypercore.defaults.json",
-        "../../scripts/config/hypercore.defaults.json",
+        "config/hypercore.defaults.cjson",
+        "../config/hypercore.defaults.cjson",
+        "../../config/hypercore.defaults.cjson",
     ];
     for p in &candidates {
         if let Ok(raw) = std::fs::read_to_string(p) {
@@ -147,3 +147,4 @@ fn load_config_file() -> Value {
     }
     json!({})
 }
+

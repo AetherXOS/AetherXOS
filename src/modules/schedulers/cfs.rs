@@ -609,7 +609,7 @@ mod tests {
         )))
     }
 
-    #[test]
+    #[test_case]
     fn singleton_pick_next_returns_only_task_and_updates_schedstats() {
         let mut sched = CFS::new();
         sched.init();
@@ -626,7 +626,7 @@ mod tests {
         assert_eq!(stat.last_run_tick, 7);
     }
 
-    #[test]
+    #[test_case]
     fn singleton_pick_next_survives_missing_root_group_bootstrap_state() {
         let mut sched = CFS::new();
         let task = make_task(7, 100);
@@ -636,3 +636,4 @@ mod tests {
         assert_eq!(sched.runqueue_len(), 1);
     }
 }
+

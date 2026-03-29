@@ -44,15 +44,16 @@ pub(super) fn el2_supported() -> bool {
 
 #[cfg(test)]
 mod tests {
-    #[test]
+    #[test_case]
     fn el2_field_decodes_reserved_absence() {
         let no_el2 = 0xF_u64 << 8;
         assert_eq!(((no_el2 >> 8) & 0xF) != 0xF, false);
     }
 
-    #[test]
+    #[test_case]
     fn el2_field_decodes_present_values() {
         let present = 0x1_u64 << 8;
         assert!(((present >> 8) & 0xF) != 0xF);
     }
 }
+

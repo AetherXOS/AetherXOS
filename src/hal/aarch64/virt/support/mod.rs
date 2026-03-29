@@ -26,14 +26,14 @@ pub(super) fn lifecycle_reason(code: u8) -> &'static str {
 mod tests {
     use super::{blocker_reason, lifecycle_reason};
 
-    #[test]
+    #[test_case]
     fn blocker_strings_are_stable() {
         assert_eq!(blocker_reason(0), "None");
         assert_eq!(blocker_reason(1), "EL2 Not Supported");
         assert_eq!(blocker_reason(2), "EL2 Not Active");
     }
 
-    #[test]
+    #[test_case]
     fn lifecycle_strings_are_stable() {
         assert_eq!(lifecycle_reason(0), "uninitialized");
         assert_eq!(lifecycle_reason(1), "prepared");
@@ -42,3 +42,4 @@ mod tests {
         assert_eq!(lifecycle_reason(4), "failed");
     }
 }
+

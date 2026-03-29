@@ -5,7 +5,7 @@ use super::*;
 pub struct BlockWritebackSink {
     /// Block device interface (raw sector I/O).
     /// Uses interior mutability since writeback can happen from any context.
-    device: Mutex<Box<dyn BlockDeviceAdapter>>,
+    pub(crate) device: Mutex<Box<dyn BlockDeviceAdapter>>,
     /// Inode->block map: (ino, logical_block) -> physical_block.
     block_map: Mutex<BTreeMap<(u64, u64), u64>>,
     /// Simple bitmap allocator: tracks which blocks are free.
@@ -84,7 +84,7 @@ impl BlockWritebackSink {
     }
 
     /// Get or allocate the physical block for an (ino, logical_block) pair.
-    fn ensure_block(&self, ino: u64, logical_block: u64) -> Result<u64, &'static str> {
+    pub(crate) fn ensure_block(&self, ino: u64, logical_block: u64) -> Result<u64, &'static str> {
         let mut map = self.block_map.lock();
         if let Some(&phys) = map.get(&(ino, logical_block)) {
             return Ok(phys);

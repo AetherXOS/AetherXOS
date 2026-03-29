@@ -21,7 +21,7 @@ fn make_test_so_image() -> alloc::vec::Vec<u8> {
     img
 }
 
-#[test]
+#[test_case]
 fn test_dlopen_dlsym_integration() {
     let _ = vfs_control::mount_ramfs(b"/lib").expect("mount ramfs");
     let img = make_test_so_image();
@@ -35,7 +35,7 @@ fn test_dlopen_dlsym_integration() {
     assert!(!sym_ptr.is_null());
 }
 
-#[test]
+#[test_case]
 fn test_dlsym_supports_global_and_object_handles() {
     let _ = vfs_control::mount_ramfs(b"/lib").expect("mount ramfs");
     let img = make_test_so_image();
@@ -59,7 +59,7 @@ fn test_dlsym_supports_global_and_object_handles() {
     assert_eq!(dlclose(object_handle), 0);
 }
 
-#[test]
+#[test_case]
 fn test_dlclose_tracks_pending_fini_reports() {
     let _ = vfs_control::mount_ramfs(b"/lib").expect("mount ramfs");
     let img = make_test_so_image();
@@ -74,13 +74,13 @@ fn test_dlclose_tracks_pending_fini_reports() {
     let _ = drain_pending_shared_object_fini_reports();
 }
 
-#[test]
+#[test_case]
 fn test_dlopen_noload_rejects_absent_object() {
     let handle = dlopen(b"/lib/libmissing.so\0".as_ptr(), 0x4);
     assert!(handle.is_null());
 }
 
-#[test]
+#[test_case]
 fn test_dlopen_noload_global_promotes_existing_object() {
     let _ = vfs_control::mount_ramfs(b"/lib").expect("mount ramfs");
     let img = make_test_so_image();
@@ -102,7 +102,7 @@ fn test_dlopen_noload_global_promotes_existing_object() {
     assert_eq!(dlclose(local_handle), 0);
 }
 
-#[test]
+#[test_case]
 fn test_loader_object_versioned_lookup_prefers_matching_version() {
     let mut loader = SharedObjectLoader::new();
     loader.loaded.push(crate::kernel::so_loader::SharedObject {
@@ -147,7 +147,7 @@ fn test_loader_object_versioned_lookup_prefers_matching_version() {
     assert_eq!(fallback.addr, 0x1111);
 }
 
-#[test]
+#[test_case]
 fn test_loader_nodelete_preserves_object_on_unload() {
     let mut loader = SharedObjectLoader::new();
     loader.loaded.push(crate::kernel::so_loader::SharedObject {
@@ -170,3 +170,4 @@ fn test_loader_nodelete_preserves_object_on_unload() {
     assert!(!report.unloaded);
     assert!(loader.is_loaded("libnodelete.so"));
 }
+

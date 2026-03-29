@@ -48,7 +48,7 @@ pub fn library_backend_inventory() -> Vec<LibraryBackendDescriptor> {
             name: "Ext4Library",
             feature: "vfs_ext4",
             target_support: "feature-gated",
-            maturity: "read-only adapter",
+            maturity: "overlay-writeback adapter",
         });
     }
 

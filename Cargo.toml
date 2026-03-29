@@ -393,6 +393,10 @@ posix_deep_tests = [
     "posix_net",
 ]
 
+# --- Testing  & Debugging ---
+kernel_test_mode = []          # Run kernel tests during boot (when compiled for testing)
+debug_test_output = []         # Enable verbose test output
+
 # --- Subsystems ---
 drivers = []
 vfs = ["vfs_ramfs"]                # Virtual File System abstraction
@@ -461,3 +465,11 @@ panic = "abort"
 panic = "abort"
 lto = true
 codegen-units = 1
+
+[workspace]
+resolver = "2"
+members = [
+    ".",
+    "xtask",
+    "agent",
+]

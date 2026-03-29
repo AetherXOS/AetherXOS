@@ -332,7 +332,7 @@ pub fn _print(args: fmt::Arguments) {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn trace_ring_records_recent_events_in_order() {
         record_trace_event("trace.test", "alpha", None, false);
         record_trace_event("trace.test", "beta", Some(0x44), false);
@@ -349,7 +349,7 @@ mod tests {
         assert_eq!(last.value, 0x44);
     }
 
-    #[test]
+    #[test_case]
     fn trace_ring_truncates_long_scope_and_stage_names() {
         record_trace_event(
             "trace.scope.name.is.longer.than.limit",
@@ -364,3 +364,4 @@ mod tests {
         assert_eq!(recent[0].stage_len as usize, TRACE_TEXT_LIMIT);
     }
 }
+

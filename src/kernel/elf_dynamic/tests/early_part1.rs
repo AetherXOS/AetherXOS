@@ -1,7 +1,7 @@
 use super::*;
 use crate::kernel::symbol::{Symbol, SymbolTable};
 
-#[test]
+#[test_case]
 fn test_copy_relocation_image() {
     // Create image with source data at offset 0x100 and target at 0x200
     let mut image = vec![0u8; 0x400];
@@ -47,7 +47,7 @@ fn test_copy_relocation_image() {
     );
 }
 
-#[test]
+#[test_case]
 fn test_plt32_image_writes_rel32() {
     // Build a small image buffer and run process_relocations on it
     let mut image = vec![0u8; 0x3000];
@@ -93,7 +93,7 @@ fn test_plt32_image_writes_rel32() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_gotpcrelx_image_writes_rel32() {
     let mut image = vec![0u8; 0x6000];
     let base: u64 = 0;
@@ -136,7 +136,7 @@ fn test_gotpcrelx_image_writes_rel32() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_irelative_inplace_writes_base_plus_addend() {
     // In-place relocation should write B + A when symbol not present
     let mut mem = vec![0u8; 0x300];
@@ -185,7 +185,7 @@ fn test_irelative_inplace_writes_base_plus_addend() {
     assert_eq!(written, base.wrapping_add(addend));
 }
 
-#[test]
+#[test_case]
 fn test_plt32_inplace_writes_rel32() {
     // Prepare memory: symbol at 0x2000, place at 0x1000
     let mut mem = vec![0u8; 0x3000];
@@ -251,7 +251,7 @@ fn test_plt32_inplace_writes_rel32() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_gotpcrel_inplace_writes_rel32() {
     // GOTPCREL: place at 0x3000, sym at 0x4000, addend 4
     let mut mem = vec![0u8; 0x5000];
@@ -315,7 +315,7 @@ fn test_gotpcrel_inplace_writes_rel32() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_gotpcrelx_inplace_writes_rel32() {
     // GOTPCRELX variant: behave like GOTPCREL for best-effort.
     let mut mem = vec![0u8; 0x5000];
@@ -379,7 +379,7 @@ fn test_gotpcrelx_inplace_writes_rel32() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_gotpcrelx_image_signed_wrap() {
     // Make a value that overflows signed 32-bit when computing S + A - P
     let mut image = vec![0u8; 0x200];
@@ -424,7 +424,7 @@ fn test_gotpcrelx_image_signed_wrap() {
     assert_eq!(written, expected);
 }
 
-#[test]
+#[test_case]
 fn test_gotpcrelx_inplace_signed_wrap() {
     let mut mem = vec![0u8; 0x200];
     let base: u64 = 0;
@@ -481,4 +481,5 @@ fn test_gotpcrelx_inplace_signed_wrap() {
     let expected = ((sym_addr as i64 + addend as i64) - place_vaddr as i64) as i32;
     assert_eq!(written, expected);
 }
+
 
