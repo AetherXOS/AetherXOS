@@ -1,0 +1,28 @@
+[script.unix]
+fast = "scripts/test_fast.sh"
+integration = "scripts/test_integration.sh"
+nightly = "scripts/test_nightly.sh"
+
+[report]
+store = "tests/reports/nextest"
+
+[test-groups]
+fast = { max-threads = 8 }
+integration = { max-threads = 4 }
+nightly = { max-threads = 2 }
+
+[profile.default]
+slow-timeout = { period = "60s", terminate-after = 3, grace-period = "30s" }
+leak-timeout = "120s"
+
+[profile.ci]
+fail-fast = false
+retries = { backoff = "exponential", count = 2, delay = "5s", jitter = true }
+slow-timeout = { period = "120s", terminate-after = 5, grace-period = "60s" }
+
+[profile.ci.junit]
+path = "tests/reports/nextest/junit.xml"
+
+[profile.dev]
+fail-fast = true
+retries = 0

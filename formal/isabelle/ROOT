@@ -1,0 +1,3 @@
+session HyperCore_Config = HOL +
+  theories
+    Kernel_Config
