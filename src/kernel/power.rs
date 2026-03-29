@@ -22,18 +22,32 @@ const ACPI_PROFILE_DISABLED: u8 = 0;
 const ACPI_PROFILE_ENABLED: u8 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum CState {
-    C1,
-    C2,
-    C3,
+    C1 = 0,
+    C2 = 1,
+    C3 = 2,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum PState {
+    HighPerf = 0,
+    Balanced = 1,
+    PowerSave = 2,
+}
+
+impl_enum_u8_default_conversions!(CState {
+    C1,
+    C2,
+    C3,
+}, default = C1);
+
+impl_enum_u8_default_conversions!(PState {
     HighPerf,
     Balanced,
     PowerSave,
-}
+}, default = Balanced);
 
 #[derive(Debug, Clone, Copy)]
 pub struct PowerStats {
@@ -76,31 +90,10 @@ static RUNQUEUE_CLAMP_EVENTS: AtomicU64 = AtomicU64::new(0);
 static FAILSAFE_IDLE_FALLBACKS: AtomicU64 = AtomicU64::new(0);
 static OVERRIDE_REJECTS_NO_ACPI: AtomicU64 = AtomicU64::new(0);
 
-fn pstate_from_u8(v: u8) -> PState {
-    match v {
-        0 => PState::HighPerf,
-        1 => PState::Balanced,
-        2 => PState::PowerSave,
-        _ => PState::Balanced,
-    }
-}
-
-fn pstate_to_u8(v: PState) -> u8 {
-    match v {
-        PState::HighPerf => 0,
-        PState::Balanced => 1,
-        PState::PowerSave => 2,
-    }
-}
-
 fn choose_cstate(runqueue_len: usize) -> CState {
     let override_raw = CSTATE_OVERRIDE.load(Ordering::Relaxed);
     if override_raw <= MAX_OVERRIDE_INDEX {
-        return match override_raw {
-            0 => CState::C1,
-            1 => CState::C2,
-            _ => CState::C3,
-        };
+        return CState::from_u8(override_raw);
     }
 
     let acpi_loaded = ACPI_PROFILE_LOADED.load(Ordering::Relaxed) == ACPI_PROFILE_ENABLED;
@@ -133,7 +126,7 @@ fn choose_cstate(runqueue_len: usize) -> CState {
 fn choose_pstate(runqueue_len: usize) -> PState {
     let override_raw = PSTATE_OVERRIDE.load(Ordering::Relaxed);
     if override_raw <= MAX_OVERRIDE_INDEX {
-        return pstate_from_u8(override_raw);
+        return PState::from_u8(override_raw);
     }
 
     if ACPI_PROFILE_LOADED.load(Ordering::Relaxed) == ACPI_PROFILE_DISABLED {
@@ -183,7 +176,7 @@ pub fn set_pstate_override_guarded(pstate: PState) -> bool {
         return false;
     }
     PSTATE_OVERRIDE_SET_CALLS.fetch_add(1, Ordering::Relaxed);
-    PSTATE_OVERRIDE.store(pstate_to_u8(pstate), Ordering::Relaxed);
+    PSTATE_OVERRIDE.store(pstate.to_u8(), Ordering::Relaxed);
     true
 }
 
@@ -199,7 +192,7 @@ pub fn clear_pstate_override() {
 pub fn pstate_override() -> Option<PState> {
     let raw = PSTATE_OVERRIDE.load(Ordering::Relaxed);
     if raw <= MAX_OVERRIDE_INDEX {
-        Some(pstate_from_u8(raw))
+        Some(PState::from_u8(raw))
     } else {
         None
     }
@@ -213,12 +206,7 @@ pub fn set_cstate_override_guarded(cstate: CState) -> bool {
         return false;
     }
     CSTATE_OVERRIDE_SET_CALLS.fetch_add(1, Ordering::Relaxed);
-    let value = match cstate {
-        CState::C1 => 0,
-        CState::C2 => 1,
-        CState::C3 => 2,
-    };
-    CSTATE_OVERRIDE.store(value, Ordering::Relaxed);
+    CSTATE_OVERRIDE.store(cstate.to_u8(), Ordering::Relaxed);
     true
 }
 
@@ -233,11 +221,10 @@ pub fn clear_cstate_override() {
 
 pub fn cstate_override() -> Option<CState> {
     let raw = CSTATE_OVERRIDE.load(Ordering::Relaxed);
-    match raw {
-        0 => Some(CState::C1),
-        1 => Some(CState::C2),
-        2 => Some(CState::C3),
-        _ => None,
+    if raw <= MAX_OVERRIDE_INDEX {
+        Some(CState::from_u8(raw))
+    } else {
+        None
     }
 }
 
@@ -269,7 +256,7 @@ pub fn on_idle(runqueue_len: usize) -> CState {
     }
 
     let next_pstate = choose_pstate(runqueue_len);
-    let next = pstate_to_u8(next_pstate);
+    let next = next_pstate.to_u8();
     let prev = CURRENT_PSTATE.swap(next, Ordering::Relaxed);
     if prev != next {
         PSTATE_SWITCHES.fetch_add(1, Ordering::Relaxed);
@@ -351,7 +338,7 @@ pub fn stats() -> PowerStats {
         c2_entries: C2_ENTRIES.load(Ordering::Relaxed),
         c3_entries: C3_ENTRIES.load(Ordering::Relaxed),
         pstate_switches: PSTATE_SWITCHES.load(Ordering::Relaxed),
-        current_pstate: pstate_from_u8(CURRENT_PSTATE.load(Ordering::Relaxed)),
+        current_pstate: PState::from_u8(CURRENT_PSTATE.load(Ordering::Relaxed)),
         policy_override_active: pstate_override().is_some(),
         policy_override_set_calls: PSTATE_OVERRIDE_SET_CALLS.load(Ordering::Relaxed),
         policy_override_clear_calls: PSTATE_OVERRIDE_CLEAR_CALLS.load(Ordering::Relaxed),

@@ -1,6 +1,29 @@
 use super::util::arg5_to_zero;
 use super::*;
 
+#[cfg(not(feature = "linux_compat"))]
+fn linux_unknown_syscall_errno(syscall_id: usize) -> usize {
+    // Privileged kernel-control syscalls should look permission-gated rather than missing.
+    let errno = match syscall_id {
+        linux_nr::PTRACE
+        | linux_nr::MOUNT
+        | linux_nr::UMOUNT2
+        | linux_nr::SWAPON
+        | linux_nr::SWAPOFF
+        | linux_nr::REBOOT
+        | linux_nr::INIT_MODULE
+        | linux_nr::DELETE_MODULE
+        | linux_nr::KEXEC_LOAD
+        | linux_nr::FINIT_MODULE
+        | linux_nr::KEXEC_FILE_LOAD
+        | linux_nr::MOVE_MOUNT
+        | linux_nr::FSMOUNT
+        | linux_nr::MOUNT_SETATTR => crate::modules::posix_consts::errno::EPERM,
+        _ => crate::modules::posix_consts::errno::ENOSYS,
+    };
+    linux_errno(errno)
+}
+
 pub(super) fn sys_linux_shim(
     syscall_id: usize,
     arg1: usize,
@@ -85,6 +108,7 @@ pub(super) fn sys_linux_shim(
         #[cfg(not(feature = "linux_compat"))]
         linux_nr::RECVMSG => Some(net::sys_linux_recvmsg(arg1, arg2, arg3)),
         linux_nr::CLONE => Some(process::sys_linux_clone(arg1, arg2, arg3, arg4, arg5, arg6)),
+        linux_nr::CLONE3 => Some(process::sys_linux_clone3(arg1, arg2)),
         linux_nr::FORK | linux_nr::VFORK => Some(process::sys_linux_fork()),
         linux_nr::EXECVE => Some(process::sys_linux_execve(arg1, arg2, arg3)),
         linux_nr::EXECVEAT => Some(process::sys_linux_execveat(arg1 as isize, arg2, arg3, arg4, arg5)),
@@ -240,6 +264,32 @@ pub(super) fn sys_linux_shim(
         linux_nr::MEMBARRIER => Some(super::linux_misc::sys_linux_membarrier(arg1, arg2, arg3)),
         linux_nr::GETRANDOM => Some(super::linux_misc::sys_linux_getrandom(arg1, arg2, arg3)),
         linux_nr::RSEQ => Some(super::linux_misc::sys_linux_rseq(arg1, arg2, arg3, arg4)),
+        linux_nr::BPF => Some(super::linux_misc::sys_linux_bpf(arg1, arg2, arg3)),
+        linux_nr::IO_URING_SETUP => Some(super::linux_misc::sys_linux_io_uring_setup(arg1, arg2)),
+        linux_nr::IO_URING_ENTER => Some(super::linux_misc::sys_linux_io_uring_enter(
+            arg1, arg2, arg3, arg4, arg5, arg6,
+        )),
+        linux_nr::IO_URING_REGISTER => Some(super::linux_misc::sys_linux_io_uring_register(
+            arg1, arg2, arg3, arg4,
+        )),
+        linux_nr::LANDLOCK_CREATE_RULESET => Some(
+            super::linux_misc::sys_linux_landlock_create_ruleset(arg1, arg2, arg3),
+        ),
+        linux_nr::LANDLOCK_ADD_RULE => Some(super::linux_misc::sys_linux_landlock_add_rule(
+            arg1, arg2, arg3, arg4,
+        )),
+        linux_nr::LANDLOCK_RESTRICT_SELF => Some(
+            super::linux_misc::sys_linux_landlock_restrict_self(arg1, arg2),
+        ),
+        linux_nr::FANOTIFY_INIT => Some(super::linux_misc::sys_linux_fanotify_init(arg1, arg2)),
+        linux_nr::FANOTIFY_MARK => Some(super::linux_misc::sys_linux_fanotify_mark(
+            arg1,
+            arg2,
+            arg3,
+            arg4 as isize,
+            arg5,
+        )),
+        linux_nr::FUTEX_WAITV => Some(super::linux_misc::sys_linux_futex_waitv(arg1, arg2, arg3, arg4)),
         linux_nr::CLOSE_RANGE => Some(fd_process_identity::sys_linux_close_range(arg1, arg2, arg3)),
         linux_nr::PIDFD_OPEN => Some(fd_process_identity::sys_linux_pidfd_open(arg1, arg2)),
         linux_nr::PIDFD_GETFD => Some(fd_process_identity::sys_linux_pidfd_getfd(arg1, arg2, arg3)),
@@ -250,7 +300,7 @@ pub(super) fn sys_linux_shim(
         linux_nr::EPOLL_PWAIT2 => Some(net::sys_linux_epoll_pwait2(
             arg1, arg2, arg3, arg4, arg5, arg6,
         )),
-        _ => Some(linux_errno(crate::modules::posix_consts::errno::ENOSYS)),
+        _ => Some(linux_unknown_syscall_errno(syscall_id)),
     }
 }
 
@@ -304,5 +354,31 @@ fn dispatch_socket_syscalls(
         )),
         linux_nr::SOCKETPAIR => Some(net::sys_linux_socketpair(arg1, arg2, arg3, arg4)),
         _ => None,
+    }
+}
+
+#[cfg(all(test, not(feature = "linux_compat")))]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn unknown_syscall_policy_uses_eperm_for_privileged_numbers() {
+        assert_eq!(
+            linux_unknown_syscall_errno(linux_nr::REBOOT),
+            linux_errno(crate::modules::posix_consts::errno::EPERM)
+        );
+        assert_eq!(
+            linux_unknown_syscall_errno(linux_nr::KEXEC_LOAD),
+            linux_errno(crate::modules::posix_consts::errno::EPERM)
+        );
+    }
+
+    #[test_case]
+    fn unknown_syscall_policy_keeps_enosys_for_truly_unknown_numbers() {
+        let unknown_nr = linux_nr::PIDFD_GETFD + 10_000;
+        assert_eq!(
+            linux_unknown_syscall_errno(unknown_nr),
+            linux_errno(crate::modules::posix_consts::errno::ENOSYS)
+        );
     }
 }

@@ -94,6 +94,9 @@ const LINUX_AT_FDCWD: isize = -100;
 const LINUX_O_CREAT: usize = 0o100;
 #[cfg(not(feature = "linux_compat"))]
 #[allow(dead_code)]
+const LINUX_O_EXCL: usize = 0o200;
+#[cfg(not(feature = "linux_compat"))]
+#[allow(dead_code)]
 const LINUX_O_TRUNC: usize = 0o1000;
 #[cfg(not(feature = "linux_compat"))]
 #[allow(dead_code)]

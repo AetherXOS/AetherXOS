@@ -22,6 +22,22 @@ pub enum StartupStage {
     MainLoopEntered,
 }
 
+impl_enum_u8_default_conversions!(StartupStage {
+    BootStart,
+    BootInfoCollected,
+    HeapInit,
+    HalEarlyInit,
+    PlatformServicesInit,
+    IrqHandlersRegistered,
+    PciEnumerated,
+    IommuAttached,
+    DriversInit,
+    SmpInit,
+    IdtReady,
+    InterruptsEnabled,
+    MainLoopEntered,
+}, default = BootStart);
+
 #[derive(Debug, Clone, Copy)]
 pub struct StartupDiagnostics {
     pub transitions: u64,
@@ -35,15 +51,15 @@ static STARTUP_LAST_STAGE: AtomicU64 = AtomicU64::new(0);
 
 #[inline(always)]
 fn stage_to_u64(stage: StartupStage) -> u64 {
-    stage as u8 as u64
+    stage.to_u8() as u64
 }
 
 #[inline(always)]
 fn stage_from_u64(raw: u64) -> StartupStage {
-    if raw > StartupStage::MainLoopEntered as u64 {
+    if raw > u64::from(u8::MAX) {
         return StartupStage::BootStart;
     }
-    unsafe { core::mem::transmute(raw as u8) }
+    StartupStage::from_u8(raw as u8)
 }
 
 pub fn mark_stage(stage: StartupStage) {
@@ -98,6 +114,13 @@ pub enum ServiceState {
     Failed = 3,
 }
 
+impl_enum_u8_default_conversions!(ServiceState {
+    Stopped,
+    Starting,
+    Running,
+    Failed,
+}, default = Failed);
+
 /// A handle to a running kernel service.
 pub struct ServiceHandle {
     pub service: InitService,
@@ -112,27 +135,22 @@ impl ServiceHandle {
             service,
             task_id,
             name,
-            state: AtomicU8::new(ServiceState::Running as u8),
+            state: AtomicU8::new(ServiceState::Running.to_u8()),
         }
     }
 
     pub fn state(&self) -> ServiceState {
-        match self.state.load(Ordering::Relaxed) {
-            0 => ServiceState::Stopped,
-            1 => ServiceState::Starting,
-            2 => ServiceState::Running,
-            _ => ServiceState::Failed,
-        }
+        ServiceState::from_u8(self.state.load(Ordering::Relaxed))
     }
 
     pub fn mark_failed(&self) {
         self.state
-            .store(ServiceState::Failed as u8, Ordering::Relaxed);
+            .store(ServiceState::Failed.to_u8(), Ordering::Relaxed);
     }
 
     pub fn mark_stopped(&self) {
         self.state
-            .store(ServiceState::Stopped as u8, Ordering::Relaxed);
+            .store(ServiceState::Stopped.to_u8(), Ordering::Relaxed);
     }
 }
 

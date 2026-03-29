@@ -134,7 +134,7 @@ impl Process {
             exec_generation: AtomicU64::new(0),
             mapped_regions: AtomicUsize::new(0),
             mapped_pages: AtomicUsize::new(0),
-            lifecycle_state: AtomicU8::new(ProcessLifecycleState::Created as u8),
+            lifecycle_state: AtomicU8::new(ProcessLifecycleState::Created.to_u8()),
             exit_status: AtomicI32::new(0),
             exec_path: IrqSafeMutex::new(String::new()),
             tls_template: IrqSafeMutex::new(Vec::new()),
@@ -460,21 +460,21 @@ impl Process {
     #[inline(always)]
     pub fn mark_runnable(&self) {
         self.lifecycle_state
-            .store(ProcessLifecycleState::Runnable as u8, Ordering::Relaxed);
+            .store(ProcessLifecycleState::Runnable.to_u8(), Ordering::Relaxed);
         self.exit_status.store(0, Ordering::Relaxed);
     }
 
     #[inline(always)]
     pub fn mark_running(&self) {
         self.lifecycle_state
-            .store(ProcessLifecycleState::Running as u8, Ordering::Relaxed);
+            .store(ProcessLifecycleState::Running.to_u8(), Ordering::Relaxed);
     }
 
     #[inline(always)]
     pub fn mark_exited(&self, status: i32) {
         self.exit_status.store(status, Ordering::Relaxed);
         self.lifecycle_state
-            .store(ProcessLifecycleState::Exited as u8, Ordering::Relaxed);
+            .store(ProcessLifecycleState::Exited.to_u8(), Ordering::Relaxed);
     }
 
     pub fn create_bootstrap_task_from_image(

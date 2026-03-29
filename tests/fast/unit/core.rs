@@ -1,4 +1,7 @@
 use crate::harness::{TestResult, TestCategory};
+use alloc::{vec, vec::Vec};
+use core::mem::drop;
+use core::ops::Fn;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 pub fn all_tests() -> Vec<&'static dyn Fn() -> TestResult> {

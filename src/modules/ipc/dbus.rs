@@ -12,6 +12,8 @@ static DBUS_PUBLISH_CALLS: AtomicU64 = AtomicU64::new(0);
 static DBUS_CONSUME_CALLS: AtomicU64 = AtomicU64::new(0);
 static DBUS_PUBLISH_DROPS: AtomicU64 = AtomicU64::new(0);
 static DBUS_CONSUME_HITS: AtomicU64 = AtomicU64::new(0);
+static DBUS_SERVICE_REGISTRATIONS: AtomicU64 = AtomicU64::new(0);
+static DBUS_SERVICE_HEARTBEATS: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Copy)]
 pub struct DbusStats {
@@ -21,6 +23,36 @@ pub struct DbusStats {
     pub publish_drops: u64,
     pub consume_hits: u64,
     pub topics: usize,
+    pub session_services: usize,
+    pub service_registrations: u64,
+    pub service_heartbeats: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SessionServiceState {
+    Starting = 0,
+    Ready = 1,
+    Degraded = 2,
+}
+
+crate::impl_enum_u8_default_conversions!(SessionServiceState { Starting, Ready, Degraded }, default = Starting);
+
+#[derive(Debug, Clone)]
+struct SessionServiceEntry {
+    state: SessionServiceState,
+    auto_restart: bool,
+    restart_count: u32,
+    last_heartbeat_tick: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionServiceSnapshot {
+    pub name: String,
+    pub state: SessionServiceState,
+    pub auto_restart: bool,
+    pub restart_count: u32,
+    pub last_heartbeat_tick: u64,
 }
 
 use crate::interfaces::task::TaskId;
@@ -30,6 +62,71 @@ lazy_static! {
         Mutex::new(BTreeMap::new());
     static ref DBUS_SUBSCRIBERS: Mutex<BTreeMap<String, Vec<TaskId>>> = Mutex::new(BTreeMap::new());
     static ref DBUS_WAITERS: Mutex<BTreeMap<String, WaitQueue>> = Mutex::new(BTreeMap::new());
+    static ref DBUS_SESSION_SERVICES: Mutex<BTreeMap<String, SessionServiceEntry>> =
+        Mutex::new(BTreeMap::new());
+}
+
+pub fn register_session_service(name: &str, auto_restart: bool) -> Result<(), &'static str> {
+    if name.is_empty() {
+        return Err("service name empty");
+    }
+
+    let mut services = DBUS_SESSION_SERVICES.lock();
+    if services.contains_key(name) {
+        return Err("service already registered");
+    }
+
+    services.insert(
+        name.into(),
+        SessionServiceEntry {
+            state: SessionServiceState::Starting,
+            auto_restart,
+            restart_count: 0,
+            last_heartbeat_tick: 0,
+        },
+    );
+    DBUS_SERVICE_REGISTRATIONS.fetch_add(1, Ordering::Relaxed);
+    Ok(())
+}
+
+pub fn mark_session_service_ready(name: &str) -> Result<(), &'static str> {
+    let mut services = DBUS_SESSION_SERVICES.lock();
+    let service = services.get_mut(name).ok_or("service not found")?;
+    service.state = SessionServiceState::Ready;
+    Ok(())
+}
+
+pub fn heartbeat_session_service(name: &str, tick: u64) -> Result<(), &'static str> {
+    let mut services = DBUS_SESSION_SERVICES.lock();
+    let service = services.get_mut(name).ok_or("service not found")?;
+    service.last_heartbeat_tick = tick;
+    DBUS_SERVICE_HEARTBEATS.fetch_add(1, Ordering::Relaxed);
+    Ok(())
+}
+
+pub fn mark_session_service_degraded(name: &str) -> Result<(), &'static str> {
+    let mut services = DBUS_SESSION_SERVICES.lock();
+    let service = services.get_mut(name).ok_or("service not found")?;
+    service.state = SessionServiceState::Degraded;
+    if service.auto_restart {
+        service.restart_count = service.restart_count.saturating_add(1);
+        service.state = SessionServiceState::Starting;
+    }
+    Ok(())
+}
+
+pub fn list_session_services() -> Vec<SessionServiceSnapshot> {
+    let services = DBUS_SESSION_SERVICES.lock();
+    services
+        .iter()
+        .map(|(name, svc)| SessionServiceSnapshot {
+            name: name.clone(),
+            state: svc.state,
+            auto_restart: svc.auto_restart,
+            restart_count: svc.restart_count,
+            last_heartbeat_tick: svc.last_heartbeat_tick,
+        })
+        .collect()
 }
 
 pub fn dbus_subscribe(topic: &str) -> Result<(), &'static str> {
@@ -124,5 +221,11 @@ pub fn dbus_stats() -> DbusStats {
         publish_drops: DBUS_PUBLISH_DROPS.load(Ordering::Relaxed),
         consume_hits: DBUS_CONSUME_HITS.load(Ordering::Relaxed),
         topics: DBUS_QUEUES.lock().len(),
+        session_services: DBUS_SESSION_SERVICES.lock().len(),
+        service_registrations: DBUS_SERVICE_REGISTRATIONS.load(Ordering::Relaxed),
+        service_heartbeats: DBUS_SERVICE_HEARTBEATS.load(Ordering::Relaxed),
     }
 }
+
+#[cfg(test)]
+mod tests;

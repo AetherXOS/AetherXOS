@@ -208,3 +208,7 @@ pub(super) fn sys_linux_utimensat(
 pub(super) fn sys_linux_futimesat(dirfd: usize, pathname_ptr: usize, times_ptr: usize) -> usize {
     meta::sys_linux_futimesat(dirfd, pathname_ptr, times_ptr)
 }
+
+#[cfg(all(test, not(feature = "linux_compat")))]
+#[path = "integration_tests.rs"]
+mod integration_tests;

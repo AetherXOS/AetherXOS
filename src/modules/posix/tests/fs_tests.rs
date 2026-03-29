@@ -68,6 +68,9 @@
         fs::symlink(fs_id, "/ext_file.txt", "/sym.txt").expect("symlink");
         let target = fs::readlink(fs_id, "/sym.txt").expect("readlink");
         assert_eq!(target, "/ext_file.txt");
+        let sym_lstat = fs::lstat(fs_id, "/sym.txt").expect("lstat symlink");
+        assert!(sym_lstat.is_symlink);
+        assert_eq!(sym_lstat.size, "/ext_file.txt".len() as u64);
         fs::utimensat(fs_id, "/ext_file.txt").expect("utimensat");
 
         let map_id = fs::mmap(fs_id, "/ext_file.txt", 0, 3, true).expect("mmap");

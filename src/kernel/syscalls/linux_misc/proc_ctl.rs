@@ -1,5 +1,39 @@
 #[cfg(not(feature = "linux_compat"))]
 use super::{linux_errno, with_user_read_bytes, with_user_write_bytes};
+#[cfg(not(feature = "linux_compat"))]
+use alloc::collections::BTreeMap;
+#[cfg(not(feature = "linux_compat"))]
+use lazy_static::lazy_static;
+
+#[cfg(not(feature = "linux_compat"))]
+lazy_static! {
+    static ref SECCOMP_MODE_BY_TID: crate::kernel::sync::IrqSafeMutex<BTreeMap<usize, u8>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeMap::new());
+    static ref NO_NEW_PRIVS_BY_TID: crate::kernel::sync::IrqSafeMutex<BTreeMap<usize, bool>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeMap::new());
+}
+
+#[cfg(not(feature = "linux_compat"))]
+fn current_tid() -> usize {
+    let cpu = unsafe { crate::kernel::cpu_local::CpuLocal::get() };
+    cpu.current_task.load(core::sync::atomic::Ordering::Relaxed)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn seccomp_mode_for_tid(tid: usize) -> u8 {
+    SECCOMP_MODE_BY_TID.lock().get(&tid).copied().unwrap_or(0)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn no_new_privs_for_tid(tid: usize) -> bool {
+    NO_NEW_PRIVS_BY_TID.lock().get(&tid).copied().unwrap_or(false)
+}
+
+#[cfg(all(test, not(feature = "linux_compat")))]
+pub(super) fn set_prctl_state_for_tid_for_test(tid: usize, seccomp_mode: u8, no_new_privs: bool) {
+    SECCOMP_MODE_BY_TID.lock().insert(tid, seccomp_mode);
+    NO_NEW_PRIVS_BY_TID.lock().insert(tid, no_new_privs);
+}
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_prctl(
@@ -44,8 +78,7 @@ pub(super) fn sys_linux_prctl(
                 .unwrap_or(name_bytes.len());
             let new_name = alloc::string::String::from_utf8_lossy(&name_bytes[..nul]).into_owned();
 
-            let cpu = unsafe { crate::kernel::cpu_local::CpuLocal::get() };
-            let tid = cpu.current_task.load(core::sync::atomic::Ordering::Relaxed);
+            let tid = current_tid();
             if let Some(task) = crate::kernel::task::get_task(crate::interfaces::task::TaskId(tid))
             {
                 task.lock().name = new_name;
@@ -58,8 +91,7 @@ pub(super) fn sys_linux_prctl(
             if arg2 == 0 {
                 return linux_errno(crate::modules::posix_consts::errno::EINVAL);
             }
-            let cpu = unsafe { crate::kernel::cpu_local::CpuLocal::get() };
-            let tid = cpu.current_task.load(core::sync::atomic::Ordering::Relaxed);
+            let tid = current_tid();
             let task_name = crate::kernel::task::get_task(crate::interfaces::task::TaskId(tid))
                 .map(|t| t.lock().name.clone())
                 .unwrap_or_else(|| alloc::string::String::from("task"));
@@ -92,16 +124,30 @@ pub(super) fn sys_linux_prctl(
         PR_SET_DUMPABLE => 0,
         PR_GET_KEEPCAPS => 1,
         PR_SET_KEEPCAPS => 0,
-        PR_GET_SECCOMP => 0,
+        PR_GET_SECCOMP => seccomp_mode_for_tid(current_tid()) as usize,
         PR_SET_SECCOMP => match arg2 {
-            0 | 1 => 0,
-            2 => 0,
+            0 | 1 | 2 => {
+                SECCOMP_MODE_BY_TID.lock().insert(current_tid(), arg2 as u8);
+                0
+            }
             _ => linux_errno(crate::modules::posix_consts::errno::EINVAL),
         },
         PR_CAPBSET_READ => 0,
         PR_CAPBSET_DROP => 0,
-        PR_SET_NO_NEW_PRIVS => 0,
-        PR_GET_NO_NEW_PRIVS => 0,
+        PR_SET_NO_NEW_PRIVS => {
+            if arg2 != 1 {
+                return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+            }
+            NO_NEW_PRIVS_BY_TID.lock().insert(current_tid(), true);
+            0
+        }
+        PR_GET_NO_NEW_PRIVS => {
+            if no_new_privs_for_tid(current_tid()) {
+                1
+            } else {
+                0
+            }
+        }
         _ => linux_errno(crate::modules::posix_consts::errno::EINVAL),
     }
 }
@@ -255,5 +301,25 @@ mod tests {
             sys_linux_sched_setparam(0, 0x1),
             linux_errno(crate::modules::posix_consts::errno::EFAULT)
         );
+    }
+
+    #[test_case]
+    fn prctl_set_get_seccomp_roundtrip() {
+        assert_eq!(sys_linux_prctl(22, 2, 0, 0, 0), 0);
+        assert_eq!(sys_linux_prctl(21, 0, 0, 0, 0), 2);
+    }
+
+    #[test_case]
+    fn prctl_no_new_privs_requires_one() {
+        assert_eq!(
+            sys_linux_prctl(38, 0, 0, 0, 0),
+            linux_errno(crate::modules::posix_consts::errno::EINVAL)
+        );
+    }
+
+    #[test_case]
+    fn prctl_set_get_no_new_privs_roundtrip() {
+        assert_eq!(sys_linux_prctl(38, 1, 0, 0, 0), 0);
+        assert_eq!(sys_linux_prctl(39, 0, 0, 0, 0), 1);
     }
 }

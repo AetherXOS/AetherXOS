@@ -179,8 +179,23 @@ pub(super) fn generate_filesystems() -> String {
     result
 }
 
+const PROC_SELF_STATUS_FDSIZE: usize = 256;
+const PROC_SELF_STATUS_VM_PEAK_KB: usize = 4096;
+const PROC_SELF_STATUS_VM_SIZE_KB: usize = 4096;
+const PROC_SELF_STATUS_VMRSS_KB: usize = 2048;
+const PROC_SELF_STATUS_VMDATA_KB: usize = 1024;
+const PROC_SELF_STATUS_VMSTK_KB: usize = 256;
+const PROC_SELF_STATUS_VMEXE_KB: usize = 512;
+const PROC_SELF_STATUS_VMLIB_KB: usize = 1024;
+
 pub(super) fn generate_self_status(tid: TaskId) -> String {
     let pid = tid.0;
+    let seccomp_mode = crate::kernel::syscalls::linux_seccomp_mode_for_tid(pid as usize);
+    let no_new_privs = if crate::kernel::syscalls::linux_no_new_privs_for_tid(pid as usize) {
+        1
+    } else {
+        0
+    };
     let mut result = String::new();
     result.push_str(&format!("Name:\thypercore\n"));
     result.push_str(&format!("Umask:\t0022\n"));
@@ -192,15 +207,15 @@ pub(super) fn generate_self_status(tid: TaskId) -> String {
     result.push_str(&format!("TracerPid:\t0\n"));
     result.push_str(&format!("Uid:\t0\t0\t0\t0\n"));
     result.push_str(&format!("Gid:\t0\t0\t0\t0\n"));
-    result.push_str(&format!("FDSize:\t256\n"));
+    result.push_str(&format!("FDSize:\t{}\n", PROC_SELF_STATUS_FDSIZE));
     result.push_str(&format!("Groups:\t0\n"));
-    result.push_str(&format!("VmPeak:\t    4096 kB\n"));
-    result.push_str(&format!("VmSize:\t    4096 kB\n"));
-    result.push_str(&format!("VmRSS:\t    2048 kB\n"));
-    result.push_str(&format!("VmData:\t    1024 kB\n"));
-    result.push_str(&format!("VmStk:\t     256 kB\n"));
-    result.push_str(&format!("VmExe:\t     512 kB\n"));
-    result.push_str(&format!("VmLib:\t    1024 kB\n"));
+    result.push_str(&format!("VmPeak:\t    {} kB\n", PROC_SELF_STATUS_VM_PEAK_KB));
+    result.push_str(&format!("VmSize:\t    {} kB\n", PROC_SELF_STATUS_VM_SIZE_KB));
+    result.push_str(&format!("VmRSS:\t    {} kB\n", PROC_SELF_STATUS_VMRSS_KB));
+    result.push_str(&format!("VmData:\t    {} kB\n", PROC_SELF_STATUS_VMDATA_KB));
+    result.push_str(&format!("VmStk:\t     {} kB\n", PROC_SELF_STATUS_VMSTK_KB));
+    result.push_str(&format!("VmExe:\t     {} kB\n", PROC_SELF_STATUS_VMEXE_KB));
+    result.push_str(&format!("VmLib:\t    {} kB\n", PROC_SELF_STATUS_VMLIB_KB));
     result.push_str(&format!("Threads:\t1\n"));
     result.push_str(&format!("SigQ:\t0/31439\n"));
     result.push_str(&format!("SigPnd:\t0000000000000000\n"));
@@ -213,7 +228,8 @@ pub(super) fn generate_self_status(tid: TaskId) -> String {
     result.push_str(&format!("CapEff:\t000001ffffffffff\n"));
     result.push_str(&format!("CapBnd:\t000001ffffffffff\n"));
     result.push_str(&format!("CapAmb:\t0000000000000000\n"));
-    result.push_str(&format!("Seccomp:\t0\n"));
+    result.push_str(&format!("NoNewPrivs:\t{}\n", no_new_privs));
+    result.push_str(&format!("Seccomp:\t{}\n", seccomp_mode));
     result.push_str(&format!("voluntary_ctxt_switches:\t0\n"));
     result.push_str(&format!("nonvoluntary_ctxt_switches:\t0\n"));
     result
@@ -240,4 +256,40 @@ pub(super) fn generate_self_stat(tid: TaskId) -> String {
 
 pub(super) fn generate_cmdline() -> String {
     String::from("hypercore\0")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn line_value<'a>(status: &'a str, key: &str) -> Option<&'a str> {
+        status
+            .lines()
+            .find_map(|line| line.strip_prefix(key))
+            .map(str::trim)
+    }
+
+    #[test_case]
+    fn self_status_includes_security_contract_fields() {
+        let tid = TaskId(1);
+        let status = generate_self_status(tid);
+        assert!(status.contains("NoNewPrivs:\t"));
+        assert!(status.contains("Seccomp:\t"));
+    }
+
+    #[cfg(not(feature = "linux_compat"))]
+    #[test_case]
+    fn self_status_reflects_seccomp_and_no_new_privs_transitions() {
+        let tid = TaskId(4242);
+
+        crate::kernel::syscalls::linux_set_prctl_state_for_tid_for_test(tid.0 as usize, 0, false);
+        let baseline = generate_self_status(tid);
+        assert_eq!(line_value(&baseline, "NoNewPrivs:\t"), Some("0"));
+        assert_eq!(line_value(&baseline, "Seccomp:\t"), Some("0"));
+
+        crate::kernel::syscalls::linux_set_prctl_state_for_tid_for_test(tid.0 as usize, 2, true);
+        let hardened = generate_self_status(tid);
+        assert_eq!(line_value(&hardened, "NoNewPrivs:\t"), Some("1"));
+        assert_eq!(line_value(&hardened, "Seccomp:\t"), Some("2"));
+    }
 }

@@ -1,7 +1,13 @@
-use super::*;
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_time"))]
+use crate::kernel::syscalls::linux_shim::util::read_user_pod;
+#[cfg(not(feature = "linux_compat"))]
+use crate::kernel::syscalls::linux_shim::util::write_user_pod;
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_time"))]
+use crate::kernel::syscalls::with_user_write_bytes;
 
 #[repr(C)]
 #[cfg(not(feature = "linux_compat"))]
+#[derive(Clone, Copy, Default)]
 #[allow(dead_code)]
 struct LinuxTimespec {
     tv_sec: i64,
@@ -17,36 +23,24 @@ pub(crate) fn sys_linux_clock_gettime(clock_id: usize, ts_ptr: usize) -> usize {
             Err(err) => return linux_errno(err.code()),
         };
 
-        with_user_write_bytes(ts_ptr, core::mem::size_of::<LinuxTimespec>(), |dst| {
-            let src = LinuxTimespec {
-                tv_sec: spec.sec,
-                tv_nsec: spec.nsec as i64,
-            };
-            let src_ptr = &src as *const LinuxTimespec as *const u8;
-            let src_bytes = unsafe {
-                core::slice::from_raw_parts(src_ptr, core::mem::size_of::<LinuxTimespec>())
-            };
-            dst.copy_from_slice(src_bytes);
-            0
-        })
-        .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+        let src = LinuxTimespec {
+            tv_sec: spec.sec,
+            tv_nsec: spec.nsec as i64,
+        };
+        write_user_pod(ts_ptr, &src)
+            .map(|_| 0usize)
+            .unwrap_or_else(|err| err)
     }
     #[cfg(not(feature = "posix_time"))]
     {
         let _ = clock_id;
-        with_user_write_bytes(ts_ptr, core::mem::size_of::<LinuxTimespec>(), |dst| {
-            let src = LinuxTimespec {
-                tv_sec: 0,
-                tv_nsec: 0,
-            };
-            let src_ptr = &src as *const LinuxTimespec as *const u8;
-            let src_bytes = unsafe {
-                core::slice::from_raw_parts(src_ptr, core::mem::size_of::<LinuxTimespec>())
-            };
-            dst.copy_from_slice(src_bytes);
-            0
-        })
-        .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+        let src = LinuxTimespec {
+            tv_sec: 0,
+            tv_nsec: 0,
+        };
+        write_user_pod(ts_ptr, &src)
+            .map(|_| 0usize)
+            .unwrap_or_else(|err| err)
     }
 }
 
@@ -59,22 +53,9 @@ pub(crate) fn sys_linux_clock_nanosleep(
 ) -> usize {
     #[cfg(feature = "posix_time")]
     {
-        let req = with_user_read_bytes(req_ptr, core::mem::size_of::<LinuxTimespec>(), |src| {
-            let mut tmp = LinuxTimespec {
-                tv_sec: 0,
-                tv_nsec: 0,
-            };
-            let dst_ptr = &mut tmp as *mut LinuxTimespec as *mut u8;
-            let dst_bytes = unsafe {
-                core::slice::from_raw_parts_mut(dst_ptr, core::mem::size_of::<LinuxTimespec>())
-            };
-            dst_bytes.copy_from_slice(src);
-            tmp
-        });
-
-        let req = match req {
+        let req = match read_user_pod::<LinuxTimespec>(req_ptr) {
             Ok(v) => v,
-            Err(_) => return linux_errno(crate::modules::posix_consts::errno::EFAULT),
+            Err(err) => return err,
         };
 
         let req_ts = crate::modules::posix::time::PosixTimespec {
@@ -121,6 +102,7 @@ pub(crate) fn sys_linux_clock_nanosleep(
 #[cfg(all(test, not(feature = "linux_compat")))]
 mod tests {
     use super::*;
+    use crate::kernel::syscalls::linux_errno;
 
     #[test_case]
     fn clock_nanosleep_invalid_ptr_behavior() {

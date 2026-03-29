@@ -69,8 +69,9 @@ pub use io_support::{
 
 pub use metadata_support::{
     access, chmod, chown, closedir, fchmod, fchown, fstat, futimens, futimes, link, lstat,
-    mkdir, opendir, poll, readlink, readdir, rename, rmdir, scandir, stat, statfs, symlink,
-    truncate, ftruncate, utimensat, utimes, PosixFsStats,
+    mkdir, opendir, path_contains_symlink_component, path_has_magiclink_component, poll,
+    readlink, readdir, rename, rmdir, scandir, stat, statfs, symlink, truncate, ftruncate,
+    utimensat, utimes, PosixFsStats,
 };
 pub use allocation_support::{
     fallocate, fd_fs_context, fd_path, posix_fallocate, posix_fallocate_range, syncfs,

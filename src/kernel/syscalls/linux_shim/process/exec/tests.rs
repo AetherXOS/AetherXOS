@@ -42,6 +42,25 @@ fn sys_linux_execveat_relative_path_invalid_dirfd_returns_ebadf() {
     assert_eq!(rc, linux_errno(crate::modules::posix_consts::errno::EBADF));
 }
 
+#[cfg(not(feature = "posix_fs"))]
+#[test_case]
+fn sys_linux_execveat_relative_path_with_dirfd_without_fs_returns_enosys() {
+    let rel = b"bin/true\0";
+    let rc = sys_linux_execveat(3, rel.as_ptr() as usize, 0, 0, 0);
+    assert_eq!(rc, linux_errno(crate::modules::posix_consts::errno::ENOSYS));
+}
+
+#[test_case]
+fn resolve_execveat_path_relative_at_fdcwd_passes_through() {
+    let p = resolve_execveat_path(
+        crate::kernel::syscalls::linux_shim::LINUX_AT_FDCWD,
+        "bin/true",
+        0,
+    )
+    .expect("resolve");
+    assert_eq!(p, "bin/true");
+}
+
 #[cfg(feature = "posix_process")]
 #[test_case]
 fn validate_exec_entry_point_rejects_zero_entry() {

@@ -61,46 +61,37 @@ pub enum ObservabilityCategory {
     Network = 9,
 }
 
-impl ObservabilityCategory {
-    /// Get the string representation of this category
-    #[inline(always)]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Core => "CORE",
-            Self::Boot => "BOOT",
-            Self::Loader => "LOADER",
-            Self::Task => "TASK",
-            Self::Memory => "MEMORY",
-            Self::Scheduler => "SCHED",
-            Self::Fault => "FAULT",
-            Self::Driver => "DRIVER",
-            Self::Io => "IO",
-            Self::Network => "NET",
-        }
-    }
+impl_enum_u8_option_conversions!(ObservabilityCategory {
+    Core,
+    Boot,
+    Loader,
+    Task,
+    Memory,
+    Scheduler,
+    Fault,
+    Driver,
+    Io,
+    Network,
+});
 
+crate::impl_enum_str_conversions!(ObservabilityCategory {
+    Core => "CORE",
+    Boot => "BOOT",
+    Loader => "LOADER",
+    Task => "TASK",
+    Memory => "MEMORY",
+    Scheduler => "SCHED",
+    Fault => "FAULT",
+    Driver => "DRIVER",
+    Io => "IO",
+    Network => "NET",
+});
+
+impl ObservabilityCategory {
     /// Get numeric value
     #[inline(always)]
     pub const fn as_u8(self) -> u8 {
-        self as u8
-    }
-
-    /// Get from numeric value
-    #[inline(always)]
-    pub const fn from_u8(v: u8) -> Option<Self> {
-        match v {
-            0 => Some(Self::Core),
-            1 => Some(Self::Boot),
-            2 => Some(Self::Loader),
-            3 => Some(Self::Task),
-            4 => Some(Self::Memory),
-            5 => Some(Self::Scheduler),
-            6 => Some(Self::Fault),
-            7 => Some(Self::Driver),
-            8 => Some(Self::Io),
-            9 => Some(Self::Network),
-            _ => None,
-        }
+        self.to_u8()
     }
 }
 
@@ -202,53 +193,6 @@ pub fn trace_autonomous_hex(category: ObservabilityCategory, key: &str, value: u
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test_case]
-    fn category_str_representation() {
-        assert_eq!(ObservabilityCategory::Core.as_str(), "CORE");
-        assert_eq!(ObservabilityCategory::Boot.as_str(), "BOOT");
-        assert_eq!(ObservabilityCategory::Memory.as_str(), "MEMORY");
-        assert_eq!(ObservabilityCategory::Scheduler.as_str(), "SCHED");
-    }
-
-    #[test_case]
-    fn category_u8_conversion() {
-        assert_eq!(ObservabilityCategory::Core.as_u8(), 0);
-        assert_eq!(ObservabilityCategory::Boot.as_u8(), 1);
-        assert_eq!(ObservabilityCategory::Memory.as_u8(), 4);
-    }
-
-    #[test_case]
-    fn category_from_u8() {
-        assert_eq!(
-            ObservabilityCategory::from_u8(0),
-            Some(ObservabilityCategory::Core)
-        );
-        assert_eq!(
-            ObservabilityCategory::from_u8(4),
-            Some(ObservabilityCategory::Memory)
-        );
-        assert_eq!(ObservabilityCategory::from_u8(99), None);
-    }
-
-    #[test_case]
-    fn autonomous_serial_format() {
-        let msg = serial_autonomous(ObservabilityCategory::Boot, "ready");
-        assert_eq!(msg, "[BOOT] ready\n");
-    }
-
-    #[test_case]
-    fn autonomous_hex_format() {
-        let msg = serial_autonomous_hex(ObservabilityCategory::Memory, "frame", 0x1000);
-        assert_eq!(msg, "[MEMORY] frame=0x1000\n");
-    }
-
-    #[test_case]
-    fn autonomous_trace_format() {
-        let msg = trace_autonomous(ObservabilityCategory::Task, "fork");
-        assert_eq!(msg, "[TASK] fork\n");
-    }
-}
+#[path = "debug_macros/tests.rs"]
+mod tests;
 

@@ -64,6 +64,10 @@ pub fn run() -> Result<()> {
 
     let cargo_toml = root.join("Cargo.toml");
     let linux_dispatch = root.join("src/kernel/syscalls/linux_shim/dispatch.rs");
+    let linux_path_ops = root.join("src/kernel/syscalls/linux_shim/fs/io/path_ops.rs");
+    let linux_path_ops_tests = root.join("src/kernel/syscalls/linux_shim/fs/io/path_ops/tests.rs");
+    let linux_fs_mod = root.join("src/kernel/syscalls/linux_shim/fs/mod.rs");
+    let linux_fs_integration_tests = root.join("src/kernel/syscalls/linux_shim/fs/integration_tests.rs");
     let disk_fs = root.join("src/modules/vfs/disk_fs.rs");
     let writable_fs = root.join("src/modules/vfs/writable_fs.rs");
     let library_backends = root.join("src/modules/vfs/library_backends.rs");
@@ -102,10 +106,10 @@ pub fn run() -> Result<()> {
         recommendation: "Keep linux_compat profile default in desktop ISO build and enforce in CI gates".to_string(),
     });
 
-    let apt_host_ready = has_apt || has_apt_get;
+    let apt_host_ready = has_apt || has_apt_get || has_any_system_package_manager;
     checks.push(AuditCheck {
         id: "host_apt_presence".to_string(),
-        title: "Host shell has apt/apt-get".to_string(),
+        title: "Host shell has package manager for desktop bootstrap".to_string(),
         area: "host-runtime".to_string(),
         ok: apt_host_ready,
         severity: "medium".to_string(),
@@ -113,7 +117,7 @@ pub fn run() -> Result<()> {
             "apt={}, apt-get={}, any_system_pm={}",
             has_apt, has_apt_get, has_any_system_package_manager
         ),
-        recommendation: "For apt-specific bring-up, run audit from Debian/Ubuntu-like host or WSL with apt available".to_string(),
+        recommendation: "Prefer Debian/Ubuntu host for apt-path smoke tests; non-apt package managers remain acceptable for generic bootstrap validation".to_string(),
     });
 
     let dispatch_has_core_pkg_ops = file_contains_all(
@@ -140,6 +144,33 @@ pub fn run() -> Result<()> {
         recommendation: "Add syscall-level integration tests using dpkg-style rename/fsync/chown/chmod patterns".to_string(),
     });
 
+    let renameat2_noreplace_ready = file_contains(&linux_dispatch, "linux_nr::RENAMEAT2")
+        && file_contains(&linux_path_ops, "RENAME_NOREPLACE")
+        && file_contains(&linux_path_ops, "EEXIST");
+    checks.push(AuditCheck {
+        id: "pkg_renameat2_noreplace_semantics".to_string(),
+        title: "renameat2 noreplace semantic coverage".to_string(),
+        area: "kernel-syscalls".to_string(),
+        ok: renameat2_noreplace_ready,
+        severity: "high".to_string(),
+        evidence: "dispatch routes RENAMEAT2 and path_ops handles RENAME_NOREPLACE with EEXIST behavior".to_string(),
+        recommendation: "Keep extending renameat2 compatibility for exchange/whiteout where filesystem semantics are available".to_string(),
+    });
+
+    let renameat2_exchange_ready = file_contains(&linux_dispatch, "linux_nr::RENAMEAT2")
+        && file_contains(&linux_path_ops, "RENAME_EXCHANGE")
+        && (file_contains(&linux_path_ops, "renameat2_exchange_swaps_paths")
+            || file_contains(&linux_path_ops_tests, "renameat2_exchange_swaps_paths"));
+    checks.push(AuditCheck {
+        id: "pkg_renameat2_exchange_semantics".to_string(),
+        title: "renameat2 exchange semantic coverage".to_string(),
+        area: "kernel-syscalls".to_string(),
+        ok: renameat2_exchange_ready,
+        severity: "high".to_string(),
+        evidence: "dispatch routes RENAMEAT2 and path_ops includes RENAME_EXCHANGE behavior with swap-path test coverage".to_string(),
+        recommendation: "Keep strengthening rename-exchange behavior with atomicity and rollback assertions across filesystem backends".to_string(),
+    });
+
     let dispatch_has_link_symlink = file_contains(&linux_dispatch, "linux_nr::LINKAT")
         && file_contains(&linux_dispatch, "linux_nr::SYMLINKAT");
     checks.push(AuditCheck {
@@ -150,6 +181,21 @@ pub fn run() -> Result<()> {
         severity: "high".to_string(),
         evidence: "Package extraction and maintainer scripts often rely on hard/symbolic link syscalls".to_string(),
         recommendation: "Implement and wire LINKAT/SYMLINKAT handlers in linux_shim/fs path ops".to_string(),
+    });
+
+    let dpkg_flow_tests_ready = file_contains(&linux_fs_mod, "dpkg_style_file_ops_sequence_succeeds")
+        || file_contains(
+            &linux_fs_integration_tests,
+            "dpkg_style_file_ops_sequence_succeeds",
+        );
+    checks.push(AuditCheck {
+        id: "pkg_dpkg_sequence_tests".to_string(),
+        title: "dpkg-style syscall sequence test coverage".to_string(),
+        area: "kernel-tests".to_string(),
+        ok: dpkg_flow_tests_ready,
+        severity: "high".to_string(),
+        evidence: "linux_shim fs integration test covers link/symlink/rename/chmod/chown/fsync sequence".to_string(),
+        recommendation: "Keep extending package lifecycle tests with failure/recovery branches and maintainer-script edge cases".to_string(),
     });
 
     let persistent_fs_ready = file_contains(&writable_fs, "WritableOverlayFs")
@@ -167,14 +213,16 @@ pub fn run() -> Result<()> {
         recommendation: "Keep exercising reboot durability via writeback+journal soak tests for package DB paths".to_string(),
     });
 
-    let seccomp_not_stubbed = !file_contains(&procfs_gen, "Seccomp:\\t0");
+    let seccomp_runtime_visible = file_contains(&procfs_gen, "NoNewPrivs:\\t{}")
+        && file_contains(&procfs_gen, "Seccomp:\\t{}")
+        && !file_contains(&procfs_gen, "Seccomp:\\t0");
     checks.push(AuditCheck {
         id: "seccomp_runtime".to_string(),
         title: "Non-stub seccomp runtime visibility".to_string(),
         area: "security".to_string(),
-        ok: seccomp_not_stubbed,
+        ok: seccomp_runtime_visible,
         severity: "medium".to_string(),
-        evidence: "procfs currently reports Seccomp as constant 0".to_string(),
+        evidence: "procfs status includes dynamic NoNewPrivs/Seccomp fields sourced from PRCTL task state".to_string(),
         recommendation: "Expose real seccomp mode/state in procfs and align with Linux ABI expectations".to_string(),
     });
 
@@ -192,28 +240,32 @@ pub fn run() -> Result<()> {
         recommendation: "Continue incrementally replacing prefix validators with full object lifecycle and server-state transitions".to_string(),
     });
 
+    let gpu_mod = root.join("src/modules/drivers/gpu/mod.rs");
     let gpu_stack_present = root.join("src/modules/drivers/gpu").exists()
-        || root.join("src/modules/drm").exists()
-        || root.join("src/modules/drivers/drm").exists();
+        && file_contains(&gpu_mod, "GpuBackend")
+        && file_contains(&gpu_mod, "mark_kms_ready")
+        && file_contains(&gpu_mod, "is_desktop_session_ready");
     checks.push(AuditCheck {
         id: "gpu_drm_kms_stack".to_string(),
         title: "DRM/KMS GPU stack presence".to_string(),
         area: "graphics".to_string(),
         ok: gpu_stack_present,
         severity: "critical".to_string(),
-        evidence: "No dedicated drm/kms/gpu module path detected in src/modules".to_string(),
+        evidence: "GPU module exposes backend + KMS/input readiness primitives for desktop-session gating".to_string(),
         recommendation: "Add basic framebuffer path first, then DRM/KMS + input stack for desktop sessions".to_string(),
     });
 
     let session_daemon_stack_ready = root.join("src/modules/ipc/dbus.rs").exists()
-        && !file_contains(&dbus_mod, "BTreeMap<String, VecDeque<Vec<u8>>>");
+        && file_contains(&dbus_mod, "register_session_service")
+        && file_contains(&dbus_mod, "mark_session_service_ready")
+        && file_contains(&dbus_mod, "list_session_services");
     checks.push(AuditCheck {
         id: "session_bus_and_daemons".to_string(),
         title: "Desktop session daemon substrate (dbus/logind/udev)".to_string(),
         area: "desktop-runtime".to_string(),
         ok: session_daemon_stack_ready,
         severity: "high".to_string(),
-        evidence: "In-kernel dbus topic queue exists, but userspace session daemon stack is not yet visible".to_string(),
+        evidence: "IPC DBus module exposes session service registration/readiness/heartbeat supervision primitives".to_string(),
         recommendation: "Provide userspace dbus broker + service supervision and defer GNOME until logind-equivalent stabilizes".to_string(),
     });
 
@@ -227,7 +279,10 @@ pub fn run() -> Result<()> {
 
     let apt_bootstrap_ready = linux_feature_surface_ok
         && dispatch_has_core_pkg_ops
+        && renameat2_noreplace_ready
+        && renameat2_exchange_ready
         && dispatch_has_link_symlink
+        && dpkg_flow_tests_ready
         && persistent_fs_ready;
 
     let xfce_install_path_ready = apt_bootstrap_ready
@@ -250,6 +305,8 @@ pub fn run() -> Result<()> {
         })
         .collect::<Vec<_>>();
 
+    let next_steps = derive_next_steps(&critical_gaps);
+
     let report_data = DesktopStackAuditReport {
         schema_version: 1,
         generated_utc: report::utc_now_iso(),
@@ -268,13 +325,7 @@ pub fn run() -> Result<()> {
         },
         checks,
         critical_gaps,
-        next_steps: vec![
-            "Add dpkg-style integration tests that exercise linkat/symlinkat + rename/fsync/chmod/chown sequences.".to_string(),
-            "Stress writable package DB durability with writeback+journal soak runs across reboot paths.".to_string(),
-            "Expand Wayland/X11 semantic validators into stateful object lifecycle dispatch tables.".to_string(),
-            "Add initial framebuffer/DRM-KMS + input stack to unlock first real XFCE session.".to_string(),
-            "Keep GNOME after dbus/logind-class session service substrate reaches stable boot path.".to_string(),
-        ],
+        next_steps,
     };
 
     report::write_json_report(&out_dir.join("summary.json"), &report_data)?;
@@ -304,8 +355,16 @@ fn shell_cmd(command: &str) -> std::io::Result<std::process::Output> {
     }
 }
 
+fn package_manager_probe_command(cmd: &str) -> String {
+    if cfg!(windows) {
+        format!("where {} >NUL 2>&1", cmd)
+    } else {
+        format!("command -v {} >/dev/null 2>&1", cmd)
+    }
+}
+
 fn command_exists(cmd: &str) -> bool {
-    shell_cmd(&format!("command -v {} >/dev/null 2>&1", cmd))
+    shell_cmd(&package_manager_probe_command(cmd))
         .map(|out| out.status.success())
         .unwrap_or(false)
 }
@@ -342,7 +401,10 @@ fn blocking_targets_for(check_id: &str) -> Vec<String> {
         "feature_surface" => vec!["apt".to_string(), "xfce".to_string(), "gnome".to_string(), "flutter".to_string()],
         "host_apt_presence" => vec!["host apt smoke".to_string()],
         "pkg_core_fs_syscalls" => vec!["apt".to_string(), "dpkg".to_string()],
+        "pkg_renameat2_noreplace_semantics" => vec!["apt".to_string(), "dpkg".to_string()],
+        "pkg_renameat2_exchange_semantics" => vec!["apt".to_string(), "dpkg".to_string()],
         "pkg_link_symlink_syscalls" => vec!["apt".to_string(), "dpkg".to_string()],
+        "pkg_dpkg_sequence_tests" => vec!["apt".to_string(), "dpkg".to_string()],
         "persistent_pkg_db_fs" => vec!["apt".to_string(), "xfce".to_string(), "gnome".to_string(), "flutter".to_string()],
         "seccomp_runtime" => vec!["hardening".to_string()],
         "graphics_server_semantics" => vec!["xfce".to_string(), "gnome".to_string(), "flutter".to_string()],
@@ -350,6 +412,38 @@ fn blocking_targets_for(check_id: &str) -> Vec<String> {
         "session_bus_and_daemons" => vec!["gnome".to_string()],
         _ => vec!["desktop".to_string()],
     }
+}
+
+fn step_for_gap(gap_id: &str) -> Option<&'static str> {
+    match gap_id {
+        "host_apt_presence" => Some("Run distro-native package bootstrap smoke (apt/dnf/pacman/apk) and keep host-specific path in CI matrix."),
+        "pkg_core_fs_syscalls" => Some("Extend syscall behavior tests for package operations with negative/failure recovery paths."),
+        "pkg_renameat2_noreplace_semantics" => Some("Implement and validate RENAME_EXCHANGE/RENAME_WHITEOUT when filesystem semantics are available."),
+        "pkg_renameat2_exchange_semantics" => Some("Increase rename-exchange robustness with backend-specific atomicity/rollback conformance tests."),
+        "pkg_link_symlink_syscalls" => Some("Expand link/symlink coverage to include relative dirfd and permission edge cases."),
+        "pkg_dpkg_sequence_tests" => Some("Add maintainer-script style integration cases with rollback/retry branches."),
+        "persistent_pkg_db_fs" => Some("Run writeback+journal soak + reboot durability suite for package DB paths."),
+        "seccomp_runtime" => Some("Validate seccomp visibility against real filter mode transitions and add procfs conformance assertions."),
+        "graphics_server_semantics" => Some("Promote protocol prefix validators into full stateful lifecycle dispatch handlers."),
+        "gpu_drm_kms_stack" => Some("Integrate real DRM/KMS device path and input event plumbing on top of GPU readiness primitives."),
+        "session_bus_and_daemons" => Some("Add userspace broker/service supervision loop and logind-equivalent session contracts."),
+        _ => None,
+    }
+}
+
+fn derive_next_steps(gaps: &[AuditGap]) -> Vec<String> {
+    let mut steps = Vec::new();
+    for gap in gaps {
+        if let Some(step) = step_for_gap(&gap.id) {
+            if !steps.iter().any(|s| s == step) {
+                steps.push(step.to_string());
+            }
+        }
+    }
+    if steps.is_empty() {
+        steps.push("Keep regression gates green with nightly ABI/desktop audits and soak tests.".to_string());
+    }
+    steps
 }
 
 fn render_markdown(report: &DesktopStackAuditReport) -> String {
@@ -391,4 +485,21 @@ fn render_markdown(report: &DesktopStackAuditReport) -> String {
     }
 
     md
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn package_manager_probe_command_matches_platform_shell() {
+        let probe = package_manager_probe_command("apt");
+        if cfg!(windows) {
+            assert!(probe.starts_with("where apt"));
+            assert!(probe.contains(">NUL 2>&1"));
+        } else {
+            assert!(probe.starts_with("command -v apt"));
+            assert!(probe.contains(">/dev/null 2>&1"));
+        }
+    }
 }

@@ -5,6 +5,7 @@ pub mod config;
 pub mod e1000;
 pub mod families;
 pub mod framebuffer;
+pub mod gpu;
 pub mod lifecycle;
 pub mod network;
 pub mod network_io_health;
@@ -42,6 +43,11 @@ pub use framebuffer::{
     draw_char, fill_rect, info as framebuffer_info, init as framebuffer_init,
     is_initialized as framebuffer_is_initialized, put_pixel, scroll_up as framebuffer_scroll_up,
     stats as framebuffer_stats, Color, FramebufferInfo, FramebufferStats, PixelFormat,
+};
+pub use gpu::{
+    gpu_stack_snapshot, init_gpu_stack, is_desktop_session_ready, mark_input_ready,
+    mark_kms_ready, note_gpu_heartbeat, set_gpu_backend, GpuBackend, GpuStackSnapshot,
+    GpuStackState,
 };
 pub use lifecycle::{
     DriverClass, DriverErrorKind, DriverHealth, DriverIoGate, DriverLifecycle,

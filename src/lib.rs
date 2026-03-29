@@ -7,6 +7,9 @@
 #![cfg_attr(all(test, target_os = "none"), test_runner(crate::test_runner))]
 #![cfg_attr(all(test, target_os = "none"), reexport_test_harness_main = "test_main")]
 
+#[macro_use]
+mod enum_macros;
+
 extern crate alloc;
 
 // Publicly expose modules for testing and external usage (LibOS)

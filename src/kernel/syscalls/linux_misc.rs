@@ -1,9 +1,15 @@
 #[cfg(not(feature = "linux_compat"))]
 use super::{linux_errno, sys_yield, with_user_read_bytes, with_user_write_bytes};
+#[cfg(not(feature = "linux_compat"))]
+use alloc::collections::{BTreeMap, BTreeSet};
+#[cfg(not(feature = "linux_compat"))]
+use lazy_static::lazy_static;
 
 mod poll_select;
 mod proc_ctl;
 mod runtime_info;
+#[cfg(all(test, not(feature = "linux_compat")))]
+mod runtime_stress_tests;
 
 #[cfg(not(feature = "linux_compat"))]
 #[repr(C)]
@@ -19,6 +25,189 @@ struct LinuxTimespecCompat {
 struct LinuxItimerspecCompat {
     it_interval: LinuxTimespecCompat,
     it_value: LinuxTimespecCompat,
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[derive(Clone, Copy, Default)]
+struct TimerfdRuntimeState {
+    spec: LinuxItimerspecCompat,
+    armed_at_ns: u128,
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct LinuxFutexWaitVCompat {
+    val: u64,
+    uaddr: u64,
+    flags: u32,
+    __reserved: u32,
+}
+
+#[cfg(not(feature = "linux_compat"))]
+lazy_static! {
+    static ref TIMERFD_STATE_BY_FD: crate::kernel::sync::IrqSafeMutex<BTreeMap<u32, TimerfdRuntimeState>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeMap::new());
+    static ref IO_URING_IDS: crate::kernel::sync::IrqSafeMutex<BTreeSet<u32>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeSet::new());
+    static ref LANDLOCK_RULESET_IDS: crate::kernel::sync::IrqSafeMutex<BTreeSet<u32>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeSet::new());
+    static ref BPF_MAP_IDS: crate::kernel::sync::IrqSafeMutex<BTreeSet<u32>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeSet::new());
+}
+
+#[cfg(not(feature = "linux_compat"))]
+static NEXT_IO_URING_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
+#[cfg(not(feature = "linux_compat"))]
+static NEXT_LANDLOCK_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
+#[cfg(not(feature = "linux_compat"))]
+static NEXT_BPF_MAP_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
+
+#[cfg(not(feature = "linux_compat"))]
+const IO_URING_FD_BASE: usize = 700_000;
+#[cfg(not(feature = "linux_compat"))]
+const LANDLOCK_FD_BASE: usize = 710_000;
+#[cfg(not(feature = "linux_compat"))]
+const BPF_FD_BASE: usize = 720_000;
+
+#[cfg(not(feature = "linux_compat"))]
+#[inline]
+fn validate_timespec_compat(ts: LinuxTimespecCompat) -> bool {
+    ts.tv_sec >= 0 && ts.tv_nsec >= 0 && ts.tv_nsec < 1_000_000_000
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[inline]
+fn timespec_to_ns(ts: LinuxTimespecCompat) -> Option<u128> {
+    if !validate_timespec_compat(ts) {
+        return None;
+    }
+    Some((ts.tv_sec as u128).saturating_mul(1_000_000_000u128).saturating_add(ts.tv_nsec as u128))
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[inline]
+fn ns_to_timespec(ns: u128) -> LinuxTimespecCompat {
+    LinuxTimespecCompat {
+        tv_sec: (ns / 1_000_000_000u128) as i64,
+        tv_nsec: (ns % 1_000_000_000u128) as i64,
+    }
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[inline]
+fn monotonic_now_ns() -> u128 {
+    #[cfg(feature = "posix_time")]
+    {
+        if let Ok(ts) = crate::modules::posix::time::clock_gettime_raw(
+            crate::modules::posix_consts::time::CLOCK_MONOTONIC,
+        ) {
+            return (ts.sec as u128)
+                .saturating_mul(1_000_000_000u128)
+                .saturating_add(ts.nsec as u128);
+        }
+    }
+    let tick_ns = core::cmp::max(crate::generated_consts::TIME_SLICE_NS as u128, 1u128);
+    (crate::hal::cpu::rdtsc() as u128).saturating_mul(tick_ns)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[allow(dead_code)]
+#[inline]
+fn timerfd_is_expired(state: &TimerfdRuntimeState, now_ns: u128) -> bool {
+    let Some(initial_ns) = timespec_to_ns(state.spec.it_value) else {
+        return false;
+    };
+    if initial_ns == 0 {
+        return false;
+    }
+    now_ns.saturating_sub(state.armed_at_ns) >= initial_ns
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[inline]
+fn timerfd_current_spec(state: &TimerfdRuntimeState, now_ns: u128) -> LinuxItimerspecCompat {
+    let mut out = state.spec;
+    let Some(initial_ns) = timespec_to_ns(state.spec.it_value) else {
+        out.it_value = LinuxTimespecCompat::default();
+        return out;
+    };
+    if initial_ns == 0 {
+        out.it_value = LinuxTimespecCompat::default();
+        return out;
+    }
+
+    let elapsed_ns = now_ns.saturating_sub(state.armed_at_ns);
+    let interval_ns = timespec_to_ns(state.spec.it_interval).unwrap_or(0);
+
+    let remaining_ns = if elapsed_ns < initial_ns {
+        initial_ns.saturating_sub(elapsed_ns)
+    } else if interval_ns == 0 {
+        0
+    } else {
+        let passed_after_first = elapsed_ns.saturating_sub(initial_ns);
+        let rem = passed_after_first % interval_ns;
+        if rem == 0 { interval_ns } else { interval_ns.saturating_sub(rem) }
+    };
+
+    out.it_value = ns_to_timespec(remaining_ns);
+    out
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(crate) fn timerfd_poll_revents(fd: u32, requested_events: u16) -> u16 {
+    let wants_read = (requested_events & crate::modules::posix_consts::net::POLLIN) != 0;
+    if !wants_read {
+        return 0;
+    }
+    let now_ns = monotonic_now_ns();
+    let guard = TIMERFD_STATE_BY_FD.lock();
+    let Some(state) = guard.get(&fd) else {
+        return 0;
+    };
+    if timerfd_is_expired(state, now_ns) {
+        crate::modules::posix_consts::net::POLLIN
+    } else {
+        0
+    }
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[inline]
+fn read_itimerspec_from_user(ptr: usize) -> Result<LinuxItimerspecCompat, usize> {
+    read_user_struct::<LinuxItimerspecCompat>(ptr)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[inline]
+fn write_itimerspec_to_user(ptr: usize, spec: LinuxItimerspecCompat) -> usize {
+    write_user_struct::<LinuxItimerspecCompat>(ptr, &spec)
+        .map(|_| 0usize)
+        .unwrap_or_else(|err| err)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+fn read_user_struct<T: Copy + Default>(ptr: usize) -> Result<T, usize> {
+    let size = core::mem::size_of::<T>();
+    with_user_read_bytes(ptr, size, |src| {
+        let mut out = T::default();
+        let dst = unsafe { core::slice::from_raw_parts_mut((&mut out as *mut T).cast::<u8>(), size) };
+        dst.copy_from_slice(src);
+        out
+    })
+    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+}
+
+#[cfg(not(feature = "linux_compat"))]
+fn write_user_struct<T: Copy>(ptr: usize, value: &T) -> Result<(), usize> {
+    let size = core::mem::size_of::<T>();
+    with_user_write_bytes(ptr, size, |dst| {
+        let src = unsafe { core::slice::from_raw_parts((value as *const T).cast::<u8>(), size) };
+        dst.copy_from_slice(src);
+        0usize
+    })
+    .map(|_| ())
+    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
 }
 
 #[cfg(not(feature = "linux_compat"))]
@@ -56,22 +245,6 @@ fn read_u64_from_user(ptr: usize) -> Result<u64, usize> {
 
 #[cfg(not(feature = "linux_compat"))]
 #[inline]
-fn write_zero_itimerspec(ptr: usize) -> usize {
-    let zero = LinuxItimerspecCompat::default();
-    with_user_write_bytes(ptr, core::mem::size_of::<LinuxItimerspecCompat>(), |dst| {
-        let src = unsafe {
-            core::slice::from_raw_parts(
-                (&zero as *const LinuxItimerspecCompat).cast::<u8>(),
-                core::mem::size_of::<LinuxItimerspecCompat>(),
-            )
-        };
-        dst.copy_from_slice(src);
-        0
-    })
-    .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
-}
-
-#[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_poll(fds_ptr: usize, nfds: usize, timeout: usize) -> usize {
     poll_select::sys_linux_poll(fds_ptr, nfds, timeout)
 }
@@ -182,6 +355,25 @@ pub(super) fn sys_linux_sched_setaffinity(
 }
 
 #[cfg(not(feature = "linux_compat"))]
+pub(crate) fn linux_prctl_seccomp_mode_for_tid(tid: usize) -> u8 {
+    proc_ctl::seccomp_mode_for_tid(tid)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(crate) fn linux_prctl_no_new_privs_for_tid(tid: usize) -> bool {
+    proc_ctl::no_new_privs_for_tid(tid)
+}
+
+#[cfg(all(test, not(feature = "linux_compat")))]
+pub(crate) fn linux_set_prctl_state_for_tid_for_test(
+    tid: usize,
+    seccomp_mode: u8,
+    no_new_privs: bool,
+) {
+    proc_ctl::set_prctl_state_for_tid_for_test(tid, seccomp_mode, no_new_privs)
+}
+
+#[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_sysinfo(info_ptr: usize) -> usize {
     runtime_info::sys_linux_sysinfo(info_ptr)
 }
@@ -236,6 +428,15 @@ pub(super) fn sys_linux_timerfd_create(clockid: usize, flags: usize) -> usize {
                         crate::modules::posix_consts::net::O_NONBLOCK,
                     );
                 }
+                TIMERFD_STATE_BY_FD
+                    .lock()
+                    .insert(
+                        fd,
+                        TimerfdRuntimeState {
+                            spec: LinuxItimerspecCompat::default(),
+                            armed_at_ns: monotonic_now_ns(),
+                        },
+                    );
                 fd as usize
             }
             Err(e) => linux_errno(e.code()),
@@ -249,12 +450,11 @@ pub(super) fn sys_linux_timerfd_create(clockid: usize, flags: usize) -> usize {
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_timerfd_settime(
-    _fd: usize,
+    fd: usize,
     flags: usize,
     new_value_ptr: usize,
     old_value_ptr: usize,
 ) -> usize {
-    let _ = _fd;
     if (flags & !0x1usize) != 0 {
         return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
@@ -262,31 +462,218 @@ pub(super) fn sys_linux_timerfd_settime(
         return linux_errno(crate::modules::posix_consts::errno::EFAULT);
     }
 
-    let parse_ok = with_user_read_bytes(
-        new_value_ptr,
-        core::mem::size_of::<LinuxItimerspecCompat>(),
-        |_| 0usize,
-    );
-    if parse_ok.is_err() {
-        return linux_errno(crate::modules::posix_consts::errno::EFAULT);
+    let new_spec = match read_itimerspec_from_user(new_value_ptr) {
+        Ok(v) => v,
+        Err(err) => return err,
+    };
+    if !validate_timespec_compat(new_spec.it_interval) || !validate_timespec_compat(new_spec.it_value)
+    {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
 
+    let mut state = TIMERFD_STATE_BY_FD.lock();
+    let Some(slot) = state.get_mut(&(fd as u32)) else {
+        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    };
+
     if old_value_ptr != 0 {
-        let rc = write_zero_itimerspec(old_value_ptr);
+        let rc = write_itimerspec_to_user(old_value_ptr, timerfd_current_spec(slot, monotonic_now_ns()));
         if rc != 0 {
             return rc;
         }
+    }
+
+    slot.spec = new_spec;
+    slot.armed_at_ns = monotonic_now_ns();
+    0
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_timerfd_gettime(fd: usize, curr_value_ptr: usize) -> usize {
+    if curr_value_ptr == 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EFAULT);
+    }
+    let state = TIMERFD_STATE_BY_FD.lock();
+    let Some(spec) = state.get(&(fd as u32)).copied() else {
+        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    };
+    write_itimerspec_to_user(curr_value_ptr, timerfd_current_spec(&spec, monotonic_now_ns()))
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_bpf(cmd: usize, attr_ptr: usize, size: usize) -> usize {
+    const BPF_CMD_MAP_CREATE: usize = 0;
+    if attr_ptr == 0 || size == 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EFAULT);
+    }
+    if cmd != BPF_CMD_MAP_CREATE {
+        return linux_errno(crate::modules::posix_consts::errno::EOPNOTSUPP);
+    }
+    let id = NEXT_BPF_MAP_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+    BPF_MAP_IDS.lock().insert(id);
+    BPF_FD_BASE.saturating_add(id as usize)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_io_uring_setup(entries: usize, params_ptr: usize) -> usize {
+    if entries == 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+    if params_ptr == 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EFAULT);
+    }
+    let id = NEXT_IO_URING_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+    IO_URING_IDS.lock().insert(id);
+    IO_URING_FD_BASE.saturating_add(id as usize)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_io_uring_enter(
+    fd: usize,
+    to_submit: usize,
+    min_complete: usize,
+    flags: usize,
+    sig_ptr: usize,
+    sigsz: usize,
+) -> usize {
+    let _ = (to_submit, min_complete, flags, sig_ptr, sigsz);
+    if fd < IO_URING_FD_BASE {
+        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    }
+    let id = (fd - IO_URING_FD_BASE) as u32;
+    if !IO_URING_IDS.lock().contains(&id) {
+        return linux_errno(crate::modules::posix_consts::errno::EBADF);
     }
     0
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_timerfd_gettime(_fd: usize, curr_value_ptr: usize) -> usize {
-    let _ = _fd;
-    if curr_value_ptr == 0 {
+pub(super) fn sys_linux_io_uring_register(
+    fd: usize,
+    opcode: usize,
+    arg_ptr: usize,
+    nr_args: usize,
+) -> usize {
+    let _ = (opcode, arg_ptr, nr_args);
+    if fd < IO_URING_FD_BASE {
+        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    }
+    let id = (fd - IO_URING_FD_BASE) as u32;
+    if !IO_URING_IDS.lock().contains(&id) {
+        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    }
+    0
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_landlock_create_ruleset(
+    attr_ptr: usize,
+    size: usize,
+    flags: usize,
+) -> usize {
+    if flags != 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+    if attr_ptr == 0 || size == 0 {
         return linux_errno(crate::modules::posix_consts::errno::EFAULT);
     }
-    write_zero_itimerspec(curr_value_ptr)
+    let id = NEXT_LANDLOCK_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+    LANDLOCK_RULESET_IDS.lock().insert(id);
+    LANDLOCK_FD_BASE.saturating_add(id as usize)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_landlock_add_rule(
+    ruleset_fd: usize,
+    rule_type: usize,
+    rule_attr: usize,
+    flags: usize,
+) -> usize {
+    let _ = (rule_type, rule_attr);
+    if flags != 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+    if ruleset_fd < LANDLOCK_FD_BASE {
+        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    }
+    let id = (ruleset_fd - LANDLOCK_FD_BASE) as u32;
+    if !LANDLOCK_RULESET_IDS.lock().contains(&id) {
+        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    }
+    0
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_landlock_restrict_self(ruleset_fd: usize, flags: usize) -> usize {
+    if flags != 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+    if ruleset_fd < LANDLOCK_FD_BASE {
+        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    }
+    let id = (ruleset_fd - LANDLOCK_FD_BASE) as u32;
+    if !LANDLOCK_RULESET_IDS.lock().contains(&id) {
+        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    }
+    0
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_fanotify_init(flags: usize, event_f_flags: usize) -> usize {
+    let _ = (flags, event_f_flags);
+    linux_errno(crate::modules::posix_consts::errno::EOPNOTSUPP)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_fanotify_mark(
+    fanotify_fd: usize,
+    flags: usize,
+    mask: usize,
+    dirfd: isize,
+    path_ptr: usize,
+) -> usize {
+    let _ = (fanotify_fd, flags, mask, dirfd, path_ptr);
+    linux_errno(crate::modules::posix_consts::errno::EOPNOTSUPP)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_futex_waitv(
+    waiters_ptr: usize,
+    nr_futexes: usize,
+    flags: usize,
+    timeout_ptr: usize,
+) -> usize {
+    if flags != 0 || waiters_ptr == 0 || nr_futexes == 0 || nr_futexes > crate::generated_consts::LINUX_FUTEX_WAITV_MAX {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+
+    let item_sz = core::mem::size_of::<LinuxFutexWaitVCompat>();
+    for i in 0..nr_futexes {
+        let ptr = match waiters_ptr.checked_add(i.saturating_mul(item_sz)) {
+            Some(v) => v,
+            None => return linux_errno(crate::modules::posix_consts::errno::EFAULT),
+        };
+        let waiter = match read_user_struct::<LinuxFutexWaitVCompat>(ptr) {
+            Ok(v) => v,
+            Err(err) => return err,
+        };
+        if waiter.__reserved != 0 {
+            return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+        }
+    }
+
+    if timeout_ptr != 0 {
+        let ts = match read_user_struct::<LinuxTimespecCompat>(timeout_ptr) {
+            Ok(v) => v,
+            Err(err) => return err,
+        };
+        if !validate_timespec_compat(ts) {
+            return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+        }
+        return linux_errno(crate::modules::posix_consts::errno::ETIMEDOUT);
+    }
+
+    linux_errno(crate::modules::posix_consts::errno::EAGAIN)
 }
 
 #[cfg(not(feature = "linux_compat"))]
@@ -473,7 +860,8 @@ pub(super) fn sys_linux_rseq(
     flags: usize,
     _sig: usize,
 ) -> usize {
-    // Minimal registration shim for runtimes that probe rseq during startup.
+    // Many modern runtimes probe rseq during startup; accepting valid registration avoids
+    // brittle early-process failures while still rejecting malformed descriptors.
     if flags != 0 {
         return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
@@ -481,7 +869,8 @@ pub(super) fn sys_linux_rseq(
         return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
 
-    // Validate user memory is at least readable/writable for the declared structure.
+    // Enforce user-space memory reachability up-front so later rseq reads/writes have
+    // deterministic EFAULT behavior instead of deferred faults.
     if with_user_read_bytes(rseq_ptr, rseq_len, |_| 0usize).is_err() {
         return linux_errno(crate::modules::posix_consts::errno::EFAULT);
     }
@@ -490,3 +879,52 @@ pub(super) fn sys_linux_rseq(
     }
     0
 }
+
+#[cfg(all(test, not(feature = "linux_compat")))]
+mod modern_syscall_policy_tests {
+    use super::*;
+
+    #[test_case]
+    fn io_uring_setup_rejects_zero_entries() {
+        let params = [0u8; 16];
+        assert_eq!(
+            sys_linux_io_uring_setup(0, params.as_ptr() as usize),
+            linux_errno(crate::modules::posix_consts::errno::EINVAL)
+        );
+    }
+
+    #[test_case]
+    fn bpf_map_create_rejects_null_attr() {
+        assert_eq!(
+            sys_linux_bpf(0, 0, 16),
+            linux_errno(crate::modules::posix_consts::errno::EFAULT)
+        );
+    }
+
+    #[test_case]
+    fn landlock_ruleset_rejects_nonzero_flags() {
+        let attr = [0u8; 16];
+        assert_eq!(
+            sys_linux_landlock_create_ruleset(attr.as_ptr() as usize, attr.len(), 1),
+            linux_errno(crate::modules::posix_consts::errno::EINVAL)
+        );
+    }
+
+    #[test_case]
+    fn fanotify_init_returns_eopnotsupp() {
+        assert_eq!(
+            sys_linux_fanotify_init(0, 0),
+            linux_errno(crate::modules::posix_consts::errno::EOPNOTSUPP)
+        );
+    }
+
+    #[test_case]
+    fn futex_waitv_rejects_invalid_flags() {
+        let waiter = LinuxFutexWaitVCompat::default();
+        assert_eq!(
+            sys_linux_futex_waitv((&waiter as *const LinuxFutexWaitVCompat) as usize, 1, 1, 0),
+            linux_errno(crate::modules::posix_consts::errno::EINVAL)
+        );
+    }
+}
+

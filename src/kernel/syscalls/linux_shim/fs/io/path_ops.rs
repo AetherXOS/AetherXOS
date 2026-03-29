@@ -1,11 +1,15 @@
 #[cfg(feature = "posix_fs")]
 use super::super::super::util::read_user_path_like_string;
+#[cfg(feature = "posix_fs")]
+use alloc::string::String;
 use super::super::super::*;
 #[cfg(feature = "posix_fs")]
 use super::super::support::{
     resolve_dirfd_context, resolve_path_at, resolve_path_at_with_flags, LINUX_AT_EACCESS,
     LINUX_AT_EMPTY_PATH, LINUX_AT_SYMLINK_NOFOLLOW,
 };
+#[cfg(not(feature = "linux_compat"))]
+use super::super::super::util::read_user_pod;
 
 #[cfg(not(feature = "linux_compat"))]
 #[repr(C)]
@@ -14,6 +18,37 @@ struct LinuxOpenHowCompat {
     flags: u64,
     mode: u64,
     resolve: u64,
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
+fn resolved_open_path(dir_path: &str, path: &str) -> String {
+    if path.starts_with('/') {
+        path.to_string()
+    } else if dir_path == "/" {
+        alloc::format!("/{}", path.trim_start_matches('/'))
+    } else {
+        alloc::format!(
+            "{}/{}",
+            dir_path.trim_end_matches('/'),
+            path.trim_start_matches('/')
+        )
+    }
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
+fn contains_parent_ref(path: &str) -> bool {
+    path.split('/').any(|segment| segment == "..")
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
+#[inline]
+fn path_escapes_dirfd(path: &str) -> bool {
+    path.starts_with('/') || contains_parent_ref(path)
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
+fn is_proc_magiclink_path(path: &str) -> bool {
+    crate::modules::posix::fs::path_has_magiclink_component(path).unwrap_or(false)
 }
 
 #[cfg(not(feature = "linux_compat"))]
@@ -34,6 +69,20 @@ pub(crate) fn sys_linux_openat(
             Ok(v) => v,
             Err(err) => return err,
         };
+
+        if (flags & LINUX_O_CREAT) != 0 && (flags & LINUX_O_EXCL) != 0 {
+            let existing = if path.starts_with('/') {
+                crate::modules::posix::fs::access(fs_id, &path)
+            } else {
+                let resolved = resolved_open_path(&dir_path, &path);
+                crate::modules::posix::fs::access(fs_id, &resolved)
+            };
+            match existing {
+                Ok(true) => return linux_errno(crate::modules::posix_consts::errno::EEXIST),
+                Ok(false) => {}
+                Err(err) => return linux_errno(err.code()),
+            }
+        }
 
         let create = (flags & LINUX_O_CREAT) != 0;
         let fd_res = if path.starts_with('/') {
@@ -87,19 +136,9 @@ pub(crate) fn sys_linux_openat2(
         return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
 
-    let how = match with_user_read_bytes(how_ptr, core::mem::size_of::<LinuxOpenHowCompat>(), |src| {
-        let mut out = LinuxOpenHowCompat::default();
-        let dst = unsafe {
-            core::slice::from_raw_parts_mut(
-                (&mut out as *mut LinuxOpenHowCompat).cast::<u8>(),
-                core::mem::size_of::<LinuxOpenHowCompat>(),
-            )
-        };
-        dst.copy_from_slice(src);
-        out
-    }) {
+    let how = match read_user_pod::<LinuxOpenHowCompat>(how_ptr) {
         Ok(v) => v,
-        Err(_) => return linux_errno(crate::modules::posix_consts::errno::EFAULT),
+        Err(err) => return err,
     };
 
     let allowed_resolve = crate::kernel::syscalls::syscalls_consts::linux::openat2::RESOLVE_ALLOWED_MASK as u64;
@@ -107,7 +146,69 @@ pub(crate) fn sys_linux_openat2(
         return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
 
-    // Reuse openat semantics; resolve constraints are validated but not yet fully enforced.
+    #[cfg(feature = "posix_fs")]
+    {
+        use crate::kernel::syscalls::syscalls_consts::linux::openat2;
+
+        let path = match read_user_path_like_string(pathname_ptr) {
+            Ok(p) => p,
+            Err(e) => return e,
+        };
+
+        let (fs_id, dir_path) = match resolve_dirfd_context(dirfd, &path) {
+            Ok(v) => v,
+            Err(err) => return err,
+        };
+
+        if (how.resolve & openat2::RESOLVE_CACHED as u64) != 0 {
+            // Cache-only path walk requires a dentry cache contract we do not yet model.
+            return linux_errno(crate::modules::posix_consts::errno::EAGAIN);
+        }
+
+        if (how.resolve & (openat2::RESOLVE_BENEATH | openat2::RESOLVE_IN_ROOT) as u64) != 0
+            && path_escapes_dirfd(&path)
+        {
+            return linux_errno(crate::modules::posix_consts::errno::EXDEV);
+        }
+
+        if (how.resolve & openat2::RESOLVE_NO_XDEV as u64) != 0 {
+            if path_escapes_dirfd(&path) {
+                return linux_errno(crate::modules::posix_consts::errno::EXDEV);
+            }
+
+            let (resolved_fs_id, resolved_path) = match resolve_path_at(dirfd, pathname_ptr) {
+                Ok(v) => v,
+                Err(err) => return err,
+            };
+            if resolved_fs_id != fs_id {
+                return linux_errno(crate::modules::posix_consts::errno::EXDEV);
+            }
+            if resolved_path.starts_with("/proc/")
+                || resolved_path.starts_with("/sys/")
+                || resolved_path.starts_with("/dev/")
+            {
+                return linux_errno(crate::modules::posix_consts::errno::EXDEV);
+            }
+        }
+
+        if (how.resolve & openat2::RESOLVE_NO_MAGICLINKS as u64) != 0
+            && is_proc_magiclink_path(&path)
+        {
+            return linux_errno(crate::modules::posix_consts::errno::ELOOP);
+        }
+
+        if (how.resolve & openat2::RESOLVE_NO_SYMLINKS as u64) != 0 {
+            let resolved = resolved_open_path(&dir_path, &path);
+            match crate::modules::posix::fs::path_contains_symlink_component(fs_id, &resolved, true)
+            {
+                Ok(true) => return linux_errno(crate::modules::posix_consts::errno::ELOOP),
+                Ok(false) => {}
+                Err(err) => return linux_errno(err.code()),
+            }
+        }
+    }
+
+    // Reuse openat for actual open/create once resolve policy checks are validated.
     sys_linux_openat(dirfd, pathname_ptr, how.flags as usize, how.mode as usize)
 }
 
@@ -332,11 +433,151 @@ pub(crate) fn sys_linux_renameat2(
     newpath_ptr: usize,
     flags: usize,
 ) -> usize {
+    const RENAME_NOREPLACE: usize = 1;
+    const RENAME_EXCHANGE: usize = 2;
+    const RENAME_WHITEOUT: usize = 4;
+    let allowed_flags = RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT;
+
+    if (flags & !allowed_flags) != 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+    if (flags & RENAME_NOREPLACE) != 0 && (flags & RENAME_EXCHANGE) != 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+
     // Minimal compatibility: accept classic rename behavior when flags==0.
     if flags == 0 {
         return sys_linux_renameat(olddirfd, oldpath_ptr, newdirfd, newpath_ptr);
     }
-    // RENAME_NOREPLACE / RENAME_EXCHANGE / RENAME_WHITEOUT not implemented here yet.
+
+    #[cfg(feature = "posix_fs")]
+    {
+        if flags == RENAME_NOREPLACE {
+            let (old_fs_id, old_resolved) = match resolve_path_at(olddirfd, oldpath_ptr) {
+                Ok(v) => v,
+                Err(err) => return err,
+            };
+            let (new_fs_id, new_resolved) = match resolve_path_at(newdirfd, newpath_ptr) {
+                Ok(v) => v,
+                Err(err) => return err,
+            };
+            if old_fs_id != new_fs_id {
+                return linux_errno(crate::modules::posix_consts::errno::EXDEV);
+            }
+
+            match crate::modules::posix::fs::access(new_fs_id, &new_resolved) {
+                Ok(true) => return linux_errno(crate::modules::posix_consts::errno::EEXIST),
+                Ok(false) => {}
+                Err(err) => return linux_errno(err.code()),
+            }
+
+            return match crate::modules::posix::fs::rename(old_fs_id, &old_resolved, &new_resolved)
+            {
+                Ok(()) => 0,
+                Err(err) => linux_errno(err.code()),
+            };
+        }
+
+        if flags == RENAME_EXCHANGE {
+            let (old_fs_id, old_resolved) = match resolve_path_at(olddirfd, oldpath_ptr) {
+                Ok(v) => v,
+                Err(err) => return err,
+            };
+            let (new_fs_id, new_resolved) = match resolve_path_at(newdirfd, newpath_ptr) {
+                Ok(v) => v,
+                Err(err) => return err,
+            };
+            if old_fs_id != new_fs_id {
+                return linux_errno(crate::modules::posix_consts::errno::EXDEV);
+            }
+
+            let old_exists = match crate::modules::posix::fs::access(old_fs_id, &old_resolved) {
+                Ok(exists) => exists,
+                Err(err) => return linux_errno(err.code()),
+            };
+            let new_exists = match crate::modules::posix::fs::access(new_fs_id, &new_resolved) {
+                Ok(exists) => exists,
+                Err(err) => return linux_errno(err.code()),
+            };
+            if !old_exists || !new_exists {
+                return linux_errno(crate::modules::posix_consts::errno::ENOENT);
+            }
+
+            // Best-effort exchange using a temporary sibling path.
+            let mut tmp_path: Option<String> = None;
+            for idx in 0..16u8 {
+                let mut candidate = new_resolved.clone();
+                candidate.push_str(".hc_swap_tmp_");
+                let digit = if idx < 10 {
+                    (b'0' + idx) as char
+                } else {
+                    (b'a' + (idx - 10)) as char
+                };
+                candidate.push(digit);
+                match crate::modules::posix::fs::access(new_fs_id, &candidate) {
+                    Ok(false) => {
+                        tmp_path = Some(candidate);
+                        break;
+                    }
+                    Ok(true) => {}
+                    Err(err) => return linux_errno(err.code()),
+                }
+            }
+
+            let Some(tmp_resolved) = tmp_path else {
+                return linux_errno(crate::modules::posix_consts::errno::EAGAIN);
+            };
+
+            if let Err(err) = crate::modules::posix::fs::rename(old_fs_id, &old_resolved, &tmp_resolved)
+            {
+                return linux_errno(err.code());
+            }
+
+            if let Err(err) = crate::modules::posix::fs::rename(new_fs_id, &new_resolved, &old_resolved)
+            {
+                let _ = crate::modules::posix::fs::rename(old_fs_id, &tmp_resolved, &old_resolved);
+                return linux_errno(err.code());
+            }
+
+            if let Err(err) = crate::modules::posix::fs::rename(old_fs_id, &tmp_resolved, &new_resolved)
+            {
+                let _ = crate::modules::posix::fs::rename(new_fs_id, &old_resolved, &new_resolved);
+                let _ = crate::modules::posix::fs::rename(old_fs_id, &tmp_resolved, &old_resolved);
+                return linux_errno(err.code());
+            }
+
+            return 0;
+        }
+
+        if flags == RENAME_WHITEOUT {
+            let (old_fs_id, old_resolved) = match resolve_path_at(olddirfd, oldpath_ptr) {
+                Ok(v) => v,
+                Err(err) => return err,
+            };
+            let (new_fs_id, new_resolved) = match resolve_path_at(newdirfd, newpath_ptr) {
+                Ok(v) => v,
+                Err(err) => return err,
+            };
+            if old_fs_id != new_fs_id {
+                return linux_errno(crate::modules::posix_consts::errno::EXDEV);
+            }
+
+            if let Err(err) = crate::modules::posix::fs::rename(old_fs_id, &old_resolved, &new_resolved)
+            {
+                return linux_errno(err.code());
+            }
+
+            // Best-effort whiteout marker: recreate source path as hidden placeholder.
+            // This keeps lower-layer style lookups blocked in simplified overlay paths.
+            if let Err(err) = crate::modules::posix::fs::open(old_fs_id, &old_resolved, true) {
+                return linux_errno(err.code());
+            }
+            let _ = crate::modules::posix::fs::chmod(old_fs_id, &old_resolved, 0o000);
+            return 0;
+        }
+    }
+
+    // Any combination not explicitly modeled above remains invalid for compatibility safety.
     linux_errno(crate::modules::posix_consts::errno::EINVAL)
 }
 
@@ -373,175 +614,5 @@ pub(crate) fn sys_linux_readlinkat(
 }
 
 #[cfg(all(test, not(feature = "linux_compat")))]
-mod tests {
-    use super::*;
-    #[cfg(feature = "posix_fs")]
-    use crate::kernel::syscalls::linux_shim::fs::support::LINUX_AT_EMPTY_PATH;
-
-    #[test_case]
-    fn openat_invalid_path_pointer_returns_efault() {
-        assert_eq!(
-            sys_linux_openat(LINUX_AT_FDCWD, 0, 0, 0),
-            linux_errno(crate::modules::posix_consts::errno::EFAULT)
-        );
-    }
-
-    #[test_case]
-    fn faccessat_invalid_path_pointer_returns_efault() {
-        assert_eq!(
-            sys_linux_faccessat(LINUX_AT_FDCWD, 0, 0, 0),
-            linux_errno(crate::modules::posix_consts::errno::EFAULT)
-        );
-    }
-
-    #[test_case]
-    fn faccessat_rejects_unknown_flags() {
-        let path = b"/tmp\0";
-        assert_eq!(
-            sys_linux_faccessat(LINUX_AT_FDCWD, path.as_ptr() as usize, 0, 0x8000),
-            linux_errno(crate::modules::posix_consts::errno::EINVAL)
-        );
-    }
-
-    #[test_case]
-    fn faccessat_empty_path_without_fd_returns_ebadf() {
-        #[cfg(feature = "posix_fs")]
-        {
-            let empty = b"\0";
-            assert_eq!(
-                sys_linux_faccessat(-2, empty.as_ptr() as usize, 0, LINUX_AT_EMPTY_PATH),
-                linux_errno(crate::modules::posix_consts::errno::EBADF)
-            );
-        }
-    }
-
-    #[test_case]
-    fn faccessat_empty_path_uses_dirfd_context() {
-        #[cfg(feature = "posix_fs")]
-        {
-            let fs_id = crate::modules::posix::fs::mount_ramfs("/linux_shim_faccessat_empty")
-                .expect("mount");
-            let fd = crate::modules::posix::fs::open(fs_id, "/visible", true).expect("open");
-            let empty = b"\0";
-            assert_eq!(
-                sys_linux_faccessat(fd as isize, empty.as_ptr() as usize, 0, LINUX_AT_EMPTY_PATH),
-                0
-            );
-            let _ = crate::modules::posix::fs::close(fd);
-            let _ = crate::modules::posix::fs::unmount(fs_id);
-        }
-    }
-
-    #[test_case]
-    fn mkdirat_invalid_path_pointer_returns_efault() {
-        assert_eq!(
-            sys_linux_mkdirat(LINUX_AT_FDCWD, 0, 0o755),
-            linux_errno(crate::modules::posix_consts::errno::EFAULT)
-        );
-    }
-
-    #[test_case]
-    fn openat_invalid_dirfd_returns_ebadf_for_relative_paths() {
-        let path = b"relative\0";
-        assert_eq!(
-            sys_linux_openat(-2, path.as_ptr() as usize, 0, 0),
-            linux_errno(crate::modules::posix_consts::errno::EBADF)
-        );
-    }
-
-    #[test_case]
-    fn unlinkat_invalid_path_pointer_returns_efault() {
-        assert_eq!(
-            sys_linux_unlinkat(LINUX_AT_FDCWD, 0, 0),
-            linux_errno(crate::modules::posix_consts::errno::EFAULT)
-        );
-    }
-
-    #[test_case]
-    fn linkat_invalid_oldpath_pointer_returns_efault() {
-        let newp = b"/tmp_new\0";
-        assert_eq!(
-            sys_linux_linkat(
-                LINUX_AT_FDCWD,
-                0,
-                LINUX_AT_FDCWD,
-                newp.as_ptr() as usize,
-                0,
-            ),
-            linux_errno(crate::modules::posix_consts::errno::EFAULT)
-        );
-    }
-
-    #[test_case]
-    fn symlinkat_invalid_target_pointer_returns_efault() {
-        let link = b"/tmp_link\0";
-        assert_eq!(
-            sys_linux_symlinkat(0, LINUX_AT_FDCWD, link.as_ptr() as usize),
-            linux_errno(crate::modules::posix_consts::errno::EFAULT)
-        );
-    }
-
-    #[test_case]
-    fn renameat_invalid_path_pointer_returns_efault() {
-        let path = b"/tmp\0";
-        assert_eq!(
-            sys_linux_renameat(LINUX_AT_FDCWD, 0, LINUX_AT_FDCWD, path.as_ptr() as usize,),
-            linux_errno(crate::modules::posix_consts::errno::EFAULT)
-        );
-    }
-
-    #[test_case]
-    fn readlinkat_invalid_buffer_pointer_returns_efault() {
-        #[cfg(feature = "posix_fs")]
-        {
-            let fs_id =
-                crate::modules::posix::fs::mount_ramfs("/linux_shim_readlink").expect("mount");
-            let _ = crate::modules::posix::fs::symlink(fs_id, "/target", "/ln");
-            let path = b"/ln\0";
-            assert_eq!(
-                sys_linux_readlinkat(LINUX_AT_FDCWD, path.as_ptr() as usize, 0x1, 8,),
-                linux_errno(crate::modules::posix_consts::errno::EFAULT)
-            );
-            let _ = crate::modules::posix::fs::unmount(fs_id);
-        }
-    }
-
-    #[test_case]
-    fn readlinkat_truncates_to_caller_buffer_length() {
-        #[cfg(feature = "posix_fs")]
-        {
-            let fs_id = crate::modules::posix::fs::mount_ramfs("/linux_shim_readlink_truncate")
-                .expect("mount");
-            let _ = crate::modules::posix::fs::symlink(fs_id, "/long-target", "/ln");
-            let path = b"/ln\0";
-            let mut buf = [0u8; 4];
-            assert_eq!(
-                sys_linux_readlinkat(
-                    LINUX_AT_FDCWD,
-                    path.as_ptr() as usize,
-                    buf.as_mut_ptr() as usize,
-                    buf.len(),
-                ),
-                buf.len()
-            );
-            assert_eq!(&buf, b"/lon");
-            let _ = crate::modules::posix::fs::unmount(fs_id);
-        }
-    }
-
-    #[test_case]
-    fn renameat2_rejects_nonzero_flags_in_minimal_mode() {
-        let oldp = b"/old\0";
-        let newp = b"/new\0";
-        assert_eq!(
-            sys_linux_renameat2(
-                LINUX_AT_FDCWD,
-                oldp.as_ptr() as usize,
-                LINUX_AT_FDCWD,
-                newp.as_ptr() as usize,
-                1,
-            ),
-            linux_errno(crate::modules::posix_consts::errno::EINVAL)
-        );
-    }
-}
+#[path = "path_ops/tests.rs"]
+mod tests;

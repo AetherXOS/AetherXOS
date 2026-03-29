@@ -5,10 +5,12 @@ use super::compat::{
     read_fd_set_compat, write_fd_set_compat, LinuxTimespecCompat, LinuxTimevalCompat,
 };
 use super::*;
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+use crate::kernel::syscalls::linux_shim::util::read_user_pod;
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 struct LinuxPselect6SigmaskCompat {
     ss_ptr: usize,
     ss_len: usize,
@@ -20,17 +22,7 @@ fn timeout_to_retries(timeout: usize) -> Result<usize, usize> {
         return Ok(crate::config::KernelConfig::libnet_posix_blocking_recv_retries());
     }
 
-    let tv = with_user_read_bytes(timeout, core::mem::size_of::<LinuxTimevalCompat>(), |src| {
-        LinuxTimevalCompat {
-            tv_sec: i64::from_ne_bytes([
-                src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7],
-            ]),
-            tv_usec: i64::from_ne_bytes([
-                src[8], src[9], src[10], src[11], src[12], src[13], src[14], src[15],
-            ]),
-        }
-    })
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?;
+    let tv = read_user_pod::<LinuxTimevalCompat>(timeout)?;
 
     if tv.tv_sec < 0 || tv.tv_usec < 0 || tv.tv_usec >= 1_000_000 {
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
@@ -39,12 +31,7 @@ fn timeout_to_retries(timeout: usize) -> Result<usize, usize> {
     let total_ns = (tv.tv_sec as u128)
         .saturating_mul(1_000_000_000u128)
         .saturating_add((tv.tv_usec as u128).saturating_mul(1_000u128));
-    if total_ns == 0 {
-        return Ok(0);
-    }
-
-    let tick_ns = core::cmp::max(crate::generated_consts::TIME_SLICE_NS as u128, 1u128);
-    Ok(((total_ns + tick_ns - 1) / tick_ns) as usize)
+    Ok(super::compat::timeout_ns_to_retries(total_ns))
 }
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
@@ -53,19 +40,7 @@ fn timespec_timeout_ptr_to_retries(timeout_ptr: usize) -> Result<usize, usize> {
         return Ok(crate::config::KernelConfig::libnet_posix_blocking_recv_retries());
     }
 
-    let ts = with_user_read_bytes(
-        timeout_ptr,
-        core::mem::size_of::<LinuxTimespecCompat>(),
-        |src| LinuxTimespecCompat {
-            tv_sec: i64::from_ne_bytes([
-                src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7],
-            ]),
-            tv_nsec: i64::from_ne_bytes([
-                src[8], src[9], src[10], src[11], src[12], src[13], src[14], src[15],
-            ]),
-        },
-    )
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?;
+    let ts = read_user_pod::<LinuxTimespecCompat>(timeout_ptr)?;
 
     if ts.tv_sec < 0 || ts.tv_nsec < 0 || ts.tv_nsec >= 1_000_000_000 {
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
@@ -74,12 +49,7 @@ fn timespec_timeout_ptr_to_retries(timeout_ptr: usize) -> Result<usize, usize> {
     let total_ns = (ts.tv_sec as u128)
         .saturating_mul(1_000_000_000u128)
         .saturating_add(ts.tv_nsec as u128);
-    if total_ns == 0 {
-        return Ok(0);
-    }
-
-    let tick_ns = core::cmp::max(crate::generated_consts::TIME_SLICE_NS as u128, 1u128);
-    Ok(((total_ns + tick_ns - 1) / tick_ns) as usize)
+    Ok(super::compat::timeout_ns_to_retries(total_ns))
 }
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
@@ -88,19 +58,7 @@ fn parse_pselect6_sigmask(sigmask_desc_ptr: usize) -> Result<Option<u64>, usize>
         return Ok(None);
     }
 
-    let desc = with_user_read_bytes(
-        sigmask_desc_ptr,
-        core::mem::size_of::<LinuxPselect6SigmaskCompat>(),
-        |src| LinuxPselect6SigmaskCompat {
-            ss_ptr: usize::from_ne_bytes([
-                src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7],
-            ]),
-            ss_len: usize::from_ne_bytes([
-                src[8], src[9], src[10], src[11], src[12], src[13], src[14], src[15],
-            ]),
-        },
-    )
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?;
+    let desc = read_user_pod::<LinuxPselect6SigmaskCompat>(sigmask_desc_ptr)?;
 
     if desc.ss_ptr == 0 {
         return Ok(None);
@@ -110,14 +68,25 @@ fn parse_pselect6_sigmask(sigmask_desc_ptr: usize) -> Result<Option<u64>, usize>
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
     }
 
-    let mask = with_user_read_bytes(desc.ss_ptr, core::mem::size_of::<u64>(), |src| {
-        u64::from_ne_bytes([
-            src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7],
-        ])
-    })
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?;
+    let mask = read_user_pod::<u64>(desc.ss_ptr)?;
 
     Ok(Some(mask))
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+fn read_optional_fd_set(ptr: usize, nfds: usize) -> Result<alloc::vec::Vec<u32>, usize> {
+    if ptr == 0 {
+        return Ok(alloc::vec::Vec::new());
+    }
+    read_fd_set_compat(ptr, nfds)
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+fn write_optional_fd_set(ptr: usize, fds: &[u32], nfds: usize) -> Result<(), usize> {
+    if ptr == 0 {
+        return Ok(());
+    }
+    write_fd_set_compat(ptr, fds, nfds)
 }
 
 #[cfg(all(
@@ -163,47 +132,44 @@ fn sys_linux_select_with_retries(
     exceptfds: usize,
     retries: usize,
 ) -> usize {
-    let read_in = if readfds == 0 {
-        alloc::vec::Vec::new()
-    } else {
-        match read_fd_set_compat(readfds, nfds) {
-            Ok(v) => v,
-            Err(err) => return err,
-        }
+    let read_in = match read_optional_fd_set(readfds, nfds) {
+        Ok(v) => v,
+        Err(err) => return err,
     };
 
-    let write_in = if writefds == 0 {
-        alloc::vec::Vec::new()
-    } else {
-        match read_fd_set_compat(writefds, nfds) {
-            Ok(v) => v,
-            Err(err) => return err,
-        }
+    let write_in = match read_optional_fd_set(writefds, nfds) {
+        Ok(v) => v,
+        Err(err) => return err,
     };
 
-    let except_in = if exceptfds == 0 {
-        alloc::vec::Vec::new()
-    } else {
-        match read_fd_set_compat(exceptfds, nfds) {
-            Ok(v) => v,
-            Err(err) => return err,
-        }
+    let except_in = match read_optional_fd_set(exceptfds, nfds) {
+        Ok(v) => v,
+        Err(err) => return err,
     };
 
-    let result = match crate::modules::libnet::posix_select_errno(
+    let mut result = match crate::modules::libnet::posix_select_errno(
         &read_in, &write_in, &except_in, retries,
     ) {
         Ok(v) => v,
         Err(err) => return linux_errno(err.code()),
     };
 
-    if readfds != 0 && write_fd_set_compat(readfds, &result.readable, nfds).is_err() {
-        return linux_errno(crate::modules::posix_consts::errno::EFAULT);
+    for fd in &read_in {
+        let revents = super::super::timerfd_poll_revents(
+            *fd,
+            crate::modules::posix_consts::net::POLLIN,
+        );
+        if (revents & crate::modules::posix_consts::net::POLLIN) != 0
+            && !result.readable.contains(fd)
+        {
+            result.readable.push(*fd);
+        }
     }
-    if writefds != 0 && write_fd_set_compat(writefds, &result.writable, nfds).is_err() {
-        return linux_errno(crate::modules::posix_consts::errno::EFAULT);
-    }
-    if exceptfds != 0 && write_fd_set_compat(exceptfds, &result.exceptional, nfds).is_err() {
+
+    if write_optional_fd_set(readfds, &result.readable, nfds).is_err()
+        || write_optional_fd_set(writefds, &result.writable, nfds).is_err()
+        || write_optional_fd_set(exceptfds, &result.exceptional, nfds).is_err()
+    {
         return linux_errno(crate::modules::posix_consts::errno::EFAULT);
     }
 

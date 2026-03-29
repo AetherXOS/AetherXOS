@@ -69,7 +69,7 @@ fn publish_load_plan_lifecycle(process: &Process) {
     process.exec_generation.fetch_add(1, Ordering::Relaxed);
     process
         .lifecycle_state
-        .store(ProcessLifecycleState::Runnable as u8, Ordering::Relaxed);
+        .store(ProcessLifecycleState::Runnable.to_u8(), Ordering::Relaxed);
     process.exit_status.store(0, Ordering::Relaxed);
 }
 

@@ -39,6 +39,11 @@ pub(super) fn sys_linux_clone(
 }
 
 #[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_clone3(args_ptr: usize, size: usize) -> usize {
+    clone_ns::sys_linux_clone3(args_ptr, size)
+}
+
+#[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_unshare(flags: usize) -> usize {
     clone_ns::sys_linux_unshare(flags)
 }

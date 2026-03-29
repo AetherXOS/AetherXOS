@@ -7,6 +7,22 @@ use spin::Mutex;
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
 static GETDENTS64_CURSOR: Mutex<BTreeMap<u32, usize>> = Mutex::new(BTreeMap::new());
 
+#[cfg(not(feature = "linux_compat"))]
+const UTSNAME_FIELD_LEN: usize = 65;
+
+#[repr(C, packed)]
+#[cfg(not(feature = "linux_compat"))]
+#[derive(Clone, Copy, Default)]
+struct LinuxDirent64Header {
+    d_ino: u64,
+    d_off: i64,
+    d_reclen: u16,
+    d_type: u8,
+}
+
+#[cfg(not(feature = "linux_compat"))]
+const DIRENT64_FIXED: usize = core::mem::size_of::<LinuxDirent64Header>();
+
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
 pub(crate) fn clear_getdents_cursor(fd: u32) {
     GETDENTS64_CURSOR.lock().remove(&fd);
@@ -14,7 +30,6 @@ pub(crate) fn clear_getdents_cursor(fd: u32) {
 
 #[cfg(not(feature = "linux_compat"))]
 pub(crate) fn sys_linux_getdents64(fd: usize, dirp: usize, count: usize) -> usize {
-    const DIRENT64_FIXED: usize = 19;
     if count < DIRENT64_FIXED {
         return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
@@ -60,16 +75,21 @@ pub(crate) fn sys_linux_getdents64(fd: usize, dirp: usize, count: usize) -> usiz
                 }
 
                 let off = written;
-                let d_ino = 1u64;
-                let d_off = (idx + 1) as i64;
-                let d_reclen = reclen as u16;
-                let d_type = 0u8;
+                let hdr = LinuxDirent64Header {
+                    d_ino: 1,
+                    d_off: (idx + 1) as i64,
+                    d_reclen: reclen as u16,
+                    d_type: 0,
+                };
+                let hdr_bytes = unsafe {
+                    core::slice::from_raw_parts(
+                        (&hdr as *const LinuxDirent64Header).cast::<u8>(),
+                        DIRENT64_FIXED,
+                    )
+                };
 
-                dst[off..off + 8].copy_from_slice(&d_ino.to_ne_bytes());
-                dst[off + 8..off + 16].copy_from_slice(&d_off.to_ne_bytes());
-                dst[off + 16..off + 18].copy_from_slice(&d_reclen.to_ne_bytes());
-                dst[off + 18] = d_type;
-                let name_start = off + 19;
+                dst[off..off + DIRENT64_FIXED].copy_from_slice(hdr_bytes);
+                let name_start = off + DIRENT64_FIXED;
                 let name_end = name_start + name.len();
                 dst[name_start..name_end].copy_from_slice(name);
                 dst[name_end] = 0;
@@ -136,13 +156,26 @@ pub(crate) fn sys_linux_getcwd(buf: usize, size: usize) -> usize {
 #[repr(C)]
 #[cfg(not(feature = "linux_compat"))]
 struct LinuxUtsname {
-    sysname: [u8; 65],
-    nodename: [u8; 65],
-    release: [u8; 65],
-    version: [u8; 65],
-    machine: [u8; 65],
-    domainname: [u8; 65],
+    sysname: [u8; UTSNAME_FIELD_LEN],
+    nodename: [u8; UTSNAME_FIELD_LEN],
+    release: [u8; UTSNAME_FIELD_LEN],
+    version: [u8; UTSNAME_FIELD_LEN],
+    machine: [u8; UTSNAME_FIELD_LEN],
+    domainname: [u8; UTSNAME_FIELD_LEN],
 }
+
+#[cfg(not(feature = "linux_compat"))]
+const UTSNAME_SYSNAME_OFFSET: usize = core::mem::offset_of!(LinuxUtsname, sysname);
+#[cfg(not(feature = "linux_compat"))]
+const UTSNAME_NODENAME_OFFSET: usize = core::mem::offset_of!(LinuxUtsname, nodename);
+#[cfg(not(feature = "linux_compat"))]
+const UTSNAME_RELEASE_OFFSET: usize = core::mem::offset_of!(LinuxUtsname, release);
+#[cfg(not(feature = "linux_compat"))]
+const UTSNAME_VERSION_OFFSET: usize = core::mem::offset_of!(LinuxUtsname, version);
+#[cfg(not(feature = "linux_compat"))]
+const UTSNAME_MACHINE_OFFSET: usize = core::mem::offset_of!(LinuxUtsname, machine);
+#[cfg(not(feature = "linux_compat"))]
+const UTSNAME_DOMAINNAME_OFFSET: usize = core::mem::offset_of!(LinuxUtsname, domainname);
 
 #[cfg(not(feature = "linux_compat"))]
 pub(crate) fn sys_linux_uname(buf: usize) -> usize {
@@ -150,20 +183,20 @@ pub(crate) fn sys_linux_uname(buf: usize) -> usize {
     with_user_write_bytes(buf, total, |dst| {
         dst.fill(0);
         let copy_field = |dst: &mut [u8], offset: usize, value: &[u8]| {
-            let len = core::cmp::min(value.len(), 64);
+            let len = core::cmp::min(value.len(), UTSNAME_FIELD_LEN - 1);
             dst[offset..offset + len].copy_from_slice(&value[..len]);
         };
-        copy_field(dst, 0, b"HyperCore");
-        copy_field(dst, 65, b"hypercore");
-        copy_field(dst, 130, b"0.2.0");
-        copy_field(dst, 195, b"#1 SMP");
+        copy_field(dst, UTSNAME_SYSNAME_OFFSET, b"HyperCore");
+        copy_field(dst, UTSNAME_NODENAME_OFFSET, b"hypercore");
+        copy_field(dst, UTSNAME_RELEASE_OFFSET, b"0.2.0");
+        copy_field(dst, UTSNAME_VERSION_OFFSET, b"#1 SMP");
         #[cfg(target_arch = "x86_64")]
-        copy_field(dst, 260, b"x86_64");
+        copy_field(dst, UTSNAME_MACHINE_OFFSET, b"x86_64");
         #[cfg(target_arch = "aarch64")]
-        copy_field(dst, 260, b"aarch64");
+        copy_field(dst, UTSNAME_MACHINE_OFFSET, b"aarch64");
         #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-        copy_field(dst, 260, b"unknown");
-        copy_field(dst, 325, b"(none)");
+        copy_field(dst, UTSNAME_MACHINE_OFFSET, b"unknown");
+        copy_field(dst, UTSNAME_DOMAINNAME_OFFSET, b"(none)");
         0
     })
     .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))

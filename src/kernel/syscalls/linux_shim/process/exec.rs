@@ -315,6 +315,54 @@ fn execve_with_path(path: alloc::string::String, argv_ptr: usize, envp_ptr: usiz
 }
 
 #[cfg(not(feature = "linux_compat"))]
+fn resolve_execveat_path(dirfd: isize, path: &str, flags: usize) -> Result<alloc::string::String, usize> {
+    const AT_EMPTY_PATH: usize = crate::kernel::syscalls::syscalls_consts::linux::AT_EMPTY_PATH;
+
+    if path.is_empty() {
+        if (flags & AT_EMPTY_PATH) == 0 {
+            return Err(linux_errno(crate::modules::posix_consts::errno::ENOENT));
+        }
+        if dirfd < 0 {
+            return Err(linux_errno(crate::modules::posix_consts::errno::EBADF));
+        }
+
+        #[cfg(feature = "posix_fs")]
+        {
+            return crate::modules::posix::fs::fd_path(dirfd as u32)
+                .map_err(|err| linux_errno(err.code()));
+        }
+
+        #[cfg(not(feature = "posix_fs"))]
+        {
+            return Err(linux_errno(crate::modules::posix_consts::errno::ENOSYS));
+        }
+    }
+
+    if path.starts_with('/') || dirfd == super::super::LINUX_AT_FDCWD {
+        return Ok(path.into());
+    }
+    if dirfd < 0 {
+        return Err(linux_errno(crate::modules::posix_consts::errno::EBADF));
+    }
+
+    #[cfg(feature = "posix_fs")]
+    {
+        let fs_id = crate::modules::posix::fs::fd_fs_context(dirfd as u32)
+            .map_err(|err| linux_errno(err.code()))?;
+        let dir_path = crate::modules::posix::fs::fd_path(dirfd as u32)
+            .map_err(|err| linux_errno(err.code()))?;
+        return crate::modules::posix::fs::resolve_at_path(fs_id, &dir_path, path)
+            .map_err(|err| linux_errno(err.code()));
+    }
+
+    #[cfg(not(feature = "posix_fs"))]
+    {
+        // Without fs context we cannot legally resolve dirfd-relative paths.
+        Err(linux_errno(crate::modules::posix_consts::errno::ENOSYS))
+    }
+}
+
+#[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_execve(path_ptr: usize, argv_ptr: usize, envp_ptr: usize) -> usize {
     let path = match read_user_c_string(path_ptr, USER_CSTRING_MAX_LEN) {
         Ok(p) => p,
@@ -344,55 +392,12 @@ pub(super) fn sys_linux_execveat(
         Err(e) => return e,
     };
 
-    if path.is_empty() {
-        if (flags & AT_EMPTY_PATH) == 0 {
-            return linux_errno(crate::modules::posix_consts::errno::ENOENT);
-        }
-        if dirfd < 0 {
-            return linux_errno(crate::modules::posix_consts::errno::EBADF);
-        }
-        #[cfg(feature = "posix_fs")]
-        {
-            let resolved = match crate::modules::posix::fs::fd_path(dirfd as u32) {
-                Ok(v) => v,
-                Err(err) => return linux_errno(err.code()),
-            };
-            return execve_with_path(resolved, argv_ptr, envp_ptr);
-        }
-        #[cfg(not(feature = "posix_fs"))]
-        {
-            return linux_errno(crate::modules::posix_consts::errno::ENOSYS);
-        }
-    }
+    let resolved = match resolve_execveat_path(dirfd, &path, flags) {
+        Ok(v) => v,
+        Err(err) => return err,
+    };
 
-    if path.starts_with('/') || dirfd == super::super::LINUX_AT_FDCWD {
-        return execve_with_path(path, argv_ptr, envp_ptr);
-    }
-    if dirfd < 0 {
-        return linux_errno(crate::modules::posix_consts::errno::EBADF);
-    }
-
-    #[cfg(feature = "posix_fs")]
-    {
-        let fs_id = match crate::modules::posix::fs::fd_fs_context(dirfd as u32) {
-            Ok(v) => v,
-            Err(err) => return linux_errno(err.code()),
-        };
-        let dir_path = match crate::modules::posix::fs::fd_path(dirfd as u32) {
-            Ok(v) => v,
-            Err(err) => return linux_errno(err.code()),
-        };
-        let resolved = match crate::modules::posix::fs::resolve_at_path(fs_id, &dir_path, &path) {
-            Ok(v) => v,
-            Err(err) => return linux_errno(err.code()),
-        };
-        return execve_with_path(resolved, argv_ptr, envp_ptr);
-    }
-
-    #[cfg(not(feature = "posix_fs"))]
-    {
-        execve_with_path(path, argv_ptr, envp_ptr)
-    }
+    execve_with_path(resolved, argv_ptr, envp_ptr)
 }
 
 #[cfg(all(test, not(feature = "linux_compat")))]

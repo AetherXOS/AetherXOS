@@ -12,19 +12,7 @@ pub(crate) enum DriftReasonCode {
 impl DriftReasonCode {
     #[inline(always)]
     pub(crate) const fn as_u8(self) -> u8 {
-        self as u8
-    }
-
-    #[inline(always)]
-    pub(crate) const fn from_u8(value: u8) -> Self {
-        match value {
-            1 => Self::PressureHigh,
-            2 => Self::RtStarvation,
-            3 => Self::NetworkSlo,
-            4 => Self::VfsSlo,
-            5 => Self::DriverWaitTimeout,
-            _ => Self::None,
-        }
+        self.to_u8()
     }
 
     #[inline(always)]
@@ -39,6 +27,18 @@ impl DriftReasonCode {
         }
     }
 }
+
+crate::impl_enum_u8_default_conversions!(
+    DriftReasonCode {
+        None,
+        PressureHigh,
+        RtStarvation,
+        NetworkSlo,
+        VfsSlo,
+        DriverWaitTimeout,
+    },
+    default = None
+);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoreRuntimePolicyPreset {

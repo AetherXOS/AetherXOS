@@ -1,6 +1,8 @@
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 use super::compat::{LinuxPollFdCompat, LinuxTimespecCompat};
 use super::*;
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+use crate::kernel::syscalls::linux_shim::util::{read_user_pod, write_user_pod};
 
 #[cfg(all(
     feature = "linux_poll_timeout_ms",
@@ -18,12 +20,7 @@ fn parse_sigmask(sigmask_ptr: usize, sigset_size: usize) -> Result<Option<u64>, 
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
     }
 
-    let mask = with_user_read_bytes(sigmask_ptr, core::mem::size_of::<u64>(), |src| {
-        u64::from_ne_bytes([
-            src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7],
-        ])
-    })
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?;
+    let mask = read_user_pod::<u64>(sigmask_ptr)?;
 
     Ok(Some(mask))
 }
@@ -69,19 +66,7 @@ fn timeout_ptr_to_retries(timeout_ptr: usize) -> Result<usize, usize> {
         return Ok(crate::config::KernelConfig::libnet_posix_blocking_recv_retries());
     }
 
-    let ts = with_user_read_bytes(
-        timeout_ptr,
-        core::mem::size_of::<LinuxTimespecCompat>(),
-        |src| LinuxTimespecCompat {
-            tv_sec: i64::from_ne_bytes([
-                src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7],
-            ]),
-            tv_nsec: i64::from_ne_bytes([
-                src[8], src[9], src[10], src[11], src[12], src[13], src[14], src[15],
-            ]),
-        },
-    )
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?;
+    let ts = read_user_pod::<LinuxTimespecCompat>(timeout_ptr)?;
 
     if ts.tv_sec < 0 || ts.tv_nsec < 0 || ts.tv_nsec >= 1_000_000_000 {
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
@@ -90,12 +75,94 @@ fn timeout_ptr_to_retries(timeout_ptr: usize) -> Result<usize, usize> {
     let total_ns = (ts.tv_sec as u128)
         .saturating_mul(1_000_000_000u128)
         .saturating_add(ts.tv_nsec as u128);
-    if total_ns == 0 {
-        return Ok(0);
-    }
+    Ok(super::compat::timeout_ns_to_retries(total_ns))
+}
 
-    let tick_ns = core::cmp::max(crate::generated_consts::TIME_SLICE_NS as u128, 1u128);
-    Ok(((total_ns + tick_ns - 1) / tick_ns) as usize)
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+fn poll_entry_ptr(fds_ptr: usize, index: usize, item_sz: usize) -> Result<usize, usize> {
+    fds_ptr
+        .checked_add(index.saturating_mul(item_sz))
+        .ok_or_else(|| linux_errno(crate::modules::posix_consts::errno::EOVERFLOW))
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+fn read_poll_fds_from_user(fds_ptr: usize, nfds: usize) -> Result<alloc::vec::Vec<LinuxPollFdCompat>, usize> {
+    let item_sz = core::mem::size_of::<LinuxPollFdCompat>();
+    let mut in_fds = alloc::vec::Vec::with_capacity(nfds);
+    for i in 0..nfds {
+        let entry_ptr = poll_entry_ptr(fds_ptr, i, item_sz)?;
+        in_fds.push(read_user_pod::<LinuxPollFdCompat>(entry_ptr)?);
+    }
+    Ok(in_fds)
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+fn build_poll_request(in_fds: &[LinuxPollFdCompat]) -> alloc::vec::Vec<crate::modules::libnet::PosixPollFd> {
+    in_fds
+        .iter()
+        .map(|p| {
+            if p.fd < 0 {
+                return crate::modules::libnet::PosixPollFd::new(
+                    0,
+                    crate::modules::libnet::PosixPollEvents::empty(),
+                );
+            }
+
+            crate::modules::libnet::PosixPollFd::new(
+                p.fd as u32,
+                crate::modules::libnet::PosixPollEvents::from_bits_truncate(p.events as u16),
+            )
+        })
+        .collect()
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+fn apply_synthetic_revents(
+    in_fds: &[LinuxPollFdCompat],
+    poll_fds: &mut [crate::modules::libnet::PosixPollFd],
+) -> usize {
+    let mut synthetic_ready = 0usize;
+    for (i, p) in in_fds.iter().enumerate() {
+        if p.fd < 0 {
+            continue;
+        }
+
+        let synthetic_revents = crate::kernel::syscalls::linux_shim::net::userspace_display_poll_revents(
+            p.fd as u32,
+            p.events as u16,
+        ) | super::super::timerfd_poll_revents(p.fd as u32, p.events as u16);
+        if synthetic_revents == 0 {
+            continue;
+        }
+
+        let was_empty = poll_fds[i].revents.is_empty();
+        poll_fds[i].revents |=
+            crate::modules::libnet::PosixPollEvents::from_bits_truncate(synthetic_revents);
+        if was_empty && !poll_fds[i].revents.is_empty() {
+            synthetic_ready = synthetic_ready.saturating_add(1);
+        }
+    }
+    synthetic_ready
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+fn write_poll_fds_to_user(
+    fds_ptr: usize,
+    in_fds: &[LinuxPollFdCompat],
+    poll_fds: &[crate::modules::libnet::PosixPollFd],
+) -> Result<(), usize> {
+    let item_sz = core::mem::size_of::<LinuxPollFdCompat>();
+    for (i, p) in in_fds.iter().enumerate() {
+        let entry_ptr = poll_entry_ptr(fds_ptr, i, item_sz)?;
+        let out = LinuxPollFdCompat {
+            fd: p.fd,
+            events: p.events,
+            revents: poll_fds[i].revents.bits() as i16,
+        };
+        write_user_pod(entry_ptr, &out)
+            .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?;
+    }
+    Ok(())
 }
 
 #[cfg(all(not(feature = "linux_compat"), feature = "linux_poll_timeout_ms"))]
@@ -105,12 +172,7 @@ fn poll_timeout_to_retries(timeout: usize) -> usize {
     }
 
     let timeout_ns = (timeout as u128).saturating_mul(1_000_000u128);
-    if timeout_ns == 0 {
-        return 0;
-    }
-
-    let tick_ns = core::cmp::max(crate::generated_consts::TIME_SLICE_NS as u128, 1u128);
-    ((timeout_ns + tick_ns - 1) / tick_ns) as usize
+    super::compat::timeout_ns_to_retries(timeout_ns)
 }
 
 #[cfg(all(not(feature = "linux_compat"), not(feature = "linux_poll_timeout_ms")))]
@@ -136,89 +198,26 @@ fn sys_linux_poll_with_retries(fds_ptr: usize, nfds: usize, retries: usize) -> u
 
     #[cfg(feature = "posix_net")]
     {
-        let item_sz = core::mem::size_of::<LinuxPollFdCompat>();
-        let total_sz = match item_sz.checked_mul(nfds) {
-            Some(v) => v,
-            None => return linux_errno(crate::modules::posix_consts::errno::EOVERFLOW),
+        let in_fds = match read_poll_fds_from_user(fds_ptr, nfds) {
+            Ok(v) => v,
+            Err(err) => return err,
         };
-
-        let mut in_fds = alloc::vec::Vec::with_capacity(nfds);
-        let rd = with_user_read_bytes(fds_ptr, total_sz, |src| {
-            for i in 0..nfds {
-                let base = i * item_sz;
-                let fd =
-                    i32::from_ne_bytes([src[base], src[base + 1], src[base + 2], src[base + 3]]);
-                let events = i16::from_ne_bytes([src[base + 4], src[base + 5]]);
-                let revents = i16::from_ne_bytes([src[base + 6], src[base + 7]]);
-                in_fds.push(LinuxPollFdCompat {
-                    fd,
-                    events,
-                    revents,
-                });
-            }
-            0usize
-        });
-        if rd.is_err() {
-            return linux_errno(crate::modules::posix_consts::errno::EFAULT);
-        }
-
-        let mut poll_fds = alloc::vec::Vec::with_capacity(nfds);
-        for p in &in_fds {
-            if p.fd < 0 {
-                poll_fds.push(crate::modules::libnet::PosixPollFd::new(
-                    0,
-                    crate::modules::libnet::PosixPollEvents::empty(),
-                ));
-                continue;
-            }
-            poll_fds.push(crate::modules::libnet::PosixPollFd::new(
-                p.fd as u32,
-                crate::modules::libnet::PosixPollEvents::from_bits_truncate(p.events as u16),
-            ));
-        }
+        let mut poll_fds = build_poll_request(&in_fds);
 
         let ready = match crate::modules::libnet::posix_poll_errno(&mut poll_fds, retries) {
             Ok(v) => v,
             Err(err) => return linux_errno(err.code()),
         };
 
-        let mut synthetic_ready = 0usize;
-        for (i, p) in in_fds.iter().enumerate() {
-            if p.fd < 0 {
-                continue;
-            }
-
-            let synthetic_revents = crate::kernel::syscalls::linux_shim::net::userspace_display_poll_revents(
-                p.fd as u32,
-                p.events as u16,
-            );
-            if synthetic_revents == 0 {
-                continue;
-            }
-
-            let was_empty = poll_fds[i].revents.is_empty();
-            poll_fds[i].revents |= crate::modules::libnet::PosixPollEvents::from_bits_truncate(
-                synthetic_revents,
-            );
-            if was_empty && !poll_fds[i].revents.is_empty() {
-                synthetic_ready = synthetic_ready.saturating_add(1);
-            }
-        }
+        let synthetic_ready = apply_synthetic_revents(&in_fds, &mut poll_fds);
 
         let ready = ready.saturating_add(synthetic_ready);
 
-        with_user_write_bytes(fds_ptr, total_sz, |dst| {
-            for (i, p) in in_fds.iter().enumerate() {
-                let base = i * item_sz;
-                dst[base..base + 4].copy_from_slice(&p.fd.to_ne_bytes());
-                dst[base + 4..base + 6].copy_from_slice(&p.events.to_ne_bytes());
-                let revents_u16 = poll_fds[i].revents.bits();
-                let revents_i16 = revents_u16 as i16;
-                dst[base + 6..base + 8].copy_from_slice(&revents_i16.to_ne_bytes());
-            }
-            ready
-        })
-        .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+        if let Err(err) = write_poll_fds_to_user(fds_ptr, &in_fds, &poll_fds) {
+            return err;
+        }
+
+        ready
     }
     #[cfg(not(feature = "posix_net"))]
     {
@@ -332,8 +331,7 @@ mod timeout_mode_tests_ms {
     fn poll_timeout_ms_uses_tick_based_round_up() {
         let timeout_ms = 7usize;
         let timeout_ns = (timeout_ms as u128).saturating_mul(1_000_000u128);
-        let tick_ns = core::cmp::max(crate::generated_consts::TIME_SLICE_NS as u128, 1u128);
-        let expected = ((timeout_ns + tick_ns - 1) / tick_ns) as usize;
+        let expected = super::compat::timeout_ns_to_retries(timeout_ns);
         assert_eq!(poll_timeout_to_retries(timeout_ms), expected);
     }
 }

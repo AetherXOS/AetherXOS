@@ -107,3 +107,19 @@ fn epoll_pwait_empty_registry_returns_zero() {
         0
     );
 }
+
+#[test_case]
+fn timeout_ns_to_retries_rounds_up_by_tick() {
+    let timeout_ns = 7_500_000u128;
+    let tick_ns = core::cmp::max(crate::generated_consts::TIME_SLICE_NS as u128, 1u128);
+    let expected = ((timeout_ns + tick_ns - 1) / tick_ns) as usize;
+    assert_eq!(timeout_ns_to_retries(timeout_ns), expected);
+}
+
+#[test_case]
+fn timeout_arg_max_maps_to_blocking_retries() {
+    assert_eq!(
+        timeout_arg_to_retries(usize::MAX),
+        crate::config::KernelConfig::libnet_posix_blocking_recv_retries()
+    );
+}

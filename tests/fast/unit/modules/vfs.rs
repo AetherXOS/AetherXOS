@@ -1,4 +1,6 @@
 use crate::harness::{TestResult, TestCategory};
+use alloc::{vec, vec::Vec};
+use core::ops::Fn;
 
 pub fn all_tests() -> Vec<&'static dyn Fn() -> TestResult> {
     vec![

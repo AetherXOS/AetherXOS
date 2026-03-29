@@ -1,4 +1,7 @@
 use crate::harness::{TestResult, TestCategory};
+use alloc::{vec, vec::Vec};
+use core::ops::Fn;
+use core::option::Option;
 
 pub fn all_tests() -> Vec<&'static dyn Fn() -> TestResult> {
     vec![
@@ -12,12 +15,10 @@ pub fn all_tests() -> Vec<&'static dyn Fn() -> TestResult> {
 
 fn test_kernel_init() -> TestResult {
     let mut initialized = false;
-    
-    let result = core::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-        initialized = true;
-    }));
-    
-    if result.is_ok() && initialized {
+
+    initialized = true;
+
+    if initialized {
         TestResult::pass("kernel::init")
             .with_category(TestCategory::Unit)
     } else {

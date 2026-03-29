@@ -185,14 +185,19 @@ pub(crate) fn userspace_display_fd_is_bound(fd: u32) -> bool {
 #[cfg(not(feature = "linux_compat"))]
 #[allow(dead_code)]
 pub(crate) fn userspace_display_epoll_revents(fd: u32, requested: u32) -> u32 {
+    let timerfd_revents = crate::kernel::syscalls::linux_misc::timerfd_poll_revents(
+        fd,
+        requested as u16,
+    ) as u32;
+
     #[cfg(all(feature = "posix_net", feature = "linux_userspace_graphics"))]
     {
-        return socket::userspace_display_epoll_revents(fd, requested);
+        return socket::userspace_display_epoll_revents(fd, requested) | timerfd_revents;
     }
 
     #[cfg(not(all(feature = "posix_net", feature = "linux_userspace_graphics")))]
     {
         let _ = (fd, requested);
-        0
+        timerfd_revents
     }
 }

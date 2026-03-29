@@ -38,6 +38,7 @@ pub struct SessionId(pub ProcessId);
 
 /// Job control state for a process group
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum JobControlStateType {
     /// Process group is actively running (foreground or not attached to TTY)
     Active,
@@ -56,6 +57,14 @@ pub enum JobControlStateType {
     Orphaned,
 }
 
+impl_enum_u8_default_conversions!(JobControlStateType {
+    Active,
+    Stopped,
+    Resuming,
+    Background,
+    Orphaned,
+}, default = Active);
+
 /// Job control state container tracking per-process-group state
 #[derive(Debug)]
 pub struct JobControlState {
@@ -72,7 +81,7 @@ pub struct JobControlState {
 impl JobControlState {
     pub fn new() -> Self {
         JobControlState {
-            state: AtomicU8::new(JobControlStateType::Active as u8),
+            state: AtomicU8::new(JobControlStateType::Active.to_u8()),
             stopped_count: core::sync::atomic::AtomicUsize::new(0),
             state_change_ticks: core::sync::atomic::AtomicU64::new(0),
         }
@@ -81,26 +90,12 @@ impl JobControlState {
     /// Get current state
     pub fn state(&self) -> JobControlStateType {
         let byte = self.state.load(Ordering::Acquire);
-        match byte {
-            0 => JobControlStateType::Active,
-            1 => JobControlStateType::Stopped,
-            2 => JobControlStateType::Resuming,
-            3 => JobControlStateType::Background,
-            4 => JobControlStateType::Orphaned,
-            _ => JobControlStateType::Active,
-        }
+        JobControlStateType::from_u8(byte)
     }
 
     /// Set the process group state
     pub fn set_state(&self, new_state: JobControlStateType) {
-        let byte = match new_state {
-            JobControlStateType::Active => 0,
-            JobControlStateType::Stopped => 1,
-            JobControlStateType::Resuming => 2,
-            JobControlStateType::Background => 3,
-            JobControlStateType::Orphaned => 4,
-        };
-        self.state.store(byte, Ordering::Release);
+        self.state.store(new_state.to_u8(), Ordering::Release);
     }
 
     /// Increment the stopped process count

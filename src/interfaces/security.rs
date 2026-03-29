@@ -96,18 +96,13 @@ pub enum SecurityLevel {
     KernelOnly = 4,
 }
 
-impl SecurityLevel {
-    pub fn from_u8(v: u8) -> Self {
-        match v {
-            0 => Self::Unclassified,
-            1 => Self::Confidential,
-            2 => Self::Secret,
-            3 => Self::TopSecret,
-            4 => Self::KernelOnly,
-            _ => Self::Unclassified,
-        }
-    }
-}
+impl_enum_u8_default_conversions!(SecurityLevel {
+    Unclassified,
+    Confidential,
+    Secret,
+    TopSecret,
+    KernelOnly,
+}, default = Unclassified);
 
 /// Capability flags — first 64 capabilities as a bitmask for fast inline checks.
 /// Capabilities beyond 64 use the extended capability set.

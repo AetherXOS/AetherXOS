@@ -1,4 +1,8 @@
 use super::super::*;
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+use crate::kernel::syscalls::linux_shim::util::{
+    define_user_pod_codec, read_user_pod, write_user_pod,
+};
 #[cfg(all(
     not(feature = "linux_compat"),
     feature = "posix_net",
@@ -33,6 +37,11 @@ struct LinuxTimespecCompat {
     tv_sec: i64,
     tv_nsec: i64,
 }
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+define_user_pod_codec!(read_linux_epoll_event_pod, _write_linux_epoll_event_pod, LinuxEpollEventCompat);
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+define_user_pod_codec!(read_linux_timespec_pod, _write_linux_timespec_pod, LinuxTimespecCompat);
 
 #[cfg(all(
     not(feature = "linux_compat"),
@@ -116,24 +125,33 @@ fn synthetic_userspace_display_epoll_rows(
 }
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+#[inline]
+fn timeout_ns_to_retries(total_ns: u128) -> usize {
+    if total_ns == 0 {
+        return 0;
+    }
+
+    let tick_ns = core::cmp::max(crate::generated_consts::TIME_SLICE_NS as u128, 1u128);
+    ((total_ns + tick_ns - 1) / tick_ns) as usize
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+#[inline]
+fn timeout_arg_to_retries(timeout: usize) -> usize {
+    if timeout == usize::MAX {
+        crate::config::KernelConfig::libnet_posix_blocking_recv_retries()
+    } else {
+        timeout
+    }
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 fn timeout_ptr_to_retries(timeout_ptr: usize) -> Result<usize, usize> {
     if timeout_ptr == 0 {
         return Ok(crate::config::KernelConfig::libnet_posix_blocking_recv_retries());
     }
 
-    let ts = with_user_read_bytes(
-        timeout_ptr,
-        core::mem::size_of::<LinuxTimespecCompat>(),
-        |src| LinuxTimespecCompat {
-            tv_sec: i64::from_ne_bytes([
-                src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7],
-            ]),
-            tv_nsec: i64::from_ne_bytes([
-                src[8], src[9], src[10], src[11], src[12], src[13], src[14], src[15],
-            ]),
-        },
-    )
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?;
+    let ts = read_linux_timespec_pod(timeout_ptr)?;
 
     if ts.tv_sec < 0 || ts.tv_nsec < 0 || ts.tv_nsec >= 1_000_000_000 {
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
@@ -142,12 +160,7 @@ fn timeout_ptr_to_retries(timeout_ptr: usize) -> Result<usize, usize> {
     let total_ns = (ts.tv_sec as u128)
         .saturating_mul(1_000_000_000u128)
         .saturating_add(ts.tv_nsec as u128);
-    if total_ns == 0 {
-        return Ok(0);
-    }
-
-    let tick_ns = core::cmp::max(crate::generated_consts::TIME_SLICE_NS as u128, 1u128);
-    Ok(((total_ns + tick_ns - 1) / tick_ns) as usize)
+    Ok(timeout_ns_to_retries(total_ns))
 }
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
@@ -160,12 +173,7 @@ fn parse_sigmask(sigmask_ptr: usize, sigset_size: usize) -> Result<Option<u64>, 
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
     }
 
-    let mask = with_user_read_bytes(sigmask_ptr, core::mem::size_of::<u64>(), |src| {
-        u64::from_ne_bytes([
-            src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7],
-        ])
-    })
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?;
+    let mask = read_user_pod::<u64>(sigmask_ptr)?;
 
     Ok(Some(mask))
 }
@@ -208,15 +216,21 @@ fn write_epoll_rows_to_user(events_ptr: usize, rows: &[(u32, u64)]) -> usize {
         return 0;
     }
 
-    with_user_write_bytes(events_ptr, total_sz, |dst| {
-        for (i, (events, fd)) in rows.iter().enumerate() {
-            let base = i * item_sz;
-            dst[base..base + 4].copy_from_slice(&events.to_ne_bytes());
-            dst[base + 4..base + 12].copy_from_slice(&fd.to_ne_bytes());
+    for (i, (events, fd)) in rows.iter().enumerate() {
+        let dst_ptr = match events_ptr.checked_add(i.saturating_mul(item_sz)) {
+            Some(v) => v,
+            None => return linux_errno(crate::modules::posix_consts::errno::EOVERFLOW),
+        };
+        let entry = LinuxEpollEventCompat {
+            events: *events,
+            data: *fd,
+        };
+        if write_user_pod(dst_ptr, &entry).is_err() {
+            return linux_errno(crate::modules::posix_consts::errno::EFAULT);
         }
-        rows.len()
-    })
-    .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+    }
+
+    rows.len()
 }
 
 #[cfg(not(feature = "linux_compat"))]
@@ -254,12 +268,8 @@ pub(super) fn sys_linux_epoll_ctl(epfd: usize, op: usize, fd: usize, event_ptr: 
             if event_ptr == 0 {
                 return linux_errno(crate::modules::posix_consts::errno::EFAULT);
             }
-            match with_user_read_bytes(
-                event_ptr,
-                core::mem::size_of::<LinuxEpollEventCompat>(),
-                |src| u32::from_ne_bytes([src[0], src[1], src[2], src[3]]),
-            ) {
-                Ok(ev) => ev,
+            match read_linux_epoll_event_pod(event_ptr) {
+                Ok(ev) => ev.events,
                 Err(_) => return linux_errno(crate::modules::posix_consts::errno::EFAULT),
             }
         };
@@ -304,11 +314,7 @@ pub(super) fn sys_linux_epoll_pwait(
             Err(err) => return err,
         };
 
-        let retries = if timeout == usize::MAX {
-            crate::config::KernelConfig::libnet_posix_blocking_recv_retries()
-        } else {
-            timeout
-        };
+        let retries = timeout_arg_to_retries(timeout);
 
         let events =
             match crate::modules::posix::net::epoll_pwait(epfd as u32, maxevents, retries, sigmask)

@@ -4,12 +4,21 @@ use super::*;
 #[cfg(not(feature = "linux_compat"))]
 use alloc::collections::BTreeMap;
 #[cfg(not(feature = "linux_compat"))]
+use crate::kernel::syscalls::linux_shim::util::write_user_pod;
+#[cfg(not(feature = "linux_compat"))]
 use spin::Mutex;
 
 #[cfg(not(feature = "linux_compat"))]
 static LINUX_FD_FLAGS: Mutex<BTreeMap<u32, usize>> = Mutex::new(BTreeMap::new());
 #[cfg(not(feature = "linux_compat"))]
-static LINUX_PIDFD_MAP: Mutex<BTreeMap<u32, usize>> = Mutex::new(BTreeMap::new());
+static LINUX_PIDFD_MAP: Mutex<BTreeMap<u32, LinuxPidFdEntry>> = Mutex::new(BTreeMap::new());
+
+#[cfg(not(feature = "linux_compat"))]
+#[derive(Clone, Copy)]
+struct LinuxPidFdEntry {
+    target_pid: usize,
+    owner_tid: usize,
+}
 
 #[cfg(not(feature = "linux_compat"))]
 const LINUX_FD_CLOEXEC: usize = 0x1;
@@ -49,6 +58,40 @@ fn linux_pidfd_clear(fd: u32) {
 }
 
 #[cfg(not(feature = "linux_compat"))]
+fn linux_current_tid() -> usize {
+    let cpu = unsafe { crate::kernel::cpu_local::CpuLocal::get() };
+    cpu.current_task.load(core::sync::atomic::Ordering::Relaxed)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+fn linux_task_exists(pid: usize) -> bool {
+    crate::kernel::task::get_task(crate::interfaces::task::TaskId(pid)).is_some()
+}
+
+#[cfg(not(feature = "linux_compat"))]
+fn linux_pidfd_entry_for_caller(pidfd: usize) -> Result<LinuxPidFdEntry, usize> {
+    let entry = LINUX_PIDFD_MAP
+        .lock()
+        .get(&(pidfd as u32))
+        .copied()
+        .ok_or_else(|| linux_errno(crate::modules::posix_consts::errno::EBADF))?;
+
+    if linux_current_tid() != entry.owner_tid {
+        return Err(linux_errno(crate::modules::posix_consts::errno::EPERM));
+    }
+    if !linux_task_exists(entry.target_pid) {
+        return Err(linux_errno(crate::modules::posix_consts::errno::ESRCH));
+    }
+
+    Ok(entry)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+fn linux_pidfd_getfd_access_allowed(caller_tid: usize, target_pid: usize) -> bool {
+    caller_tid == target_pid || caller_tid == 1
+}
+
+#[cfg(not(feature = "linux_compat"))]
 #[allow(dead_code)]
 pub(crate) fn clear_linux_pidfd_entry(fd: u32) {
     linux_pidfd_clear(fd);
@@ -60,12 +103,16 @@ pub(crate) fn sys_linux_pipe(pipefd_ptr: usize, flags: usize) -> usize {
     {
         let nonblock = (flags & 0x800) != 0;
         match crate::modules::posix::pipe::pipe2(nonblock) {
-            Ok((rfd, wfd)) => with_user_write_bytes(pipefd_ptr, 8, |dst| {
-                dst[0..4].copy_from_slice(&(rfd as u32).to_ne_bytes());
-                dst[4..8].copy_from_slice(&(wfd as u32).to_ne_bytes());
+            Ok((rfd, wfd)) => {
+                let rfd_u32 = rfd as u32;
+                let wfd_u32 = wfd as u32;
+                if write_user_pod(pipefd_ptr, &rfd_u32).is_err()
+                    || write_user_pod(pipefd_ptr + core::mem::size_of::<u32>(), &wfd_u32).is_err()
+                {
+                    return linux_errno(crate::modules::posix_consts::errno::EFAULT);
+                }
                 0
-            })
-            .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT)),
+            }
             Err(err) => linux_errno(err.code()),
         }
     }
@@ -281,11 +328,9 @@ pub(crate) fn sys_linux_fcntl(fd: usize, cmd: usize, arg: usize) -> usize {
             if arg == 0 {
                 return linux_errno(crate::modules::posix_consts::errno::EFAULT);
             }
-            with_user_write_bytes(arg, core::mem::size_of::<i16>(), |dst| {
-                dst[..2].copy_from_slice(&F_UNLCK.to_ne_bytes());
-                0
-            })
-            .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+            write_user_pod(arg, &F_UNLCK)
+                .map(|_| 0usize)
+                .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
         }
         F_SETLK | F_SETLKW | F_OFD_SETLK | F_OFD_SETLKW => 0,
         F_GETOWN => {
@@ -346,6 +391,14 @@ pub(crate) fn sys_linux_pidfd_open(pid: usize, flags: usize) -> usize {
     if (flags & !crate::kernel::syscalls::syscalls_consts::linux::PIDFD_NONBLOCK) != 0 {
         return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
+    if !linux_task_exists(pid) {
+        return linux_errno(crate::modules::posix_consts::errno::ESRCH);
+    }
+
+    let caller = linux_current_tid();
+    if caller != pid && caller != 1 {
+        return linux_errno(crate::modules::posix_consts::errno::EPERM);
+    }
 
     #[cfg(feature = "posix_fs")]
     {
@@ -356,7 +409,13 @@ pub(crate) fn sys_linux_pidfd_open(pid: usize, flags: usize) -> usize {
         let path = alloc::format!("/.pidfd-{}", pid);
         match crate::modules::posix::fs::openat(fs_id, "/", &path, true) {
             Ok(fd) => {
-                LINUX_PIDFD_MAP.lock().insert(fd, pid);
+                LINUX_PIDFD_MAP.lock().insert(
+                    fd,
+                    LinuxPidFdEntry {
+                        target_pid: pid,
+                        owner_tid: caller,
+                    },
+                );
                 fd as usize
             }
             Err(err) => linux_errno(err.code()),
@@ -383,14 +442,15 @@ pub(crate) fn sys_linux_pidfd_send_signal(
         return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
 
-    let Some(pid) = LINUX_PIDFD_MAP.lock().get(&(pidfd as u32)).copied() else {
-        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    let entry = match linux_pidfd_entry_for_caller(pidfd) {
+        Ok(v) => v,
+        Err(err) => return err,
     };
 
     if sig == 0 {
         return 0;
     }
-    crate::kernel::syscalls::linux_shim::task_time::sys_linux_kill(pid, sig)
+    crate::kernel::syscalls::linux_shim::task_time::sys_linux_kill(entry.target_pid, sig)
 }
 
 #[cfg(not(feature = "linux_compat"))]
@@ -402,11 +462,16 @@ pub(crate) fn sys_linux_pidfd_getfd(
     if flags != 0 {
         return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
-    if !LINUX_PIDFD_MAP.lock().contains_key(&(pidfd as u32)) {
-        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    let entry = match linux_pidfd_entry_for_caller(pidfd) {
+        Ok(v) => v,
+        Err(err) => return err,
+    };
+    let caller_tid = linux_current_tid();
+    if !linux_pidfd_getfd_access_allowed(caller_tid, entry.target_pid) {
+        return linux_errno(crate::modules::posix_consts::errno::EPERM);
     }
 
-    // Minimal compatibility: duplicate targetfd in current process namespace.
+    // Best-effort shim behavior: duplicate into caller namespace after access checks.
     sys_linux_dup(targetfd)
 }
 
@@ -509,6 +574,14 @@ mod pidfd_tests {
     }
 
     #[test_case]
+    fn pidfd_open_rejects_missing_task() {
+        assert_eq!(
+            sys_linux_pidfd_open(9_999_999, 0),
+            linux_errno(crate::modules::posix_consts::errno::ESRCH)
+        );
+    }
+
+    #[test_case]
     fn pidfd_getfd_rejects_nonzero_flags() {
         let pidfd = sys_linux_pidfd_open(1, 0);
         if pidfd >= linux_errno(crate::modules::posix_consts::errno::MAX_ERRNO) {
@@ -517,5 +590,12 @@ mod pidfd_tests {
         let rc = sys_linux_pidfd_getfd(pidfd, 0, 1);
         assert_eq!(rc, linux_errno(crate::modules::posix_consts::errno::EINVAL));
         let _ = crate::kernel::syscalls::linux_shim::fs::sys_linux_close(pidfd);
+    }
+
+    #[test_case]
+    fn pidfd_getfd_access_matrix_allows_self_and_supervisor() {
+        assert!(linux_pidfd_getfd_access_allowed(77, 77));
+        assert!(linux_pidfd_getfd_access_allowed(1, 77));
+        assert!(!linux_pidfd_getfd_access_allowed(33, 77));
     }
 }

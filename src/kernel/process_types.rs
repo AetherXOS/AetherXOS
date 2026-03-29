@@ -10,15 +10,17 @@ pub enum ProcessLifecycleState {
     Exited = 3,
 }
 
+impl_enum_u8_default_conversions!(ProcessLifecycleState {
+    Created,
+    Runnable,
+    Running,
+    Exited,
+}, default = Created);
+
 impl ProcessLifecycleState {
     #[inline(always)]
     pub(crate) const fn from_raw(raw: u8) -> Self {
-        match raw {
-            1 => Self::Runnable,
-            2 => Self::Running,
-            3 => Self::Exited,
-            _ => Self::Created,
-        }
+        Self::from_u8(raw)
     }
 }
 

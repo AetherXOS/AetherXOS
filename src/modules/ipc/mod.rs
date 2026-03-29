@@ -29,7 +29,11 @@ pub use binder::{
     binder_acquire, binder_create, binder_release, binder_stats, binder_transact, BinderStats,
 };
 #[cfg(feature = "ipc_dbus")]
-pub use dbus::{dbus_consume, dbus_publish, dbus_stats, dbus_subscribe, DbusStats};
+pub use dbus::{
+    dbus_consume, dbus_publish, dbus_stats, dbus_subscribe, heartbeat_session_service,
+    list_session_services, mark_session_service_degraded, mark_session_service_ready,
+    register_session_service, DbusStats, SessionServiceSnapshot, SessionServiceState,
+};
 #[cfg(feature = "ipc_futex")]
 pub use futex::Futex;
 #[cfg(feature = "ipc_message_passing")]

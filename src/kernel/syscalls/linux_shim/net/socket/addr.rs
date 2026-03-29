@@ -2,10 +2,12 @@
 use super::super::super::*;
 #[cfg(feature = "posix_net")]
 use super::addr_support::{read_sockaddr_len, write_sockaddr_len};
+#[cfg(feature = "posix_net")]
+use crate::kernel::syscalls::linux_shim::util::{read_user_pod, write_user_pod};
 
 #[cfg(feature = "posix_net")]
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 #[allow(dead_code)]
 pub(super) struct LinuxSockAddrIn {
     pub sin_family: u16,
@@ -24,29 +26,16 @@ pub(super) fn read_sockaddr_in(
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
     }
 
-    with_user_read_bytes(ptr, core::mem::size_of::<LinuxSockAddrIn>(), |src| {
-        let mut tmp = LinuxSockAddrIn {
-            sin_family: 0,
-            sin_port: 0,
-            sin_addr: [0; 4],
-            sin_zero: [0; 8],
-        };
-        let dst_ptr = &mut tmp as *mut LinuxSockAddrIn as *mut u8;
-        let dst = unsafe {
-            core::slice::from_raw_parts_mut(dst_ptr, core::mem::size_of::<LinuxSockAddrIn>())
-        };
-        dst.copy_from_slice(src);
+    let tmp = read_user_pod::<LinuxSockAddrIn>(ptr)?;
 
-        if i32::from(tmp.sin_family) != crate::modules::posix_consts::net::AF_INET {
-            return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
-        }
+    if i32::from(tmp.sin_family) != crate::modules::posix_consts::net::AF_INET {
+        return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
+    }
 
-        Ok(crate::modules::libnet::PosixSocketAddrV4 {
-            addr: tmp.sin_addr,
-            port: u16::from_be(tmp.sin_port),
-        })
+    Ok(crate::modules::libnet::PosixSocketAddrV4 {
+        addr: tmp.sin_addr,
+        port: u16::from_be(tmp.sin_port),
     })
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?
 }
 
 #[cfg(feature = "posix_net")]
@@ -67,19 +56,16 @@ pub(super) fn write_sockaddr_in(
         return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
 
-    let rc = with_user_write_bytes(ptr, want_len, |dst| {
-        let sa = LinuxSockAddrIn {
-            sin_family: crate::modules::posix_consts::net::AF_INET as u16,
-            sin_port: addr.port.to_be(),
-            sin_addr: addr.addr,
-            sin_zero: [0; 8],
-        };
-        let sa_ptr = &sa as *const LinuxSockAddrIn as *const u8;
-        let sa_bytes = unsafe { core::slice::from_raw_parts(sa_ptr, want_len) };
-        dst.copy_from_slice(sa_bytes);
-        0usize
-    })
-    .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT));
+    let sa = LinuxSockAddrIn {
+        sin_family: crate::modules::posix_consts::net::AF_INET as u16,
+        sin_port: addr.port.to_be(),
+        sin_addr: addr.addr,
+        sin_zero: [0; 8],
+    };
+
+    let rc = write_user_pod(ptr, &sa)
+        .map(|_| 0usize)
+        .unwrap_or_else(|err| err);
 
     if rc != 0 {
         return rc;

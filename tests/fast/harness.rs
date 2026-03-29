@@ -1,4 +1,7 @@
+use alloc::{format, vec::Vec};
 use core::fmt::{self, Debug, Display};
+use core::ops::{Fn, FnOnce};
+use core::option::Option;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use core::time::Duration;
 

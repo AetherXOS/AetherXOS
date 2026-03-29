@@ -95,7 +95,94 @@ pub fn fstat(fd: u32) -> Result<PosixStat, PosixErrno> {
 }
 
 pub fn lstat(fs_id: u32, path: &str) -> Result<PosixStat, PosixErrno> {
-    stat(fs_id, path)
+    let normalized = normalize_path(path)?;
+
+    match readlink(fs_id, &normalized) {
+        Ok(target) => {
+            let mut out = stat(fs_id, &normalized).unwrap_or(PosixStat {
+                size: 0,
+                mode: 0o120777,
+                uid: 0,
+                gid: 0,
+                is_dir: false,
+                is_symlink: true,
+                ino: 0,
+                atime: 0,
+                mtime: 0,
+                ctime: 0,
+            });
+            out.is_dir = false;
+            out.is_symlink = true;
+            out.size = target.len() as u64;
+            let perm_bits = out.mode as u32 & 0o777;
+            out.mode = (0o120000 | perm_bits) as u16;
+            Ok(out)
+        }
+        Err(_) => stat(fs_id, &normalized),
+    }
+}
+
+pub fn path_contains_symlink_component(
+    fs_id: u32,
+    path: &str,
+    include_leaf: bool,
+) -> Result<bool, PosixErrno> {
+    let normalized = normalize_path(path)?;
+    let segments: alloc::vec::Vec<&str> = normalized.split('/').filter(|s| !s.is_empty()).collect();
+    if segments.is_empty() {
+        return Ok(false);
+    }
+
+    let check_upto = if include_leaf {
+        segments.len()
+    } else {
+        segments.len().saturating_sub(1)
+    };
+
+    let mut prefix = alloc::string::String::from("/");
+    for segment in segments.iter().take(check_upto) {
+        if prefix.len() > 1 {
+            prefix.push('/');
+        }
+        prefix.push_str(segment);
+
+        match lstat(fs_id, &prefix) {
+            Ok(st) if st.is_symlink => return Ok(true),
+            Ok(_) => {}
+            Err(PosixErrno::NoEntry) => return Ok(false),
+            Err(err) => return Err(err),
+        }
+    }
+
+    Ok(false)
+}
+
+pub fn path_has_magiclink_component(path: &str) -> Result<bool, PosixErrno> {
+    let normalized = normalize_path(path)?;
+
+    if normalized.starts_with("/dev/fd/") {
+        return Ok(true);
+    }
+
+    if !normalized.starts_with("/proc/") {
+        return Ok(false);
+    }
+
+    let segments: alloc::vec::Vec<&str> = normalized.split('/').filter(|s| !s.is_empty()).collect();
+    if segments.len() < 3 {
+        return Ok(false);
+    }
+
+    let scope = segments[1];
+    let leaf = segments[2];
+    let proc_scope = scope == "self"
+        || scope == "thread-self"
+        || scope.chars().all(|ch| ch.is_ascii_digit());
+    if !proc_scope {
+        return Ok(false);
+    }
+
+    Ok(leaf == "fd" || leaf == "exe" || leaf == "cwd" || leaf == "root")
 }
 
 pub fn access(fs_id: u32, path: &str) -> Result<bool, PosixErrno> {

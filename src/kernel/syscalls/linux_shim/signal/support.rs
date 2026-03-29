@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
 use super::*;
+#[cfg(not(feature = "linux_compat"))]
+use crate::kernel::syscalls::linux_shim::util::{read_user_pod, write_user_pod};
 
 #[cfg(not(feature = "linux_compat"))]
 #[repr(C)]
@@ -165,82 +167,27 @@ pub(super) fn write_zeroed_sigaction(oldact: usize) -> Result<(), usize> {
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn write_sigaction(ptr: usize, value: &LinuxKSigActionCompat) -> Result<(), usize> {
-    with_user_write_bytes(ptr, core::mem::size_of::<LinuxKSigActionCompat>(), |dst| {
-        let src = unsafe {
-            core::slice::from_raw_parts(
-                (value as *const LinuxKSigActionCompat) as *const u8,
-                core::mem::size_of::<LinuxKSigActionCompat>(),
-            )
-        };
-        dst.copy_from_slice(src);
-        0usize
-    })
-    .map(|_| ())
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+    write_user_pod(ptr, value)
 }
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn read_sigaction(ptr: usize) -> Result<LinuxKSigActionCompat, usize> {
-    with_user_read_bytes(ptr, core::mem::size_of::<LinuxKSigActionCompat>(), |src| {
-        let mut tmp = LinuxKSigActionCompat::default();
-        let dst = unsafe {
-            core::slice::from_raw_parts_mut(
-                (&mut tmp as *mut LinuxKSigActionCompat) as *mut u8,
-                core::mem::size_of::<LinuxKSigActionCompat>(),
-            )
-        };
-        dst.copy_from_slice(src);
-        tmp
-    })
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+    read_user_pod(ptr)
 }
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn write_sigaltstack(ptr: usize, value: &LinuxSigaltstackCompat) -> Result<(), usize> {
-    with_user_write_bytes(ptr, core::mem::size_of::<LinuxSigaltstackCompat>(), |dst| {
-        let src = unsafe {
-            core::slice::from_raw_parts(
-                (value as *const LinuxSigaltstackCompat) as *const u8,
-                core::mem::size_of::<LinuxSigaltstackCompat>(),
-            )
-        };
-        dst.copy_from_slice(src);
-        0usize
-    })
-    .map(|_| ())
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+    write_user_pod(ptr, value)
 }
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn read_sigaltstack(ptr: usize) -> Result<LinuxSigaltstackCompat, usize> {
-    with_user_read_bytes(ptr, core::mem::size_of::<LinuxSigaltstackCompat>(), |src| {
-        let mut tmp = LinuxSigaltstackCompat::default();
-        let dst = unsafe {
-            core::slice::from_raw_parts_mut(
-                (&mut tmp as *mut LinuxSigaltstackCompat) as *mut u8,
-                core::mem::size_of::<LinuxSigaltstackCompat>(),
-            )
-        };
-        dst.copy_from_slice(src);
-        tmp
-    })
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+    read_user_pod(ptr)
 }
 
 #[cfg(all(not(feature = "linux_compat"), target_arch = "x86_64"))]
 pub(super) fn read_ucontext(ptr: usize) -> Result<LinuxUContextCompat, usize> {
-    with_user_read_bytes(ptr, core::mem::size_of::<LinuxUContextCompat>(), |src| {
-        let mut tmp = LinuxUContextCompat::default();
-        let dst = unsafe {
-            core::slice::from_raw_parts_mut(
-                (&mut tmp as *mut LinuxUContextCompat) as *mut u8,
-                core::mem::size_of::<LinuxUContextCompat>(),
-            )
-        };
-        dst.copy_from_slice(src);
-        tmp
-    })
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+    read_user_pod(ptr)
 }
 
 #[cfg(all(test, not(feature = "linux_compat")))]

@@ -1,13 +1,12 @@
 use super::super::super::*;
 #[cfg(feature = "posix_net")]
 use super::addr::write_sockaddr_in;
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+use crate::kernel::syscalls::linux_shim::util::{read_user_pod, write_user_pod};
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 fn read_sockopt_len(optlen_ptr: usize) -> Result<usize, usize> {
-    with_user_read_bytes(optlen_ptr, core::mem::size_of::<u32>(), |src| {
-        u32::from_ne_bytes([src[0], src[1], src[2], src[3]]) as usize
-    })
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+    read_user_pod::<u32>(optlen_ptr).map(|v| v as usize)
 }
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
@@ -17,17 +16,9 @@ fn read_sockopt_value(optval_ptr: usize, optlen: usize) -> Result<u64, usize> {
     }
 
     if optlen >= core::mem::size_of::<u64>() {
-        with_user_read_bytes(optval_ptr, core::mem::size_of::<u64>(), |src| {
-            u64::from_ne_bytes([
-                src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7],
-            ])
-        })
-        .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+        read_user_pod::<u64>(optval_ptr)
     } else if optlen >= core::mem::size_of::<u32>() {
-        with_user_read_bytes(optval_ptr, core::mem::size_of::<u32>(), |src| {
-            u32::from_ne_bytes([src[0], src[1], src[2], src[3]]) as u64
-        })
-        .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+        read_user_pod::<u32>(optval_ptr).map(u64::from)
     } else {
         Err(linux_errno(crate::modules::posix_consts::errno::EINVAL))
     }
@@ -54,12 +45,7 @@ fn write_sockopt_value(
         return Err(wr_val);
     }
 
-    with_user_write_bytes(optlen_ptr, core::mem::size_of::<u32>(), |dst| {
-        dst.copy_from_slice(&(out_len as u32).to_ne_bytes());
-        0usize
-    })
-    .map(|_| ())
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+    write_user_pod(optlen_ptr, &(out_len as u32))
 }
 
 #[cfg(not(feature = "linux_compat"))]

@@ -1,5 +1,23 @@
 use super::*;
 
+macro_rules! define_user_pod_codec {
+    ($read_fn:ident, $write_fn:ident, $ty:ty) => {
+        #[allow(dead_code)]
+        #[inline(always)]
+        fn $read_fn(ptr: usize) -> Result<$ty, usize> {
+            crate::kernel::syscalls::linux_shim::util::read_user_pod::<$ty>(ptr)
+        }
+
+        #[allow(dead_code)]
+        #[inline(always)]
+        fn $write_fn(ptr: usize, value: &$ty) -> Result<(), usize> {
+            crate::kernel::syscalls::linux_shim::util::write_user_pod(ptr, value)
+        }
+    };
+}
+
+pub(crate) use define_user_pod_codec;
+
 #[inline(always)]
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn arg5_to_zero(value: usize) -> usize {
@@ -81,6 +99,50 @@ pub(super) fn read_user_usize_word(ptr: usize) -> Result<usize, usize> {
         tmp.copy_from_slice(src);
         usize::from_ne_bytes(tmp)
     })
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[allow(dead_code)]
+pub(crate) fn read_user_pod<T: Copy + Default>(ptr: usize) -> Result<T, usize> {
+    let size = core::mem::size_of::<T>();
+    with_user_read_bytes(ptr, size, |src| {
+        let mut out = T::default();
+        let dst = unsafe { core::slice::from_raw_parts_mut((&mut out as *mut T).cast::<u8>(), size) };
+        dst.copy_from_slice(src);
+        out
+    })
+    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[allow(dead_code)]
+pub(crate) fn read_user_pod_prefix<T: Copy + Default>(ptr: usize, size: usize) -> Result<T, usize> {
+    let full_size = core::mem::size_of::<T>();
+    if size > full_size {
+        return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
+    }
+    with_user_read_bytes(ptr, size, |src| {
+        let mut out = T::default();
+        let dst = unsafe {
+            core::slice::from_raw_parts_mut((&mut out as *mut T).cast::<u8>(), full_size)
+        };
+        dst[..src.len()].copy_from_slice(src);
+        out
+    })
+    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[allow(dead_code)]
+pub(crate) fn write_user_pod<T: Copy>(ptr: usize, value: &T) -> Result<(), usize> {
+    let size = core::mem::size_of::<T>();
+    with_user_write_bytes(ptr, size, |dst| {
+        let src = unsafe { core::slice::from_raw_parts((value as *const T).cast::<u8>(), size) };
+        dst.copy_from_slice(src);
+        0usize
+    })
+    .map(|_| ())
+    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
 }
 
 #[cfg(not(feature = "linux_compat"))]

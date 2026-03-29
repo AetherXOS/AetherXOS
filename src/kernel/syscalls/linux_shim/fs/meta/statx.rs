@@ -1,6 +1,8 @@
 use super::super::super::*;
 #[cfg(feature = "posix_fs")]
 use super::super::support::{resolve_path_at_allow_empty, LINUX_AT_EMPTY_PATH, LINUX_AT_NO_AUTOMOUNT, LINUX_AT_SYMLINK_NOFOLLOW};
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
+use crate::kernel::syscalls::linux_shim::util::write_user_pod;
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
 fn write_linux_statx(mask: usize, statxbuf_ptr: usize, st: crate::modules::posix::fs::PosixStat) -> usize {
@@ -40,21 +42,9 @@ fn write_linux_statx(mask: usize, statxbuf_ptr: usize, st: crate::modules::posix
     };
     stx.stx_btime = stx.stx_ctime;
 
-    with_user_write_bytes(
-        statxbuf_ptr,
-        core::mem::size_of::<crate::modules::linux_compat::types::LinuxStatx>(),
-        |dst| {
-            let src = unsafe {
-                core::slice::from_raw_parts(
-                    (&stx as *const crate::modules::linux_compat::types::LinuxStatx) as *const u8,
-                    core::mem::size_of::<crate::modules::linux_compat::types::LinuxStatx>(),
-                )
-            };
-            dst.copy_from_slice(src);
-            0
-        },
-    )
-    .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
+    write_user_pod(statxbuf_ptr, &stx)
+        .map(|_| 0usize)
+        .unwrap_or_else(|err| err)
 }
 
 #[cfg(not(feature = "linux_compat"))]

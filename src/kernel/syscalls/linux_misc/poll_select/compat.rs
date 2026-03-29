@@ -1,9 +1,11 @@
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 use super::*;
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+use crate::kernel::syscalls::linux_shim::util::{read_user_pod, write_user_pod};
 
 #[repr(C)]
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 #[allow(dead_code)]
 pub(super) struct LinuxPollFdCompat {
     pub(super) fd: i32,
@@ -13,6 +15,12 @@ pub(super) struct LinuxPollFdCompat {
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) const LINUX_FD_SETSIZE_COMPAT: usize = 1024;
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+#[inline]
+pub(super) fn clamp_fdset_nfds(nfds: usize) -> usize {
+    core::cmp::min(nfds, LINUX_FD_SETSIZE_COMPAT)
+}
 
 #[repr(C)]
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
@@ -24,7 +32,7 @@ pub(super) struct LinuxFdSetCompat {
 
 #[repr(C)]
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 #[allow(dead_code)]
 pub(super) struct LinuxTimevalCompat {
     pub(super) tv_sec: i64,
@@ -33,7 +41,7 @@ pub(super) struct LinuxTimevalCompat {
 
 #[repr(C)]
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 #[allow(dead_code)]
 pub(super) struct LinuxTimespecCompat {
     pub(super) tv_sec: i64,
@@ -47,10 +55,24 @@ pub(super) fn linux_poll_fd_limit() -> usize {
     crate::config::KernelConfig::network_loopback_queue_limit().clamp(MIN_CAP, MAX_CAP)
 }
 
+#[cfg(all(
+    not(feature = "linux_compat"),
+    any(feature = "posix_net", feature = "linux_poll_timeout_ms")
+))]
+#[inline]
+pub(super) fn timeout_ns_to_retries(total_ns: u128) -> usize {
+    if total_ns == 0 {
+        return 0;
+    }
+    let tick_ns = core::cmp::max(crate::generated_consts::TIME_SLICE_NS as u128, 1u128);
+    ((total_ns + tick_ns - 1) / tick_ns) as usize
+}
+
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 pub(super) fn collect_fd_set_compat(set: &LinuxFdSetCompat, nfds: usize) -> alloc::vec::Vec<u32> {
+    let capped_nfds = clamp_fdset_nfds(nfds);
     let mut out = alloc::vec::Vec::new();
-    for fd in 0..nfds {
+    for fd in 0..capped_nfds {
         let word = fd / 64;
         let bit = fd % 64;
         if (set.fds_bits[word] & (1u64 << bit)) != 0 {
@@ -62,12 +84,13 @@ pub(super) fn collect_fd_set_compat(set: &LinuxFdSetCompat, nfds: usize) -> allo
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 pub(super) fn build_fd_set_compat(fds: &[u32], nfds: usize) -> LinuxFdSetCompat {
+    let capped_nfds = clamp_fdset_nfds(nfds);
     let mut out = LinuxFdSetCompat {
         fds_bits: [0u64; LINUX_FD_SETSIZE_COMPAT / 64],
     };
     for &fd in fds {
         let idx = fd as usize;
-        if idx >= nfds || idx >= LINUX_FD_SETSIZE_COMPAT {
+        if idx >= capped_nfds {
             continue;
         }
         let word = idx / 64;
@@ -79,26 +102,7 @@ pub(super) fn build_fd_set_compat(fds: &[u32], nfds: usize) -> LinuxFdSetCompat 
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 pub(super) fn read_fd_set_compat(ptr: usize, nfds: usize) -> Result<alloc::vec::Vec<u32>, usize> {
-    let set = with_user_read_bytes(ptr, core::mem::size_of::<LinuxFdSetCompat>(), |src| {
-        let mut out = LinuxFdSetCompat {
-            fds_bits: [0u64; LINUX_FD_SETSIZE_COMPAT / 64],
-        };
-        for i in 0..(LINUX_FD_SETSIZE_COMPAT / 64) {
-            let base = i * 8;
-            out.fds_bits[i] = u64::from_ne_bytes([
-                src[base],
-                src[base + 1],
-                src[base + 2],
-                src[base + 3],
-                src[base + 4],
-                src[base + 5],
-                src[base + 6],
-                src[base + 7],
-            ]);
-        }
-        out
-    })
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?;
+    let set = read_user_pod::<LinuxFdSetCompat>(ptr)?;
 
     Ok(collect_fd_set_compat(&set, nfds))
 }
@@ -106,13 +110,47 @@ pub(super) fn read_fd_set_compat(ptr: usize, nfds: usize) -> Result<alloc::vec::
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 pub(super) fn write_fd_set_compat(ptr: usize, fds: &[u32], nfds: usize) -> Result<(), usize> {
     let out = build_fd_set_compat(fds, nfds);
-    with_user_write_bytes(ptr, core::mem::size_of::<LinuxFdSetCompat>(), |dst| {
-        for i in 0..(LINUX_FD_SETSIZE_COMPAT / 64) {
-            let base = i * 8;
-            dst[base..base + 8].copy_from_slice(&out.fds_bits[i].to_ne_bytes());
-        }
-        0usize
-    })
-    .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))?;
+    write_user_pod(ptr, &out)?;
     Ok(())
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+impl Default for LinuxFdSetCompat {
+    fn default() -> Self {
+        Self {
+            fds_bits: [0u64; LINUX_FD_SETSIZE_COMPAT / 64],
+        }
+    }
+}
+
+#[cfg(all(test, not(feature = "linux_compat"), feature = "posix_net"))]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn collect_fd_set_caps_nfds_to_fdset_size() {
+        let set = LinuxFdSetCompat {
+            fds_bits: [u64::MAX; LINUX_FD_SETSIZE_COMPAT / 64],
+        };
+
+        let collected = collect_fd_set_compat(&set, LINUX_FD_SETSIZE_COMPAT + 256);
+
+        assert_eq!(collected.len(), LINUX_FD_SETSIZE_COMPAT);
+        assert_eq!(collected.first().copied(), Some(0));
+        assert_eq!(
+            collected.last().copied(),
+            Some((LINUX_FD_SETSIZE_COMPAT - 1) as u32)
+        );
+    }
+
+    #[test_case]
+    fn build_fd_set_ignores_entries_beyond_capped_nfds() {
+        let out = build_fd_set_compat(
+            &[0, 63, 64, (LINUX_FD_SETSIZE_COMPAT - 1) as u32],
+            64,
+        );
+
+        assert_eq!(out.fds_bits[0], (1u64 << 0) | (1u64 << 63));
+        assert_eq!(out.fds_bits[1], 0);
+    }
 }
