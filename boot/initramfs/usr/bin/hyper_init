@@ -1,0 +1,243 @@
+#!/bin/sh
+echo "[hyper_init] early userspace bootstrap"
+
+export PATH="${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"
+export HOME="${HOME:-/}"
+export LANG="${LANG:-C}"
+export TERM="${TERM:-hypercore}"
+export SHELL="${SHELL:-/bin/sh}"
+
+if [ -r /proc/sys/hypercore/runtime/security_enforcement_enabled ]; then
+  HYPERCORE_SECURITY_ENFORCEMENT="$(cat /proc/sys/hypercore/runtime/security_enforcement_enabled 2>/dev/null)"
+  export HYPERCORE_SECURITY_ENFORCEMENT
+fi
+
+if [ -r /proc/sys/hypercore/runtime/multi_user_enabled ]; then
+  HYPERCORE_MULTI_USER="$(cat /proc/sys/hypercore/runtime/multi_user_enabled 2>/dev/null)"
+  export HYPERCORE_MULTI_USER
+fi
+
+if [ -r /proc/sys/hypercore/runtime/capability_enforcement_enabled ]; then
+  HYPERCORE_CAPABILITY_ENFORCEMENT="$(cat /proc/sys/hypercore/runtime/capability_enforcement_enabled 2>/dev/null)"
+  export HYPERCORE_CAPABILITY_ENFORCEMENT
+fi
+
+if [ -r /proc/sys/hypercore/abi/platform ]; then
+  HYPERCORE_SYSCALL_PLATFORM="$(cat /proc/sys/hypercore/abi/platform 2>/dev/null)"
+  export HYPERCORE_SYSCALL_PLATFORM
+fi
+
+if [ -r /proc/sys/hypercore/abi/abi_version_major ] && [ -r /proc/sys/hypercore/abi/abi_version_minor ] && [ -r /proc/sys/hypercore/abi/abi_version_patch ]; then
+  HYPERCORE_SYSCALL_ABI_VERSION="$(cat /proc/sys/hypercore/abi/abi_version_major 2>/dev/null).$(cat /proc/sys/hypercore/abi/abi_version_minor 2>/dev/null).$(cat /proc/sys/hypercore/abi/abi_version_patch 2>/dev/null)"
+  export HYPERCORE_SYSCALL_ABI_VERSION
+fi
+
+if [ -r /proc/sys/hypercore/abi/runtime_vdso_supported ]; then
+  HYPERCORE_RUNTIME_VDSO="$(cat /proc/sys/hypercore/abi/runtime_vdso_supported 2>/dev/null)"
+  export HYPERCORE_RUNTIME_VDSO
+fi
+
+if [ -r /proc/sys/hypercore/abi/runtime_tls_supported ]; then
+  HYPERCORE_RUNTIME_TLS="$(cat /proc/sys/hypercore/abi/runtime_tls_supported 2>/dev/null)"
+  export HYPERCORE_RUNTIME_TLS
+fi
+
+if [ -r /proc/sys/hypercore/abi/runtime_signal_abi_supported ]; then
+  HYPERCORE_RUNTIME_SIGNAL_ABI="$(cat /proc/sys/hypercore/abi/runtime_signal_abi_supported 2>/dev/null)"
+  export HYPERCORE_RUNTIME_SIGNAL_ABI
+fi
+
+if [ -r /proc/sys/hypercore/abi/loader_gnu_hash_supported ]; then
+  HYPERCORE_LOADER_GNU_HASH="$(cat /proc/sys/hypercore/abi/loader_gnu_hash_supported 2>/dev/null)"
+  export HYPERCORE_LOADER_GNU_HASH
+fi
+
+if [ -r /proc/sys/hypercore/abi/startup_auxv_supported ]; then
+  HYPERCORE_STARTUP_AUXV="$(cat /proc/sys/hypercore/abi/startup_auxv_supported 2>/dev/null)"
+  export HYPERCORE_STARTUP_AUXV
+fi
+
+if [ -r /proc/sys/hypercore/abi/auxv_at_execfn ]; then
+  HYPERCORE_AUXV_AT_EXECFN="$(cat /proc/sys/hypercore/abi/auxv_at_execfn 2>/dev/null)"
+  export HYPERCORE_AUXV_AT_EXECFN
+fi
+
+if [ -r /proc/sys/hypercore/abi/auxv_at_sysinfo_ehdr ]; then
+  HYPERCORE_AUXV_AT_SYSINFO_EHDR="$(cat /proc/sys/hypercore/abi/auxv_at_sysinfo_ehdr 2>/dev/null)"
+  export HYPERCORE_AUXV_AT_SYSINFO_EHDR
+fi
+
+if [ -r /proc/sys/hypercore/abi/startup_stack_layout ]; then
+  HYPERCORE_STARTUP_STACK_LAYOUT="$(cat /proc/sys/hypercore/abi/startup_stack_layout 2>/dev/null)"
+  export HYPERCORE_STARTUP_STACK_LAYOUT
+fi
+
+if [ -n "${HYPERCORE_EXEC_PATH}" ]; then
+  echo "[hyper_init] exec path: ${HYPERCORE_EXEC_PATH}"
+fi
+if [ -n "${HYPERCORE_INIT_HOOKS}" ]; then
+  echo "[hyper_init] init hooks: ${HYPERCORE_INIT_HOOKS} fini hooks: ${HYPERCORE_FINI_HOOKS:-0}"
+fi
+if [ -n "${HYPERCORE_SECURITY_PROFILE}" ]; then
+  echo "[hyper_init] security profile: ${HYPERCORE_SECURITY_PROFILE}"
+fi
+if [ -n "${HYPERCORE_SYSCALL_PLATFORM}" ]; then
+  echo "[hyper_init] syscall platform: ${HYPERCORE_SYSCALL_PLATFORM}"
+fi
+if [ -n "${HYPERCORE_SYSCALL_ABI_VERSION}" ]; then
+  echo "[hyper_init] syscall abi: ${HYPERCORE_SYSCALL_ABI_VERSION}"
+fi
+if [ -n "${HYPERCORE_RUNTIME_VDSO}" ]; then
+  echo "[hyper_init] runtime: vdso=${HYPERCORE_RUNTIME_VDSO} tls=${HYPERCORE_RUNTIME_TLS:-0} signal_abi=${HYPERCORE_RUNTIME_SIGNAL_ABI:-0}"
+fi
+if [ -n "${HYPERCORE_LOADER_GNU_HASH}" ]; then
+  echo "[hyper_init] loader: gnu_hash=${HYPERCORE_LOADER_GNU_HASH}"
+fi
+if [ -n "${HYPERCORE_STARTUP_AUXV}" ]; then
+  echo "[hyper_init] startup: auxv=${HYPERCORE_STARTUP_AUXV} execfn=${HYPERCORE_AUXV_AT_EXECFN:-?} sysinfo_ehdr=${HYPERCORE_AUXV_AT_SYSINFO_EHDR:-?}"
+fi
+if [ -n "${HYPERCORE_STARTUP_STACK_LAYOUT}" ]; then
+  echo "[hyper_init] startup layout: ${HYPERCORE_STARTUP_STACK_LAYOUT}"
+fi
+if [ -r /usr/lib/hypercore/runtime-contract.txt ]; then
+  echo "[hyper_init] runtime contract manifest: /usr/lib/hypercore/runtime-contract.txt"
+fi
+if [ -r /usr/lib/hypercore/userspace-programs.txt ]; then
+  echo "[hyper_init] userspace program list: /usr/lib/hypercore/userspace-programs.txt"
+fi
+if [ -r /usr/lib/hypercore/userspace-build.txt ]; then
+  echo "[hyper_init] userspace build manifest: /usr/lib/hypercore/userspace-build.txt"
+fi
+if [ -r /usr/lib/hypercore/userspace-smoke.txt ]; then
+  echo "[hyper_init] userspace smoke report: /usr/lib/hypercore/userspace-smoke.txt"
+fi
+if [ -r /usr/lib/hypercore/probe-linked.txt ]; then
+  echo "[hyper_init] linked probe manifest: /usr/lib/hypercore/probe-linked.txt"
+fi
+if [ -r /usr/lib/hypercore/probe-exec-plan.txt ]; then
+  echo "[hyper_init] linked probe exec plan: /usr/lib/hypercore/probe-exec-plan.txt"
+fi
+if [ -r /usr/lib/hypercore/probe-boot-harness.txt ]; then
+  echo "[hyper_init] linked probe boot harness: /usr/lib/hypercore/probe-boot-harness.txt"
+fi
+if [ -r /usr/lib/hypercore/probe-kernel-append.txt ]; then
+  echo "[hyper_init] linked probe kernel append: /usr/lib/hypercore/probe-kernel-append.txt"
+fi
+if [ -r /usr/lib/hypercore/probe-iso-plan.txt ]; then
+  echo "[hyper_init] linked probe iso plan: /usr/lib/hypercore/probe-iso-plan.txt"
+fi
+if [ -r /usr/lib/hypercore/probe-qemu-command.txt ]; then
+  echo "[hyper_init] linked probe qemu command: /usr/lib/hypercore/probe-qemu-command.txt"
+fi
+if [ -r /usr/lib/hypercore/run-linked-probe.ps1 ]; then
+  echo "[hyper_init] linked probe powershell harness: /usr/lib/hypercore/run-linked-probe.ps1"
+fi
+if [ -r /usr/lib/hypercore/run-linked-probe.sh ]; then
+  echo "[hyper_init] linked probe shell harness: /usr/lib/hypercore/run-linked-probe.sh"
+fi
+if [ -r /usr/lib/hypercore/userspace.mk ]; then
+  echo "[hyper_init] userspace makefile: /usr/lib/hypercore/userspace.mk"
+fi
+if [ -r /usr/lib/hypercore/build-userspace.sh ]; then
+  echo "[hyper_init] userspace build script: /usr/lib/hypercore/build-userspace.sh"
+fi
+if [ -r /usr/lib/hypercore/hypercore_userspace.ld ]; then
+  echo "[hyper_init] userspace linker script: /usr/lib/hypercore/hypercore_userspace.ld"
+fi
+if [ -r /usr/lib/hypercore/crt0-plan.txt ]; then
+  echo "[hyper_init] userspace startup plan: /usr/lib/hypercore/crt0-plan.txt"
+fi
+if [ -r /usr/lib/hypercore/probe.program.txt ]; then
+  echo "[hyper_init] userspace probe manifest: /usr/lib/hypercore/probe.program.txt"
+fi
+if [ -r /usr/lib/hypercore/runtime-core.txt ]; then
+  echo "[hyper_init] runtime core manifest: /usr/lib/hypercore/runtime-core.txt"
+fi
+if [ -r /usr/lib/hypercore/runtime-memory-helpers.txt ]; then
+  echo "[hyper_init] runtime memory helpers: /usr/lib/hypercore/runtime-memory-helpers.txt"
+fi
+if [ -r /usr/lib/hypercore/runtime-string-helpers.txt ]; then
+  echo "[hyper_init] runtime string helpers: /usr/lib/hypercore/runtime-string-helpers.txt"
+fi
+if [ -r /usr/lib/hypercore/runtime-auxv-helpers.txt ]; then
+  echo "[hyper_init] runtime auxv helpers: /usr/lib/hypercore/runtime-auxv-helpers.txt"
+fi
+if [ -r /usr/lib/hypercore/runtime-env-helpers.txt ]; then
+  echo "[hyper_init] runtime env helpers: /usr/lib/hypercore/runtime-env-helpers.txt"
+fi
+if [ -r /usr/lib/hypercore/runtime-errno-features.txt ]; then
+  echo "[hyper_init] runtime errno features: /usr/lib/hypercore/runtime-errno-features.txt"
+fi
+if [ -r /usr/lib/hypercore/runtime-entrypoints.txt ]; then
+  echo "[hyper_init] runtime entrypoints: /usr/lib/hypercore/runtime-entrypoints.txt"
+fi
+if [ -r /usr/lib/hypercore/runtime-source-units.txt ]; then
+  echo "[hyper_init] runtime source units: /usr/lib/hypercore/runtime-source-units.txt"
+fi
+if [ -r /usr/lib/hypercore/hypercore_runtime.h ]; then
+  echo "[hyper_init] runtime public header: /usr/lib/hypercore/hypercore_runtime.h"
+fi
+if [ -r /usr/lib/hypercore/hypercore_runtime_state.h ]; then
+  echo "[hyper_init] runtime state header: /usr/lib/hypercore/hypercore_runtime_state.h"
+fi
+if [ -r /usr/lib/hypercore/elf-contract.txt ]; then
+  echo "[hyper_init] elf contract manifest: /usr/lib/hypercore/elf-contract.txt"
+fi
+if [ -r /usr/lib/hypercore/libc-contract.txt ]; then
+  echo "[hyper_init] libc contract manifest: /usr/lib/hypercore/libc-contract.txt"
+fi
+if [ -r /usr/lib/hypercore/libc-planned-symbols.txt ]; then
+  echo "[hyper_init] libc planned symbols: /usr/lib/hypercore/libc-planned-symbols.txt"
+fi
+if [ -r /usr/lib/hypercore/libc-source-modules.txt ]; then
+  echo "[hyper_init] libc source modules: /usr/lib/hypercore/libc-source-modules.txt"
+fi
+if [ -r /usr/lib/hypercore/hypercore_libc.h ]; then
+  echo "[hyper_init] libc public header: /usr/lib/hypercore/hypercore_libc.h"
+fi
+if [ -r /usr/lib/hypercore/hypercore_libc_state.h ]; then
+  echo "[hyper_init] libc state header: /usr/lib/hypercore/hypercore_libc_state.h"
+fi
+
+if [ "${HYPERCORE_RUN_LINKED_PROBE:-0}" = "1" ] && [ -x /usr/lib/hypercore/probe-linked.elf ]; then
+  echo "[hyper_init] running optional linked probe: /usr/lib/hypercore/probe-linked.elf"
+  /usr/lib/hypercore/probe-linked.elf
+  HYPERCORE_LINKED_PROBE_STATUS="$?"
+  export HYPERCORE_LINKED_PROBE_STATUS
+  echo "[hyper_init] linked probe exit status: ${HYPERCORE_LINKED_PROBE_STATUS}"
+  if [ "${HYPERCORE_LINKED_PROBE_STATUS}" = "0" ]; then
+    echo "[hyper_init] linked probe execution verified"
+    cat > /usr/lib/hypercore/probe-execution-proof.txt <<EOF
+[hypercore-userspace-probe-proof]
+status=verified
+artifact_present=yes
+expected_log=[hyper_init] linked probe exit status: 0
+verified_in=hyper_init_runtime
+scanned_logs=live_boot
+
+EOF
+  else
+    echo "[hyper_init] linked probe execution failed"
+    cat > /usr/lib/hypercore/probe-execution-proof.txt <<EOF
+[hypercore-userspace-probe-proof]
+status=runtime_failed
+artifact_present=yes
+expected_log=[hyper_init] linked probe exit status: 0
+verified_in=hyper_init_runtime
+scanned_logs=live_boot
+exit_status=${HYPERCORE_LINKED_PROBE_STATUS}
+
+EOF
+  fi
+fi
+
+for candidate in /usr/lib/hypercore/init.elf /usr/lib/hypercore/probe.elf /usr/lib/hypercore/init /usr/bin/init /bin/init /bin/sh
+do
+  if [ -x "${candidate}" ]; then
+    echo "[hyper_init] launching ${candidate}"
+    exec "${candidate}"
+  fi
+done
+
+echo "[hyper_init] FATAL: no runnable init candidate found"
+exit 127

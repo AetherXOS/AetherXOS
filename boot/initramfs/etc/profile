@@ -1,0 +1,4 @@
+PATH=/bin:/usr/bin
+HOME=/root
+TERM=${TERM:-linux}
+export PATH HOME TERM

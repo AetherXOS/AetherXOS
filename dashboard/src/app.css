@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+@plugin 'daisyui';
+
+/* HyperCore Professional Design System */
+@theme {
+	--color-primary: oklch(65% 0.22 260); /* HyperCore Electric Blue */
+	--color-secondary: oklch(58% 0.24 15); /* Crisis Red */
+	--color-base-100: oklch(14% 0.02 260); /* Space Black */
+	--color-base-200: oklch(18% 0.02 260); /* Panel Black */
+	--color-success: oklch(75% 0.18 150); /* Cyber Green */
+
+	--radius-xl: 1.5rem;
+	--radius-2xl: 2.5rem;
+}
+
+@layer base {
+	body {
+		@apply bg-base-100 text-base-content tracking-tight antialiased;
+		font-family: 'Space Grotesk', 'IBM Plex Sans', 'Segoe UI', sans-serif;
+		line-height: 1.45;
+	}
+
+	h1,
+	h2,
+	h3 {
+		letter-spacing: -0.02em;
+	}
+}
+
+@layer components {
+	/* Unified transition for all pages */
+	.page-transition {
+		@apply animate-[fadeInUp_0.5s_cubic-bezier(0.16,1,0.3,1)];
+	}
+
+	/* Professional Scrollbars */
+	.custom-scrollbar::-webkit-scrollbar {
+		@apply h-1.5 w-1.5;
+	}
+	.custom-scrollbar::-webkit-scrollbar-thumb {
+		@apply rounded-full border-4 border-transparent bg-white/5 bg-clip-padding;
+	}
+
+	/* Glassmorphism primitives */
+	.glass-panel {
+		@apply border border-white/8 bg-white/3 shadow-2xl backdrop-blur-2xl;
+	}
+}
+
+@keyframes fadeInUp {
+	from {
+		opacity: 0;
+		transform: translateY(15px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}

@@ -1,0 +1,2 @@
+HyperCore early userspace
+This initramfs is a bootstrap rootfs contract, not a full Linux-grade userland yet.

@@ -1,0 +1,463 @@
+[package]
+name = "hypercore"
+version = "0.2.0"
+edition = "2021"
+authors = ["HyperCore Architect <systems@hypercore.os>"]
+
+[package.metadata.hypercore]
+
+[package.metadata.hypercore.config.meta]
+profile = "custom"
+version = "1.0.0"
+
+[package.metadata.hypercore.config.kernel]
+arch = "x86_64"
+time_slice_ns = 4_000_000
+stack_size_pages = 16
+max_cpus = 64
+interrupt_stack_size_pages = 8
+
+[package.metadata.hypercore.config.core]
+enable_smp = true
+enable_work_stealing = true
+enable_pci_enumeration = true
+enable_acpi_discovery = true
+enable_iommu = false
+enable_virtualization = false
+enable_driver_init = false
+enable_tls_syscalls = true
+enable_kernel_dump = true
+enable_extended_irq_vectors = true
+enable_irq_trace = false
+enable_scheduler_trace = false
+idle_strategy = "Halt"
+panic_action = "Halt"
+enable_periodic_rebalance = true
+rebalance_interval_ticks = 128
+rebalance_imbalance_threshold = 2
+rebalance_batch_size = 4
+rebalance_prefer_local_skip_budget = 2
+affinity_policy = "PreferLocal"
+enable_affinity_enforcement = true
+enable_interrupt_storm_protection = true
+irq_storm_threshold = 4096
+irq_storm_window_ticks = 256
+enable_soft_watchdog = true
+soft_watchdog_stall_ticks = 4096
+soft_watchdog_action = "Halt"
+crash_log_capacity = 64
+
+[package.metadata.hypercore.config.library]
+boundary_mode = "Strict"
+enforce_core_minimal = true
+strict_optional_features = true
+expose_vfs_api = true
+expose_network_api = true
+expose_ipc_api = true
+libnet_l2_enabled = true
+libnet_l34_enabled = true
+libnet_l6_enabled = true
+libnet_l7_enabled = true
+libnet_fast_path_default_strategy = "Adaptive"
+libnet_fast_path_run_pump = true
+libnet_fast_path_collect_transport_snapshot = true
+libnet_fast_path_pump_budget = 64
+max_services = 128
+verbose_boot_inventory = true
+
+[package.metadata.hypercore.config.boot]
+cmdline_parse = true
+splash_screen = true
+quiet_boot = false
+
+[package.metadata.hypercore.config.memory]
+allocator = "Slab"
+paging = true
+heap_size_mb = 32
+guardian_pages = true
+slab_reclaim_profile = "Balanced"
+slab_pressure_scan_budget = 8
+slab_max_tracked_segments = 1024
+
+[package.metadata.hypercore.config.scheduler]
+strategy = "CFS"
+priority_levels = 64
+
+[package.metadata.hypercore.config.scheduler.round_robin]
+max_tasks = 1024
+default_slice_ns = 4_000_000
+
+[package.metadata.hypercore.config.scheduler.cfs]
+min_granularity_ns = 1_000_000
+latency_target_ns = 6_000_000
+
+[package.metadata.hypercore.config.scheduler.edf]
+max_deadlines = 128
+enforce_deadline = true
+default_relative_deadline_ns = 8_000_000
+
+[package.metadata.hypercore.config.scheduler.mlfq]
+num_queues = 4
+base_slice_ns = 1_000_000
+boost_interval_ticks = 250
+demote_on_slice_exhaustion = true
+
+[package.metadata.hypercore.config.scheduler.rt]
+enable_group_reservation = true
+period_ns = 100_000_000
+total_utilization_cap_percent = 80
+max_groups = 8
+
+[package.metadata.hypercore.config.dispatcher]
+strategy = "Vectored"
+buffer_size = 256
+vector_table_align = 128
+
+[package.metadata.hypercore.config.ipc]
+mechanism = "RingBuffer"
+max_channels = 1024
+msg_size_limit = 4096
+
+[package.metadata.hypercore.config.security]
+ring_level = "Ring3"
+monitor = "NullMonitor"
+nx_bit = true
+smap_smep = false
+zero_trust_mode = false
+enable_mac = true
+enable_audit = true
+max_security_labels = 256
+max_capability_tokens = 4096
+default_user_capabilities = 0
+
+[package.metadata.hypercore.config.telemetry]
+enabled = true
+history_len = 100
+log_level = "Debug"
+runtime_summary = true
+vfs = true
+network = true
+ipc = true
+scheduler = true
+security = true
+power = true
+drivers = true
+
+[package.metadata.hypercore.config.linux_compat]
+max_path_len = 4096
+max_iov_count = 1024
+max_sockaddr_len = 1024
+max_xattr_name_len = 255
+max_xattr_value_size = 65536
+default_pipe_size = 65536
+max_mount_path = 4096
+stat_block_size = 512
+stat_blksize = 4096
+mount_ctx_fd_base = 2000
+mount_fd_base = 3000
+legacy_support = true
+futex_waitv_max = 128
+robust_list_head_size = 24
+enable_standard_error_mapping = true
+verbose_syscall_logs = false
+
+[package.metadata.hypercore.config.vfs]
+max_mounts = 256
+max_mount_path = 4096
+enable_buffered_io = false
+health_slo_ms = 100
+devfs_default_mode = 0o660
+devfs_default_uid = 0
+devfs_default_gid = 0
+devfs_enable_hotplug_net_nodes = true
+devfs_enable_hotplug_storage_nodes = true
+devfs_policy_profile = "Balanced"
+devfs_net_mode = 0o660
+devfs_net_gid = 0
+devfs_storage_mode = 0o660
+devfs_storage_gid = 0
+
+[package.metadata.hypercore.config.network]
+loopback_queue_limit = 128
+udp_queue_limit = 256
+tcp_queue_limit = 256
+filter_rule_limit = 128
+wireguard_max_peers = 1024
+http_asset_limit = 1024
+tls_policy_profile = "Balanced"
+posix_fd_start = 3
+posix_ephemeral_start = 40000
+blocking_recv_retries = 64
+slo_sample_interval = 1024
+slo_log_interval_multiplier = 8
+
+[package.metadata.hypercore.config.drivers]
+network_irq_service_budget = 64
+network_loop_service_budget = 128
+network_ring_limit = 512
+network_quarantine_rebind_failures = 3
+network_quarantine_cooldown_samples = 256
+network_slo_max_drop_rate_per_mille = 25
+network_slo_max_tx_ring_utilization_percent = 90
+network_slo_max_rx_ring_utilization_percent = 90
+network_slo_max_io_errors = 0
+network_low_latency_irq_budget_divisor = 4
+network_low_latency_loop_budget_divisor = 2
+network_low_latency_ring_limit_divisor = 2
+network_throughput_irq_budget_multiplier = 4
+network_throughput_loop_budget_multiplier = 4
+network_throughput_ring_limit_multiplier = 4
+ahci_io_timeout_spins = 2_000_000
+nvme_disable_ready_timeout_spins = 100_000
+nvme_poll_timeout_spins = 500_000
+nvme_io_timeout_spins = 1_000_000
+e1000_reset_timeout_spins = 1_000_000
+e1000_buffer_size_bytes = 2048
+e1000_rx_desc_count = 32
+e1000_tx_desc_count = 256
+
+[package.metadata.hypercore.config.governor]
+watchdog_hard_stall_ns = 5000000000
+rt_force_min_ticks = 2
+rt_deadline_burst_threshold = 3
+irqsafe_mutex_deadlock_spin_limit = 10000000
+power_runqueue_saturation_limit = 4096
+load_balance_percentile_window = 256
+runtime_policy_drift_sample_interval_ticks = 1024
+runtime_policy_drift_reapply_cooldown_ticks = 8192
+
+[package.metadata.hypercore.config.linux_os]
+release = "5.15.0"
+version = "1.0 hypercore-os"
+
+[package.metadata.hypercore.config.aarch64]
+pci_ecam_bases = [0x10000000, 0x3F000000]
+pci_scan_stop_on_first_hit = true
+pci_max_bus = 255
+pci_max_device = 31
+pci_max_function = 7
+smp_boot_timeout_spins = 5000000
+exception_kill_user_sync = true
+exception_kill_user_async = true
+exception_panic_on_kernel_sync = true
+exception_panic_on_kernel_async = true
+irq_storm_window_ticks = 1000000
+irq_storm_threshold = 1024
+irq_storm_log_every = 256
+timer_rearm_min_ticks = 1
+timer_rearm_max_ticks = 50000000
+timer_jitter_tolerance_ticks = 50000
+gic_cpu_priority_mask = 255
+irq_rate_track_limit = 256
+irq_per_line_storm_threshold = 256
+irq_per_line_log_every = 64
+tlb_shootdown_timeout_spins = 1000000
+smp_known_mpidrs = [0x00000001, 0x00000002, 0x00000003]
+
+[package.metadata.hypercore.config."scheduler.lottery"]
+initial_seed = 3405691582
+tickets_per_priority_level = 10
+min_tickets_per_task = 1
+replay_trace_capacity = 128
+lcg_multiplier = 6364136223846793005
+lcg_increment = 1
+
+[dependencies]
+limine = "0.1.12"
+volatile = "0.5.4"
+spin = "0.9.8"
+
+bitflags = "2.4.0"
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+linked_list_allocator = "0.10.5" # Better allocator for BTreeMap support
+xmas-elf = { version = "0.9.1", default-features = false }
+smoltcp = { version = "0.11.0", default-features = false, features = ["alloc", "medium-ethernet", "proto-ipv4", "proto-ipv6", "proto-igmp", "proto-dhcpv4", "socket-icmp", "socket-udp", "socket-tcp", "socket-dhcpv4"], optional = true }
+littlefs2-core = { version = "0.1.2", default-features = false, optional = true }
+ext4-view = { version = "0.9.3", default-features = false, optional = true }
+rustls = { version = "0.23.17", default-features = false, optional = true }
+embedded-hal = "1.0.0"
+h2 = { version = "0.4.7", default-features = false, optional = true }
+hyper = { version = "1.5.0", default-features = false, optional = true }
+
+[build-dependencies]
+toml = "0.8.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_derive = "1.0"
+
+[features]
+default = ["telemetry", "process_abstraction", "security", "allocators", "allocator_bump", "schedulers", "sched_cfs", "dispatcher", "dispatcher_vectored", "ipc", "ipc_message_passing", "ipc_futex"]
+
+# --- Scheduler Types ---
+schedulers = []
+sched_round_robin = ["schedulers"]
+sched_weighted_round_robin = ["schedulers"]
+sched_fifo = ["schedulers"]
+sched_lifo = ["schedulers"]
+sched_cooperative = ["schedulers"]
+sched_lottery = ["schedulers"]
+sched_mlfq = ["schedulers"]
+sched_cfs = ["schedulers"]
+sched_edf = ["schedulers"]
+sched_gang = ["schedulers"]
+sched_energy_aware = ["schedulers"]
+
+# --- Core Mechanics ---
+process_abstraction = [] # Enable Process/Thread abstraction. Disable for bare-metal loop.
+
+# --- Security Core ---
+security = []               # Base security module.
+security_null = ["security"]
+security_acl = ["security"]
+security_capabilities = ["security"]
+security_sel4 = ["security"]
+ring_protection = []    # Enable Ring 0/3 separation & Syscalls.
+memory_protection = []  # Enable Page Faults for unauthorized access (NX bit, etc).
+capabilities = []       # Enable Capability-based security model.
+acl = []                # Enable Access Control Lists.
+sel4_extensions = []    # Enable seL4-like formal verification stubs.
+
+# --- Memory Management ---
+paging_enable = []      # Use Paging (MMU). WARN: Disabling implies physical addressing only.
+allocators = []
+allocator_slab = ["allocators"]
+allocator_buddy = ["allocators"]
+allocator_linked_list = ["allocators"]
+allocator_bump = ["allocators"]
+allocator_bitmap = ["allocators"]
+
+# --- IPC ---
+ipc = []
+ipc_zero_copy = ["ipc"]
+ipc_message_passing = ["ipc"]
+ipc_shared_memory = ["ipc"]
+ipc_signal_only = ["ipc"]
+ipc_ring_buffer = ["ipc"]
+ipc_futex = ["ipc"]
+ipc_binder = ["ipc"]
+ipc_unix_domain = ["ipc"]
+ipc_dbus = ["ipc"]
+ipc_sysv_sem = ["ipc"]   # System V semaphore IPC (legacy support)
+ipc_sysv_msg = ["ipc"]   # System V message queue IPC (legacy support)
+
+# --- POSIX Layers ---
+linux_compat = [
+    "ring_protection",
+    "process_abstraction",
+    "security",
+    "posix_time",
+    "posix_process",
+    "posix_ipc",
+    "posix_thread",
+    "posix_signal",
+    "posix_pipe",
+    "posix_io",
+    "posix_fs",
+    "posix_mman",
+    "posix_net",
+    "linux_compat_trace_seccomp",
+    "linux_compat_vfs",
+    "ipc_unix_domain",
+]
+linux_compat_trace_seccomp = []
+posix_time = []
+posix_process = []
+posix_ipc = ["ipc_signal_only"]
+posix_thread = []
+posix_signal = []
+posix_pipe = ["ipc_ring_buffer"]
+posix_io = []
+posix_mman = ["vfs"]
+posix_fs = ["vfs", "vfs_disk_fs", "posix_time", "posix_process", "posix_mman"]
+posix_net = ["network_transport"]
+# Linux poll timeout semantic mode (choose exactly one; if both are enabled build fails).
+# - linux_poll_timeout_ms: POLL timeout argument is interpreted as milliseconds.
+# - linux_poll_timeout_retries: POLL timeout argument is interpreted as internal retry count.
+linux_poll_timeout_ms = []
+linux_poll_timeout_retries = []
+# Optional compatibility mode: mlock/mlockall family becomes a no-op success when
+# vfs+posix_mman backend is unavailable, instead of returning ENOSYS.
+linux_shim_noop_mlock = []
+linux_userspace_graphics = []
+linux_userspace_wayland = ["linux_userspace_graphics"]
+linux_userspace_x11 = ["linux_userspace_graphics"]
+posix_deep_tests = [
+    "posix_time",
+    "posix_process",
+    "posix_ipc",
+    "posix_thread",
+    "posix_signal",
+    "posix_pipe",
+    "posix_io",
+    "posix_fs",
+    "posix_mman",
+    "posix_net",
+]
+
+# --- Subsystems ---
+drivers = []
+vfs = ["vfs_ramfs"]                # Virtual File System abstraction
+vfs_backends = ["vfs"]
+vfs_disk_fs = ["vfs"]
+vfs_library_backends = ["vfs"]
+vfs_network_fs = ["vfs"]
+vfs_ramfs = ["vfs"]
+vfs_telemetry = ["vfs"]
+vfs_fatfs = ["vfs", "dep:fatfs"] # Optional FAT bridge hook (fatfs crate path active on host/compatible targets)
+vfs_littlefs = ["vfs", "dep:littlefs2-core"] # Optional LittleFS bridge (embedded/flash friendly, pure Rust core)
+vfs_ext4 = ["vfs", "dep:ext4-view"] # EXT4 bridge via ext4-view (read-only no_std)
+vfs_squashfs = ["vfs"] # SquashFS bridge hook (adapter surface, backend crate pluggable)
+# Linux compatibility VFS modules
+vfs_procfs = ["vfs"]    # /proc virtual filesystem
+vfs_sysfs = ["vfs"]     # /sys virtual filesystem
+vfs_tmpfs = ["vfs"]     # tmpfs in-memory filesystem (/tmp, /dev/shm, /run)
+vfs_devpts = ["vfs"]    # /dev/pts pseudo-terminal filesystem
+# Meta-feature: all Linux-essential VFS modules
+linux_compat_vfs = ["vfs_procfs", "vfs_sysfs", "vfs_tmpfs", "vfs_devpts"]
+networking = ["dep:smoltcp"] # Networking stack hooks
+network_transport = ["networking", "posix_fs"] # Optional LibNet-Core style transport layer (UDP/TCP/DNS/filter)
+network_wireguard = ["network_transport"] # Optional WireGuard-style tunnel control/data baseline
+network_http = ["network_transport"] # Optional library-layer HTTP static serving/sendfile baseline
+network_https = ["network_transport", "dep:rustls"] # Optional library-layer HTTPS/TLS termination baseline
+libnet = ["networking"]
+libnet_l2 = ["libnet"]
+libnet_l34 = ["libnet", "network_transport"]
+libnet_l6_tls = ["libnet", "network_https"]
+libnet_l7_http2 = ["libnet", "dep:h2", "dep:hyper"]
+telemetry = []          # Enable telemetry
+
+# --- Debug Observability (Autonomous Emission) ---
+# Compile-time feature flags for category-based observability
+debug_observability_all = []       # Enable all observability categories
+debug_observability_core = []      # Core kernel initialization
+debug_observability_boot = []      # Boot sequence
+debug_observability_loader = []    # Module/executable loader
+debug_observability_task = []      # Task/process management
+debug_observability_memory = []    # Memory management
+debug_observability_scheduler = [] # Task scheduling
+debug_observability_fault = []     # Fault handling
+debug_observability_driver = []    # Driver operations
+debug_observability_io = []        # I/O subsystem
+debug_observability_network = []   # Network subsystem
+dispatcher = []
+dispatcher_direct = ["dispatcher"]
+dispatcher_buffered = ["dispatcher"]
+dispatcher_managed = ["dispatcher"]
+dispatcher_vectored = ["dispatcher"]
+
+# --- Governance ---
+governor = []
+
+
+[target.'cfg(not(target_os = "none"))'.dependencies]
+fatfs = { version = "0.3.6", default-features = false, features = ["alloc"], optional = true }
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+x86_64 = "0.14.13"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1

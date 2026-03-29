@@ -1,0 +1,57 @@
+use super::super::system::{
+    current_virtualization_log_snapshot, current_virtualization_policy_log_snapshot,
+};
+
+pub(crate) fn log_virtualization_runtime_profile() {
+    let virt = current_virtualization_log_snapshot();
+    let policy = current_virtualization_policy_log_snapshot();
+    hypercore::klog_info!(
+        "Virtualization profile: runtime(t={} l={} e={} r={} td={} n={} tv={} dp={} s={} d={} m={} tt={} exec={} gov={}) cargo(t={} l={} e={} r={} td={} n={} tv={} dp={} s={} d={} m={} tt={} exec={} gov={}) effective(t={} l={} e={} r={} td={} n={} tv={} dp={} s={} d={} m={} tt={} exec={} gov={}) governor_scope={} governor={} latency_bias={} energy_bias={}",
+        policy.runtime.telemetry,
+        policy.runtime.platform_lifecycle,
+        policy.runtime.entry,
+        policy.runtime.resume,
+        policy.runtime.trap_dispatch,
+        policy.runtime.nested,
+        policy.runtime.time_virtualization,
+        policy.runtime.device_passthrough,
+        policy.runtime.snapshot,
+        policy.runtime.dirty_logging,
+        policy.runtime.live_migration,
+        policy.runtime.trap_tracing,
+        policy.runtime_execution_profile,
+        policy.runtime_governor_profile,
+        policy.cargo.telemetry,
+        policy.cargo.platform_lifecycle,
+        policy.cargo.entry,
+        policy.cargo.resume,
+        policy.cargo.trap_dispatch,
+        policy.cargo.nested,
+        policy.cargo.time_virtualization,
+        policy.cargo.device_passthrough,
+        policy.cargo.snapshot,
+        policy.cargo.dirty_logging,
+        policy.cargo.live_migration,
+        policy.cargo.trap_tracing,
+        policy.cargo_execution_profile,
+        policy.cargo_governor_profile,
+        policy.effective.telemetry,
+        policy.effective.platform_lifecycle,
+        policy.effective.entry,
+        policy.effective.resume,
+        policy.effective.trap_dispatch,
+        policy.effective.nested,
+        policy.effective.time_virtualization,
+        policy.effective.device_passthrough,
+        policy.effective.snapshot,
+        policy.effective.dirty_logging,
+        policy.effective.live_migration,
+        policy.effective.trap_tracing,
+        policy.effective_execution_profile,
+        policy.effective_governor_profile,
+        virt.governor_profile_scope,
+        virt.governor_class,
+        virt.latency_bias,
+        virt.energy_bias
+    );
+}

@@ -1,0 +1,24 @@
+#!/bin/sh
+PATH=/bin:/usr/bin
+export PATH HOME=/root TERM=${TERM:-linux}
+
+echo "[initramfs] HyperCore early userspace started"
+echo "[initramfs] Bringing up minimal rootfs contract"
+
+for dir in /dev /proc /sys /run /tmp /var/log; do
+    [ -d "$dir" ] || mkdir -p "$dir"
+done
+
+if [ -x /usr/bin/hyper_init ]; then
+    echo "[initramfs] launching /usr/bin/hyper_init"
+    exec /usr/bin/hyper_init
+fi
+
+if [ -x /bin/sh ]; then
+    echo "[initramfs] no hyper_init yet; dropping to /bin/sh"
+    exec /bin/sh
+fi
+
+echo "[initramfs] FATAL: no /usr/bin/hyper_init and no /bin/sh present"
+echo "[initramfs] initramfs must provide a real early userspace binary"
+exit 127

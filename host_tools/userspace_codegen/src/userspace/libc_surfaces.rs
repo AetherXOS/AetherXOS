@@ -1,0 +1,72 @@
+pub fn planned_symbols() -> Vec<&'static str> {
+    vec![
+        "__errno_location","hypercore_errno_value","getauxval","sysconf","secure_getenv","getentropy",
+        "getpagesize","daemon","environ","setenv","unsetenv","putenv","clearenv","open","open64",
+        "creat","creat64","close","read","write","pread","pread64","pwrite","pwrite64","readv",
+        "writev","ioctl","lseek","lseek64","fcntl","dup","dup2","dup3","pipe","pipe2","close_range",
+        "access","faccessat","fstat","fstat64","stat","stat64","lstat","lstat64","fstatat","fstatat64",
+        "newfstatat","statx","statfs","fstatfs","getdents64","opendir","fdopendir","readdir","rewinddir",
+        "closedir","dirfd","fopen","fdopen","fclose","fread","fwrite","fflush","fileno","feof","ferror",
+        "clearerr","fgetc","getc","getchar","fputc","putc","putchar","fgets","ungetc","puts","fputs",
+        "printf","snprintf","vsnprintf","perror","mkdir","mkdirat","link","linkat","symlink","symlinkat",
+        "unlink","unlinkat","rmdir","rename","renameat","readlink","readlinkat","chdir","getcwd","umask",
+        "fsync","fdatasync","syncfs","truncate","truncate64","ftruncate","ftruncate64","chmod","fchmod",
+        "fchmodat","chown","lchown","fchown","fchownat","utimensat","sendfile","splice","tee","vmsplice",
+        "copy_file_range","socket","socketpair","connect","bind","listen","accept","accept4","send",
+        "sendto","sendmsg","recv","recvfrom","recvmsg","shutdown","getsockname","getpeername","setsockopt",
+        "getsockopt","poll","ppoll","select","pselect6","epoll_create1","epoll_ctl","epoll_wait","epoll_pwait",
+        "eventfd","eventfd2","signalfd","signalfd4","timerfd_create","timerfd_settime","timerfd_gettime",
+        "inotify_init1","inotify_add_watch","inotify_rm_watch","memfd_create","getrandom","mmap","mmap64",
+        "munmap","mprotect","mremap","madvise","msync","brk","malloc","calloc","realloc","free",
+        "aligned_alloc","posix_memalign","strlen","strnlen","strcmp","strcasecmp","strncmp","strncasecmp",
+        "strcpy","stpcpy","strncpy","strchr","strrchr","strspn","strcspn","strstr","strdup","atoi","atol",
+        "strtol","strtoul","strtoull","strtok","isspace","isdigit","isalpha","isalnum","basename","dirname",
+        "strerror","strerror_r","strsignal","time","clock_gettime","clock_getres","gettimeofday","nanosleep",
+        "sleep","usleep","sched_yield","getpid","gettid","getppid","getuid","geteuid","getgid","getegid",
+        "getgroups","setgroups","setresuid","getresuid","setresgid","getresgid","getpriority","setpriority",
+        "setpgid","getpgrp","setsid","getpgid","getsid","kill","tgkill","wait4","waitid","fork","clone",
+        "execve","execveat","exit","_Exit","exit_group","atexit","at_quick_exit","quick_exit","on_exit",
+        "__cxa_atexit","__cxa_finalize","__cxa_thread_atexit_impl","pthread_atfork","__register_atfork",
+        "signal","raise","sigaction","sigprocmask","sigemptyset","sigfillset","sigaddset","sigdelset",
+        "sigismember","sigaltstack","uname","getrusage","getrlimit","prlimit64","sysinfo","prctl",
+        "sched_setaffinity","sched_getaffinity","sethostname","getcpu","set_robust_list","get_robust_list",
+        "arch_prctl","set_tid_address","futex","membarrier","rseq","abort","__assert_fail",
+        "__stack_chk_fail","__libc_current_sigrtmin","__libc_current_sigrtmax","__dso_handle","__progname",
+        "__progname_full","program_invocation_name","program_invocation_short_name","__libc_enable_secure",
+        "__stack_chk_guard","hypercore_runtime_fini_present","hypercore_runtime_fini_hook_count",
+        "hypercore_runtime_fini_attempt_count","hypercore_runtime_fini_completed_count",
+        "hypercore_runtime_fini_deferred_count","hypercore_run_runtime_fini",
+    ]
+}
+
+pub fn source_modules() -> Vec<&'static str> {
+    vec![
+        "libc_state.c",
+        "errno_runtime.c",
+        "memory_runtime.c",
+        "string_runtime.c",
+        "libc_syscall.c",
+        "startup_runtime.c",
+    ]
+}
+
+pub fn syscall_surface() -> Vec<&'static str> {
+    vec![
+        "read","write","pread64","pwrite64","ioctl","readv","writev","access","faccessat","close","lseek",
+        "fsync","fdatasync","truncate","ftruncate","sendfile","chmod","fchmod","chown","fchown","dup","dup2",
+        "pause","nanosleep","fcntl","pipe","statfs","fstatfs","mremap","msync","madvise","mmap","mprotect",
+        "munmap","brk","gettimeofday","poll","sched_yield","socket","connect","accept4","sendto","recvfrom",
+        "sendmsg","recvmsg","shutdown","bind","listen","getsockname","getpeername","socketpair","setsockopt",
+        "getsockopt","time","wait4","kill","uname","arch_prctl","getpid","gettid","getppid","getuid",
+        "getrusage","getgid","setpgid","geteuid","getegid","getgroups","setgroups","setresuid","getresuid",
+        "setresgid","getresgid","getpgrp","setsid","getpgid","getsid","getpriority","setpriority",
+        "clock_gettime","clock_getres","getrlimit","sigaltstack","set_tid_address","futex","tgkill","waitid",
+        "execve","openat","chdir","getcwd","umask","mkdirat","fchownat","linkat","newfstatat","fchmodat",
+        "symlinkat","unlinkat","renameat","readlinkat","splice","tee","vmsplice","pselect6","ppoll",
+        "utimensat","select","statx","getdents64","epoll_wait","epoll_ctl","epoll_pwait","epoll_create1",
+        "prlimit64","timerfd_create","timerfd_settime","timerfd_gettime","signalfd4","eventfd2",
+        "inotify_add_watch","inotify_rm_watch","inotify_init1","memfd_create","dup3","pipe2","syncfs",
+        "getrandom","copy_file_range","membarrier","rseq","clone","fork","execveat","exit_group",
+        "close_range","exit",
+    ]
+}

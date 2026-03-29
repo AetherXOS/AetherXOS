@@ -1,0 +1,31 @@
+#[cfg(all(feature = "drivers", feature = "networking"))]
+use core::sync::atomic::AtomicU64;
+
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static VIRTIO_IO_ERROR_STREAK: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static E1000_IO_ERROR_STREAK: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static VIRTIO_REBIND_FAILURE_STREAK: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static E1000_REBIND_FAILURE_STREAK: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static NETWORK_SLO_SAMPLE_COUNTER: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static NETWORK_SLO_BREACH_STREAK: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static NETWORK_AUTO_POLICY_SWITCH_COUNT: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static NETWORK_AUTO_POLICY_SWITCH_COOLDOWN: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static NETWORK_SLO_REMEDIATION_STAGE: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static NETWORK_SLO_REMEDIATION_ACTIONS: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static NETWORK_SLO_LAST_LOG_SAMPLE: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static NETWORK_DRIVER_QUARANTINE_VIRTIO: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static NETWORK_DRIVER_QUARANTINE_E1000: AtomicU64 = AtomicU64::new(0);
+#[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) static NETWORK_DRIVER_QUARANTINE_EVENTS: AtomicU64 = AtomicU64::new(0);

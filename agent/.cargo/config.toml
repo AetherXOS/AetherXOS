@@ -1,0 +1,4 @@
+# Override the workspace default (x86_64-unknown-none / no_std kernel target).
+# The agent is a normal std binary that runs on the host OS.
+[build]
+target = "x86_64-pc-windows-msvc"

@@ -1,0 +1,59 @@
+#[test_case]
+fn tls_policy_profile_parser_supports_all_modes() {
+    assert_eq!(
+        super::TlsPolicyProfile::from_str("Minimal"),
+        super::TlsPolicyProfile::Minimal
+    );
+    assert_eq!(
+        super::TlsPolicyProfile::from_str("Balanced"),
+        super::TlsPolicyProfile::Balanced
+    );
+    assert_eq!(
+        super::TlsPolicyProfile::from_str("Strict"),
+        super::TlsPolicyProfile::Strict
+    );
+    assert_eq!(
+        super::TlsPolicyProfile::from_str("unknown"),
+        super::TlsPolicyProfile::Balanced
+    );
+}
+
+#[test_case]
+fn devfs_policy_profile_parser_supports_all_modes() {
+    assert_eq!(
+        super::DevFsPolicyProfile::from_str("Strict"),
+        super::DevFsPolicyProfile::Strict
+    );
+    assert_eq!(
+        super::DevFsPolicyProfile::from_str("Balanced"),
+        super::DevFsPolicyProfile::Balanced
+    );
+    assert_eq!(
+        super::DevFsPolicyProfile::from_str("Dev"),
+        super::DevFsPolicyProfile::Dev
+    );
+    assert_eq!(
+        super::DevFsPolicyProfile::from_str("unknown"),
+        super::DevFsPolicyProfile::Balanced
+    );
+}
+
+#[test_case]
+fn virtualization_governor_class_parser_supports_all_modes() {
+    assert_eq!(
+        super::VirtualizationGovernorClass::from_str("Performance"),
+        super::VirtualizationGovernorClass::Performance
+    );
+    assert_eq!(
+        super::VirtualizationGovernorClass::from_str("Balanced"),
+        super::VirtualizationGovernorClass::Balanced
+    );
+    assert_eq!(
+        super::VirtualizationGovernorClass::from_str("Efficiency"),
+        super::VirtualizationGovernorClass::Efficiency
+    );
+    assert_eq!(
+        super::VirtualizationGovernorClass::from_str("unknown"),
+        super::VirtualizationGovernorClass::Balanced
+    );
+}

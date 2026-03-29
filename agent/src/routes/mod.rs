@@ -1,0 +1,15 @@
+pub mod auth_routes;
+pub mod catalog;
+pub mod compliance;
+pub mod config_mgmt;
+pub mod confirm;
+pub mod dispatch;
+pub mod health;
+pub mod hosts;
+pub mod launcher;
+pub mod ops;
+pub mod plugins;
+pub mod policy_routes;
+pub mod roadmap;
+pub mod run_routes;
+pub mod scheduler;
