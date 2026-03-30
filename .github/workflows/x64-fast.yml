@@ -1,0 +1,65 @@
+name: X64 Fast
+
+on:
+  pull_request:
+    paths:
+      - '.cargo/**'
+      - '.config/**'
+      - '.github/workflows/x64-fast.yml'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
+      - 'src/**'
+      - 'tests/**'
+  push:
+    branches:
+      - main
+    paths:
+      - '.cargo/**'
+      - '.config/**'
+      - '.github/workflows/x64-fast.yml'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
+      - 'src/**'
+      - 'tests/**'
+  workflow_dispatch:
+
+concurrency:
+  group: x64-fast-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fast:
+    name: x64 / fast
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+          components: clippy,rustfmt,llvm-tools-preview,rust-src
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: x64-fast
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Run fast tier
+        run: scripts/testfast.sh

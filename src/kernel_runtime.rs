@@ -81,7 +81,9 @@ impl KernelRuntime {
         hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] hal early init returned\n");
         boot.after_hal_early_init();
         #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] after_hal_early_init hook returned\n");
+        hypercore::hal::x86_64::serial::write_raw(
+            "[EARLY SERIAL] after_hal_early_init hook returned\n",
+        );
 
         // 2.5 Boot self-test / config guardrails
         boot.assert_self_tests();
@@ -96,7 +98,9 @@ impl KernelRuntime {
         hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] platform services returned\n");
         boot.after_platform_services();
         #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] after_platform_services hook returned\n");
+        hypercore::hal::x86_64::serial::write_raw(
+            "[EARLY SERIAL] after_platform_services hook returned\n",
+        );
 
         // 4-9. IRQ, VM, PCI/IOMMU, drivers, SMP, IDT and interrupt enable
         self.run_runtime_activation();
@@ -104,7 +108,9 @@ impl KernelRuntime {
         hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] runtime activation returned\n");
         self.finalize_runtime_activation();
         #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] runtime interrupt routing returned\n");
+        hypercore::hal::x86_64::serial::write_raw(
+            "[EARLY SERIAL] runtime interrupt routing returned\n",
+        );
 
         boot.enter_main_loop();
     }

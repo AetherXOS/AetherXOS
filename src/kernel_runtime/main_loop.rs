@@ -145,11 +145,19 @@ fn linked_probe_main_loop_state(enabled: bool, verified: bool) -> LinkedProbeMai
 #[cfg(feature = "process_abstraction")]
 #[inline(always)]
 fn log_linked_probe_service_call_boundary() {
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "service_helper_entered", None, false);
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "service_call_boundary", None, false);
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] linked probe service call begin\n",
+    hypercore::kernel::debug_trace::record_optional(
+        "linked.probe",
+        "service_helper_entered",
+        None,
+        false,
     );
+    hypercore::kernel::debug_trace::record_optional(
+        "linked.probe",
+        "service_call_boundary",
+        None,
+        false,
+    );
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service call begin\n");
 }
 
 #[cfg(feature = "process_abstraction")]
@@ -161,36 +169,36 @@ fn enter_linked_probe_service_dispatch() {
 #[cfg(feature = "process_abstraction")]
 #[inline(always)]
 fn service_open_linked_probe_for_iteration() {
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "enabled_state_loaded", None, false);
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] linked probe service gate open\n",
+    hypercore::kernel::debug_trace::record_optional(
+        "linked.probe",
+        "enabled_state_loaded",
+        None,
+        false,
     );
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] linked probe service attempt\n",
-    );
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service gate open\n");
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service attempt\n");
     dispatch_linked_probe_service_attempt();
 }
 
 #[cfg(feature = "process_abstraction")]
 #[inline(always)]
 fn dispatch_linked_probe_service_attempt() {
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "service_attempt_dispatch", None, false);
+    hypercore::kernel::debug_trace::record_optional(
+        "linked.probe",
+        "service_attempt_dispatch",
+        None,
+        false,
+    );
     dispatch_open_linked_probe_service();
 }
 
 #[cfg(feature = "process_abstraction")]
 #[inline(always)]
 fn dispatch_open_linked_probe_service() {
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] linked probe service dispatch begin\n",
-    );
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service dispatch begin\n");
     invoke_linked_probe_service_dispatch();
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] linked probe service returned\n",
-    );
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] linked probe service dispatch returned\n",
-    );
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service returned\n");
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service dispatch returned\n");
 }
 
 #[cfg(feature = "process_abstraction")]
@@ -208,12 +216,8 @@ fn service_linked_probe_for_iteration(state: LinkedProbeMainLoopState) {
             service_open_linked_probe_for_iteration();
         }
         LinkedProbeMainLoopAction::Closed => {
-            hypercore::hal::serial::write_raw(
-                "[EARLY SERIAL] linked probe enabled state loaded\n",
-            );
-            hypercore::hal::serial::write_raw(
-                "[EARLY SERIAL] linked probe service gate closed\n",
-            );
+            hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe enabled state loaded\n");
+            hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service gate closed\n");
         }
         LinkedProbeMainLoopAction::Skip => {}
     }
@@ -225,10 +229,13 @@ fn service_bootstrap_iteration(decision: MainLoopIterationDecision) {
 
     #[cfg(feature = "process_abstraction")]
     {
-        hypercore::kernel::debug_trace::record_optional("main.loop", "bootstrap_service_step", None, false);
-        hypercore::hal::serial::write_raw(
-            "[EARLY SERIAL] main loop bootstrap service begin\n",
+        hypercore::kernel::debug_trace::record_optional(
+            "main.loop",
+            "bootstrap_service_step",
+            None,
+            false,
         );
+        hypercore::hal::serial::write_raw("[EARLY SERIAL] main loop bootstrap service begin\n");
         run_linked_probe_iteration_service(decision.linked_probe);
 
         if LINKED_PROBE_SPAWNED.load(Ordering::Relaxed)
@@ -240,9 +247,7 @@ fn service_bootstrap_iteration(decision: MainLoopIterationDecision) {
             crate::kernel_runtime::interrupts::timer_tick_handler(0);
         }
 
-        hypercore::hal::serial::write_raw(
-            "[EARLY SERIAL] main loop bootstrap service returned\n",
-        );
+        hypercore::hal::serial::write_raw("[EARLY SERIAL] main loop bootstrap service returned\n");
     }
 }
 
@@ -255,13 +260,9 @@ fn run_linked_probe_iteration_service(action: LinkedProbeMainLoopAction) {
 
 #[inline(always)]
 fn run_one_shot_bootstrap_iteration(decision: MainLoopIterationDecision) {
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] main loop one-shot bootstrap begin\n",
-    );
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] main loop one-shot bootstrap begin\n");
     service_one_shot_bootstrap_for_iteration(decision);
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] main loop one-shot bootstrap returned\n",
-    );
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] main loop one-shot bootstrap returned\n");
 }
 
 #[inline(always)]
@@ -275,7 +276,8 @@ fn main_loop_iteration_decision(
         initrd_mount: initrd_mount_action(initrd_mounted),
         linux_compat_init: linux_compat_init_action(linux_compat_inited),
         #[cfg(feature = "process_abstraction")]
-        linked_probe: linked_probe_main_loop_state(linked_probe_enabled, linked_probe_verified).action,
+        linked_probe: linked_probe_main_loop_state(linked_probe_enabled, linked_probe_verified)
+            .action,
     }
 }
 
@@ -319,14 +321,17 @@ fn run_initrd_mount_transition(action: MainLoopOneShotAction) {
 #[inline(always)]
 fn run_linux_compat_transition(action: MainLoopOneShotAction) {
     if matches!(action, MainLoopOneShotAction::Attempt) {
-        hypercore::kernel::debug_trace::record_optional("main.loop", "linux_compat_step", None, false);
+        hypercore::kernel::debug_trace::record_optional(
+            "main.loop",
+            "linux_compat_step",
+            None,
+            false,
+        );
         hypercore::hal::serial::write_raw("[EARLY SERIAL] linux compat init begin\n");
     }
     bootstrap::try_init_linux_compat_once();
     if matches!(action, MainLoopOneShotAction::Attempt) {
-        hypercore::hal::serial::write_raw(
-            "[EARLY SERIAL] linux compat init returned\n",
-        );
+        hypercore::hal::serial::write_raw("[EARLY SERIAL] linux compat init returned\n");
     }
 }
 
@@ -362,22 +367,23 @@ fn load_main_loop_boot_state() {
         hypercore::hal::serial::write_raw(
             "[EARLY SERIAL] main loop boot info query returned some\n",
         );
-        hypercore::kernel::debug_trace::record_optional("main.loop", "cmdline_scan_begin", None, false);
+        hypercore::kernel::debug_trace::record_optional(
+            "main.loop",
+            "cmdline_scan_begin",
+            None,
+            false,
+        );
         hypercore::kernel::debug_trace::record_optional(
             "main.loop",
             "cmdline_scan_returned",
             Some(boot_state.boot_info_present as u64),
             false,
         );
-        hypercore::hal::serial::write_raw(
-            "[EARLY SERIAL] main loop cmdline scan returned\n",
-        );
+        hypercore::hal::serial::write_raw("[EARLY SERIAL] main loop cmdline scan returned\n");
         #[cfg(feature = "process_abstraction")]
         LINKED_PROBE_ENABLED.store(boot_state.linked_probe_enabled, Ordering::Relaxed);
         if boot_state.linked_probe_enabled {
-            hypercore::hal::serial::write_raw(
-                "[EARLY SERIAL] linked probe main loop armed\n",
-            );
+            hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe main loop armed\n");
             hypercore::klog_info!("[LINKED PROBE] main loop armed for linked probe boot");
         }
     } else {
@@ -390,9 +396,7 @@ fn load_main_loop_boot_state() {
 #[inline(always)]
 fn prepare_main_loop_cycle(iteration: usize) -> MainLoopIterationDecision {
     if iteration == 0 {
-        hypercore::hal::serial::write_raw(
-            "[EARLY SERIAL] main loop first iteration entered\n",
-        );
+        hypercore::hal::serial::write_raw("[EARLY SERIAL] main loop first iteration entered\n");
     }
     hypercore::kernel::debug_trace::record_optional("main.loop", "iteration_begin", None, false);
     hypercore::hal::serial::write_raw("[EARLY SERIAL] ml iter dec\n");
@@ -504,9 +508,15 @@ mod one_shot_tests {
             false,
         );
         assert_eq!(decision.initrd_mount, super::MainLoopOneShotAction::Attempt);
-        assert_eq!(decision.linux_compat_init, super::MainLoopOneShotAction::Skip);
+        assert_eq!(
+            decision.linux_compat_init,
+            super::MainLoopOneShotAction::Skip
+        );
         #[cfg(feature = "process_abstraction")]
-        assert_eq!(decision.linked_probe, super::LinkedProbeMainLoopAction::Service);
+        assert_eq!(
+            decision.linked_probe,
+            super::LinkedProbeMainLoopAction::Service
+        );
     }
 
     #[test_case]
@@ -693,4 +703,3 @@ mod tests {
         assert!(!super::linked_probe_service_gate(false, true));
     }
 }
-

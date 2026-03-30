@@ -55,9 +55,7 @@ fn try_spawn_linked_probe(request: LinkedProbeSpawnRequest) {
             );
             super::LINKED_PROBE_PID.store(pid, Ordering::Relaxed);
             super::LINKED_PROBE_SPAWNED.store(true, Ordering::Relaxed);
-            hypercore::hal::serial::write_raw(
-                "[EARLY SERIAL] linked probe spawn returned\n",
-            );
+            hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn returned\n");
             hypercore::klog_info!(
                 "[LINKED PROBE] spawned embedded probe-linked.elf bytes={} pid={}",
                 LINKED_PROBE_IMAGE.len(),
@@ -103,12 +101,8 @@ fn invoke_linked_probe_spawn(
 #[allow(dead_code)]
 #[inline(always)]
 fn enter_linked_probe_spawn_branch() {
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] linked probe linux compat gate returned\n",
-    );
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] linked probe service spawn branch\n",
-    );
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe linux compat gate returned\n");
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service spawn branch\n");
     hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe can spawn\n");
     hypercore::kernel::debug_trace::record_optional("linked.probe", "spawn_gate", None, false);
 }
@@ -209,8 +203,18 @@ fn load_linked_probe_runtime_state() -> LinkedProbeRuntimeState {
 #[inline(always)]
 fn prepare_linked_probe_service_decision() -> LinkedProbeServiceDecision {
     let runtime_state = load_linked_probe_runtime_state();
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "linux_compat_state_loaded", None, false);
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "spawned_state_loaded", None, false);
+    hypercore::kernel::debug_trace::record_optional(
+        "linked.probe",
+        "linux_compat_state_loaded",
+        None,
+        false,
+    );
+    hypercore::kernel::debug_trace::record_optional(
+        "linked.probe",
+        "spawned_state_loaded",
+        None,
+        false,
+    );
     let decision =
         linked_probe_service_decision(runtime_state.linux_compat_inited, runtime_state.spawned);
     hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service action ready\n");
@@ -220,9 +224,7 @@ fn prepare_linked_probe_service_decision() -> LinkedProbeServiceDecision {
 #[cfg(feature = "process_abstraction")]
 #[inline(always)]
 fn prepare_linked_probe_service_transition() -> PreparedLinkedProbeServiceDecision {
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] linked probe service transition begin\n",
-    );
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service transition begin\n");
     let decision = prepare_linked_probe_service_decision();
     let spawn_request = match decision.action {
         LinkedProbeServiceAction::Spawn => Some(linked_probe_spawn_request()),
@@ -232,9 +234,7 @@ fn prepare_linked_probe_service_transition() -> PreparedLinkedProbeServiceDecisi
         decision,
         spawn_request,
     };
-    hypercore::hal::serial::write_raw(
-        "[EARLY SERIAL] linked probe service transition returned\n",
-    );
+    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service transition returned\n");
     transition
 }
 
@@ -289,9 +289,7 @@ fn dispatch_linked_probe_service_transition(
                 None,
                 false,
             );
-            hypercore::hal::serial::write_raw(
-                "[EARLY SERIAL] linked probe spawn skipped\n",
-            );
+            hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn skipped\n");
             false
         }
     }
@@ -300,7 +298,12 @@ fn dispatch_linked_probe_service_transition(
 #[cfg(feature = "process_abstraction")]
 #[inline(always)]
 fn run_linked_probe_service_transition() -> bool {
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "service_transition_run", None, false);
+    hypercore::kernel::debug_trace::record_optional(
+        "linked.probe",
+        "service_transition_run",
+        None,
+        false,
+    );
     let transition = enter_linked_probe_service();
     dispatch_linked_probe_service_transition(transition)
 }
@@ -310,7 +313,12 @@ pub(super) fn try_mount_initrd_once() {
         return;
     }
 
-    hypercore::kernel::debug_trace::record_optional("main.loop", "initrd_mount_attempt", None, false);
+    hypercore::kernel::debug_trace::record_optional(
+        "main.loop",
+        "initrd_mount_attempt",
+        None,
+        false,
+    );
 
     #[cfg(feature = "vfs")]
     {
@@ -365,7 +373,12 @@ pub(super) fn try_init_linux_compat_once() {
         return;
     }
 
-    hypercore::kernel::debug_trace::record_optional("main.loop", "linux_compat_init_attempt", None, false);
+    hypercore::kernel::debug_trace::record_optional(
+        "main.loop",
+        "linux_compat_init_attempt",
+        None,
+        false,
+    );
 
     #[cfg(feature = "linux_compat")]
     {
@@ -393,7 +406,12 @@ pub(super) fn try_init_linux_compat_once() {
 #[allow(dead_code)]
 #[inline(always)]
 fn enter_linked_probe_service_body() -> bool {
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "service_body_entered", None, false);
+    hypercore::kernel::debug_trace::record_optional(
+        "linked.probe",
+        "service_body_entered",
+        None,
+        false,
+    );
     linked_probe_service_active()
 }
 
@@ -405,9 +423,9 @@ fn observe_linked_probe_exit() {
         return;
     }
 
-    if let Some(process) = hypercore::kernel::launch::process_arc_by_id(
-        hypercore::interfaces::task::ProcessId(pid),
-    ) {
+    if let Some(process) =
+        hypercore::kernel::launch::process_arc_by_id(hypercore::interfaces::task::ProcessId(pid))
+    {
         let (state, status, _) = process.runtime_state();
         if state == hypercore::kernel::process::ProcessLifecycleState::Exited {
             hypercore::kernel::debug_trace::record_optional(
@@ -448,9 +466,7 @@ pub(super) fn service_linked_probe_once() {
     }
 
     if !super::LINUX_COMPAT_INITED.load(Ordering::Relaxed) {
-        hypercore::hal::serial::write_raw(
-            "[EARLY SERIAL] linked probe waiting linux compat\n",
-        );
+        hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe waiting linux compat\n");
         return;
     }
 
@@ -556,7 +572,10 @@ mod tests {
             decision: super::linked_probe_service_decision(true, false),
             spawn_request: Some(super::linked_probe_spawn_request()),
         };
-        assert_eq!(transition.decision.action, super::LinkedProbeServiceAction::Spawn);
+        assert_eq!(
+            transition.decision.action,
+            super::LinkedProbeServiceAction::Spawn
+        );
         assert!(transition.spawn_request.is_some());
     }
 
@@ -581,7 +600,10 @@ mod tests {
             decision: super::linked_probe_service_decision(true, false),
             spawn_request: Some(super::linked_probe_spawn_request()),
         };
-        assert_eq!(transition.decision.action, super::LinkedProbeServiceAction::Spawn);
+        assert_eq!(
+            transition.decision.action,
+            super::LinkedProbeServiceAction::Spawn
+        );
     }
 
     #[test_case]
@@ -606,7 +628,10 @@ mod tests {
         LINUX_COMPAT_INITED.store(true, Ordering::Relaxed);
         LINKED_PROBE_SPAWNED.store(false, Ordering::Relaxed);
         let transition = super::prepare_linked_probe_service_transition();
-        assert_eq!(transition.decision.action, super::LinkedProbeServiceAction::Spawn);
+        assert_eq!(
+            transition.decision.action,
+            super::LinkedProbeServiceAction::Spawn
+        );
         assert!(transition.spawn_request.is_some());
     }
 
@@ -615,7 +640,10 @@ mod tests {
         LINUX_COMPAT_INITED.store(true, Ordering::Relaxed);
         LINKED_PROBE_SPAWNED.store(false, Ordering::Relaxed);
         let transition = super::prepare_entered_linked_probe_service_transition();
-        assert_eq!(transition.decision.action, super::LinkedProbeServiceAction::Spawn);
+        assert_eq!(
+            transition.decision.action,
+            super::LinkedProbeServiceAction::Spawn
+        );
         assert!(transition.spawn_request.is_some());
     }
 
@@ -644,4 +672,3 @@ mod tests {
         assert!(super::run_entered_linked_probe_service());
     }
 }
-

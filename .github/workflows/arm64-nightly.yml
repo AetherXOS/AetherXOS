@@ -1,0 +1,65 @@
+name: ARM64 Nightly
+
+on:
+  pull_request:
+    paths:
+      - '.cargo/**'
+      - '.config/**'
+      - '.github/workflows/arm64-nightly.yml'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
+      - 'src/**'
+      - 'tests/**'
+  push:
+    branches:
+      - main
+    paths:
+      - '.cargo/**'
+      - '.config/**'
+      - '.github/workflows/arm64-nightly.yml'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
+      - 'src/**'
+      - 'tests/**'
+  workflow_dispatch:
+
+concurrency:
+  group: arm64-nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_TERM_COLOR: always
+
+jobs:
+  nightly:
+    name: arm64 / nightly
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+          components: clippy,rustfmt,llvm-tools-preview,rust-src
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: arm64-nightly
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Run nightly tier
+        run: scripts/testnight.sh

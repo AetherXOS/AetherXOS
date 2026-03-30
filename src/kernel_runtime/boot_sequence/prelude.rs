@@ -52,20 +52,30 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
     hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude finalize begin\n");
 
     #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude finalize boot_info get begin\n");
+    hypercore::hal::x86_64::serial::write_raw(
+        "[EARLY SERIAL] prelude finalize boot_info get begin\n",
+    );
     let bi = boot_info::get();
     #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude finalize boot_info get returned\n");
+    hypercore::hal::x86_64::serial::write_raw(
+        "[EARLY SERIAL] prelude finalize boot_info get returned\n",
+    );
     #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude finalize boot summary begin\n");
+    hypercore::hal::x86_64::serial::write_raw(
+        "[EARLY SERIAL] prelude finalize boot summary begin\n",
+    );
     hypercore::klog_info!("Boot: {}", bi);
     #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude finalize boot summary returned\n");
+    hypercore::hal::x86_64::serial::write_raw(
+        "[EARLY SERIAL] prelude finalize boot summary returned\n",
+    );
 
     let kernel_cmdline = bi.kernel_cmdline_str();
     if prelude.has_cmdline {
         #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude finalize overrides begin\n");
+        hypercore::hal::x86_64::serial::write_raw(
+            "[EARLY SERIAL] prelude finalize overrides begin\n",
+        );
         match hypercore::config::KernelConfig::apply_kernel_cmdline_overrides(kernel_cmdline) {
             Ok(applied) if applied != 0 => {
                 hypercore::klog_info!(
@@ -86,12 +96,16 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
             }
         }
         #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude finalize overrides returned\n");
+        hypercore::hal::x86_64::serial::write_raw(
+            "[EARLY SERIAL] prelude finalize overrides returned\n",
+        );
     }
 
     if prelude.has_framebuffer {
         #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude finalize framebuffer begin\n");
+        hypercore::hal::x86_64::serial::write_raw(
+            "[EARLY SERIAL] prelude finalize framebuffer begin\n",
+        );
         if let Some(fb) = bi.framebuffer {
             hypercore::klog_info!(
                 "Framebuffer: {}x{} bpp={} pitch={} phys={:#x}",
@@ -103,7 +117,9 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
             );
         }
         #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude finalize framebuffer returned\n");
+        hypercore::hal::x86_64::serial::write_raw(
+            "[EARLY SERIAL] prelude finalize framebuffer returned\n",
+        );
     }
 
     #[cfg(target_arch = "x86_64")]

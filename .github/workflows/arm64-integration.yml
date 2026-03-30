@@ -1,0 +1,65 @@
+name: ARM64 Integration
+
+on:
+  pull_request:
+    paths:
+      - '.cargo/**'
+      - '.config/**'
+      - '.github/workflows/arm64-integration.yml'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
+      - 'src/**'
+      - 'tests/**'
+  push:
+    branches:
+      - main
+    paths:
+      - '.cargo/**'
+      - '.config/**'
+      - '.github/workflows/arm64-integration.yml'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
+      - 'scripts/**'
+      - 'src/**'
+      - 'tests/**'
+  workflow_dispatch:
+
+concurrency:
+  group: arm64-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_TERM_COLOR: always
+
+jobs:
+  integration:
+    name: arm64 / integration
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+          components: clippy,rustfmt,llvm-tools-preview,rust-src
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: arm64-integration
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Run integration tier
+        run: scripts/testint.sh

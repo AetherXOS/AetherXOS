@@ -16,7 +16,9 @@ fn linked_probe_boot_mode() -> bool {
 fn finalize_runtime_interrupt_window(runtime: KernelRuntime) {
     hypercore::hal::serial::write_raw("[EARLY SERIAL] finalize runtime interrupt window begin\n");
     runtime.finalize_runtime_interrupt_routing();
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] finalize runtime interrupt window returned\n");
+    hypercore::hal::serial::write_raw(
+        "[EARLY SERIAL] finalize runtime interrupt window returned\n",
+    );
 }
 
 #[inline(always)]
@@ -28,9 +30,7 @@ fn finalize_runtime_interrupt_enablement() {
     hypercore::hal::serial::write_raw("[EARLY SERIAL] idt ready\n");
 
     if linked_probe_boot_mode() {
-        hypercore::hal::serial::write_raw(
-            "[EARLY SERIAL] interrupts deferred for linked probe\n",
-        );
+        hypercore::hal::serial::write_raw("[EARLY SERIAL] interrupts deferred for linked probe\n");
         return;
     }
 
@@ -76,4 +76,3 @@ mod tests {
         super::finalize_runtime_interrupt_enablement();
     }
 }
-
