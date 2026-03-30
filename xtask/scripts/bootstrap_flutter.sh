@@ -1,100 +1,163 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# HyperCore Bootstrap Script: Debian + Flutter SDK
+# Description: Provisions a Debian rootfs, packages Flutter as a .deb, 
+#              and creates a bootable ext4 disk image for QEMU.
+# ==============================================================================
+
 set -euo pipefail
 
-# bootstrap_flutter.sh <outdir> <flutter_url> [kernel_image] [--no-boot]
+# --- Configuration ---
 OUTDIR="${1:-}" 
 FLUTTER_URL="${2:-}"
 KERNEL_IMAGE="${3:-kernel.x}"
-# Optional fourth argument or env var SKIP_BOOT=1 will prevent this script from launching QEMU.
 NO_BOOT_FLAG="${4:-}"
+DISK_SIZE="8G" # 8GB Recommended for Flutter + Debian + Tools
 
+# Directory logic: WORKDIR is placed outside OUTDIR to prevent rsync recursion
+WORKDIR="$(dirname "$(realpath "$OUTDIR")")/hc_bootstrap_work"
+
+# --- Usage Check ---
 if [ -z "$OUTDIR" ] || [ -z "$FLUTTER_URL" ]; then
-  echo "Usage: $0 <outdir> <flutter_url> [kernel_image]" >&2
-  exit 2
+    echo "Error: Missing arguments." >&2
+    echo "Usage: $0 <outdir> <flutter_url> [kernel_image] [--no-boot]" >&2
+    exit 2
 fi
 
-WORKDIR="$OUTDIR/work"
-mkdir -p "$WORKDIR"
+mkdir -p "$WORKDIR" "$OUTDIR"
 
+# --- Sudo Elevation ---
 SUDO=""
-if [ "$(id -u)" -ne 0 ]; then
-  if command -v sudo >/dev/null 2>&1; then
-    SUDO="sudo"
-  else
-    echo "Warning: not running as root and sudo not available; some operations may fail" >&2
-  fi
-fi
+[ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1 && SUDO="sudo"
 
-echo "==> debootstrap rootfs (requires debootstrap)"
-if command -v debootstrap >/dev/null 2>&1; then
-  $SUDO debootstrap --variant=minbase --arch=amd64 stable "$OUTDIR" http://deb.debian.org/debian/
+# --- Cleanup Trap ---
+# Ensures mounts are cleaned up even if the script fails midway
+cleanup() {
+    echo "==> Finalizing: Cleaning up mount points..."
+    $SUDO umount "$OUTDIR/proc" "$OUTDIR/sys" "$OUTDIR/dev" 2>/dev/null || true
+    if [ -d "${MNT:-}" ]; then
+        $SUDO umount "$MNT" 2>/dev/null || true
+        rm -rf "$MNT"
+    fi
+}
+trap cleanup EXIT
+
+# --- Helper: Chroot Execution ---
+run_in_chroot() {
+    local target=$1
+    local cmd=$2
+    echo "==> Executing in chroot: $cmd"
+    $SUDO mount -t proc /proc "$target/proc" || true
+    $SUDO mount -t sysfs /sys "$target/sys" || true
+    $SUDO mount --bind /dev "$target/dev" || true
+    [[ -f /etc/resolv.conf ]] && $SUDO cp /etc/resolv.conf "$target/etc/"
+    
+    # Run command and capture exit code
+    set +e
+    $SUDO chroot "$target" /bin/bash -c "$cmd"
+    local exit_code=$?
+    set -e
+
+    $SUDO umount "$target/proc" || true
+    $SUDO umount "$target/sys" || true
+    $SUDO umount "$target/dev" || true
+    return $exit_code
+}
+
+# 1. Debootstrap (Idempotent)
+if [ ! -f "$OUTDIR/etc/debian_version" ]; then
+    echo "==> Step 1: Provisioning Debian rootfs via debootstrap..."
+    $SUDO debootstrap --variant=minbase --arch=amd64 stable "$OUTDIR" http://deb.debian.org/debian/
 else
-  echo 'debootstrap not found; aborting' >&2
-  exit 1
+    echo "==> Step 1: Debian rootfs already exists. Skipping debootstrap."
 fi
 
-echo "==> prepare chroot environment"
-$SUDO mount -t proc /proc "$OUTDIR/proc" || true
-$SUDO mount -t sysfs /sys "$OUTDIR/sys" || true
-$SUDO mount --bind /dev "$OUTDIR/dev" || true
-if [[ -f /etc/resolv.conf ]]; then $SUDO cp /etc/resolv.conf "$OUTDIR/etc/"; fi
-$SUDO chroot "$OUTDIR" /bin/bash -c "apt-get update && apt-get install -y apt-transport-https ca-certificates curl gnupg"
-$SUDO umount "$OUTDIR/proc" || true
-$SUDO umount "$OUTDIR/sys" || true
-$SUDO umount "$OUTDIR/dev" || true
+# 2. System Dependencies
+echo "==> Step 2: Updating system and installing base dependencies..."
+run_in_chroot "$OUTDIR" "apt-get update && apt-get install -y apt-transport-https ca-certificates curl gnupg libglu1-mesa"
 
-echo "==> download and package Flutter into a .deb"
-curl -L -o "$WORKDIR/flutter.tar.xz" "$FLUTTER_URL"
-DEB_ROOT="$WORKDIR/debroot"
-rm -rf "$DEB_ROOT"
-mkdir -p "$DEB_ROOT/opt"
-tar -xf "$WORKDIR/flutter.tar.xz" -C "$DEB_ROOT/opt"
-mkdir -p "$DEB_ROOT/usr/bin"
-cat > "$DEB_ROOT/usr/bin/flutter" <<'EOF'
-#!/usr/bin/env bash
-exec /opt/flutter/bin/flutter "$@"
-EOF
-chmod +x "$DEB_ROOT/usr/bin/flutter"
-mkdir -p "$DEB_ROOT/DEBIAN"
-cat > "$DEB_ROOT/DEBIAN/control" <<EOF
+# 3. Flutter SDK Packaging
+FLUTTER_TAR="$WORKDIR/flutter.tar.xz"
+FLUTTER_DEB="$WORKDIR/flutter-sdk_1.0.0_amd64.deb"
+
+if [ ! -f "$FLUTTER_DEB" ]; then
+    echo "==> Step 3: Packaging Flutter SDK into a .deb file..."
+    if [ ! -f "$FLUTTER_TAR" ]; then
+        echo "    Downloading Flutter SDK..."
+        curl -L -o "$FLUTTER_TAR" "$FLUTTER_URL"
+    fi
+    
+    DEB_ROOT="$WORKDIR/debroot"
+    rm -rf "$DEB_ROOT" && mkdir -p "$DEB_ROOT/opt" "$DEB_ROOT/usr/bin" "$DEB_ROOT/DEBIAN"
+    
+    echo "    Extracting SDK..."
+    tar -xf "$FLUTTER_TAR" -C "$DEB_ROOT/opt"
+    
+    echo -e '#!/usr/bin/env bash\nexec /opt/flutter/bin/flutter "$@"' > "$DEB_ROOT/usr/bin/flutter"
+    chmod +x "$DEB_ROOT/usr/bin/flutter"
+    
+    cat > "$DEB_ROOT/DEBIAN/control" <<EOF
 Package: flutter-sdk
 Version: 1.0.0
 Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: hypercore <dev@local>
-Description: Flutter SDK packaged for local apt install
+Description: Flutter SDK packaged for HyperCore/VelOS
 EOF
-fakeroot dpkg-deb --build "$DEB_ROOT" "$WORKDIR/flutter-sdk_1.0.0_amd64.deb"
+    fakeroot dpkg-deb --build "$DEB_ROOT" "$FLUTTER_DEB"
+    rm -rf "$DEB_ROOT"
+else
+    echo "==> Step 3: Flutter .deb package already exists. Skipping."
+fi
 
-echo "==> install .deb into chroot"
-$SUDO mkdir -p "$OUTDIR/tmp"
-$SUDO cp "$WORKDIR/flutter-sdk_1.0.0_amd64.deb" "$OUTDIR/tmp/"
-$SUDO mount -t proc /proc "$OUTDIR/proc" || true
-$SUDO mount -t sysfs /sys "$OUTDIR/sys" || true
-$SUDO mount --bind /dev "$OUTDIR/dev" || true
-if [[ -f /etc/resolv.conf ]]; then $SUDO cp /etc/resolv.conf "$OUTDIR/etc/"; fi
-$SUDO chroot "$OUTDIR" /bin/bash -c "set -e; dpkg -i /tmp/flutter-sdk_1.0.0_amd64.deb || (apt-get update && apt-get -f install -y); rm -f /tmp/flutter-sdk_1.0.0_amd64.deb"
-$SUDO umount "$OUTDIR/proc" || true
-$SUDO umount "$OUTDIR/sys" || true
-$SUDO umount "$OUTDIR/dev" || true
+# 4. Flutter Installation in Chroot
+if ! run_in_chroot "$OUTDIR" "dpkg -l | grep -q flutter-sdk"; then
+    echo "==> Step 4: Installing Flutter SDK into the rootfs..."
+    $SUDO cp "$FLUTTER_DEB" "$OUTDIR/tmp/f.deb"
+    run_in_chroot "$OUTDIR" "dpkg -i /tmp/f.deb || apt-get -f install -y; rm /tmp/f.deb"
+else
+    echo "==> Step 4: Flutter SDK is already installed in the rootfs."
+fi
 
-echo "==> create ext4 disk image from rootfs"
+# 5. Disk Image Creation
 IMG_OUT="$WORKDIR/rootfs.img"
-dd if=/dev/zero of="$IMG_OUT" bs=1M count=4096
-mkfs.ext4 -F "$IMG_OUT"
+echo "==> Step 5: Generating ext4 disk image ($DISK_SIZE)..."
+
+# Use fallocate for instant sparse file creation (much faster than dd)
+$SUDO fallocate -l "$DISK_SIZE" "$IMG_OUT" || $SUDO dd if=/dev/zero of="$IMG_OUT" bs=1M count=8192
+
+$SUDO mkfs.ext4 -F "$IMG_OUT"
 LOOP=$($SUDO losetup --find --show "$IMG_OUT")
 MNT=$(mktemp -d)
+
 $SUDO mount "$LOOP" "$MNT"
-$SUDO rsync -aAX --numeric-ids --delete "$OUTDIR/" "$MNT/"
+echo "    Synchronizing files to disk..."
+# Exclude work directories and temporary files to prevent "No space left" errors
+$SUDO rsync -aAX --numeric-ids --delete \
+    --exclude='/hc_bootstrap_work' \
+    --exclude='/work' \
+    --exclude='/tmp/*' \
+    --exclude='/proc/*' \
+    --exclude='/sys/*' \
+    --exclude='/dev/*' \
+    "$OUTDIR/" "$MNT/"
+
 $SUDO umount "$MNT"
 $SUDO losetup -d "$LOOP"
 rm -rf "$MNT"
 
+# 6. Finalization & Boot
 if [ "${SKIP_BOOT:-0}" = "1" ] || [ "$NO_BOOT_FLAG" = "--no-boot" ] ; then
-  echo "SKIP_BOOT set; created disk image at: $IMG_OUT"
-  exit 0
+    echo "----------------------------------------------------------------"
+    echo "SUCCESS: Disk image created at: $IMG_OUT"
+    echo "You can now boot this with QEMU manually."
+    echo "----------------------------------------------------------------"
+    exit 0
 fi
 
-echo "==> booting QEMU (this will attach to console)"
-qemu-system-x86_64 -m 4096 -kernel "$KERNEL_IMAGE" -append "root=/dev/vda rw console=tty0 rootwait" -drive file="$IMG_OUT",if=virtio,format=raw -display sdl -vga virtio
+echo "==> Step 6: Launching QEMU Virtual Machine..."
+qemu-system-x86_64 -m 4096 -kernel "$KERNEL_IMAGE" \
+    -append "root=/dev/vda rw console=tty0 rootwait" \
+    -drive file="$IMG_OUT",if=virtio,format=raw \
+    -display sdl -vga virtio
