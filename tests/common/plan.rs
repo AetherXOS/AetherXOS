@@ -7,6 +7,8 @@ const FASTARGS: &[&str] = &[
     ".config/nextest.toml",
     "--target",
     "<host>",
+    "--features",
+    "kernel_test_mode",
     "--test",
     "fast",
 ];
@@ -17,6 +19,8 @@ const CLIPPYARGS: &[&str] = &[
     "--all-targets",
     "--target",
     "<host>",
+    "--features",
+    "kernel_test_mode",
     "--",
     "-D",
     "warnings",
@@ -29,6 +33,8 @@ const GEIGERARGS: &[&str] = &[
     "--all-targets",
     "--target",
     "<host>",
+    "--features",
+    "kernel_test_mode",
 ];
 const RUDRAARGS: &[&str] = &[
     "rudra",
@@ -37,6 +43,8 @@ const RUDRAARGS: &[&str] = &[
     "--all-targets",
     "--target",
     "<host>",
+    "--features",
+    "kernel_test_mode",
 ];
 const AUDITARGS: &[&str] = &["audit"];
 
@@ -47,6 +55,8 @@ const INTARGS: &[&str] = &[
     ".config/nextest.toml",
     "--target",
     "<host>",
+    "--features",
+    "kernel_test_mode",
     "--test",
     "integration_tests",
 ];
@@ -73,6 +83,8 @@ const NIGHTARGS: &[&str] = &[
     ".config/nextest.toml",
     "--target",
     "<host>",
+    "--features",
+    "kernel_test_mode",
     "--test",
     "nightly",
 ];

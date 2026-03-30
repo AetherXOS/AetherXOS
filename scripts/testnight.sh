@@ -20,7 +20,7 @@ runif() {
     fi
 }
 
-run nextest cargo nextest run --config-file "$root/.config/nextest.toml" --target "$host" --test nightly
+run nextest cargo nextest run --config-file "$root/.config/nextest.toml" --target "$host" --features kernel_test_mode --test nightly
 
 if cargo kani --help >/dev/null 2>&1; then
     runif HYPERCORE_RUN_KANI kani cargo kani --manifest-path "$root/formal/kani/Cargo.toml"

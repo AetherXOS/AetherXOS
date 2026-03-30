@@ -20,18 +20,18 @@ optional() {
     fi
 }
 
-run nextest cargo nextest run --config-file "$root/.config/nextest.toml" --target "$host" --test fast
-run clippy cargo clippy --manifest-path "$root/Cargo.toml" --all-targets --target "$host" -- -D warnings
+run nextest cargo nextest run --config-file "$root/.config/nextest.toml" --target "$host" --features kernel_test_mode --test fast
+run clippy cargo clippy --manifest-path "$root/Cargo.toml" --all-targets --target "$host" --features kernel_test_mode -- -D warnings
 run rustfmt cargo fmt --manifest-path "$root/Cargo.toml" --all --check
 
 if cargo geiger --help >/dev/null 2>&1; then
-    optional HYPERCORE_ENABLE_GEIGER geiger cargo geiger --manifest-path "$root/Cargo.toml" --all-targets --target "$host"
+    optional HYPERCORE_ENABLE_GEIGER geiger cargo geiger --manifest-path "$root/Cargo.toml" --all-targets --target "$host" --features kernel_test_mode
 else
     printf '==> skip geiger\n'
 fi
 
 if cargo rudra --help >/dev/null 2>&1; then
-    optional HYPERCORE_ENABLE_RUDRA rudra cargo rudra --manifest-path "$root/Cargo.toml" --all-targets --target "$host"
+    optional HYPERCORE_ENABLE_RUDRA rudra cargo rudra --manifest-path "$root/Cargo.toml" --all-targets --target "$host" --features kernel_test_mode
 else
     printf '==> skip rudra\n'
 fi
