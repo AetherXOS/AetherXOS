@@ -79,7 +79,7 @@ fn user_page_access_fault(addr: usize, mode: UserAccessMode) -> Option<UserAcces
 
 #[cfg(not(target_arch = "x86_64"))]
 fn user_page_access_fault(_addr: usize, _mode: UserAccessMode) -> Option<UserAccessFault> {
-    if _addr >= NON_X86_USER_SPACE_TOP_EXCLUSIVE {
+    if _addr >= USER_SPACE_TOP_EXCLUSIVE {
         return Some(UserAccessFault::NotUserAccessible);
     }
     None

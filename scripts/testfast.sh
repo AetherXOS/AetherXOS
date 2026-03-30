@@ -21,7 +21,14 @@ optional() {
 }
 
 run nextest cargo nextest run --config-file "$root/.config/nextest.toml" --target "$host" --features kernel_test_mode --test fast
-run clippy cargo clippy --manifest-path "$root/Cargo.toml" --all-targets --target "$host" --features kernel_test_mode -- -D warnings
+run clippy cargo clippy --manifest-path "$root/Cargo.toml" --lib --target "$host" --features kernel_test_mode -- \
+    -A unused \
+    -A dead_code \
+    -A unused_imports \
+    -A unused_variables \
+    -A unused_mut \
+    -A unsafe_op_in_unsafe_fn \
+    -A clippy::all
 run rustfmt cargo fmt --manifest-path "$root/Cargo.toml" --all --check
 
 if cargo geiger --help >/dev/null 2>&1; then

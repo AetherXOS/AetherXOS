@@ -21,6 +21,14 @@ runif() {
 }
 
 run nextest cargo nextest run --config-file "$root/.config/nextest.toml" --target "$host" --features kernel_test_mode --test nightly
+run clippy cargo clippy --manifest-path "$root/Cargo.toml" --lib --target "$host" --features kernel_test_mode -- \
+    -A unused \
+    -A dead_code \
+    -A unused_imports \
+    -A unused_variables \
+    -A unused_mut \
+    -A unsafe_op_in_unsafe_fn \
+    -A clippy::all
 
 if cargo kani --help >/dev/null 2>&1; then
     runif HYPERCORE_RUN_KANI kani cargo kani --manifest-path "$root/formal/kani/Cargo.toml"

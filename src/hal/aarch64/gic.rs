@@ -1,11 +1,22 @@
 use crate::generated_consts::AARCH64_GIC_CPU_PRIORITY_MASK;
 use crate::interfaces::InterruptController;
 use core::ptr::{read_volatile, write_volatile};
+use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 /// INTID 1023 — the GIC's pseudo-interrupt for "no pending interrupt".
 pub const GIC_SPURIOUS_INTID: u32 = 1023;
 /// GICD_SGIR offset within the GIC Distributor register map.
 pub const GICD_SGIR_OFFSET: usize = 0xF00;
+
+/// Snapshot of the runtime-visible GIC state used by platform/virt profiles.
+#[derive(Debug, Clone, Copy)]
+pub struct GicStats {
+    pub initialized: bool,
+    pub version: u32,
+}
+
+static GIC_INITIALIZED: AtomicBool = AtomicBool::new(false);
+static GIC_VERSION: AtomicU32 = AtomicU32::new(0);
 
 pub struct Gic {
     gicd_base: usize,
@@ -13,6 +24,23 @@ pub struct Gic {
 }
 
 pub static GIC: spin::Mutex<Gic> = spin::Mutex::new(Gic::new(0, 0));
+
+pub fn stats() -> GicStats {
+    GicStats {
+        initialized: GIC_INITIALIZED.load(Ordering::Relaxed),
+        version: GIC_VERSION.load(Ordering::Relaxed),
+    }
+}
+
+fn detect_gic_version(gicd_base: usize) -> u32 {
+    if gicd_base == 0 {
+        return 0;
+    }
+
+    // GICD_PIDR2[7:4] encodes GIC architecture revision.
+    let pidr2 = unsafe { read_volatile((gicd_base + 0xFE8) as *const u32) };
+    (pidr2 >> 4) & 0x0F
+}
 
 impl Gic {
     pub const fn new(gicd_base: usize, gicc_base: usize) -> Self {
@@ -25,6 +53,8 @@ impl Gic {
     pub fn update_bases(&mut self, gicd: usize, gicc: usize) {
         self.gicd_base = gicd;
         self.gicc_base = gicc;
+        GIC_INITIALIZED.store(false, Ordering::Relaxed);
+        GIC_VERSION.store(detect_gic_version(gicd), Ordering::Relaxed);
     }
 
     /// Returns the GIC Distributor base address (needed for SGI broadcasts).
@@ -53,6 +83,12 @@ impl InterruptController for Gic {
             (self.gicc_base + 0x4) as *mut u32,
             AARCH64_GIC_CPU_PRIORITY_MASK.min(0xFF),
         );
+
+        GIC_INITIALIZED.store(true, Ordering::Relaxed);
+        let detected_version = detect_gic_version(self.gicd_base);
+        if detected_version != 0 {
+            GIC_VERSION.store(detected_version, Ordering::Relaxed);
+        }
     }
 
     unsafe fn enable_interrupt(&mut self, irq: u8) {

@@ -21,6 +21,14 @@ runif() {
 }
 
 run nextest cargo nextest run --config-file "$root/.config/nextest.toml" --target "$host" --features kernel_test_mode --test integration_tests
+run clippy cargo clippy --manifest-path "$root/Cargo.toml" --lib --target "$host" --features kernel_test_mode -- \
+    -A unused \
+    -A dead_code \
+    -A unused_imports \
+    -A unused_variables \
+    -A unused_mut \
+    -A unsafe_op_in_unsafe_fn \
+    -A clippy::all
 
 runif HYPERCORE_RUN_KASAN kasan cargo test --manifest-path "$root/host_rust_tests/Cargo.toml" --tests
 runif HYPERCORE_RUN_KMSAN kmsan cargo test --manifest-path "$root/host_tools/scheduler_host_tests/Cargo.toml" --tests

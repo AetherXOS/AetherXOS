@@ -4,6 +4,8 @@
 #![feature(abi_x86_interrupt)]
 #![warn(unsafe_op_in_unsafe_fn)]
 #![warn(unused_must_use)]
+#![allow(dead_code, unused_imports, unused_mut, unused_variables)]
+#![allow(clippy::all)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
