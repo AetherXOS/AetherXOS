@@ -1,6 +1,7 @@
 //! All configuration type definitions parsed from Cargo.toml.
 //! Each subsystem struct includes field-level documentation.
 
+use serde::de::{self, Deserializer};
 use serde::Deserialize;
 
 // ── Top-level Config ──────────────────────────────────────────────────────────
@@ -740,6 +741,7 @@ pub struct LotteryConfig {
     pub tickets_per_priority_level: u64,
     pub min_tickets_per_task: u64,
     pub replay_trace_capacity: usize,
+    #[serde(deserialize_with = "deserialize_u64_or_string")]
     pub lcg_multiplier: u64,
     pub lcg_increment: u64,
 }
@@ -754,5 +756,22 @@ impl Default for LotteryConfig {
             lcg_multiplier: 6364136223846793005,
             lcg_increment: 1,
         }
+    }
+}
+
+fn deserialize_u64_or_string<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Value {
+        Integer(u64),
+        String(String),
+    }
+
+    match Value::deserialize(deserializer)? {
+        Value::Integer(value) => Ok(value),
+        Value::String(value) => value.parse::<u64>().map_err(de::Error::custom),
     }
 }

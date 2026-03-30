@@ -259,7 +259,7 @@ initial_seed = 3405691582
 tickets_per_priority_level = 10
 min_tickets_per_task = 1
 replay_trace_capacity = 128
-lcg_multiplier = 6364136223846793005
+lcg_multiplier = "6364136223846793005"
 lcg_increment = 1
 
 [dependencies]
