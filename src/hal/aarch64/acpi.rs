@@ -84,7 +84,7 @@ struct MadtGicc {
 unsafe fn valid_checksum(base: *const u8, len: usize) -> bool {
     let mut sum: u8 = 0;
     for i in 0..len {
-        sum = sum.wrapping_add(*base.add(i));
+        sum = sum.wrapping_add(unsafe { *base.add(i) });
     }
     sum == 0
 }
@@ -111,9 +111,9 @@ unsafe fn walk_madt(madt_phys: u64) -> MadtTopology {
         return topo;
     };
 
-    let hdr = &*(madt_ptr as *const AcpiSdtHeader);
+    let hdr = unsafe { &*(madt_ptr as *const AcpiSdtHeader) };
     let table_len = { hdr.length } as usize;
-    if !valid_checksum(madt_ptr, table_len) {
+    if !unsafe { valid_checksum(madt_ptr, table_len) } {
         crate::klog_warn!("ACPI MADT checksum invalid");
         return topo;
     }
@@ -121,8 +121,8 @@ unsafe fn walk_madt(madt_phys: u64) -> MadtTopology {
     // MADT-specific header is 8 bytes after the common SDT header (44 bytes total before entries).
     let mut offset: usize = 44;
     while offset + 2 <= table_len {
-        let entry_type = *madt_ptr.add(offset);
-        let entry_len = *madt_ptr.add(offset + 1) as usize;
+        let entry_type = unsafe { *madt_ptr.add(offset) };
+        let entry_len = unsafe { *madt_ptr.add(offset + 1) as usize };
         if entry_len < 2 || offset + entry_len > table_len {
             break;
         }
@@ -134,7 +134,7 @@ unsafe fn walk_madt(madt_phys: u64) -> MadtTopology {
             11 => {
                 topo.gicc_count += 1;
                 if entry_len >= core::mem::size_of::<MadtGicc>() {
-                    let gicc = &*(madt_ptr.add(offset) as *const MadtGicc);
+                    let gicc = unsafe { &*(madt_ptr.add(offset) as *const MadtGicc) };
                     let mpidr = { gicc.mpidr };
                     let base = { gicc.base_address };
                     crate::klog_debug!("MADT GICC: mpidr={:#x} base={:#x}", mpidr, base);
@@ -165,9 +165,9 @@ unsafe fn find_table_in_xsdt(xsdt_phys: u64, sig: &[u8; 4]) -> Option<u64> {
     let Some(xsdt_ptr) = phys_to_virt(xsdt_phys) else {
         return None;
     };
-    let hdr = &*(xsdt_ptr as *const AcpiSdtHeader);
+    let hdr = unsafe { &*(xsdt_ptr as *const AcpiSdtHeader) };
     let table_len = { hdr.length } as usize;
-    if !valid_checksum(xsdt_ptr, table_len) {
+    if !unsafe { valid_checksum(xsdt_ptr, table_len) } {
         return None;
     }
 
@@ -175,11 +175,11 @@ unsafe fn find_table_in_xsdt(xsdt_phys: u64, sig: &[u8; 4]) -> Option<u64> {
     let n_entries = (table_len - 36) / 8;
     for i in 0..n_entries {
         let entry_ptr = (xsdt_ptr as usize + 36 + i * 8) as *const u64;
-        let entry_phys = core::ptr::read_unaligned(entry_ptr);
+        let entry_phys = unsafe { core::ptr::read_unaligned(entry_ptr) };
         let Some(tbl_ptr) = phys_to_virt(entry_phys) else {
             continue;
         };
-        let tbl_hdr = &*(tbl_ptr as *const AcpiSdtHeader);
+        let tbl_hdr = unsafe { &*(tbl_ptr as *const AcpiSdtHeader) };
         if &tbl_hdr.signature == sig {
             return Some(entry_phys);
         }

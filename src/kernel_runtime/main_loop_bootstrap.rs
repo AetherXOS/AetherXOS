@@ -7,15 +7,18 @@ use super::super::boot_info;
 #[repr(align(16))]
 struct AlignedLinkedProbe<const N: usize>([u8; N]);
 
-#[cfg(feature = "process_abstraction")]
+#[cfg(all(feature = "process_abstraction", target_os = "none"))]
 static LINKED_PROBE_IMAGE_STORAGE: AlignedLinkedProbe<
     { include_bytes!("../../boot/initramfs/usr/lib/hypercore/probe-linked.elf").len() },
 > = AlignedLinkedProbe(*include_bytes!(
     "../../boot/initramfs/usr/lib/hypercore/probe-linked.elf"
 ));
 
-#[cfg(feature = "process_abstraction")]
+#[cfg(all(feature = "process_abstraction", target_os = "none"))]
 const LINKED_PROBE_IMAGE: &[u8] = &LINKED_PROBE_IMAGE_STORAGE.0;
+
+#[cfg(all(feature = "process_abstraction", not(target_os = "none")))]
+const LINKED_PROBE_IMAGE: &[u8] = &[];
 
 #[cfg(feature = "process_abstraction")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

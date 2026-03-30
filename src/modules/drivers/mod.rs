@@ -95,9 +95,11 @@ pub use registry::{
     clear_network_runtime_registry, has_e1000_runtime_driver, has_virtio_runtime_driver,
     hotplug_attach_network_driver, hotplug_detach_network_driver, latest_runtime_registry_event,
     note_policy_switch, note_quarantine, note_rebind_result, register_network_runtime_driver,
-    runtime_registry_events, runtime_registry_snapshot, unregister_network_runtime_driver,
-    with_e1000_runtime_driver_mut, with_virtio_runtime_driver_mut, DriverRuntimeEvent,
-    DriverRuntimeEventKind, DriverRuntimeRegistrySnapshot, RUNTIME_REGISTRY_EVENT_CAPACITY,
+    runtime_readiness, runtime_registry_events, runtime_registry_snapshot,
+    unregister_network_runtime_driver, with_e1000_runtime_driver_mut,
+    with_virtio_runtime_driver_mut, DriverRuntimeEvent, DriverRuntimeEventKind,
+    DriverRuntimeReadiness, DriverRuntimeRegistrySnapshot, DriverRuntimeRiskLevel,
+    RUNTIME_REGISTRY_EVENT_CAPACITY,
 };
 pub use storage::{
     ProbedStorageDriver, StorageDependency, StorageLifecycleSummary, StorageManager,

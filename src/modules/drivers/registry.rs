@@ -41,6 +41,22 @@ pub struct DriverRuntimeRegistrySnapshot {
     pub last_event: Option<DriverRuntimeEvent>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DriverRuntimeRiskLevel {
+    Low,
+    Medium,
+    High,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DriverRuntimeReadiness {
+    pub has_any_driver: bool,
+    pub can_failover: bool,
+    pub active_driver: ActiveNetworkDriver,
+    pub active_driver_registered: bool,
+    pub risk_level: DriverRuntimeRiskLevel,
+}
+
 struct RuntimeRegistryEventRing {
     events: [Option<DriverRuntimeEvent>; RUNTIME_REGISTRY_EVENT_CAPACITY],
     write_index: usize,
@@ -286,6 +302,35 @@ pub fn latest_runtime_registry_event() -> Option<DriverRuntimeEvent> {
     RUNTIME_EVENTS.lock().latest()
 }
 
+pub fn runtime_readiness() -> DriverRuntimeReadiness {
+    let has_virtio = has_virtio_runtime_driver();
+    let has_e1000 = has_e1000_runtime_driver();
+    let has_any_driver = has_virtio || has_e1000;
+    let can_failover = has_virtio && has_e1000;
+    let active_driver = super::network::active_driver();
+    let active_driver_registered = match active_driver {
+        ActiveNetworkDriver::None => !has_any_driver,
+        ActiveNetworkDriver::VirtIo => has_virtio,
+        ActiveNetworkDriver::E1000 => has_e1000,
+    };
+
+    let risk_level = if !has_any_driver || !active_driver_registered {
+        DriverRuntimeRiskLevel::High
+    } else if !can_failover {
+        DriverRuntimeRiskLevel::Medium
+    } else {
+        DriverRuntimeRiskLevel::Low
+    };
+
+    DriverRuntimeReadiness {
+        has_any_driver,
+        can_failover,
+        active_driver,
+        active_driver_registered,
+        risk_level,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -324,5 +369,15 @@ mod tests {
         let event = latest.unwrap();
         assert_eq!(event.kind, DriverRuntimeEventKind::PolicySwitched);
         assert_eq!(event.driver, ActiveNetworkDriver::VirtIo);
+    }
+
+    #[test_case]
+    fn readiness_high_when_no_driver_registered() {
+        clear_network_runtime_registry();
+        super::super::network::clear_active_driver();
+        let readiness = runtime_readiness();
+        assert!(!readiness.has_any_driver);
+        assert!(!readiness.can_failover);
+        assert_eq!(readiness.risk_level, DriverRuntimeRiskLevel::High);
     }
 }

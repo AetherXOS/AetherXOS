@@ -1,24 +1,27 @@
-#![no_std]
-#![no_main]
-#![feature(custom_test_frameworks)]
-#![feature(abi_x86_interrupt)]
+#![cfg_attr(target_os = "none", no_std)]
+#![cfg_attr(target_os = "none", no_main)]
+#![cfg_attr(target_os = "none", feature(custom_test_frameworks))]
+#![cfg_attr(target_os = "none", feature(abi_x86_interrupt))]
 #![warn(unsafe_op_in_unsafe_fn)]
 #![warn(unused_must_use)]
 #![allow(dead_code, unused_imports, unused_mut, unused_variables)]
 #![allow(clippy::all)]
-#![test_runner(crate::test_runner)]
-#![reexport_test_harness_main = "test_main"]
+#![cfg_attr(target_os = "none", test_runner(crate::test_runner))]
+#![cfg_attr(target_os = "none", reexport_test_harness_main = "test_main")]
 
 extern crate alloc;
 extern crate hypercore; // Use the library
+#[cfg(target_os = "none")]
 mod kernel_runtime;
 
+#[cfg(target_os = "none")]
 use core::panic::PanicInfo;
 
 // Global Allocator Definition
 use hypercore::modules::allocators::selector::ActiveHeapAllocator;
 
 #[global_allocator]
+#[cfg(target_os = "none")]
 pub static ALLOCATOR: ActiveHeapAllocator = ActiveHeapAllocator::new();
 
 // ============================================================================
@@ -60,16 +63,18 @@ impl MultibootHeader {
 
 #[link_section = ".multiboot2"]
 #[no_mangle]
+#[cfg(target_os = "none")]
 pub static MULTIBOOT2_HEADER: MultibootHeader = MultibootHeader::new();
 
 // Declare test_main as an external symbol when in test mode with kernel_test_mode feature
-#[cfg(all(test, feature = "kernel_test_mode"))]
+#[cfg(all(target_os = "none", test, feature = "kernel_test_mode"))]
 extern "Rust" {
     fn test_main();
 }
 
 // 3. The Kernel Entry Point
 #[no_mangle]
+#[cfg(target_os = "none")]
 pub extern "C" fn _start() -> ! {
     #[cfg(all(test, feature = "kernel_test_mode"))]
     {
@@ -88,13 +93,18 @@ pub extern "C" fn _start() -> ! {
     }
 }
 
+#[cfg(not(target_os = "none"))]
+fn main() {}
+
 /// Panic Handler
 #[panic_handler]
+#[cfg(target_os = "none")]
 fn panic(info: &PanicInfo) -> ! {
     hypercore::kernel::panic_report(info, "panic");
 }
 
 // Test Runner
+#[cfg(target_os = "none")]
 pub fn test_runner(tests: &[&dyn Fn()]) {
     for test in tests {
         test();
