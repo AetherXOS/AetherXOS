@@ -102,8 +102,9 @@ pub use registry::{
     RUNTIME_REGISTRY_EVENT_CAPACITY,
 };
 pub use storage::{
-    ProbedStorageDriver, StorageDependency, StorageLifecycleSummary, StorageManager,
-    StorageProbeReport, StorageProbeStep,
+    storage_runtime_readiness, ProbedStorageDriver, StorageDependency, StorageLifecycleSummary,
+    StorageManager, StorageProbeReport, StorageProbeStep, StorageRuntimeReadiness,
+    StorageRuntimeRiskLevel,
 };
 pub use virtio_net::VirtIoNet;
 pub use wait::{

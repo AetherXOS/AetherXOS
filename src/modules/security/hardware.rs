@@ -287,13 +287,15 @@ pub unsafe fn smc_call(x0: u64, x1: u64, x2: u64, x3: u64) -> (u64, u64, u64, u6
     let out1: u64;
     let out2: u64;
     let out3: u64;
-    core::arch::asm!(
-        "smc #0",
-        inout("x0") x0 => out0,
-        inout("x1") x1 => out1,
-        inout("x2") x2 => out2,
-        inout("x3") x3 => out3,
-        options(nomem, nostack)
-    );
+    unsafe {
+        core::arch::asm!(
+            "smc #0",
+            inout("x0") x0 => out0,
+            inout("x1") x1 => out1,
+            inout("x2") x2 => out2,
+            inout("x3") x3 => out3,
+            options(nomem, nostack)
+        );
+    }
     (out0, out1, out2, out3)
 }

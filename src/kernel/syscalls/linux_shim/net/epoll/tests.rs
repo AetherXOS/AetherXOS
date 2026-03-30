@@ -9,6 +9,16 @@ fn epoll_create_rejects_zero_size() {
 }
 
 #[test_case]
+fn epoll_validate_maxevents_rejects_out_of_policy_limit() {
+    crate::config::KernelConfig::set_network_epoll_max_events(Some(1));
+    assert_eq!(
+        sys_linux_epoll_pwait(1, 0, 2, 0, 0, 0),
+        linux_errno(crate::modules::posix_consts::errno::EINVAL)
+    );
+    crate::config::KernelConfig::set_network_epoll_max_events(None);
+}
+
+#[test_case]
 fn invalid_user_pointers_return_efault_for_helpers() {
     let bad_ptr = 0x1usize;
     assert_eq!(

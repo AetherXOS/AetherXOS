@@ -73,16 +73,18 @@ impl Gic {
 impl InterruptController for Gic {
     unsafe fn initialize(&mut self) {
         // Enable GIC Distributor (GICD_CTLR)
-        write_volatile((self.gicd_base + 0x0) as *mut u32, 1);
+        unsafe { write_volatile((self.gicd_base + 0x0) as *mut u32, 1) };
 
         // Enable CPU Interface (GICC_CTLR)
-        write_volatile((self.gicc_base + 0x0) as *mut u32, 1);
+        unsafe { write_volatile((self.gicc_base + 0x0) as *mut u32, 1) };
 
         // Priority mask configured via Cargo metadata (0-255).
-        write_volatile(
-            (self.gicc_base + 0x4) as *mut u32,
-            AARCH64_GIC_CPU_PRIORITY_MASK.min(0xFF),
-        );
+        unsafe {
+            write_volatile(
+                (self.gicc_base + 0x4) as *mut u32,
+                AARCH64_GIC_CPU_PRIORITY_MASK.min(0xFF),
+            )
+        };
 
         GIC_INITIALIZED.store(true, Ordering::Relaxed);
         let detected_version = detect_gic_version(self.gicd_base);
@@ -95,24 +97,28 @@ impl InterruptController for Gic {
         let reg = (irq / 32) * 4;
         let bit = irq % 32;
         // GICD_ISENABLERn
-        write_volatile(
-            (self.gicd_base + 0x100 + reg as usize) as *mut u32,
-            1 << bit,
-        );
+        unsafe {
+            write_volatile(
+                (self.gicd_base + 0x100 + reg as usize) as *mut u32,
+                1 << bit,
+            )
+        };
     }
 
     unsafe fn disable_interrupt(&mut self, irq: u8) {
         let reg = (irq / 32) * 4;
         let bit = irq % 32;
         // GICD_ICENABLERn
-        write_volatile(
-            (self.gicd_base + 0x180 + reg as usize) as *mut u32,
-            1 << bit,
-        );
+        unsafe {
+            write_volatile(
+                (self.gicd_base + 0x180 + reg as usize) as *mut u32,
+                1 << bit,
+            )
+        };
     }
 
     unsafe fn end_of_interrupt(&mut self, irq: u8) {
         // GICC_EOIR
-        write_volatile((self.gicc_base + 0x10) as *mut u32, irq as u32);
+        unsafe { write_volatile((self.gicc_base + 0x10) as *mut u32, irq as u32) };
     }
 }

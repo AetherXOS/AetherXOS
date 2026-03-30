@@ -82,6 +82,23 @@ pub struct StorageLifecycleSummary {
     pub failed: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StorageRuntimeRiskLevel {
+    Low,
+    Medium,
+    High,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct StorageRuntimeReadiness {
+    pub has_any_driver: bool,
+    pub has_failed_driver: bool,
+    pub has_degraded_driver: bool,
+    pub probe_discovered_any_driver: bool,
+    pub init_failures: usize,
+    pub risk_level: StorageRuntimeRiskLevel,
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct StorageProbeReport {
     pub probe_steps: usize,
@@ -130,6 +147,22 @@ const STORAGE_PROBE_PLAN: [StorageProbeStep; 3] = [
         probe: probe_virtio_block,
     },
 ];
+
+pub fn storage_runtime_readiness() -> StorageRuntimeReadiness {
+    let guard = StorageManager::global().lock();
+    if let Some(manager) = guard.as_ref() {
+        manager.runtime_readiness()
+    } else {
+        StorageRuntimeReadiness {
+            has_any_driver: false,
+            has_failed_driver: false,
+            has_degraded_driver: false,
+            probe_discovered_any_driver: false,
+            init_failures: 0,
+            risk_level: StorageRuntimeRiskLevel::High,
+        }
+    }
+}
 
 impl StorageManager {
     pub fn new() -> Self {
@@ -236,6 +269,32 @@ impl StorageManager {
         }
     }
 
+    pub fn runtime_readiness(&self) -> StorageRuntimeReadiness {
+        let summary = self.lifecycle_summary();
+        let probe = self.probe_report();
+        let has_any_driver = summary.total > 0;
+        let has_failed_driver = summary.failed > 0;
+        let has_degraded_driver = summary.degraded > 0;
+        let probe_discovered_any_driver = probe.probed_drivers > 0;
+
+        let risk_level = if !has_any_driver || has_failed_driver || probe.init_failures > 0 {
+            StorageRuntimeRiskLevel::High
+        } else if has_degraded_driver {
+            StorageRuntimeRiskLevel::Medium
+        } else {
+            StorageRuntimeRiskLevel::Low
+        };
+
+        StorageRuntimeReadiness {
+            has_any_driver,
+            has_failed_driver,
+            has_degraded_driver,
+            probe_discovered_any_driver,
+            init_failures: probe.init_failures,
+            risk_level,
+        }
+    }
+
     fn push(&mut self, device: Box<dyn ManagedStorageDriver + Send>) {
         self.devices.push(device);
     }
@@ -255,5 +314,22 @@ mod tests {
         assert_eq!(plan[0].name, "nvme");
         assert_eq!(plan[1].name, "ahci");
         assert_eq!(plan[2].name, "virtio-block");
+    }
+
+    #[test_case]
+    fn readiness_defaults_to_high_without_manager() {
+        *StorageManager::global().lock() = None;
+        let readiness = storage_runtime_readiness();
+        assert!(!readiness.has_any_driver);
+        assert_eq!(readiness.risk_level, StorageRuntimeRiskLevel::High);
+    }
+
+    #[test_case]
+    fn readiness_is_high_for_empty_storage_manager() {
+        let manager = StorageManager::new();
+        let readiness = manager.runtime_readiness();
+        assert!(!readiness.has_any_driver);
+        assert!(!readiness.probe_discovered_any_driver);
+        assert_eq!(readiness.risk_level, StorageRuntimeRiskLevel::High);
     }
 }

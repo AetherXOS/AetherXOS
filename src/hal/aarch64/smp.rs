@@ -19,6 +19,11 @@ use crate::kernel::sync::IrqSafeMutex;
 // ── GIC SGI vector for TLB shootdown ─────────────────────────────────────────
 /// SGI 15 is reserved for TLB invalidation IPIs.
 pub const SGI_TLB_SHOOTDOWN: u8 = 15;
+const ICC_SGI1R_IRM_BIT: u64 = 1u64 << 40;
+const ICC_SGI1R_INTID_SHIFT: u64 = 24;
+const GICD_SGIR_TARGET_ALL_BUT_SELF: u32 = 0b01u32 << 24;
+const MPIDR_AFF0_MASK: u64 = 0xFF;
+const DAIFCLR_UNMASK_ALL: u8 = 0xF;
 
 // ── Global CPU state ──────────────────────────────────────────────────────────
 
@@ -99,9 +104,11 @@ unsafe fn send_sgi_tlb_shootdown() {
         // GICv3: ICC_SGI1R_EL1
         // Bit[40]:   IRM   = 1 (all cores, excluding self)
         // Bit[27:24]: INTID = SGI_TLB_SHOOTDOWN (15)
-        let val: u64 = (1u64 << 40) | ((SGI_TLB_SHOOTDOWN as u64) << 24);
-        core::arch::asm!("msr icc_sgi1r_el1, {}", in(reg) val);
-        core::arch::asm!("isb");
+        let val: u64 = ICC_SGI1R_IRM_BIT | ((SGI_TLB_SHOOTDOWN as u64) << ICC_SGI1R_INTID_SHIFT);
+        unsafe {
+            core::arch::asm!("msr icc_sgi1r_el1, {}", in(reg) val);
+            core::arch::asm!("isb");
+        }
     } else {
         // GICv2: GICD_SGIR MMIO
         let gicd_base = crate::hal::aarch64::gic::GIC.lock().gicd_base_addr();
@@ -109,11 +116,13 @@ unsafe fn send_sgi_tlb_shootdown() {
             return;
         } // GIC not yet initialised
           // GICD_SGIR: TargetListFilter[25:24]=01, SGIINTID[3:0]=SGI_ID
-        let sgir: u32 = (0b01u32 << 24) | (SGI_TLB_SHOOTDOWN as u32);
-        core::ptr::write_volatile(
-            (gicd_base + crate::hal::aarch64::gic::GICD_SGIR_OFFSET) as *mut u32,
-            sgir,
-        );
+        let sgir: u32 = GICD_SGIR_TARGET_ALL_BUT_SELF | (SGI_TLB_SHOOTDOWN as u32);
+        unsafe {
+            core::ptr::write_volatile(
+                (gicd_base + crate::hal::aarch64::gic::GICD_SGIR_OFFSET) as *mut u32,
+                sgir,
+            )
+        };
     }
 }
 
@@ -161,13 +170,15 @@ pub fn broadcast_tlb_shootdown(addr: u64) {
 /// Perform the TLBI + barriers inline.
 /// `addr` is a virtual address; the instruction takes bits [55:12] as the PFN.
 unsafe fn tlbi_vaae1is(addr: u64) {
-    core::arch::asm!(
-        "dsb ishst",              // ensure all preceding stores are visible
-        "tlbi vaae1is, {0}",      // invalidate by VA, all ASID, inner-shareable
-        "dsb ish",                // wait for the invalidation to complete
-        "isb",                    // flush the pipeline
-        in(reg) addr >> 12,
-    );
+    unsafe {
+        core::arch::asm!(
+            "dsb ishst",              // ensure all preceding stores are visible
+            "tlbi vaae1is, {0}",      // invalidate by VA, all ASID, inner-shareable
+            "dsb ish",                // wait for the invalidation to complete
+            "isb",                    // flush the pipeline
+            in(reg) addr >> 12,
+        )
+    };
 }
 
 /// SGI 15 interrupt handler — called on each remote core.
@@ -197,28 +208,32 @@ const PSCI_CPU_ON_64: u64 = 0xC400_0003;
 /// `mpidr` – target CPU affinity, `entry` – physical entry address.
 unsafe fn psci_cpu_on_hvc(mpidr: u64, entry: usize) -> i32 {
     let ret: i64;
-    core::arch::asm!(
-        "hvc #0",
-        inlateout("x0") PSCI_CPU_ON_64 as i64 => ret,
-        in("x1") mpidr,
-        in("x2") entry as u64,
-        in("x3") 0u64,
-        options(nomem, nostack)
-    );
+    unsafe {
+        core::arch::asm!(
+            "hvc #0",
+            inlateout("x0") PSCI_CPU_ON_64 as i64 => ret,
+            in("x1") mpidr,
+            in("x2") entry as u64,
+            in("x3") 0u64,
+            options(nomem, nostack)
+        )
+    };
     ret as i32
 }
 
 /// Call PSCI `CPU_ON` via SMC (Secure Monitor Call — bare-metal / TrustZone).
 unsafe fn psci_cpu_on_smc(mpidr: u64, entry: usize) -> i32 {
     let ret: i64;
-    core::arch::asm!(
-        "smc #0",
-        inlateout("x0") PSCI_CPU_ON_64 as i64 => ret,
-        in("x1") mpidr,
-        in("x2") entry as u64,
-        in("x3") 0u64,
-        options(nomem, nostack)
-    );
+    unsafe {
+        core::arch::asm!(
+            "smc #0",
+            inlateout("x0") PSCI_CPU_ON_64 as i64 => ret,
+            in("x1") mpidr,
+            in("x2") entry as u64,
+            in("x3") 0u64,
+            options(nomem, nostack)
+        )
+    };
     ret as i32
 }
 
@@ -277,7 +292,7 @@ pub extern "C" fn aarch64_ap_entry() -> ! {
     unsafe {
         core::arch::asm!("mrs {}, mpidr_el1", out(reg) mpidr);
     }
-    let cpu_index = (mpidr & 0xFF) as usize; // Aff0 field
+    let cpu_index = (mpidr & MPIDR_AFF0_MASK) as usize; // Aff0 field
     let cpu_id = CpuId(cpu_index);
 
     // Allocate and install a per-CPU struct.
@@ -310,7 +325,7 @@ pub extern "C" fn aarch64_ap_entry() -> ! {
 
     // Enable interrupts and drop into the idle loop.
     unsafe {
-        core::arch::asm!("msr daifclr, #0xf");
+        core::arch::asm!("msr daifclr, #{mask}", mask = const DAIFCLR_UNMASK_ALL);
     }
     loop {
         crate::kernel::idle_once();

@@ -1,9 +1,12 @@
 use std::collections::HashSet;
 use std::fs;
-use std::os::unix::fs::symlink;
-use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+#[cfg(unix)]
+use std::os::unix::fs::symlink;
 
 use tempfile::TempDir;
 
@@ -188,6 +191,11 @@ fn is_repo_path(arg: &str) -> bool {
 
 fn write_executable(path: &Path, body: String) {
     fs::write(path, body).unwrap_or_else(|err| panic!("failed to write {}: {err}", path.display()));
+    set_executable_permissions(path);
+}
+
+#[cfg(unix)]
+fn set_executable_permissions(path: &Path) {
     let mut perms = fs::metadata(path)
         .unwrap_or_else(|err| panic!("failed to stat {}: {err}", path.display()))
         .permissions();
@@ -195,6 +203,9 @@ fn write_executable(path: &Path, body: String) {
     fs::set_permissions(path, perms)
         .unwrap_or_else(|err| panic!("failed to chmod {}: {err}", path.display()));
 }
+
+#[cfg(not(unix))]
+fn set_executable_permissions(_path: &Path) {}
 
 fn read_invocations(path: &Path) -> Vec<Vec<String>> {
     let Ok(body) = fs::read_to_string(path) else {
@@ -207,6 +218,8 @@ fn read_invocations(path: &Path) -> Vec<Vec<String>> {
 }
 
 fn link_system_tool(sys_dir: &Path, name: &str) {
+    #[cfg(unix)]
+    {
     let source = Path::new("/usr/bin").join(name);
     let target = sys_dir.join(name);
     symlink(&source, &target).unwrap_or_else(|err| {
@@ -216,6 +229,19 @@ fn link_system_tool(sys_dir: &Path, name: &str) {
             source.display()
         )
     });
+    }
+
+    #[cfg(not(unix))]
+    {
+        let target = sys_dir.join(name);
+        write_executable(
+            &target,
+            format!(
+                "#!/usr/bin/env bash\nset -euo pipefail\n{} \"$@\"\n",
+                name
+            ),
+        );
+    }
 }
 
 fn rustc_stub() -> String {

@@ -348,7 +348,7 @@ replay_previous_state() {{
         rollback-required:*)
             cleanup_artifacts_from_ledger
             if [ -n "$ROLLBACK_MARKER" ]; then
-                printf "replay-in-progress:%s\n" "${PREV_ROLLBACK_STATE#rollback-required:}" > "$ROLLBACK_MARKER" || true
+                printf "replay-in-progress:%s\n" "${{PREV_ROLLBACK_STATE#rollback-required:}}" > "$ROLLBACK_MARKER" || true
             fi
             ;;
         seed-start)
@@ -496,7 +496,7 @@ validate_repo_metadata() {{
 
     apt_verify_file_with_keyrings() {{
         signed="$1"
-        content="${2:-}"
+        content="${{2:-}}"
         if [ ! -f "$APT_KEYRING_LIST_FILE" ]; then
             return 1
         fi
@@ -529,7 +529,7 @@ validate_repo_metadata() {{
 
         for sig in /var/lib/apt/lists/*_Release.gpg; do
             [ -f "$sig" ] || continue
-            rel="${sig%_Release.gpg}_Release"
+            rel="${{sig%_Release.gpg}}_Release"
             [ -f "$rel" ] || continue
             found=1
             apt_verify_file_with_keyrings "$sig" "$rel" || failed=1
@@ -552,7 +552,7 @@ validate_repo_metadata() {{
         failed=0
         for sig in /var/lib/pacman/sync/*.db.sig; do
             [ -f "$sig" ] || continue
-            db="${sig%.sig}"
+            db="${{sig%.sig}}"
             [ -f "$db" ] || continue
             found=1
             pacman-key --gpgdir "$keyring_dir" --verify "$sig" "$db" >/dev/null 2>&1 || failed=1
@@ -566,7 +566,7 @@ validate_repo_metadata() {{
                 return 1
             fi
             count="$(find /var/lib/apt/lists -maxdepth 1 \( -name '*_InRelease' -o -name '*_Release.gpg' \) | wc -l | tr -d ' ')"
-            [ "${count:-0}" -gt 0 ]
+            [ "${{count:-0}}" -gt 0 ]
             return $?
         fi
 
@@ -575,7 +575,7 @@ validate_repo_metadata() {{
                 return 1
             fi
             count="$(find /var/lib/pacman/sync -maxdepth 1 -name '*.db.sig' | wc -l | tr -d ' ')"
-            [ "${count:-0}" -gt 0 ]
+            [ "${{count:-0}}" -gt 0 ]
             return $?
         fi
 

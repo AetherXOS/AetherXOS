@@ -11,6 +11,17 @@ use apic_support::{
 
 /// Local APIC ID Register
 const LAPIC_ID_OFF: u32 = 0x020;
+const LAPIC_PERIODIC_TIMER_VECTOR: u8 = 32;
+const APIC_CALIBRATION_FALLBACK_TICKS: u32 = 10_000_000;
+const APIC_CALIBRATION_SPIN_BUDGET: u32 = 1_000_000;
+const PIT_COMMAND_PORT: u16 = 0x43;
+const PIT_CHANNEL2_PORT: u16 = 0x42;
+const PIT_CONTROL_PORT: u16 = 0x61;
+const PIT_GATE_SPEAKER_MASK: u8 = 0xFD;
+const PIT_GATE_ENABLE_MASK: u8 = 0x01;
+const PIT_OUT_STATUS_MASK: u8 = 0x20;
+const PIT_CHANNEL2_MODE0_CMD: u8 = 0xB0;
+const APIC_TIMER_MAX_INITIAL_COUNT: u32 = 0xFFFF_FFFF;
 /// Spurious Interrupt Vector Register
 const LAPIC_SVR_OFF: u32 = 0x0F0;
 /// End of Interrupt Register
@@ -50,7 +61,13 @@ pub unsafe fn init_local_apic() {
 
     // 4. Set LVT Timer Vector to 32 (IRQ 0 equivalent) and Mode to Periodic (Bit 17)
     // Safety: `base` is the local APIC MMIO base for the current CPU.
-    unsafe { write_apic_off(base, LAPIC_LVT_TIMER_OFF, periodic_timer_vector(32)) };
+    unsafe {
+        write_apic_off(
+            base,
+            LAPIC_LVT_TIMER_OFF,
+            periodic_timer_vector(LAPIC_PERIODIC_TIMER_VECTOR),
+        )
+    };
 
     // 5. Set Initial Count from calibration
     // Safety: `base` is the local APIC MMIO base for the current CPU.
@@ -67,9 +84,9 @@ unsafe fn calibrate_apic_timer(base: u64) -> u32 {
     // We want to measure APIC ticks in ~10ms => PIT count for 10ms = 11932
     const PIT_10MS: u16 = 11932;
 
-    let mut pit_cmd = Port::<u8>::new(0x43);
-    let mut pit_ch2 = Port::<u8>::new(0x42);
-    let mut pit_ctrl = Port::<u8>::new(0x61);
+    let mut pit_cmd = Port::<u8>::new(PIT_COMMAND_PORT);
+    let mut pit_ch2 = Port::<u8>::new(PIT_CHANNEL2_PORT);
+    let mut pit_ctrl = Port::<u8>::new(PIT_CONTROL_PORT);
 
     // Set APIC timer divide to 16, one-shot mode with very high initial count
     // Safety: `base` is the local APIC MMIO base for the current CPU.
@@ -79,23 +96,23 @@ unsafe fn calibrate_apic_timer(base: u64) -> u32 {
 
     // Setup PIT Channel 2 in mode 0 (terminal count)
     let gate = unsafe { pit_ctrl.read() };
-    unsafe { pit_ctrl.write((gate & 0xFD) | 0x01) }; // Gate high, speaker off
-    unsafe { pit_cmd.write(0xB0) }; // Ch2, lobyte/hibyte, mode 0
+    unsafe { pit_ctrl.write((gate & PIT_GATE_SPEAKER_MASK) | PIT_GATE_ENABLE_MASK) }; // Gate high, speaker off
+    unsafe { pit_cmd.write(PIT_CHANNEL2_MODE0_CMD) }; // Ch2, lobyte/hibyte, mode 0
     unsafe { pit_ch2.write((PIT_10MS & 0xFF) as u8) };
     unsafe { pit_ch2.write((PIT_10MS >> 8) as u8) };
 
     // Reset PIT gate to start counting
     let gate = unsafe { pit_ctrl.read() };
-    unsafe { pit_ctrl.write(gate & 0xFE) };
-    unsafe { pit_ctrl.write(gate | 0x01) };
+    unsafe { pit_ctrl.write(gate & !PIT_GATE_ENABLE_MASK) };
+    unsafe { pit_ctrl.write(gate | PIT_GATE_ENABLE_MASK) };
 
     // Start APIC timer with max count
     // Safety: `base` is the local APIC MMIO base for the current CPU.
-    unsafe { write_apic_off(base, LAPIC_TICR_OFF, 0xFFFF_FFFF) };
+    unsafe { write_apic_off(base, LAPIC_TICR_OFF, APIC_TIMER_MAX_INITIAL_COUNT) };
 
     // Wait for PIT to finish (bit 5 of port 0x61 goes high when count reaches 0)
-    let mut budget = 1_000_000u32;
-    while (unsafe { pit_ctrl.read() } & 0x20) == 0 {
+    let mut budget = APIC_CALIBRATION_SPIN_BUDGET;
+    while (unsafe { pit_ctrl.read() } & PIT_OUT_STATUS_MASK) == 0 {
         budget = budget.saturating_sub(1);
         if budget == 0 {
             break; // Timeout fallback
@@ -104,11 +121,11 @@ unsafe fn calibrate_apic_timer(base: u64) -> u32 {
 
     // Read APIC timer current count
     let after = unsafe { read_apic_off(base, LAPIC_TCCR_OFF) };
-    let elapsed = 0xFFFF_FFFFu32.wrapping_sub(after);
+    let elapsed = APIC_TIMER_MAX_INITIAL_COUNT.wrapping_sub(after);
 
     if elapsed == 0 || budget == 0 {
         // Calibration failed, use safe default (~10ms at ~100MHz bus)
-        10_000_000
+        APIC_CALIBRATION_FALLBACK_TICKS
     } else {
         elapsed
     }
@@ -226,7 +243,12 @@ pub unsafe fn init_x2apic() {
 
     // Timer setup: divide by 16, periodic, vector 32
     unsafe { wrmsr(X2APIC_TDCR as u32, TIMER_DIVIDE_BY_16 as u64) };
-    unsafe { wrmsr(X2APIC_LVT_TIMER as u32, periodic_timer_vector(32) as u64) };
+    unsafe {
+        wrmsr(
+            X2APIC_LVT_TIMER as u32,
+            periodic_timer_vector(LAPIC_PERIODIC_TIMER_VECTOR) as u64,
+        )
+    };
 
     // Use same calibrated ticks from xAPIC calibration
     let ticks = calibrated_ticks_or_default(unsafe { CALIBRATED_TICKS });

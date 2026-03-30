@@ -36,6 +36,10 @@ pub static SERIAL_RX_BYTES: AtomicU64 = AtomicU64::new(0);
 pub static SERIAL_RX_DROPS: AtomicU64 = AtomicU64::new(0);
 
 const SERIAL_TX_MAX_SPINS: usize = 1_000_000;
+const SERIAL_INIT_WAIT_MAX_SPINS: usize = 1_000_000;
+const UART_RX_INTERRUPT_MASK: u32 = 1 << 4;
+const UART_CLEAR_ALL_INTERRUPTS: u32 = 0x7FF;
+const UART_MIN_CLOCK_DIVIDER_BASE: u32 = 16;
 
 pub const fn tx_timeout_spins() -> usize {
     SERIAL_TX_MAX_SPINS
@@ -73,12 +77,12 @@ impl Pl011Uart {
 
     #[inline]
     unsafe fn read_reg(&self, offset: usize) -> u32 {
-        read_volatile(self.reg(offset))
+        unsafe { read_volatile(self.reg(offset)) }
     }
 
     #[inline]
     unsafe fn write_reg(&self, offset: usize, val: u32) {
-        write_volatile(self.reg(offset), val);
+        unsafe { write_volatile(self.reg(offset), val) };
     }
 
     /// Wait for the TX FIFO to have space, or give up on timeout.
@@ -146,7 +150,7 @@ impl Pl011Uart {
     /// Clear all pending interrupts.
     pub fn clear_interrupts(&self) {
         unsafe {
-            self.write_reg(UARTICR, 0x7FF);
+            self.write_reg(UARTICR, UART_CLEAR_ALL_INTERRUPTS);
         }
     }
 
@@ -155,9 +159,9 @@ impl Pl011Uart {
         unsafe {
             let mut mask = self.read_reg(UARTIMSC);
             if enable {
-                mask |= 1 << 4;
+                mask |= UART_RX_INTERRUPT_MASK;
             } else {
-                mask &= !(1 << 4);
+                mask &= !UART_RX_INTERRUPT_MASK;
             }
             self.write_reg(UARTIMSC, mask);
         }
@@ -166,7 +170,7 @@ impl Pl011Uart {
 
 impl SerialDevice for Pl011Uart {
     fn init(&mut self) {
-        if self.baud == 0 || self.clock_hz < 16 {
+        if self.baud == 0 || self.clock_hz < UART_MIN_CLOCK_DIVIDER_BASE {
             SERIAL_TX_DROPS.fetch_add(1, Ordering::Relaxed);
             return;
         }
@@ -176,7 +180,7 @@ impl SerialDevice for Pl011Uart {
 
             // 2. Wait for any in-progress transmission to finish.
             let mut spin = 0usize;
-            while (self.read_reg(UARTFR) & FR_BUSY) != 0 && spin < 1_000_000 {
+            while (self.read_reg(UARTFR) & FR_BUSY) != 0 && spin < SERIAL_INIT_WAIT_MAX_SPINS {
                 spin += 1;
                 core::hint::spin_loop();
             }

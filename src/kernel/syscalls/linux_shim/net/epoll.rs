@@ -146,6 +146,21 @@ fn timeout_arg_to_retries(timeout: usize) -> usize {
 }
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+#[inline]
+fn validate_maxevents(maxevents: usize) -> Result<usize, usize> {
+    if maxevents == 0 {
+        return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
+    }
+
+    let limit = crate::config::KernelConfig::network_epoll_max_events();
+    if maxevents > limit {
+        return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
+    }
+
+    Ok(maxevents)
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 fn timeout_ptr_to_retries(timeout_ptr: usize) -> Result<usize, usize> {
     if timeout_ptr == 0 {
         return Ok(crate::config::KernelConfig::libnet_posix_blocking_recv_retries());
@@ -313,12 +328,13 @@ pub(super) fn sys_linux_epoll_pwait(
     _sigmask_ptr: usize,
     _sigset_size: usize,
 ) -> usize {
-    if maxevents == 0 {
-        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
-    }
-
     #[cfg(feature = "posix_net")]
     {
+        let maxevents = match validate_maxevents(maxevents) {
+            Ok(v) => v,
+            Err(err) => return err,
+        };
+
         let sigmask = match parse_sigmask(_sigmask_ptr, _sigset_size) {
             Ok(v) => v,
             Err(err) => return err,
@@ -359,12 +375,13 @@ pub(super) fn sys_linux_epoll_pwait2(
     _sigmask_ptr: usize,
     _sigset_size: usize,
 ) -> usize {
-    if maxevents == 0 {
-        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
-    }
-
     #[cfg(feature = "posix_net")]
     {
+        let maxevents = match validate_maxevents(maxevents) {
+            Ok(v) => v,
+            Err(err) => return err,
+        };
+
         let sigmask = match parse_sigmask(_sigmask_ptr, _sigset_size) {
             Ok(v) => v,
             Err(err) => return err,

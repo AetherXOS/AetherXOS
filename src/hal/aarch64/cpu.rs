@@ -41,7 +41,9 @@ pub fn id() -> usize {
 #[inline(always)]
 pub unsafe fn get_per_cpu_ptr() -> *const () {
     let ptr: u64;
-    core::arch::asm!("mrs {}, tpidr_el1", out(reg) ptr, options(nomem, nostack));
+    unsafe {
+        core::arch::asm!("mrs {}, tpidr_el1", out(reg) ptr, options(nomem, nostack));
+    }
     ptr as *const ()
 }
 

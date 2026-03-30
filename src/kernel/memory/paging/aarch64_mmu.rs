@@ -384,21 +384,25 @@ pub fn tlbi_all() {
 /// Load a page table address into TTBR0_EL1 (user space).
 #[cfg(target_arch = "aarch64")]
 pub unsafe fn set_ttbr0(phys: u64) {
-    core::arch::asm!(
-        "msr ttbr0_el1, {phys}",
-        "isb",
-        phys = in(reg) phys,
-    );
+    unsafe {
+        core::arch::asm!(
+            "msr ttbr0_el1, {phys}",
+            "isb",
+            phys = in(reg) phys,
+        );
+    }
 }
 
 /// Load a page table address into TTBR1_EL1 (kernel space).
 #[cfg(target_arch = "aarch64")]
 pub unsafe fn set_ttbr1(phys: u64) {
-    core::arch::asm!(
-        "msr ttbr1_el1, {phys}",
-        "isb",
-        phys = in(reg) phys,
-    );
+    unsafe {
+        core::arch::asm!(
+            "msr ttbr1_el1, {phys}",
+            "isb",
+            phys = in(reg) phys,
+        );
+    }
 }
 
 /// Configure TCR_EL1 for 48-bit VA, 4KB granule.
@@ -420,9 +424,11 @@ pub unsafe fn configure_tcr() {
         | (0b01 << 8)            // IRGN0
         | (0b01 << 26)           // ORGN1
         | (0b01 << 24); // IRGN1
-    core::arch::asm!(
-        "msr tcr_el1, {tcr}",
-        "isb",
-        tcr = in(reg) tcr,
-    );
+    unsafe {
+        core::arch::asm!(
+            "msr tcr_el1, {tcr}",
+            "isb",
+            tcr = in(reg) tcr,
+        );
+    }
 }
