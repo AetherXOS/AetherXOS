@@ -11,6 +11,7 @@ pub fn execute(action: &SetupAction) -> Result<()> {
             run_audit()
         }
         SetupAction::Repair => {
+            // ... other code ...
             println!("[setup::repair] Auto-repairing host environment");
             run_repair()
         }

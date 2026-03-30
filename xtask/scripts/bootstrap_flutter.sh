@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# bootstrap_flutter.sh <outdir> <flutter_url> [kernel_image]
+# bootstrap_flutter.sh <outdir> <flutter_url> [kernel_image] [--no-boot]
 OUTDIR="${1:-}" 
 FLUTTER_URL="${2:-}"
 KERNEL_IMAGE="${3:-kernel.x}"
+# Optional fourth argument or env var SKIP_BOOT=1 will prevent this script from launching QEMU.
+NO_BOOT_FLAG="${4:-}"
 
 if [ -z "$OUTDIR" ] || [ -z "$FLUTTER_URL" ]; then
   echo "Usage: $0 <outdir> <flutter_url> [kernel_image]" >&2
@@ -89,5 +91,10 @@ $SUDO umount "$MNT"
 $SUDO losetup -d "$LOOP"
 rm -rf "$MNT"
 
+if [ "${SKIP_BOOT:-0}" = "1" ] || [ "$NO_BOOT_FLAG" = "--no-boot" ] ; then
+  echo "SKIP_BOOT set; created disk image at: $IMG_OUT"
+  exit 0
+fi
+
 echo "==> booting QEMU (this will attach to console)"
-qemu-system-x86_64 -m 4096 -kernel "$KERNEL_IMAGE" -append "root=/dev/vda rw console=ttyS0 rootwait" -drive file="$IMG_OUT",if=virtio,format=raw -nographic -serial mon:stdio
+qemu-system-x86_64 -m 4096 -kernel "$KERNEL_IMAGE" -append "root=/dev/vda rw console=tty0 rootwait" -drive file="$IMG_OUT",if=virtio,format=raw -display sdl -vga virtio
