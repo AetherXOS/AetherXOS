@@ -35,61 +35,22 @@ impl CpuLocal {
     /// Returns None if per-cpu base is not initialized yet.
     #[inline(always)]
     pub unsafe fn try_get() -> Option<&'static Self> {
-        #[cfg(target_arch = "x86_64")]
-        {
-            use crate::interfaces::cpu::CpuRegisters;
-            let base = crate::hal::cpu::ArchCpuRegisters::read_per_cpu_base();
-            if base == 0 {
-                return None;
-            }
-            // Safety: the architecture-specific per-cpu base points to the
-            // pinned CpuLocal allocation for the current CPU once initialized.
-            return Some(unsafe { &*(base as *const Self) });
+        let base = crate::hal::HAL::read_per_cpu_base();
+        if base == 0 {
+            return None;
         }
-
-        #[cfg(target_arch = "aarch64")]
-        {
-            let ptr: u64;
-            // Safety: reading TPIDR_EL1 is valid in kernel context and does not
-            // modify machine state.
-            unsafe {
-                core::arch::asm!("mrs {}, tpidr_el1", out(reg) ptr);
-            }
-            if ptr == 0 {
-                return None;
-            }
-            // Safety: TPIDR_EL1 is initialized to the current CPU's CpuLocal.
-            return Some(unsafe { &*(ptr as *const Self) });
-        }
-
-        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-        {
-            None
-        }
+        // Safety: the architecture-specific per-cpu base points to the
+        // pinned CpuLocal allocation for the current CPU once initialized.
+        Some(unsafe { &*(base as *const Self) })
     }
 
     /// Initialize the GS/TPIDR register to point to this struct.
     /// This function must be called once per core during boot.
     /// Safety: The reference must live for the lifetime of the OS (static).
     pub unsafe fn init(&'static self) {
-        #[cfg(target_arch = "x86_64")]
-        {
-            use x86_64::registers::model_specific::GsBase;
-            use x86_64::VirtAddr;
-            crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] cpu local gsbase write begin\n");
-            let ptr = self as *const _ as u64;
-            GsBase::write(VirtAddr::new(ptr));
-            crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] cpu local gsbase write returned\n");
-        }
-
-        #[cfg(target_arch = "aarch64")]
-        {
-            // Write to TPIDR_EL1
-            let ptr = self as *const _ as u64;
-            unsafe {
-                core::arch::asm!("msr tpidr_el1, {}", in(reg) ptr);
-            }
-        }
+        use crate::interfaces::HardwareAbstraction;
+        let ptr = self as *const _ as usize;
+        crate::hal::HAL::init_cpu_local(ptr);
     }
 
     /// Example: Get the current CPU ID very quickly

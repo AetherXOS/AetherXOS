@@ -91,7 +91,7 @@ impl JobControlState {
     /// Get current state
     pub fn state(&self) -> JobControlStateType {
         let byte = self.state.load(Ordering::Acquire);
-        JobControlStateType::from_u8(byte)
+        JobControlStateType::from_u8(byte).expect("invalid job control state")
     }
 
     /// Set the process group state

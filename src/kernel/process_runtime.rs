@@ -348,7 +348,7 @@ pub(super) fn remove_mapping_record(process: &Process, map_id: u32) -> Option<Ma
     None
 }
 
-pub(super) fn lifecycle_state(process: &Process) -> ProcessLifecycleState {
+pub(super) fn lifecycle_state(process: &Process) -> Option<ProcessLifecycleState> {
     ProcessLifecycleState::from_raw(process.lifecycle_state.load(Ordering::Relaxed))
 }
 

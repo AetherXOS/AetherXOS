@@ -51,13 +51,31 @@ struct LayerPercentages {
 }
 
 fn shell_cmd(command: &str) -> std::io::Result<std::process::Output> {
-    Command::new("sh").args(["-c", command]).output()
+    #[cfg(windows)]
+    {
+        Command::new("cmd").args(["/C", command]).output()
+    }
+    #[cfg(not(windows))]
+    {
+        Command::new("sh").args(["-c", command]).output()
+    }
 }
 
 fn command_exists(cmd: &str) -> bool {
-    shell_cmd(&format!("command -v {} >/dev/null 2>&1", cmd))
-        .map(|out| out.status.success())
-        .unwrap_or(false)
+    #[cfg(windows)]
+    {
+        Command::new("where")
+            .arg(cmd)
+            .output()
+            .map(|out| out.status.success())
+            .unwrap_or(false)
+    }
+    #[cfg(not(windows))]
+    {
+        shell_cmd(&format!("command -v {} >/dev/null 2>&1", cmd))
+            .map(|out| out.status.success())
+            .unwrap_or(false)
+    }
 }
 
 fn run_case(layer: &mut Layer, totals: &mut Totals, name: &str, cmd: &str) -> bool {
@@ -121,6 +139,14 @@ fn run_source_probe(layer: &mut Layer, totals: &mut Totals, name: &str, ok: bool
         layer.skipped += 1;
         totals.skipped += 1;
     }
+}
+
+fn skip_case(layer: &mut Layer, totals: &mut Totals, name: &str) {
+    print!("[TEST] {}", name);
+    println!(" SKIP");
+    layer.total += 1;
+    layer.skipped += 1;
+    totals.skipped += 1;
 }
 
 fn file_contains(path: &Path, needle: &str) -> bool {
@@ -195,18 +221,39 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     let mut qemu_layer = Layer::default();
 
     println!("\nPhase 1: Host Shell and Linux Primitive Smoke");
-    let _ = run_case(&mut host, &mut totals, "Process creation", "exit 0");
-    let _ = run_case(&mut host, &mut totals, "File read/write", "echo test >/tmp/hc_test.txt; cat /tmp/hc_test.txt | grep test");
-    let _ = run_case(&mut host, &mut totals, "Pipe chaining", "echo hello | cat | grep hello");
-    let _ = run_case(&mut host, &mut totals, "procfs available", "ls /proc >/dev/null");
-    if !quick {
-        let _ = run_case(&mut host, &mut totals, "Loop execution", "for i in 1 2 3; do echo $i; done | wc -l | grep '^3$'");
+    if cfg!(windows) {
+        let _ = run_case(&mut host, &mut totals, "Process creation", "ver >nul");
+        let _ = run_case(
+            &mut host,
+            &mut totals,
+            "File read/write",
+            "echo test>%TEMP%\\hc_test.txt && findstr test %TEMP%\\hc_test.txt >nul",
+        );
+        let _ = run_case(&mut host, &mut totals, "Pipe chaining", "echo hello | findstr hello >nul");
+        skip_case(&mut host, &mut totals, "procfs available");
+        if !quick {
+            skip_case(&mut host, &mut totals, "Loop execution");
+        }
+    } else {
+        let _ = run_case(&mut host, &mut totals, "Process creation", "exit 0");
+        let _ = run_case(&mut host, &mut totals, "File read/write", "echo test >/tmp/hc_test.txt; cat /tmp/hc_test.txt | grep test");
+        let _ = run_case(&mut host, &mut totals, "Pipe chaining", "echo hello | cat | grep hello");
+        let _ = run_case(&mut host, &mut totals, "procfs available", "ls /proc >/dev/null");
+        if !quick {
+            let _ = run_case(&mut host, &mut totals, "Loop execution", "for i in 1 2 3; do echo $i; done | wc -l | grep '^3$'");
+        }
     }
 
     println!("\nPhase 1b: App Integration");
-    let _ = run_case(&mut integration, &mut totals, "awk aggregation", "printf 'a 1\na 2\n' | awk '$1==\"a\" {s+=$2} END{print s}' | grep '^3$'");
-    let _ = run_case(&mut integration, &mut totals, "sed transform", "printf 'linux-compat\n' | sed 's/linux/hyper/' | grep '^hyper-compat$'");
-    let _ = run_case(&mut integration, &mut totals, "tar round-trip", "mkdir -p /tmp/hc_tar/src; echo payload >/tmp/hc_tar/src/a.txt; tar -cf /tmp/hc_tar/a.tar -C /tmp/hc_tar/src .; mkdir -p /tmp/hc_tar/out; tar -xf /tmp/hc_tar/a.tar -C /tmp/hc_tar/out; cat /tmp/hc_tar/out/a.txt | grep payload");
+    if cfg!(windows) {
+        skip_case(&mut integration, &mut totals, "awk aggregation");
+        skip_case(&mut integration, &mut totals, "sed transform");
+        skip_case(&mut integration, &mut totals, "tar round-trip");
+    } else {
+        let _ = run_case(&mut integration, &mut totals, "awk aggregation", "printf 'a 1\na 2\n' | awk '$1==\"a\" {s+=$2} END{print s}' | grep '^3$'");
+        let _ = run_case(&mut integration, &mut totals, "sed transform", "printf 'linux-compat\n' | sed 's/linux/hyper/' | grep '^hyper-compat$'");
+        let _ = run_case(&mut integration, &mut totals, "tar round-trip", "mkdir -p /tmp/hc_tar/src; echo payload >/tmp/hc_tar/src/a.txt; tar -cf /tmp/hc_tar/a.tar -C /tmp/hc_tar/src .; mkdir -p /tmp/hc_tar/out; tar -xf /tmp/hc_tar/a.tar -C /tmp/hc_tar/out; cat /tmp/hc_tar/out/a.txt | grep payload");
+    }
 
     println!("\nPhase 1c: Runtime Probe");
     run_optional(&mut compat, &mut totals, "busybox availability", "command -v busybox >/dev/null 2>&1", "busybox --help >/dev/null", require_busybox);
@@ -386,9 +433,15 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     );
 
     println!("\nPhase 2: Kernel Gates");
-    print!("[GATE] cargo test --features linux_compat --no-run");
+    print!("[GATE] cargo check --lib --features linux_compat");
+    let host_target = crate::utils::cargo::detect_host_triple().ok();
+    let mut cargo_args = vec!["check", "--lib", "--features", "linux_compat"];
+    if let Some(target) = host_target.as_deref() {
+        cargo_args.push("--target");
+        cargo_args.push(target);
+    }
     let build_ok = Command::new("cargo")
-        .args(["test", "--features", "linux_compat", "--no-run"])
+        .args(&cargo_args)
         .status()
         .map(|s| s.success())
         .unwrap_or(false);

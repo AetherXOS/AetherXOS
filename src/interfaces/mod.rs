@@ -3,7 +3,7 @@ pub mod cpu;
 pub use dispatcher::Dispatcher;
 pub use error::{KernelError, KernelResult};
 pub use governance::{Governance, SystemState};
-pub use hardware::{HardwareAbstraction, InterruptController, PciController, PortIo, SerialDevice};
+pub use hardware::{HardwareAbstraction, InterruptController, PciController, PerformanceProfile, PortIo, SerialDevice};
 pub use ipc::IpcChannel;
 pub use memory::{HeapAllocator, PageAllocator, PAGE_SIZE_1G, PAGE_SIZE_2M, PAGE_SIZE_4K};
 pub use scheduler::{Scheduler, SchedulerAction};

@@ -28,6 +28,8 @@ mod job_control;
 pub use job_control::{JobControlState, ProcessGroupId, SessionId};
 
 use crate::interfaces::task::ProcessId;
+use crate::kernel::sync::{IrqSafeMutex, WaitQueue};
+use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
@@ -142,16 +144,16 @@ pub struct TtyDevice {
     is_open: AtomicBool,
 
     /// Input queue (for line buffering in canonical mode)
-    #[allow(dead_code)]
-    input_buffer: core::sync::atomic::AtomicPtr<u8>,
+    input_queue: IrqSafeMutex<VecDeque<u8>>,
+
+    /// Wait queue for readers blocking on input
+    read_wait: WaitQueue,
 
     /// Output queue position (bytes written)
-    #[allow(dead_code)]
     output_pos: AtomicU32,
 
     /// Job control state (process groups, sessions, suspension state)
-    #[allow(dead_code)]
-    job_control: core::sync::atomic::AtomicPtr<JobControlState>,
+    job_control: IrqSafeMutex<JobControlState>,
 }
 
 impl TtyDevice {
@@ -163,9 +165,10 @@ impl TtyDevice {
             session_id: core::sync::atomic::AtomicUsize::new(usize::MAX),
             foreground_pgrp: core::sync::atomic::AtomicUsize::new(usize::MAX),
             is_open: AtomicBool::new(false),
-            input_buffer: core::sync::atomic::AtomicPtr::new(core::ptr::null_mut()),
+            input_queue: IrqSafeMutex::new(VecDeque::with_capacity(1024)),
+            read_wait: WaitQueue::new(),
             output_pos: AtomicU32::new(0),
-            job_control: core::sync::atomic::AtomicPtr::new(core::ptr::null_mut()),
+            job_control: IrqSafeMutex::new(JobControlState::new()),
         }
     }
 
@@ -233,16 +236,66 @@ impl TtyDevice {
     }
 
     /// Write raw data to TTY (called by kernel output paths)
-    pub fn write(&self, _data: &[u8]) -> crate::interfaces::KernelResult<usize> {
-        // TODO: Implement actual output queuing and discipline processing
-        Ok(0)
+    pub fn write(&self, data: &[u8]) -> crate::interfaces::KernelResult<usize> {
+        if !self.is_open() {
+            return Err(crate::interfaces::KernelError::PermissionDenied);
+        }
+        // For now, write to early serial for visibility.
+        // In a "perfect" OS, this would go to the back-end driver (e.g. UART, VGA, VirtIO-Console)
+        crate::hal::Hal::serial_write_raw(unsafe { core::str::from_utf8_unchecked(data) });
+        Ok(data.len())
     }
 
     /// Read data from TTY (blocking, handles line buffering in canonical mode)
-    pub fn read(&self, _buf: &mut [u8]) -> crate::interfaces::KernelResult<usize> {
-        // TODO: Implement input line buffering + echo
-        Ok(0)
+    pub fn read(&self, buf: &mut [u8]) -> crate::interfaces::KernelResult<usize> {
+        if !self.is_open() {
+            return Err(crate::interfaces::KernelError::PermissionDenied);
+        }
+
+        loop {
+            let mut q = self.input_queue.lock();
+            if !q.is_empty() {
+                let mut read_len = 0;
+                while read_len < buf.len() {
+                    if let Some(b) = q.pop_front() {
+                        buf[read_len] = b;
+                        read_len += 1;
+                    } else {
+                        break;
+                    }
+                }
+                return Ok(read_len);
+            }
+            drop(q);
+
+            // Block until data arrives
+            crate::kernel::task::suspend_current_task(&self.read_wait);
+        }
     }
+
+    /// Inject input from a driver (IRQ context safe)
+    pub fn push_input(&self, data: &[u8]) {
+        let mut q = self.input_queue.lock();
+        for &b in data {
+            // Echo if requested
+            if self.termios.echo_input {
+                let _ = self.write(&[b]);
+            }
+            if q.len() < 4096 {
+                q.push_back(b);
+            }
+        }
+        drop(q);
+
+        // Wake one reader
+        if let Some(tid) = self.read_wait.wake_one() {
+            crate::kernel::task::wake_task(tid);
+        }
+    }
+}
+
+lazy_static::lazy_static! {
+    pub static ref GLOBAL_TTY_REGISTRY: IrqSafeMutex<TtyRegistry> = IrqSafeMutex::new(TtyRegistry::new());
 }
 
 /// Global TTY registry (up to 256 virtual terminals)
@@ -274,6 +327,13 @@ impl TtyRegistry {
         }
         self.devices[id.0 as usize].clone()
     }
+}
+
+/// Initialize the default TTY system (TTY0)
+pub fn init_default_tty() {
+    let tty0 = Arc::new(TtyDevice::new(TtyId::new(0)));
+    tty0.open().unwrap();
+    GLOBAL_TTY_REGISTRY.lock().register(TtyId::new(0), tty0).unwrap();
 }
 
 #[cfg(test)]

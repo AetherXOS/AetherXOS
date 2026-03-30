@@ -1,5 +1,8 @@
-pub const USER_SPACE_BOTTOM_INCLUSIVE: usize = 0x1000;
+#[cfg(target_arch = "x86_64")]
 pub const USER_SPACE_TOP_EXCLUSIVE: usize = 0x0000_8000_0000_0000;
+#[cfg(target_arch = "aarch64")]
+pub const USER_SPACE_TOP_EXCLUSIVE: usize = 0x0001_0000_0000_0000; // 48-bit VA
+pub const USER_SPACE_BOTTOM_INCLUSIVE: usize = 0x1000;
 pub const PROCESS_PRIORITY_MAX: usize = u8::MAX as usize;
 pub const PAGE_SIZE: usize = 4096;
 pub const STDIN_FD: usize = 0;
@@ -22,6 +25,8 @@ pub mod x86 {
 
     pub const IRQ_VECTOR_BASE: u8 = 32;
     pub const IRQ_TIMER: u8 = IRQ_VECTOR_BASE;
+    pub const IRQ_TLB_SHOOTDOWN: u8 = 253;
+    pub const EXCEPTION_GPF: u8 = 13;
     pub const EXCEPTION_PAGE_FAULT: u8 = 14;
     pub const EXCEPTION_BREAKPOINT: u8 = 3;
     pub const EXCEPTION_DOUBLE_FAULT: u8 = 8;

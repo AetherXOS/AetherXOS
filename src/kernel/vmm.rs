@@ -28,17 +28,15 @@ unsafe impl FrameAllocator<Size4KiB> for PageAllocWrapper {
     }
 }
 
-/// Called on a page-fault IRQ (vector 14).  If the faulting address lies within
-/// one of the current process's mmap mappings, we materialize the entire region
+/// Called on a page-fault IRQ. If the faulting address lies within
+/// one of the current process's mmap mappings, we materialize the page
 /// and initialize contents (zero for anonymous, read from file for file-backed).
-fn vmm_page_fault_handler(_irq: u8) {
-    // avoid unused imports if paging not enabled (function gated by above attribute)
-    let fault_addr = crate::hal::cpu::ArchCpuRegisters::read_page_fault_addr();
+pub fn handle_user_page_fault(fault_addr: u64) -> Result<(), &'static str> {
     // simple user-space range check copied from syscalls.rs
     const USER_SPACE_BOTTOM_INCLUSIVE: u64 = 0x1000;
     const USER_SPACE_TOP_EXCLUSIVE: u64 = 0x0000_8000_0000_0000;
     if fault_addr < USER_SPACE_BOTTOM_INCLUSIVE || fault_addr >= USER_SPACE_TOP_EXCLUSIVE {
-        return;
+        return Err("out of user-space bounds");
     }
 
     // grab the current process id
@@ -50,14 +48,14 @@ fn vmm_page_fault_handler(_irq: u8) {
         );
         match crate::kernel::launch::process_id_by_task(current_tid) {
             Some(p) => p.0,
-            None => return,
+            None => return Err("no process for current task"),
         }
     };
 
     let process =
         match crate::kernel::launch::process_arc_by_id(crate::interfaces::task::ProcessId(pid)) {
             Some(p) => p,
-            None => return,
+            None => return Err("process not found"),
         };
 
     // find mapping record containing fault_addr
@@ -70,7 +68,7 @@ fn vmm_page_fault_handler(_irq: u8) {
 
     let mrec = match map_rec {
         Some(r) => r,
-        None => return,
+        None => return Err("no mapping for fault address"),
     };
 
     // create PageManager for current address space
@@ -92,40 +90,65 @@ fn vmm_page_fault_handler(_irq: u8) {
 
             // fill contents
             let page_size = crate::interfaces::memory::PAGE_SIZE_4K as u64;
-            let mut off = 0u64;
-            while off < (mrec.end - mrec.start) {
-                let page_va = mrec.start + off;
-                let kernel_va = hhdm + page_va;
-                let ptr = kernel_va as *mut u8;
-                if mrec.map_id >= 2_000_000 {
-                    // shared memory: resolve from shm module
-                    if let Some(shm) =
-                        crate::modules::ipc::shared_memory::shm_get_region(mrec.map_id as i32)
-                    {
-                        // For SHM, we don't need to read from file or zero, we map the EXISTING frames.
-                        // However, we need to do this mapping correctly in the page table.
-                        // apply_shm_mapping can do this for us.
-                        let _ = pmgr.apply_shm_mapping(
-                            mrec.start,
-                            mrec.end,
-                            &shm.physical_pages,
-                            flags,
+            let page_va = fault_addr & !(page_size - 1);
+            let kernel_va = hhdm + page_va;
+            let ptr = kernel_va as *mut u8;
+
+            if mrec.map_id >= 2_000_000 {
+                // shared memory: resolve from shm module
+                if let Some(shm) =
+                    crate::modules::ipc::shared_memory::shm_get_region(mrec.map_id as i32)
+                {
+                    // Map EXISTING frames for SHM.
+                    let page_idx = ((page_va - mrec.start) / page_size) as usize;
+                    if page_idx < shm.physical_pages.len() {
+                        let phys = shm.physical_pages[page_idx];
+                        #[cfg(target_arch = "x86_64")]
+                        pmgr.map_page(
+                            x86_64::structures::paging::Page::containing_address(VirtAddr::new(page_va)),
+                            x86_64::structures::paging::PhysFrame::containing_address(x86_64::PhysAddr::new(phys as u64)),
+                            x86_64::structures::paging::PageTableFlags::PRESENT | x86_64::structures::paging::PageTableFlags::WRITABLE | x86_64::structures::paging::PageTableFlags::USER_ACCESSIBLE,
                             &mut frame_alloc,
-                        );
-                        return; // Done for this range
+                        )?;
+                        #[cfg(target_arch = "aarch64")]
+                        pmgr.map_page(
+                            page_va,
+                            phys as u64,
+                            crate::kernel::memory::paging::aarch64_mmu::Aarch64PageFlags::user_rw(),
+                            &mut frame_alloc,
+                        ).map_err(|_| "aarch64 map failed")?;
                     }
-                } else if mrec.map_id >= 1_000_000 {
-                    // anonymous: zero
-                    core::ptr::write_bytes(ptr, 0, page_size as usize);
-                } else {
-                    // file-backed: read from posix mman
-                    let slice = core::slice::from_raw_parts_mut(ptr, page_size as usize);
-                    let _ =
-                        crate::modules::posix::mman::mmap_read(mrec.map_id, slice, off as usize);
                 }
-                off += page_size;
+            } else if mrec.map_id >= 1_000_000 {
+                // anonymous: zero
+                pmgr.handle_page_fault(VirtAddr::new(page_va), &mut frame_alloc)?;
+                core::ptr::write_bytes(ptr, 0, page_size as usize);
+            } else {
+                // file-backed: read from posix mman
+                pmgr.handle_page_fault(VirtAddr::new(page_va), &mut frame_alloc)?;
+                let slice = core::slice::from_raw_parts_mut(ptr, page_size as usize);
+                let _ =
+                    crate::modules::posix::mman::mmap_read(mrec.map_id, slice, (page_va - mrec.start) as usize);
             }
         }
+    }
+    Ok(())
+}
+
+#[cfg(target_arch = "x86_64")]
+fn vmm_page_fault_handler(_irq: u8) {
+    let fault_addr = crate::hal::cpu::ArchCpuRegisters::read_page_fault_addr();
+    let _ = handle_user_page_fault(fault_addr);
+}
+
+#[cfg(target_arch = "aarch64")]
+pub struct Aarch64PageAllocWrapper;
+
+#[cfg(target_arch = "aarch64")]
+impl crate::kernel::memory::paging::aarch64_mmu::Aarch64FrameAllocator for Aarch64PageAllocWrapper {
+    fn allocate_frame(&mut self) -> Option<u64> {
+        let mut alloc = GLOBAL_PAGE_ALLOC.lock();
+        alloc.allocate_pages(0).map(|addr| addr as u64)
     }
 }
 

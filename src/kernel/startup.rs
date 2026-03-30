@@ -59,7 +59,7 @@ fn stage_from_u64(raw: u64) -> StartupStage {
     if raw > u64::from(u8::MAX) {
         return StartupStage::BootStart;
     }
-    StartupStage::from_u8(raw as u8)
+    StartupStage::from_u8(raw as u8).expect("invalid startup stage")
 }
 
 pub fn mark_stage(stage: StartupStage) {
@@ -140,7 +140,7 @@ impl ServiceHandle {
     }
 
     pub fn state(&self) -> ServiceState {
-        ServiceState::from_u8(self.state.load(Ordering::Relaxed))
+        ServiceState::from_u8(self.state.load(Ordering::Relaxed)).expect("invalid service state")
     }
 
     pub fn mark_failed(&self) {

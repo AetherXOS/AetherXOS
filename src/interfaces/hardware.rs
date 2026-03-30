@@ -7,6 +7,26 @@ pub trait HardwareAbstraction {
     /// Restores interrupt state from flags.
     fn irq_restore(flags: usize);
     fn halt();
+
+    // Lifecycle hooks
+    fn early_init();
+    fn init_interrupts();
+    fn init_timer();
+    fn init_smp();
+    fn init_cpu_local(ptr: usize);
+
+    // Power Management
+    fn set_performance_profile(profile: PerformanceProfile);
+
+    // Diagnostics
+    fn serial_write_raw(s: &str);
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PerformanceProfile {
+    HighPerformance,
+    Balanced,
+    PowerSaving,
 }
 
 /// Port I/O Abstraction (for x86 in/out instructions)
@@ -27,10 +47,18 @@ pub trait SerialDevice: core::fmt::Write {
 
 /// Interrupt Controller Abstraction (PIC, APIC, GIC)
 pub trait InterruptController {
-    unsafe fn initialize(&mut self);
-    unsafe fn enable_interrupt(&mut self, irq: u8);
-    unsafe fn disable_interrupt(&mut self, irq: u8);
-    unsafe fn end_of_interrupt(&mut self, irq: u8);
+    unsafe fn init(&mut self);
+    unsafe fn enable_interrupt(&mut self, irq: u32);
+    unsafe fn disable_interrupt(&mut self, irq: u32);
+    unsafe fn end_of_interrupt(&mut self, irq: u32);
+}
+
+/// System Timer Abstraction
+pub trait Timer {
+    fn init(&mut self);
+    fn set_oneshot_ns(&mut self, ns: u64);
+    fn uptime_ns(&self) -> u64;
+    fn frequency_hz(&self) -> u64;
 }
 
 /// PCI Controller Abstraction

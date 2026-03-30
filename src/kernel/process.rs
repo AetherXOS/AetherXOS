@@ -297,7 +297,7 @@ impl Process {
 
     #[inline(always)]
     pub fn lifecycle_state(&self) -> ProcessLifecycleState {
-        runtime_ops::lifecycle_state(self)
+        runtime_ops::lifecycle_state(self).expect("lifecycle state must be valid enum")
     }
 
     #[inline(always)]
@@ -460,21 +460,21 @@ impl Process {
     #[inline(always)]
     pub fn mark_runnable(&self) {
         self.lifecycle_state
-            .store(ProcessLifecycleState::Runnable.to_u8(), Ordering::Relaxed);
+            .store(ProcessLifecycleState::Runnable.to_raw(), Ordering::Relaxed);
         self.exit_status.store(0, Ordering::Relaxed);
     }
 
     #[inline(always)]
     pub fn mark_running(&self) {
         self.lifecycle_state
-            .store(ProcessLifecycleState::Running.to_u8(), Ordering::Relaxed);
+            .store(ProcessLifecycleState::Running.to_raw(), Ordering::Relaxed);
     }
 
     #[inline(always)]
     pub fn mark_exited(&self, status: i32) {
         self.exit_status.store(status, Ordering::Relaxed);
         self.lifecycle_state
-            .store(ProcessLifecycleState::Exited.to_u8(), Ordering::Relaxed);
+            .store(ProcessLifecycleState::Exited.to_raw(), Ordering::Relaxed);
     }
 
     pub fn create_bootstrap_task_from_image(

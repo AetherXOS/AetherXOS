@@ -196,6 +196,7 @@ static OBSERVABILITY_FAULT_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 static OBSERVABILITY_DRIVER_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 static OBSERVABILITY_IO_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 static OBSERVABILITY_NETWORK_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
+static OBSERVABILITY_SYSCALL_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 
 static TELEMETRY_HISTORY_LEN_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 static TELEMETRY_LOG_LEVEL_NUM_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
@@ -300,6 +301,13 @@ impl KernelConfig {
 
     pub fn is_scheduler_trace_enabled() -> bool {
         CORE_ENABLE_SCHEDULER_TRACE
+    }
+
+    pub fn is_syscall_tracing_enabled() -> bool {
+        decode_bool_override(
+            OBSERVABILITY_SYSCALL_OVERRIDE.load(Ordering::Relaxed),
+            LINUX_VERBOSE_SYSCALL_LOGS,
+        )
     }
 
     pub fn is_advanced_debug_enabled() -> bool {

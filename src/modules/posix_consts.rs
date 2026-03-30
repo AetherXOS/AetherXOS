@@ -3,6 +3,7 @@ pub mod errno {
     pub const ESRCH: i32 = 3;
     pub const ENOMEM: i32 = 12;
     pub const EIO: i32 = 5;
+    pub const ENOEXEC: i32 = 8;
     pub const EBADF: i32 = 9;
     pub const EAGAIN: i32 = 11;
     pub const EACCES: i32 = 13;
@@ -246,7 +247,9 @@ pub mod time {
 
 pub mod signal {
     pub const SIGINT: i32 = 2;
+    pub const SIGKILL: i32 = 9;
     pub const SIGCHLD: i32 = 17;
+    pub const SIGSTOP: i32 = 19;
     pub const SIGUSR1: i32 = 10;
     pub const SIGUSR2: i32 = 12;
 

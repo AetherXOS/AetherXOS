@@ -1,7 +1,7 @@
 extern crate alloc;
 
 // ── Architecture imports ──────────────────────────────────────────────────────
-use hypercore::hal::HAL;
+use hypercore::hal::{Hal, HAL};
 
 // ── IRQ dispatcher (x86_64 only) ─────────────────────────────────────────────
 #[cfg(all(feature = "dispatcher", target_arch = "x86_64"))]
@@ -57,28 +57,20 @@ impl KernelRuntime {
 
     /// Main entry point.  Runs the full boot sequence then enters the main loop.
     pub fn run(self) -> ! {
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] kernel runtime run start\n");
+        Hal::early_init();
+        Hal::serial_write_raw("[BOOT] Kernel Runtime activation start\n");
         let boot = runtime_boot::RuntimeBootContext::start();
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] runtime boot context ready\n");
+        Hal::serial_write_raw("[BOOT] Runtime boot context successfully ready\n");
 
         // 1. Heap  (uses bi.largest_region internally for x86_64)
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init call begin\n");
+        Hal::serial_write_raw("[BOOT] Initializing system heap...\n");
         heap::init_heap(&crate::ALLOCATOR);
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init returned\n");
+        Hal::serial_write_raw("[BOOT] System heap initialized\n");
+        // 1.5 TTY
+        hypercore::kernel::tty::init_default_tty();
         boot.after_heap_init();
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] after_heap_init hook returned\n");
+        Hal::serial_write_raw("[BOOT] After-heap-init hook complete\n");
 
-        // 2. HAL early init (GDT/IDT stubs, serial, etc.)
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] hal early init call begin\n");
-        HAL::early_init();
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] hal early init returned\n");
         boot.after_hal_early_init();
         #[cfg(target_arch = "x86_64")]
         hypercore::hal::x86_64::serial::write_raw(
@@ -87,30 +79,19 @@ impl KernelRuntime {
 
         // 2.5 Boot self-test / config guardrails
         boot.assert_self_tests();
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] boot self tests returned\n");
+        Hal::serial_write_raw("[BOOT] Internal consistency tests passed\n");
 
-        // 3. Platform services (ACPI, IOMMU, virt, VFS, networking bridge…)
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] platform services call begin\n");
+        Hal::serial_write_raw("[BOOT] Initializing platform services...\n");
         self.init_platform_services();
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] platform services returned\n");
+        Hal::serial_write_raw("[BOOT] Platform services active\n");
         boot.after_platform_services();
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw(
-            "[EARLY SERIAL] after_platform_services hook returned\n",
-        );
+        Hal::serial_write_raw("[BOOT] Platform services post-startup hook returned\n");
 
         // 4-9. IRQ, VM, PCI/IOMMU, drivers, SMP, IDT and interrupt enable
         self.run_runtime_activation();
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] runtime activation returned\n");
+        Hal::serial_write_raw("[BOOT] Runtime core activation successful\n");
         self.finalize_runtime_activation();
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw(
-            "[EARLY SERIAL] runtime interrupt routing returned\n",
-        );
+        Hal::serial_write_raw("[BOOT] Interrupt routing initialized\n");
 
         boot.enter_main_loop();
     }

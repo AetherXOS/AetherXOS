@@ -31,32 +31,19 @@ static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     unsafe {
         idt.double_fault
             .set_handler_fn(double_fault_handler)
-            .set_stack_index(crate::hal::x86_64::gdt::DOUBLE_FAULT_IST_INDEX);
+            .set_stack_index(crate::hal::gdt::DOUBLE_FAULT_IST_INDEX);
     }
     idt.page_fault.set_handler_fn(page_fault_handler);
-
     idt.general_protection_fault.set_handler_fn(gpf_handler);
 
     // Timer Interrupt (IRQ 0 = Vector 32)
     idt[x86::IRQ_TIMER as usize].set_handler_fn(timer_interrupt_handler);
     if crate::generated_consts::CORE_ENABLE_EXTENDED_IRQ_VECTORS {
-        idt[(x86::IRQ_VECTOR_BASE + 1) as usize].set_handler_fn(irq_33_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 2) as usize].set_handler_fn(irq_34_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 3) as usize].set_handler_fn(irq_35_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 4) as usize].set_handler_fn(irq_36_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 5) as usize].set_handler_fn(irq_37_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 6) as usize].set_handler_fn(irq_38_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 7) as usize].set_handler_fn(irq_39_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 8) as usize].set_handler_fn(irq_40_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 9) as usize].set_handler_fn(irq_41_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 10) as usize].set_handler_fn(irq_42_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 11) as usize].set_handler_fn(irq_43_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 12) as usize].set_handler_fn(irq_44_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 13) as usize].set_handler_fn(irq_45_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 14) as usize].set_handler_fn(irq_46_handler);
-        idt[(x86::IRQ_VECTOR_BASE + 15) as usize].set_handler_fn(irq_47_handler);
+        for vector in 1..=15 {
+             idt[(x86::IRQ_VECTOR_BASE + vector) as usize].set_handler_fn(get_irq_handler(vector));
+        }
     }
-    idt[253].set_handler_fn(tlb_shootdown_handler);
+    idt[x86::IRQ_TLB_SHOOTDOWN as usize].set_handler_fn(tlb_shootdown_handler);
 
     idt
 });
@@ -70,21 +57,13 @@ pub fn init() {
 pub fn init() {}
 
 #[cfg(target_os = "none")]
-extern "x86-interrupt" fn breakpoint_handler(_stack_frame: InterruptStackFrame) {
-    #[cfg(feature = "dispatcher")]
-    {
-        use crate::interfaces::Dispatcher;
-        if let Some(d) = unsafe { &*(&raw const DISPATCHER) } {
-            d.dispatch(x86::EXCEPTION_BREAKPOINT); // INT 3
-        }
-    }
-}
-
-#[cfg(target_os = "none")]
-extern "x86-interrupt" fn double_fault_handler(
+fn handle_common_exception(
+    name: &str,
+    vector: u8,
     stack_frame: InterruptStackFrame,
-    _error_code: u64,
-) -> ! {
+    error_code: Option<u64>,
+    fault_addr: Option<u64>,
+) {
     if crate::config::KernelConfig::is_advanced_debug_enabled() {
         let bytes = unsafe {
             core::slice::from_raw_parts(
@@ -92,17 +71,56 @@ extern "x86-interrupt" fn double_fault_handler(
                 core::mem::size_of::<InterruptStackFrame>(),
             )
         };
-        crate::hal::x86_64::serial::write_dump_bytes("x86.double_fault.frame", bytes);
+        crate::hal::serial::write_dump_bytes(name, bytes);
     }
+
     crate::kernel::debug_trace::record_register_snapshot(
-        "x86.double_fault",
+        name,
         stack_frame.instruction_pointer.as_u64(),
         stack_frame.stack_pointer.as_u64(),
-        stack_frame.code_segment as u64,
+        fault_addr.unwrap_or(error_code.unwrap_or(0)),
         stack_frame.cpu_flags,
     );
-    crate::klog_error!("EXCEPTION: DOUBLE FAULT {:#?}", stack_frame);
-    crate::kernel::fatal_halt("double_fault");
+
+    #[cfg(feature = "dispatcher")]
+    {
+        use crate::interfaces::Dispatcher;
+        if let Some(d) = unsafe { &*(&raw const DISPATCHER) } {
+            d.dispatch(vector);
+            return;
+        }
+    }
+
+    crate::klog_error!(
+        "EXCEPTION: {} (vector {}) at {:#x} code: {:#x?} frame: {:#?}",
+        name,
+        vector,
+        stack_frame.instruction_pointer.as_u64(),
+        error_code,
+        stack_frame
+    );
+    crate::kernel::fatal_halt(name);
+}
+
+#[cfg(target_os = "none")]
+extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
+    handle_common_exception("breakpoint", x86::EXCEPTION_BREAKPOINT, stack_frame, None, None);
+}
+
+#[cfg(target_os = "none")]
+extern "x86-interrupt" fn double_fault_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: u64,
+) -> ! {
+    crate::klog_error!("FATAL EXCEPTION: DOUBLE FAULT {:#?}", stack_frame);
+    handle_common_exception(
+        "double_fault",
+        x86::EXCEPTION_DOUBLE_FAULT,
+        stack_frame,
+        Some(error_code),
+        None,
+    );
+    unreachable!()
 }
 
 #[cfg(target_os = "none")]
@@ -111,73 +129,25 @@ extern "x86-interrupt" fn page_fault_handler(
     error_code: PageFaultErrorCode,
 ) {
     use crate::interfaces::cpu::CpuRegisters;
-
-    #[cfg(feature = "dispatcher")]
-    {
-        use crate::interfaces::Dispatcher;
-        // Dispatch to registered handlers (e.g. VMM)
-        if let Some(d) = unsafe { &*(&raw const DISPATCHER) } {
-            d.dispatch(x86::EXCEPTION_PAGE_FAULT); // #PF
-            return;
-        }
-    }
-
-    // Fallback panic if no dispatcher active
     let addr = crate::hal::cpu::X86CpuRegisters::read_page_fault_addr();
-    if crate::config::KernelConfig::is_advanced_debug_enabled() {
-        let bytes = unsafe {
-            core::slice::from_raw_parts(
-                (&stack_frame as *const InterruptStackFrame).cast::<u8>(),
-                core::mem::size_of::<InterruptStackFrame>(),
-            )
-        };
-        crate::hal::x86_64::serial::write_dump_bytes("x86.page_fault.frame", bytes);
-    }
-    crate::kernel::debug_trace::record_register_snapshot(
-        "x86.page_fault",
-        stack_frame.instruction_pointer.as_u64(),
-        stack_frame.stack_pointer.as_u64(),
-        addr,
-        error_code.bits(),
+    handle_common_exception(
+        "page_fault",
+        x86::EXCEPTION_PAGE_FAULT,
+        stack_frame,
+        Some(error_code.bits()),
+        Some(addr),
     );
-    crate::klog_error!(
-        "EXCEPTION: PAGE FAULT at {:?} code: {:?} {:#?}",
-        addr,
-        error_code,
-        stack_frame
-    );
-    crate::kernel::fatal_halt("page_fault");
 }
 
 #[cfg(target_os = "none")]
 extern "x86-interrupt" fn gpf_handler(stack_frame: InterruptStackFrame, error_code: u64) {
-    #[cfg(feature = "dispatcher")]
-    {
-        use crate::interfaces::Dispatcher;
-        if let Some(d) = unsafe { &*(&raw const DISPATCHER) } {
-            d.dispatch(13); // #GP
-            return;
-        }
-    }
-
-    if crate::config::KernelConfig::is_advanced_debug_enabled() {
-        let bytes = unsafe {
-            core::slice::from_raw_parts(
-                (&stack_frame as *const InterruptStackFrame).cast::<u8>(),
-                core::mem::size_of::<InterruptStackFrame>(),
-            )
-        };
-        crate::hal::x86_64::serial::write_dump_bytes("x86.gpf.frame", bytes);
-    }
-    crate::kernel::debug_trace::record_register_snapshot(
-        "x86.gpf",
-        stack_frame.instruction_pointer.as_u64(),
-        stack_frame.stack_pointer.as_u64(),
-        error_code,
-        stack_frame.cpu_flags,
+    handle_common_exception(
+        "gpf",
+        x86::EXCEPTION_GPF,
+        stack_frame,
+        Some(error_code),
+        None,
     );
-    crate::klog_error!("EXCEPTION: GPF code: {:#x} {:#?}", error_code, stack_frame);
-    crate::kernel::fatal_halt("general_protection_fault");
 }
 
 #[cfg(target_os = "none")]
@@ -208,7 +178,7 @@ fn dispatch_irq_vector(vector: u8) {
     }
 
     unsafe {
-        crate::hal::x86_64::apic::eoi();
+        crate::hal::apic::eoi();
     }
 }
 
@@ -253,4 +223,26 @@ define_irq_handler!(irq_46_handler, x86::IRQ_VECTOR_BASE + 14);
 define_irq_handler!(irq_47_handler, x86::IRQ_VECTOR_BASE + 15);
 
 #[cfg(target_os = "none")]
-use crate::hal::x86_64::smp::tlb_shootdown_handler;
+fn get_irq_handler(vector_offset: u8) -> extern "x86-interrupt" fn(InterruptStackFrame) {
+    match vector_offset {
+        1 => irq_33_handler,
+        2 => irq_34_handler,
+        3 => irq_35_handler,
+        4 => irq_36_handler,
+        5 => irq_37_handler,
+        6 => irq_38_handler,
+        7 => irq_39_handler,
+        8 => irq_40_handler,
+        9 => irq_41_handler,
+        10 => irq_42_handler,
+        11 => irq_43_handler,
+        12 => irq_44_handler,
+        13 => irq_45_handler,
+        14 => irq_46_handler,
+        15 => irq_47_handler,
+        _ => panic!("unsupported irq offset"),
+    }
+}
+
+#[cfg(target_os = "none")]
+use crate::hal::smp::tlb_shootdown_handler;

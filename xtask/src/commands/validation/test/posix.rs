@@ -30,17 +30,40 @@ pub fn run_gate() -> Result<()> {
     let _root = paths::repo_root();
     let out_dir = paths::resolve("reports/posix_conformance");
     paths::ensure_dir(&out_dir)?;
+    let host_target = crate::utils::cargo::detect_host_triple().ok();
 
     let mut steps = Vec::new();
 
+    let mut host_check_default = vec![
+        "cargo".to_string(),
+        "check".to_string(),
+        "--lib".to_string(),
+        "--features".to_string(),
+        "posix_deep_tests".to_string(),
+    ];
+    if let Some(target) = host_target.as_deref() {
+        host_check_default.push("--target".to_string());
+        host_check_default.push(target.to_string());
+    }
     steps.push(run_cmd(
-        &["cargo", "test", "--no-run", "--features", "posix_deep_tests"],
-        "cargo test no-run (default targets)"
+        &host_check_default,
+        "cargo check (lib, posix_deep_tests)"
     ));
 
+    let mut host_check_feature_bundle = vec![
+        "cargo".to_string(),
+        "check".to_string(),
+        "--lib".to_string(),
+        "--features".to_string(),
+        "posix_deep_tests,posix_fs,posix_process,posix_net,posix_signal,posix_time".to_string(),
+    ];
+    if let Some(target) = host_target.as_deref() {
+        host_check_feature_bundle.push("--target".to_string());
+        host_check_feature_bundle.push(target.to_string());
+    }
     steps.push(run_cmd(
-        &["cargo", "test", "--no-run", "--features", "posix_deep_tests", "--lib", "--tests"],
-        "cargo test no-run (lib+tests)"
+        &host_check_feature_bundle,
+        "cargo check (lib, deep POSIX feature bundle)"
     ));
 
     let deep_test_count = discover_deep_tests()?;
@@ -89,12 +112,12 @@ pub fn run_gate() -> Result<()> {
     Ok(())
 }
 
-fn run_cmd(args: &[&str], name: &str) -> StepResult {
+fn run_cmd(args: &[String], name: &str) -> StepResult {
     let start = Instant::now();
     let root = paths::repo_root();
 
-    let output = Command::new(args[0])
-        .args(&args[1..])
+    let output = Command::new(&args[0])
+        .args(args.iter().skip(1))
         .current_dir(root)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

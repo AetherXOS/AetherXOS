@@ -16,22 +16,18 @@ impl BootPrelude {
 pub(crate) fn initialize_boot_prelude() -> BootPrelude {
     use hypercore::kernel::startup::{mark_stage, StartupStage};
 
-    #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude init begin\n");
+    use hypercore::hal::Hal;
+    Hal::serial_write_raw("[EARLY SERIAL] prelude init begin\n");
     boot_info::init();
-    #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude boot_info init returned\n");
+    Hal::serial_write_raw("[EARLY SERIAL] prelude boot_info init returned\n");
     let bi = boot_info::get();
-    #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude boot_info get returned\n");
+    Hal::serial_write_raw("[EARLY SERIAL] prelude boot_info get returned\n");
 
     let kernel_cmdline = bi.kernel_cmdline_str();
-    #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude cmdline parsed\n");
+    Hal::serial_write_raw("[EARLY SERIAL] prelude cmdline parsed\n");
     let linked_probe_boot = kernel_cmdline.contains("HYPERCORE_RUN_LINKED_PROBE=1");
 
-    #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] kernel_runtime entered\n");
+    Hal::serial_write_raw("[EARLY SERIAL] kernel_runtime entered\n");
 
     mark_stage(StartupStage::BootInfoCollected);
 
@@ -48,32 +44,27 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
         return;
     }
 
-    #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude finalize begin\n");
+    use hypercore::hal::Hal;
+    Hal::serial_write_raw("[EARLY SERIAL] prelude finalize begin\n");
 
-    #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw(
+    Hal::serial_write_raw(
         "[EARLY SERIAL] prelude finalize boot_info get begin\n",
     );
     let bi = boot_info::get();
-    #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw(
+    Hal::serial_write_raw(
         "[EARLY SERIAL] prelude finalize boot_info get returned\n",
     );
-    #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw(
+    Hal::serial_write_raw(
         "[EARLY SERIAL] prelude finalize boot summary begin\n",
     );
     hypercore::klog_info!("Boot: {}", bi);
-    #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw(
+    Hal::serial_write_raw(
         "[EARLY SERIAL] prelude finalize boot summary returned\n",
     );
 
     let kernel_cmdline = bi.kernel_cmdline_str();
     if prelude.has_cmdline {
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw(
+        Hal::serial_write_raw(
             "[EARLY SERIAL] prelude finalize overrides begin\n",
         );
         match hypercore::config::KernelConfig::apply_kernel_cmdline_overrides(kernel_cmdline) {
@@ -95,15 +86,13 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
                 );
             }
         }
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw(
+        Hal::serial_write_raw(
             "[EARLY SERIAL] prelude finalize overrides returned\n",
         );
     }
 
     if prelude.has_framebuffer {
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw(
+        Hal::serial_write_raw(
             "[EARLY SERIAL] prelude finalize framebuffer begin\n",
         );
         if let Some(fb) = bi.framebuffer {
@@ -116,20 +105,18 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
                 fb.phys_addr
             );
         }
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw(
+        Hal::serial_write_raw(
             "[EARLY SERIAL] prelude finalize framebuffer returned\n",
         );
     }
 
-    #[cfg(target_arch = "x86_64")]
-    hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] prelude finalize returned\n");
+    Hal::serial_write_raw("[EARLY SERIAL] prelude finalize returned\n");
 }
 
 pub(crate) fn log_linked_probe_boot(prelude: &BootPrelude) {
     if prelude.linked_probe_boot {
-        #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] linked probe cmdline observed\n");
+        use hypercore::hal::Hal;
+        Hal::serial_write_raw("[EARLY SERIAL] linked probe cmdline observed\n");
         let kernel_cmdline = boot_info::get().kernel_cmdline_str();
         hypercore::klog_info!(
             "[LINKED PROBE] probe boot requested cmdline=\"{}\"",
@@ -139,9 +126,7 @@ pub(crate) fn log_linked_probe_boot(prelude: &BootPrelude) {
 }
 
 pub(crate) fn write_stage_serial_marker(marker: &str) {
-    #[cfg(target_arch = "x86_64")]
-    {
-        hypercore::hal::x86_64::serial::write_raw(marker);
-        hypercore::hal::x86_64::serial::write_raw("\n");
-    }
+    use hypercore::hal::Hal;
+    Hal::serial_write_raw(marker);
+    Hal::serial_write_raw("\n");
 }

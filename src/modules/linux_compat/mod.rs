@@ -3,7 +3,6 @@
 
 extern crate alloc;
 
-pub(crate) use crate::hal::syscalls::*;
 pub(crate) use crate::kernel::syscalls::syscalls_consts::*;
 pub(crate) use crate::kernel::syscalls::*;
 

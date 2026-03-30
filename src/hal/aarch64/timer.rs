@@ -3,19 +3,19 @@
 /// Uses the EL1 virtual timer (cntv_*) which is the preferred timer for
 /// OS kernels running at EL1.  The physical counter (cntpct_el0) is used
 /// for raw wall-clock reads.
+use crate::interfaces::Timer;
 use core::sync::atomic::{AtomicU64, Ordering};
 
 use crate::generated_consts::{AARCH64_TIMER_REARM_MAX_TICKS, AARCH64_TIMER_REARM_MIN_TICKS};
 use crate::hal::common::timer::{clamp_ticks, ns_to_ticks, ticks_to_ns};
 
+use crate::kernel::bit_utils::BitField32;
+
 // ── Named constants for CNTV_CTL_EL0 bits ────────────────────────────────────
-/// CNTV_CTL_EL0.ENABLE — start the virtual timer countdown.
-const CNTV_CTL_ENABLE: u32 = 1 << 0;
-/// CNTV_CTL_EL0.IMASK  — mask the interrupt (timer fires but no IRQ).
-const CNTV_CTL_IMASK: u32 = 1 << 1;
-/// CNTV_CTL_EL0.ISTATUS — set by hardware when condition met.
-#[allow(dead_code)]
-const CNTV_CTL_ISTATUS: u32 = 1 << 2;
+/// CNTV_CTL_EL0 bit definitions
+pub const CNTV_CTL_ENABLE:  u32 = 1 << 0;
+pub const CNTV_CTL_IMASK:   u32 = 1 << 1;
+pub const CNTV_CTL_ISTATUS: u32 = 1 << 2;
 
 // ── Calibration state ─────────────────────────────────────────────────────────
 
@@ -128,7 +128,10 @@ impl GenericTimer {
 
         LAST_PROGRAMMED_TICKS.store(programmed, Ordering::Relaxed);
         write_cntv_tval(programmed);
-        write_cntv_ctl(CNTV_CTL_ENABLE);
+        
+        let mut ctl = BitField32::new(0);
+        ctl.set_bit(0, true); // ENABLE
+        write_cntv_ctl(ctl.bits());
     }
 
     /// Disable the virtual timer.
@@ -138,7 +141,10 @@ impl GenericTimer {
 
     /// Mask the timer interrupt without stopping the counter.
     pub fn mask() {
-        write_cntv_ctl(CNTV_CTL_ENABLE | CNTV_CTL_IMASK);
+        let mut ctl = BitField32::new(0);
+        ctl.set_bit(0, true); // ENABLE
+        ctl.set_bit(1, true); // IMASK
+        write_cntv_ctl(ctl.bits());
     }
 
     /// Read the clock frequency in Hz.
@@ -179,5 +185,23 @@ impl GenericTimer {
             clamp_min_hits: REARM_CLAMP_MIN_HITS.load(Ordering::Relaxed),
             clamp_max_hits: REARM_CLAMP_MAX_HITS.load(Ordering::Relaxed),
         }
+    }
+}
+
+impl Timer for GenericTimer {
+    fn init(&mut self) {
+        Self::init();
+    }
+
+    fn set_oneshot_ns(&mut self, ns: u64) {
+        Self::set_oneshot_ns(ns);
+    }
+
+    fn uptime_ns(&self) -> u64 {
+        Self::uptime_ns()
+    }
+
+    fn frequency_hz(&self) -> u64 {
+        Self::frequency()
     }
 }

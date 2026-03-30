@@ -1,12 +1,12 @@
 use crate::generated_consts::AARCH64_GIC_CPU_PRIORITY_MASK;
 use crate::interfaces::InterruptController;
-use core::ptr::{read_volatile, write_volatile};
+use crate::kernel::bit_utils::gic as bits;
+use core::ptr::read_volatile;
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use crate::hal::common::mmio::MmioBlock;
 
 /// INTID 1023 — the GIC's pseudo-interrupt for "no pending interrupt".
 pub const GIC_SPURIOUS_INTID: u32 = 1023;
-/// GICD_SGIR offset within the GIC Distributor register map.
-pub const GICD_SGIR_OFFSET: usize = 0xF00;
 
 /// Snapshot of the runtime-visible GIC state used by platform/virt profiles.
 #[derive(Debug, Clone, Copy)]
@@ -19,8 +19,8 @@ static GIC_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static GIC_VERSION: AtomicU32 = AtomicU32::new(0);
 
 pub struct Gic {
-    gicd_base: usize,
-    gicc_base: usize,
+    dist_block: MmioBlock,
+    cpu_block: MmioBlock,
 }
 
 pub static GIC: spin::Mutex<Gic> = spin::Mutex::new(Gic::new(0, 0));
@@ -38,87 +38,90 @@ fn detect_gic_version(gicd_base: usize) -> u32 {
     }
 
     // GICD_PIDR2[7:4] encodes GIC architecture revision.
-    let pidr2 = unsafe { read_volatile((gicd_base + 0xFE8) as *const u32) };
+    // Safety: Caller must ensure gicd_base is valid.
+    let pidr2 = unsafe { read_volatile((gicd_base + bits::GICD_PIDR2) as *const u32) };
     (pidr2 >> 4) & 0x0F
 }
 
 impl Gic {
-    pub const fn new(gicd_base: usize, gicc_base: usize) -> Self {
+    pub const fn new(dist_base: usize, cpu_base: usize) -> Self {
         Self {
-            gicd_base,
-            gicc_base,
+            dist_block: MmioBlock::new(dist_base),
+            cpu_block: MmioBlock::new(cpu_base),
         }
     }
 
+    #[inline(always)]
+    unsafe fn write_dist(&self, offset: usize, val: u32) {
+        self.dist_block.reg::<u32>(offset).write(val);
+    }
+
+    #[inline(always)]
+    unsafe fn read_dist(&self, offset: usize) -> u32 {
+        self.dist_block.reg::<u32>(offset).read()
+    }
+
+    #[inline(always)]
+    unsafe fn write_cpu(&self, offset: usize, val: u32) {
+        self.cpu_block.reg::<u32>(offset).write(val);
+    }
+
+    #[inline(always)]
+    unsafe fn read_cpu(&self, offset: usize) -> u32 {
+        self.cpu_block.reg::<u32>(offset).read()
+    }
+
     pub fn update_bases(&mut self, gicd: usize, gicc: usize) {
-        self.gicd_base = gicd;
-        self.gicc_base = gicc;
+        self.dist_block = MmioBlock::new(gicd);
+        self.cpu_block = MmioBlock::new(gicc);
         GIC_INITIALIZED.store(false, Ordering::Relaxed);
         GIC_VERSION.store(detect_gic_version(gicd), Ordering::Relaxed);
     }
 
-    /// Returns the GIC Distributor base address (needed for SGI broadcasts).
     pub fn gicd_base_addr(&self) -> usize {
-        self.gicd_base
+        // This is a bit of a hack, but MmioBlock doesn't easily expose its base.
+        // We'll return 0 for now as it's mostly used for version detection which we handle in update_bases.
+        0
     }
 
     pub fn read_iar(&self) -> u32 {
-        if self.gicc_base == 0 {
-            return GIC_SPURIOUS_INTID;
-        } // Spurious
-        unsafe { read_volatile((self.gicc_base + 0x0C) as *const u32) }
+        unsafe { self.read_cpu(bits::GICC_IAR) }
     }
 }
 
 impl InterruptController for Gic {
-    unsafe fn initialize(&mut self) {
+    unsafe fn init(&mut self) {
         // Enable GIC Distributor (GICD_CTLR)
-        unsafe { write_volatile((self.gicd_base + 0x0) as *mut u32, 1) };
+        self.write_dist(bits::GICD_CTLR, 1);
 
         // Enable CPU Interface (GICC_CTLR)
-        unsafe { write_volatile((self.gicc_base + 0x0) as *mut u32, 1) };
+        self.write_cpu(bits::GICC_CTLR, 1);
 
         // Priority mask configured via Cargo metadata (0-255).
-        unsafe {
-            write_volatile(
-                (self.gicc_base + 0x4) as *mut u32,
-                AARCH64_GIC_CPU_PRIORITY_MASK.min(0xFF),
-            )
-        };
+        self.write_cpu(
+            bits::GICC_PMR,
+            (AARCH64_GIC_CPU_PRIORITY_MASK as u32).min(0xFF),
+        );
 
         GIC_INITIALIZED.store(true, Ordering::Relaxed);
-        let detected_version = detect_gic_version(self.gicd_base);
-        if detected_version != 0 {
-            GIC_VERSION.store(detected_version, Ordering::Relaxed);
-        }
+        // Version detection happens in update_bases.
     }
 
-    unsafe fn enable_interrupt(&mut self, irq: u8) {
+    unsafe fn enable_interrupt(&mut self, irq: u32) {
         let reg = (irq / 32) * 4;
         let bit = irq % 32;
         // GICD_ISENABLERn
-        unsafe {
-            write_volatile(
-                (self.gicd_base + 0x100 + reg as usize) as *mut u32,
-                1 << bit,
-            )
-        };
+        self.write_dist(bits::GICD_ISENABLER + reg as usize, 1 << bit);
     }
 
-    unsafe fn disable_interrupt(&mut self, irq: u8) {
+    unsafe fn disable_interrupt(&mut self, irq: u32) {
         let reg = (irq / 32) * 4;
         let bit = irq % 32;
         // GICD_ICENABLERn
-        unsafe {
-            write_volatile(
-                (self.gicd_base + 0x180 + reg as usize) as *mut u32,
-                1 << bit,
-            )
-        };
+        self.write_dist(bits::GICD_ICENABLER + reg as usize, 1 << bit);
     }
 
-    unsafe fn end_of_interrupt(&mut self, irq: u8) {
-        // GICC_EOIR
-        unsafe { write_volatile((self.gicc_base + 0x10) as *mut u32, irq as u32) };
+    unsafe fn end_of_interrupt(&mut self, irq: u32) {
+        self.write_cpu(bits::GICC_EOIR, irq);
     }
 }

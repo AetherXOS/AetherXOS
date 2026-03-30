@@ -1,28 +1,12 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum ProcessLifecycleState {
+define_enum!(pub enum ProcessLifecycleState : u8 {
     Created = 0,
     Runnable = 1,
     Running = 2,
     Exited = 3,
-}
-
-impl_enum_u8_default_conversions!(ProcessLifecycleState {
-    Created,
-    Runnable,
-    Running,
-    Exited,
-}, default = Created);
-
-impl ProcessLifecycleState {
-    #[inline(always)]
-    pub(crate) const fn from_raw(raw: u8) -> Self {
-        Self::from_u8(raw)
-    }
-}
+});
 
 #[derive(Debug, Clone, Copy)]
 pub struct MappingRecord {

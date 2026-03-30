@@ -8,11 +8,11 @@ mod dispatch;
 mod fd_process_identity;
 mod fs;
 mod memory;
-mod net;
+pub(crate) mod net;
 mod process;
 mod signal;
 mod task_time;
-mod util;
+pub(crate) mod util;
 #[cfg(all(test, not(feature = "linux_compat")))]
 pub(crate) use process::{execve_stack_required_bytes, prepare_execve_user_stack};
 #[cfg(all(test, not(feature = "linux_compat")))]

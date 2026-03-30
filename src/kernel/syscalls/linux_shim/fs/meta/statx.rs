@@ -4,9 +4,46 @@ use super::super::support::{resolve_path_at_allow_empty, LINUX_AT_EMPTY_PATH, LI
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
 use crate::kernel::syscalls::linux_shim::util::write_user_pod;
 
+#[repr(C)]
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
+#[derive(Clone, Copy, Default)]
+struct LinuxStatxTimestampCompat {
+    tv_sec: i64,
+    tv_nsec: u32,
+    __reserved: i32,
+}
+
+#[repr(C)]
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
+#[derive(Clone, Copy, Default)]
+struct LinuxStatxCompat {
+    stx_mask: u32,
+    stx_blksize: u32,
+    stx_attributes: u64,
+    stx_nlink: u32,
+    stx_uid: u32,
+    stx_gid: u32,
+    stx_mode: u16,
+    __spare0: u16,
+    stx_ino: u64,
+    stx_size: u64,
+    stx_blocks: u64,
+    stx_attributes_mask: u64,
+    stx_atime: LinuxStatxTimestampCompat,
+    stx_btime: LinuxStatxTimestampCompat,
+    stx_ctime: LinuxStatxTimestampCompat,
+    stx_mtime: LinuxStatxTimestampCompat,
+    stx_rdev_major: u32,
+    stx_rdev_minor: u32,
+    stx_dev_major: u32,
+    stx_dev_minor: u32,
+    stx_mnt_id: u64,
+    __spare2: [u64; 13],
+}
+
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
 fn write_linux_statx(mask: usize, statxbuf_ptr: usize, st: crate::modules::posix::fs::PosixStat) -> usize {
-    let mut stx: crate::modules::linux_compat::types::LinuxStatx = unsafe { core::mem::zeroed() };
+    let mut stx: LinuxStatxCompat = LinuxStatxCompat::default();
     stx.stx_mask = crate::kernel::syscalls::syscalls_consts::linux::STATX_BASIC_STATS & mask as u32;
     stx.stx_blksize = crate::kernel::syscalls::syscalls_consts::linux::STAT_BLKSIZE as u32;
     stx.stx_nlink = 1;
@@ -25,17 +62,17 @@ fn write_linux_statx(mask: usize, statxbuf_ptr: usize, st: crate::modules::posix
     stx.stx_blocks = (st.size
         + (crate::kernel::syscalls::syscalls_consts::linux::STAT_BLOCK_SIZE - 1) as u64)
         / crate::kernel::syscalls::syscalls_consts::linux::STAT_BLOCK_SIZE as u64;
-    stx.stx_atime = crate::modules::linux_compat::types::LinuxStatxTimestamp {
+    stx.stx_atime = LinuxStatxTimestampCompat {
         tv_sec: st.atime,
         tv_nsec: 0,
         __reserved: 0,
     };
-    stx.stx_mtime = crate::modules::linux_compat::types::LinuxStatxTimestamp {
+    stx.stx_mtime = LinuxStatxTimestampCompat {
         tv_sec: st.mtime,
         tv_nsec: 0,
         __reserved: 0,
     };
-    stx.stx_ctime = crate::modules::linux_compat::types::LinuxStatxTimestamp {
+    stx.stx_ctime = LinuxStatxTimestampCompat {
         tv_sec: st.ctime,
         tv_nsec: 0,
         __reserved: 0,

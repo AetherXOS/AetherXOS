@@ -132,12 +132,27 @@ impl<'a, T> Drop for IrqSafeMutexGuard<'a, T> {
     }
 }
 
+impl<T: core::fmt::Debug> core::fmt::Debug for IrqSafeMutex<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self.try_lock() {
+            Some(guard) => f.debug_struct("IrqSafeMutex").field("data", &*guard).finish(),
+            None => f.debug_struct("IrqSafeMutex").field("data", &"<locked>").finish(),
+        }
+    }
+}
+
 use crate::interfaces::task::TaskId;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 
 pub struct WaitQueue {
     waiters: IrqSafeMutex<VecDeque<TaskId>>,
+}
+
+impl core::fmt::Debug for WaitQueue {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("WaitQueue").finish()
+    }
 }
 
 impl WaitQueue {

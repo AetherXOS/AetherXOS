@@ -18,3 +18,11 @@ pub trait PageAllocator {
 pub trait HeapAllocator: GlobalAlloc {
     fn init(&self, start: usize, size: usize);
 }
+
+pub mod page_flags {
+    pub const PRESENT: u32 = 1 << 0;
+    pub const WRITABLE: u32 = 1 << 1;
+    pub const USER: u32 = 1 << 2;
+    pub const NO_EXECUTE: u32 = 1 << 3;
+    pub const COW: u32 = 1 << 4;
+}

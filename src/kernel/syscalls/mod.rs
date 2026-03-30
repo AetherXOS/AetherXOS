@@ -157,7 +157,14 @@ extern "C" fn rust_syscall_handler(
     user_rflags: usize,
     frame_ptr: *mut SyscallFrame,
 ) -> SyscallReturn {
+    use core::sync::atomic::Ordering;
+
+    let args = [arg1, arg2, arg3, arg4, arg5, arg6];
     SYSCALL_TOTAL.fetch_add(1, Ordering::Relaxed);
+
+    if crate::config::KernelConfig::is_syscall_tracing_enabled() {
+        crate::klog_trace!("SYSCALL START: id={} args={:x?} rip={:#x}", syscall_id, args, user_rip);
+    }
 
     let normal_ret = match syscall_id {
         nr::YIELD => sys_yield(),
@@ -236,28 +243,29 @@ extern "C" fn rust_syscall_handler(
         nr::GET_LOTTERY_REPLAY_LATEST => sys_get_lottery_replay_latest(arg1, arg2),
         nr::SET_POLICY_DRIFT_CONTROL => sys_set_policy_drift_control(arg1, arg2),
         nr::GET_POLICY_DRIFT_CONTROL => sys_get_policy_drift_control(arg1, arg2),
-        nr::GET_POLICY_DRIFT_REASON_TEXT => sys_get_policy_drift_reason_text(arg1, arg2, arg3),
+        nr::GET_POLICY_DRIFT_REASON_TEXT => {
+            SYSCALL_POLICY_DRIFT_REASON_TEXT_CALLS.fetch_add(1, Ordering::Relaxed);
+            sys_get_policy_drift_reason_text(arg1, arg2, arg3)
+        }
         _ => {
-            // Keep Linux ABI dispatch isolated from core syscall ABI path.
+            // Check for Linux ABI compatibility
             if let Some(ret) = linux_dispatch::dispatch_linux_syscall(
                 syscall_id,
-                arg1,
-                arg2,
-                arg3,
-                arg4,
-                arg5,
-                arg6,
-                user_rip,
-                user_rflags,
-                frame_ptr,
+                arg1, arg2, arg3, arg4, arg5, arg6,
+                user_rip, user_rflags, frame_ptr,
             ) {
                 ret
             } else {
                 SYSCALL_UNKNOWN.fetch_add(1, Ordering::Relaxed);
+                crate::klog_warn!("Unknown syscall: {} from rip {:#x}", syscall_id, user_rip);
                 !0
             }
         }
     };
+
+    if crate::config::KernelConfig::is_syscall_tracing_enabled() {
+        crate::klog_trace!("SYSCALL END: id={} result={:#x}", syscall_id, normal_ret);
+    }
 
     #[cfg(all(feature = "process_abstraction", feature = "posix_mman"))]
     if let Some(process) = crate::kernel::launch::current_process_arc() {

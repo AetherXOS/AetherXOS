@@ -1,6 +1,8 @@
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_time"))]
 use crate::kernel::syscalls::linux_shim::util::read_user_pod;
 #[cfg(not(feature = "linux_compat"))]
+use crate::kernel::syscalls::linux_errno;
+#[cfg(not(feature = "linux_compat"))]
 use crate::kernel::syscalls::linux_shim::util::write_user_pod;
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_time"))]
 use crate::kernel::syscalls::with_user_write_bytes;

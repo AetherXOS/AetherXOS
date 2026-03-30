@@ -1,44 +1,23 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub(crate) enum DriftReasonCode {
-    None = 0,
-    PressureHigh = 1,
-    RtStarvation = 2,
-    NetworkSlo = 3,
-    VfsSlo = 4,
-    DriverWaitTimeout = 5,
-}
+define_enum!(pub(crate) enum DriftReasonCode : u8 {
+    None = 0                => "none",
+    PressureHigh = 1        => "pressure_high",
+    RtStarvation = 2        => "rt_starvation",
+    NetworkSlo = 3          => "network_slo",
+    VfsSlo = 4              => "vfs_slo",
+    DriverWaitTimeout = 5   => "driver_wait_timeout",
+});
 
 impl DriftReasonCode {
     #[inline(always)]
     pub(crate) const fn as_u8(self) -> u8 {
-        self.to_u8()
+        self.to_raw()
     }
 
     #[inline(always)]
     pub(crate) const fn name(self) -> &'static str {
-        match self {
-            Self::None => "none",
-            Self::PressureHigh => "pressure_high",
-            Self::RtStarvation => "rt_starvation",
-            Self::NetworkSlo => "network_slo",
-            Self::VfsSlo => "vfs_slo",
-            Self::DriverWaitTimeout => "driver_wait_timeout",
-        }
+        self.as_str()
     }
 }
-
-crate::impl_enum_u8_default_conversions!(
-    DriftReasonCode {
-        None,
-        PressureHigh,
-        RtStarvation,
-        NetworkSlo,
-        VfsSlo,
-        DriverWaitTimeout,
-    },
-    default = None
-);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoreRuntimePolicyPreset {

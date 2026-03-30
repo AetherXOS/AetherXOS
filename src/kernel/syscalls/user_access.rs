@@ -77,7 +77,63 @@ fn user_page_access_fault(addr: usize, mode: UserAccessMode) -> Option<UserAcces
     entry_user_fault(p1e.flags(), mode)
 }
 
-#[cfg(not(target_arch = "x86_64"))]
+#[cfg(target_arch = "aarch64")]
+fn user_page_access_fault(addr: usize, mode: UserAccessMode) -> Option<UserAccessFault> {
+    use crate::kernel::bit_utils::paging as bits;
+
+    let Some(hhdm) = crate::hal::aarch64::hhdm_offset() else {
+        return Some(UserAccessFault::HhdmMissing);
+    };
+
+    let ttbr0 = crate::hal::cpu::AArch64CpuRegisters::read_page_table_root();
+    let root_phys = bits::get_phys_addr(ttbr0);
+
+    let mut table_phys = root_phys;
+    let va = addr as u64;
+    let indices = bits::get_indices(va);
+
+    for level in 0..3 {
+        let table_ptr = (table_phys + hhdm) as *const u64;
+        let entry = unsafe { core::ptr::read_volatile(table_ptr.add(indices[level])) };
+
+        if !bits::VALID.bit(entry) {
+            return Some(UserAccessFault::NotPresent);
+        }
+
+        // Check for block descriptor (L1/L2)
+        if !bits::TABLE.bit(entry) {
+            // Block descriptor
+            if !bits::USER.bit(entry) {
+                return Some(UserAccessFault::NotUserAccessible);
+            }
+            if matches!(mode, UserAccessMode::Write) && bits::READ_ONLY.bit(entry) {
+                return Some(UserAccessFault::NotWritable);
+            }
+            return None;
+        }
+
+        table_phys = bits::get_phys_addr(entry);
+    }
+
+    // Final level (L3)
+    let table_ptr = (table_phys + hhdm) as *const u64;
+    let entry = unsafe { core::ptr::read_volatile(table_ptr.add(indices[3])) };
+
+    if !bits::VALID.bit(entry) {
+        return Some(UserAccessFault::NotPresent);
+    }
+
+    if !bits::USER.bit(entry) {
+        return Some(UserAccessFault::NotUserAccessible);
+    }
+    if matches!(mode, UserAccessMode::Write) && bits::READ_ONLY.bit(entry) {
+        return Some(UserAccessFault::NotWritable);
+    }
+
+    None
+}
+
+#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
 fn user_page_access_fault(_addr: usize, _mode: UserAccessMode) -> Option<UserAccessFault> {
     if _addr >= USER_SPACE_TOP_EXCLUSIVE {
         return Some(UserAccessFault::NotUserAccessible);
@@ -269,5 +325,26 @@ pub(crate) fn require_control_plane_access(resource: u64) -> Result<(), usize> {
         Ok(())
     } else {
         Err(permission_denied_arg())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn test_user_range_valid_basic() {
+        // Mock range validation
+        let check = |page, _mode| {
+             if page >= 0x1000 && page < 0x2000 {
+                 true
+             } else {
+                 false
+             }
+        };
+        assert!(user_access_range_valid_with(0x1000, 512, UserAccessMode::Read, check));
+        assert!(user_access_range_valid_with(0x1800, 1024, UserAccessMode::Read, check));
+        assert!(!user_access_range_valid_with(0x2000, 512, UserAccessMode::Read, check));
+        assert!(!user_access_range_valid_with(0x0000, 512, UserAccessMode::Read, check));
     }
 }

@@ -6,6 +6,7 @@ pub mod acpi;
 pub mod cpu;
 pub mod exception;
 pub mod gic;
+pub mod paging;
 pub mod pci;
 pub mod pl011;
 pub mod platform;
@@ -25,6 +26,7 @@ impl HAL {
 
         use crate::interfaces::task::CpuId;
         use crate::kernel::cpu_local::CpuLocal;
+        use crate::kernel::sync::IrqSafeMutex;
         use alloc::boxed::Box;
 
         let bsp_local = Box::leak(Box::new(CpuLocal {
@@ -36,7 +38,7 @@ impl HAL {
             current_task: core::sync::atomic::AtomicUsize::new(0),
             heartbeat_tick: core::sync::atomic::AtomicU64::new(0),
             idle_stack_pointer: core::sync::atomic::AtomicUsize::new(0),
-            scheduler: crate::kernel::sync::IrqSafeMutex::new(
+            scheduler: IrqSafeMutex::new(
                 crate::modules::selector::ActiveScheduler::new(),
             ),
         }));
@@ -48,26 +50,33 @@ impl HAL {
         smp::register_cpu(bsp_local);
     }
 
+    pub fn init_interrupts() {
+        unsafe {
+            gic::GIC.lock().init();
+        }
+    }
+
+    pub fn init_timer() {
+        timer::init();
+    }
+
     /// Bring-up hook for secondary cores on AArch64.
     pub fn init_smp() {
         smp::init();
-        let st = smp::boot_stats();
-        crate::klog_info!(
-            "AArch64 SMP/PSCI: hvc={}/{} smc={}/{} failures={} timeouts={} aps_ready={}",
-            st.hvc_success,
-            st.hvc_attempts,
-            st.smc_success,
-            st.smc_attempts,
-            st.boot_failures,
-            st.boot_timeouts,
-            st.aps_ready
-        );
     }
 
     pub unsafe fn context_switch(prev: *mut usize, next: usize) {
         unsafe {
             context_switch(prev, next);
         }
+    }
+
+    pub fn read_per_cpu_base() -> usize {
+        let ptr: u64;
+        unsafe {
+            core::arch::asm!("mrs {}, tpidr_el1", out(reg) ptr);
+        }
+        ptr as usize
     }
 }
 
@@ -113,6 +122,36 @@ impl HardwareAbstraction for HAL {
         unsafe {
             core::arch::asm!("wfi", options(nomem, nostack));
         }
+    }
+
+    fn early_init() {
+        HAL::early_init();
+    }
+
+    fn init_interrupts() {
+        HAL::init_interrupts();
+    }
+
+    fn init_timer() {
+        HAL::init_timer();
+    }
+
+    fn init_smp() {
+        HAL::init_smp();
+    }
+
+    fn init_cpu_local(ptr: usize) {
+        unsafe {
+            core::arch::asm!("msr tpidr_el1, {}", in(reg) ptr);
+        }
+    }
+
+    fn set_performance_profile(_profile: crate::interfaces::PerformanceProfile) {
+        // ARM frequency scaling is SoC-specific.
+    }
+
+    fn serial_write_raw(s: &str) {
+        pl011::write_raw(s);
     }
 }
 

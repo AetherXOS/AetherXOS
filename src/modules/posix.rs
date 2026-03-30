@@ -1,55 +1,40 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PosixErrno {
-    Again,
-    BadFileDescriptor,
-    Invalid,
-    NotConnected,
-    AddrInUse,
-    TimedOut,
-    NotSupported,
-    PermissionDenied,
-    NoEntry,
-    AlreadyExists,
-    NoSys,
-    TooManyFiles,
-    Other,
+macro_rules! define_errno {
+    ($($variant:ident = $const:path,)*) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub enum PosixErrno {
+            $($variant,)*
+            Other,
+        }
+        impl PosixErrno {
+            pub const fn code(self) -> i32 {
+                match self {
+                    $(Self::$variant => $const,)*
+                    Self::Other => crate::modules::posix_consts::errno::EIO,
+                }
+            }
+            pub const fn from_code(code: i32) -> Self {
+                match code {
+                    $($const => Self::$variant,)*
+                    _ => Self::Other,
+                }
+            }
+        }
+    }
 }
 
-impl PosixErrno {
-    pub const fn code(self) -> i32 {
-        match self {
-            Self::Again => crate::modules::posix_consts::errno::EAGAIN,
-            Self::BadFileDescriptor => crate::modules::posix_consts::errno::EBADF,
-            Self::Invalid => crate::modules::posix_consts::errno::EINVAL,
-            Self::NotConnected => crate::modules::posix_consts::errno::ENOTCONN,
-            Self::AddrInUse => crate::modules::posix_consts::errno::EADDRINUSE,
-            Self::TimedOut => crate::modules::posix_consts::errno::ETIMEDOUT,
-            Self::NotSupported => crate::modules::posix_consts::errno::EOPNOTSUPP,
-            Self::PermissionDenied => crate::modules::posix_consts::errno::EACCES,
-            Self::NoEntry => crate::modules::posix_consts::errno::ENOENT,
-            Self::AlreadyExists => crate::modules::posix_consts::errno::EEXIST,
-            Self::NoSys => crate::modules::posix_consts::errno::ENOSYS,
-            Self::TooManyFiles => crate::modules::posix_consts::errno::EMFILE,
-            Self::Other => crate::modules::posix_consts::errno::EIO,
-        }
-    }
-
-    pub const fn from_code(code: i32) -> Self {
-        match code {
-            crate::modules::posix_consts::errno::EAGAIN => Self::Again,
-            crate::modules::posix_consts::errno::EBADF => Self::BadFileDescriptor,
-            crate::modules::posix_consts::errno::EINVAL => Self::Invalid,
-            crate::modules::posix_consts::errno::ENOTCONN => Self::NotConnected,
-            crate::modules::posix_consts::errno::EADDRINUSE => Self::AddrInUse,
-            crate::modules::posix_consts::errno::ETIMEDOUT => Self::TimedOut,
-            crate::modules::posix_consts::errno::EOPNOTSUPP => Self::NotSupported,
-            crate::modules::posix_consts::errno::EACCES => Self::PermissionDenied,
-            crate::modules::posix_consts::errno::ENOENT => Self::NoEntry,
-            crate::modules::posix_consts::errno::EEXIST => Self::AlreadyExists,
-            crate::modules::posix_consts::errno::ENOSYS => Self::NoSys,
-            _ => Self::Other,
-        }
-    }
+define_errno! {
+    Again = crate::modules::posix_consts::errno::EAGAIN,
+    BadFileDescriptor = crate::modules::posix_consts::errno::EBADF,
+    Invalid = crate::modules::posix_consts::errno::EINVAL,
+    NotConnected = crate::modules::posix_consts::errno::ENOTCONN,
+    AddrInUse = crate::modules::posix_consts::errno::EADDRINUSE,
+    TimedOut = crate::modules::posix_consts::errno::ETIMEDOUT,
+    NotSupported = crate::modules::posix_consts::errno::EOPNOTSUPP,
+    PermissionDenied = crate::modules::posix_consts::errno::EACCES,
+    NoEntry = crate::modules::posix_consts::errno::ENOENT,
+    AlreadyExists = crate::modules::posix_consts::errno::EEXIST,
+    NoSys = crate::modules::posix_consts::errno::ENOSYS,
+    TooManyFiles = crate::modules::posix_consts::errno::EMFILE,
 }
 
 #[cfg(feature = "posix_time")]

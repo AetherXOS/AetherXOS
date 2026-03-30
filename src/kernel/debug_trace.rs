@@ -9,36 +9,14 @@ const TRACE_FLAG_IS_DUMP: u8 = 2;
 const TRACE_FLAG_WARN: u8 = 4;
 const TRACE_FLAG_FAULT: u8 = 8;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum TraceCategory {
-    Core = 0,
-    Launch = 1,
-    Loader = 2,
-    Task = 3,
-    Memory = 4,
-    Scheduler = 5,
-    Fault = 6,
-}
-
-crate::impl_enum_u8_option_conversions!(TraceCategory {
-    Core,
-    Launch,
-    Loader,
-    Task,
-    Memory,
-    Scheduler,
-    Fault,
-});
-
-crate::impl_enum_str_conversions!(TraceCategory {
-    Core => "core",
-    Launch => "launch",
-    Loader => "loader",
-    Task => "task",
-    Memory => "memory",
-    Scheduler => "scheduler",
-    Fault => "fault",
+crate::define_enum!(pub enum TraceCategory : u8 {
+    Core = 0            => "core",
+    Launch = 1          => "launch",
+    Loader = 2          => "loader",
+    Task = 3            => "task",
+    Memory = 4          => "memory",
+    Scheduler = 5       => "scheduler",
+    Fault = 6           => "fault",
 });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

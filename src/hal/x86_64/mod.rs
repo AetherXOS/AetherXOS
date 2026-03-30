@@ -24,10 +24,12 @@ pub mod pic;
 pub mod port;
 pub mod serial;
 pub mod smp;
+pub mod paging;
 
 use core::mem::MaybeUninit;
 use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicBool, Ordering};
+use crate::kernel::bit_utils as bits;
 
 pub struct HAL;
 
@@ -155,9 +157,15 @@ impl HAL {
         serial::write_raw("[EARLY SERIAL] x86_64 post-syscall checkpoint returned\n");
     }
 
+    pub fn init_interrupts() {
+        // IDT is already initialized in early_init
+    }
+
+    pub fn init_timer() {
+        // Timer is often part of APIC initialization or separate pit/hpet
+    }
+
     pub fn init_smp() {
-        // 7. Initialize SMP (Boot other cores)
-        // This must be done AFTER Heap initialization
         smp::init();
     }
 
@@ -165,6 +173,11 @@ impl HAL {
         unsafe {
             context_switch(prev, next);
         }
+    }
+
+    pub fn read_per_cpu_base() -> usize {
+        use crate::interfaces::cpu::CpuRegisters;
+        cpu::X86CpuRegisters::read_per_cpu_base() as usize
     }
 }
 
@@ -212,6 +225,48 @@ impl HardwareAbstraction for HAL {
         unsafe {
             core::arch::asm!("hlt", options(nomem, nostack));
         }
+    }
+
+    fn early_init() {
+        // x86_64 early boot involves GDT and basic serial
+        unsafe {
+            gdt::bootstrap_gdt_tss().load();
+            serial::init();
+        }
+    }
+
+    fn init_interrupts() {
+        idt::init();
+    }
+
+    fn init_timer() {
+        apic::init();
+    }
+
+    fn init_smp() {
+        smp::init();
+    }
+
+    fn init_cpu_local(ptr: usize) {
+        use x86_64::registers::model_specific::GsBase;
+        use x86_64::VirtAddr;
+        GsBase::write(VirtAddr::new(ptr as u64));
+    }
+
+    fn set_performance_profile(profile: crate::interfaces::PerformanceProfile) {
+        use crate::interfaces::PerformanceProfile;
+        let ratio = match profile {
+            PerformanceProfile::HighPerformance => bits::perf::RATIO_HIGH,
+            PerformanceProfile::Balanced        => bits::perf::RATIO_BALANCED,
+            PerformanceProfile::PowerSaving     => bits::perf::RATIO_POWERSAVE,
+        };
+        unsafe {
+            cpu::write_msr(bits::perf::IA32_PERF_CTL, (ratio as u64) << 8);
+        }
+    }
+
+    fn serial_write_raw(s: &str) {
+        serial::write_raw(s);
     }
 }
 

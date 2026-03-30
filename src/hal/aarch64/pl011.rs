@@ -2,30 +2,8 @@ use crate::interfaces::SerialDevice;
 use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{AtomicU64, Ordering};
 
-// ── PL011 UART register offsets ───────────────────────────────────────────────
-const UARTDR: usize = 0x000; // Data register (TX+RX)
-const UARTFR: usize = 0x018; // Flag register
-const UARTIBRD: usize = 0x024; // Integer baud rate divisor
-const UARTFBRD: usize = 0x028; // Fractional baud rate divisor
-const UARTLCR_H: usize = 0x02C; // Line control
-const UARTCR: usize = 0x030; // Control register
-const UARTIMSC: usize = 0x038; // Interrupt mask
-const UARTICR: usize = 0x044; // Interrupt clear
+use crate::kernel::bit_utils::pl011 as bits;
 
-// Flag register bits
-const FR_TXFF: u32 = 1 << 5; // TX FIFO full
-const FR_RXFE: u32 = 1 << 4; // RX FIFO empty
-const FR_BUSY: u32 = 1 << 3; // UART busy
-const FR_TXFE: u32 = 1 << 7; // TX FIFO empty
-
-// Control register bits
-const CR_UARTEN: u32 = 1 << 0; // UART enable
-const CR_TXE: u32 = 1 << 8; // TX enable
-const CR_RXE: u32 = 1 << 9; // RX enable
-
-// Line control bits
-const LCR_FEN: u32 = 1 << 4; // FIFO enable
-const LCR_WLEN8: u32 = 0b11 << 5; // 8-bit word length
 
 // ── Telemetry ──────────────────────────────────────────────────────────────────
 pub static SERIAL_TX_BYTES: AtomicU64 = AtomicU64::new(0);
@@ -37,7 +15,6 @@ pub static SERIAL_RX_DROPS: AtomicU64 = AtomicU64::new(0);
 
 const SERIAL_TX_MAX_SPINS: usize = 1_000_000;
 const SERIAL_INIT_WAIT_MAX_SPINS: usize = 1_000_000;
-const UART_RX_INTERRUPT_MASK: u32 = 1 << 4;
 const UART_CLEAR_ALL_INTERRUPTS: u32 = 0x7FF;
 const UART_MIN_CLOCK_DIVIDER_BASE: u32 = 16;
 
@@ -89,7 +66,7 @@ impl Pl011Uart {
     fn write_byte_with_timeout(&self, data: u8) -> bool {
         let mut spins = 0usize;
         unsafe {
-            while (self.read_reg(UARTFR) & FR_TXFF) != 0 {
+            while bits::FR_TXFF.bit(self.read_reg(bits::::UARTFR)) {
                 if spins >= SERIAL_TX_MAX_SPINS {
                     SERIAL_TX_TIMEOUTS.fetch_add(1, Ordering::Relaxed);
                     SERIAL_TX_DROPS.fetch_add(1, Ordering::Relaxed);
@@ -99,7 +76,7 @@ impl Pl011Uart {
                 spins = spins.saturating_add(1);
                 core::hint::spin_loop();
             }
-            self.write_reg(UARTDR, data as u32);
+            self.write_reg(bits::::UARTDR, data as u32);
         }
         SERIAL_TX_SPIN_LOOPS.fetch_add(spins as u64, Ordering::Relaxed);
         SERIAL_TX_BYTES.fetch_add(1, Ordering::Relaxed);
@@ -109,10 +86,10 @@ impl Pl011Uart {
     /// Non-blocking RX byte read.  Returns `None` if RX FIFO is empty.
     pub fn recv_byte(&self) -> Option<u8> {
         unsafe {
-            if (self.read_reg(UARTFR) & FR_RXFE) != 0 {
+            if bits::FR_RXFE.bit(self.read_reg(bits::UARTFR)) {
                 return None;
             }
-            let data = self.read_reg(UARTDR) as u8;
+            let data = self.read_reg(bits::UARTDR) as u8;
             SERIAL_RX_BYTES.fetch_add(1, Ordering::Relaxed);
             Some(data)
         }
@@ -137,7 +114,8 @@ impl Pl011Uart {
     pub fn flush(&self) {
         let mut spins = 0usize;
         unsafe {
-            while (self.read_reg(UARTFR) & (FR_BUSY | FR_TXFE)) != FR_TXFE {
+        unsafe {
+            while (self.read_reg(bits::UARTFR) & (bits::FR_BUSY.mask << bits::FR_BUSY.shift | bits::FR_TXFE.mask << bits::FR_TXFE.shift)) != (bits::FR_TXFE.mask << bits::FR_TXFE.shift) {
                 spins = spins.saturating_add(1);
                 if spins > SERIAL_TX_MAX_SPINS {
                     break;
@@ -150,21 +128,28 @@ impl Pl011Uart {
     /// Clear all pending interrupts.
     pub fn clear_interrupts(&self) {
         unsafe {
-            self.write_reg(UARTICR, UART_CLEAR_ALL_INTERRUPTS);
+            self.write_reg(bits::UARTICR, UART_CLEAR_ALL_INTERRUPTS);
         }
     }
 
-    /// Enable or disable the RX interrupt (UART_IMSC bit 4 = RXIM).
-    pub fn set_rx_interrupt(&self, enable: bool) {
+    /// Enable or disable the RX/TX interrupts.
+    pub fn set_interrupt_mask(&self, rx: bool, tx: bool) {
         unsafe {
-            let mut mask = self.read_reg(UARTIMSC);
-            if enable {
-                mask |= UART_RX_INTERRUPT_MASK;
-            } else {
-                mask &= !UART_RX_INTERRUPT_MASK;
-            }
-            self.write_reg(UARTIMSC, mask);
+            let mut mask = 0u32;
+            mask = bits::INT_RX.set_bit(mask, rx);
+            mask = bits::INT_TX.set_bit(mask, tx);
+            self.write_reg(bits::UARTIMSC, mask);
         }
+    }
+
+    /// Read the masked interrupt status (bits::UARTMIS).
+    pub fn masked_interrupt_status(&self) -> u32 {
+        unsafe { self.read_reg(bits::UARTMIS) }
+    }
+
+    /// Check if RX interrupt is pending.
+    pub fn is_rx_interrupt_pending(&self) -> bool {
+        bits::INT_RX.bit(self.masked_interrupt_status())
     }
 }
 
@@ -176,11 +161,11 @@ impl SerialDevice for Pl011Uart {
         }
         unsafe {
             // 1. Disable UART while reconfiguring.
-            self.write_reg(UARTCR, 0);
+            self.write_reg(bits::UARTCR, 0);
 
             // 2. Wait for any in-progress transmission to finish.
             let mut spin = 0usize;
-            while (self.read_reg(UARTFR) & FR_BUSY) != 0 && spin < SERIAL_INIT_WAIT_MAX_SPINS {
+            while bits::FR_BUSY.bit(self.read_reg(bits::UARTFR)) && spin < SERIAL_INIT_WAIT_MAX_SPINS {
                 spin += 1;
                 core::hint::spin_loop();
             }
@@ -197,14 +182,17 @@ impl SerialDevice for Pl011Uart {
             let frac_x16 = self.clock_hz % (16 * self.baud);
             let fbrd = (frac_x16 * 4 + self.baud / 2) / self.baud;
 
-            self.write_reg(UARTIBRD, ibrd);
-            self.write_reg(UARTFBRD, fbrd);
+            self.write_reg(bits::UARTIBRD, ibrd);
+            self.write_reg(bits::UARTFBRD, fbrd);
 
             // 5. 8-bit word length, no parity, 1 stop bit, FIFO enabled.
-            self.write_reg(UARTLCR_H, LCR_WLEN8 | LCR_FEN);
+            self.write_reg(bits::UARTLCR_H, bits::LCR_WLEN8.write(0, 0x3) | bits::LCR_FEN.set_bit(0, true));
 
             // 6. Enable UART, TX, RX.
-            self.write_reg(UARTCR, CR_UARTEN | CR_TXE | CR_RXE);
+            let cr = bits::CR_UARTEN.set_bit(0, true) 
+                   | bits::CR_TXE.set_bit(0, true)
+                   | bits::CR_RXE.set_bit(0, true);
+            self.write_reg(bits::UARTCR, cr);
         }
     }
 

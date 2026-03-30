@@ -24,6 +24,7 @@ use spin::Mutex;
 
 #[repr(C, packed)]
 #[cfg(not(feature = "linux_compat"))]
+#[derive(Clone, Copy, Default)]
 #[allow(dead_code)]
 struct LinuxEpollEventCompat {
     events: u32,
@@ -32,6 +33,7 @@ struct LinuxEpollEventCompat {
 
 #[repr(C)]
 #[cfg(not(feature = "linux_compat"))]
+#[derive(Clone, Copy, Default)]
 #[allow(dead_code)]
 struct LinuxTimespecCompat {
     tv_sec: i64,
@@ -207,7 +209,7 @@ fn sanitize_wait_sigmask(mask: u64) -> u64 {
 fn collect_epoll_rows(
     epfd: u32,
     maxevents: usize,
-    events: &[crate::modules::libnet::PosixEpollEvent],
+    events: &[crate::modules::posix::net::EpollEvent],
 ) -> alloc::vec::Vec<(u32, u64)> {
     let mut rows = alloc::vec::Vec::with_capacity(events.len());
     for ev in events.iter() {

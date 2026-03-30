@@ -164,8 +164,9 @@ pub extern "C" fn handle_sync(frame: &mut ExceptionFrame) {
         core::arch::asm!("mrs {}, far_el1", out(reg) far);
     }
 
-    let ec = (esr >> 26) & 0x3F;
-    let iss = esr & 0x1FFFFFF;
+    use crate::kernel::bit_utils::aarch64 as esr_bits;
+    let ec = esr_bits::ESR_EC.read(esr as u32) as u64;
+    let iss = esr_bits::ESR_ISS.read(esr as u32) as u64;
 
     let ec_str = match ec {
         ESR_EC_UNKNOWN => "Unknown Reason",
@@ -214,8 +215,12 @@ pub extern "C" fn handle_sync(frame: &mut ExceptionFrame) {
         esr,
     );
 
-    if ec == ESR_EC_DABORT_CURRENT_EL || ec == ESR_EC_DABORT_LOWER_EL {
+    if ec == esr_bits::EC_DABORT_CUR || ec == esr_bits::EC_DABORT_LOWER {
         if is_lower_el_exception(frame) {
+            #[cfg(feature = "paging_enable")]
+            if crate::kernel::vmm::handle_user_page_fault(far).is_ok() {
+                return;
+            }
             USER_ABORT_EXCEPTIONS.fetch_add(1, Ordering::Relaxed);
             handle_user_fault("data-abort", ec, far, frame.elr, false);
         }
@@ -227,8 +232,12 @@ pub extern "C" fn handle_sync(frame: &mut ExceptionFrame) {
             frame.elr,
             AARCH64_EXCEPTION_PANIC_ON_KERNEL_SYNC,
         );
-    } else if ec == ESR_EC_IABORT_CURRENT_EL || ec == ESR_EC_IABORT_LOWER_EL {
+    } else if ec == esr_bits::EC_IABORT_CUR || ec == esr_bits::EC_IABORT_LOWER {
         if is_lower_el_exception(frame) {
+            #[cfg(feature = "paging_enable")]
+            if crate::kernel::vmm::handle_user_page_fault(far).is_ok() {
+                return;
+            }
             USER_ABORT_EXCEPTIONS.fetch_add(1, Ordering::Relaxed);
             handle_user_fault("instruction-abort", ec, far, frame.elr, false);
         }
@@ -240,7 +249,7 @@ pub extern "C" fn handle_sync(frame: &mut ExceptionFrame) {
             frame.elr,
             AARCH64_EXCEPTION_PANIC_ON_KERNEL_SYNC,
         );
-    } else if ec == ESR_EC_SVC64 {
+    } else if ec == esr_bits::EC_SVC64 {
         crate::klog_warn!("SVC call: {}", iss);
         frame.elr += 4; // Skip SVC instruction
     } else {
@@ -347,6 +356,19 @@ pub extern "C" fn handle_irq(_frame: &mut ExceptionFrame) {
             crate::hal::aarch64::timer::GenericTimer::set_timer(
                 crate::hal::aarch64::timer::GenericTimer::frequency() / 1000,
             );
+        }
+
+        // UART interrupt (QEMU virt UART SPI 1 = 32 + 1 = 33)
+        if irq_id == 33 {
+            let mut serial = crate::hal::aarch64::serial::SERIAL1.lock();
+            let mut rx_buf = [0u8; 32];
+            let n = serial.recv_burst(&mut rx_buf);
+            if n > 0 {
+                if let Some(tty) = crate::kernel::tty::GLOBAL_TTY_REGISTRY.lock().get(crate::kernel::tty::TtyId::new(0)) {
+                    tty.push_input(&rx_buf[..n]);
+                }
+            }
+            serial.clear_interrupts();
         }
 
         // Send EOI
