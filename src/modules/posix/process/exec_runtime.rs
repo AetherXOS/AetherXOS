@@ -41,9 +41,11 @@ fn validate_interp_for_image(image: &[u8], fs_id: u32) -> Result<(), PosixErrno>
         if !interp_path.starts_with('/') {
             return Err(PosixErrno::Invalid);
         }
+        crate::klog_info!("exec: detected PT_INTERP '{}', validating interpreter", interp_path);
         let interp_image = read_exec_image_from_fs(fs_id, &interp_path)?;
         crate::kernel::module_loader::inspect_elf_image(&interp_image)
             .map_err(|_| PosixErrno::Invalid)?;
+        crate::klog_info!("exec: PT_INTERP '{}' validated", interp_path);
     }
     Ok(())
 }
@@ -52,6 +54,22 @@ fn validate_interp_for_image(image: &[u8], fs_id: u32) -> Result<(), PosixErrno>
 fn read_exec_image_with_validated_interp(path: &str) -> Result<alloc::vec::Vec<u8>, PosixErrno> {
     let fs_id = (*EXEC_FS_ID.lock()).ok_or(PosixErrno::BadFileDescriptor)?;
     let image = read_exec_image_from_fs(fs_id, path)?;
+    // If the image declares a PT_INTERP, prefer to load the interpreter
+    // as the initial process image (kernel hands off to userland ld.so).
+    if let Ok(Some(interp_path)) = resolve_interp_path(&image) {
+        if !interp_path.starts_with('/') {
+            return Err(PosixErrno::Invalid);
+        }
+        crate::klog_info!("exec: PT_INTERP '{}' detected, loading interpreter first", interp_path);
+        // Read and validate the interpreter image from the same fs.
+        let interp_image = read_exec_image_from_fs(fs_id, &interp_path)?;
+        crate::kernel::module_loader::inspect_elf_image(&interp_image)
+            .map_err(|_| PosixErrno::Invalid)?;
+        crate::klog_info!("exec: PT_INTERP '{}' validated; interpreter will be started first", interp_path);
+        return Ok(interp_image);
+    }
+
+    // No interpreter present — validate/return the original image.
     validate_interp_for_image(&image, fs_id)?;
     Ok(image)
 }

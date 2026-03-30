@@ -1,6 +1,7 @@
 use super::helpers::{
-    estimate_image_window_bytes, is_supported_elf, read_dynstr_entry, split_search_paths,
-    DEFAULT_DYNAMIC_LINKER_IMAGE_WINDOW_BYTES, ELF64_SYM_SIZE_BYTES, MAX_HEURISTIC_SYMBOL_COUNT,
+    estimate_image_window_bytes, is_supported_elf, read_dynstr_entry, resolve_runtime_search_paths,
+    DEFAULT_DYNAMIC_LINKER_IMAGE_WINDOW_BYTES, ELF64_SYM_SIZE_BYTES,
+    MAX_HEURISTIC_SYMBOL_COUNT,
 };
 use super::{elf_dynamic, so_loader, symbol, ElfFile, Type};
 
@@ -65,18 +66,21 @@ pub fn dynamic_linker_entry(entry_addr: u64, _auxv: &[usize]) {
         }
     }
 
-    let mut search_paths = alloc::vec::Vec::new();
+    let mut runpath_str: Option<alloc::string::String> = None;
+    let mut rpath_str: Option<alloc::string::String> = None;
     if let Some(strtab_off) = strtab_file_off {
         if let Some(runpath_off) = dynamic.dt_runpath {
             if let Some(runpath) = read_dynstr_entry(image, strtab_off, runpath_off) {
-                search_paths.extend(split_search_paths(&runpath));
+                runpath_str = Some(runpath);
             }
-        } else if let Some(rpath_off) = dynamic.dt_rpath {
+        }
+        if let Some(rpath_off) = dynamic.dt_rpath {
             if let Some(rpath) = read_dynstr_entry(image, strtab_off, rpath_off) {
-                search_paths.extend(split_search_paths(&rpath));
+                rpath_str = Some(rpath);
             }
         }
     }
+    let search_paths = resolve_runtime_search_paths(runpath_str.as_deref(), rpath_str.as_deref());
 
     let mut loader = so_loader::SharedObjectLoader::with_search_paths(&search_paths);
     loader.load_needed(&needed);

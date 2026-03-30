@@ -14,7 +14,10 @@ const CPIO_MAGIC: &str = "070701";
 const FORCE_EXECUTABLE: &[&str] = &[
     "init",
     "usr/bin/hyper_init",
+    "usr/bin/hypercore-diskfs-setup",
+    "usr/bin/hypercore-pivot-root",
     "usr/bin/hypercore-apt-seed",
+    "usr/bin/hypercore-userspace-abi-check",
     "usr/lib/hypercore/init",
     "usr/lib/hypercore/init.elf",
     "usr/lib/hypercore/probe.elf",

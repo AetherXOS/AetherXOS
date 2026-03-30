@@ -25,7 +25,7 @@ fn convert_flags(flags: u32) -> X86Flags {
 
 impl PageManager {
     pub unsafe fn new(physical_memory_offset: VirtAddr, level_4_table: &'static mut PageTable) -> Self {
-        let mapper = OffsetPageTable::new(level_4_table, physical_memory_offset);
+        let mapper = unsafe { OffsetPageTable::new(level_4_table, physical_memory_offset) };
         Self { mapper, physical_memory_offset }
     }
 

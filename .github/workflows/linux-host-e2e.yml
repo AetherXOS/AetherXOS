@@ -1,0 +1,46 @@
+name: Linux-host E2E Proof
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+
+jobs:
+  linux_host_e2e:
+    name: Linux-host e2e (apt-iso + qemu + strict)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install required packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 xorriso pkg-config libssl-dev
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Build apt-iso
+        run: cargo run -p xtask -- build apt-iso
+
+      - name: QEMU smoke
+        run: cargo run -p xtask -- ops qemu smoke
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Strict linux-app-compat test
+        run: cargo run -p xtask -- test linux-app-compat --strict --ci
+
+      - name: Upload linux-host e2e proof artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux_host_e2e_proof
+          path: reports/linux_host_e2e_proof/**

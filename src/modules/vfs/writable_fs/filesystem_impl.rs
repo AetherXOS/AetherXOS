@@ -30,9 +30,31 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
             }));
         }
 
-        // Try base FS ÔÇö if found, copy-up for potential future writes
+        // Try base FS - if found, eagerly copy-up so subsequent writes
+        // go to the overlay rather than the read-only base. This keeps
+        // semantics consistent even if callers don't explicitly request
+        // a write-only open.
         match self.base.open(path, tid) {
-            Ok(f) => Ok(f), // Read-only access through base is fine
+            Ok(_f) => {
+                // Perform copy-up into overlay and return an overlay file handle.
+                let ino = self.copy_up(path, tid)?;
+                let inode = GLOBAL_INODE_CACHE
+                    .get(ino)
+                    .ok_or("internal: overlay ino not in cache after copy-up")?;
+                let size = self
+                    .entries
+                    .lock()
+                    .get(&Self::normalize(path))
+                    .map(|e| e.size)
+                    .unwrap_or(0);
+                return Ok(Box::new(OverlayFile {
+                    ino,
+                    inode,
+                    cursor: 0,
+                    size,
+                    mount_id: self.mount_id,
+                }));
+            }
             Err(e) => Err(e),
         }
     }

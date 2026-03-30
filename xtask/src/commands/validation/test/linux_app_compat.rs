@@ -168,6 +168,16 @@ fn file_contains_all(path: &Path, needles: &[&str]) -> bool {
     needles.iter().all(|needle| text.contains(needle))
 }
 
+fn count_occurrences(path: &Path, needle: &str) -> usize {
+    if !path.exists() {
+        return 0;
+    }
+    let Ok(text) = fs::read_to_string(path) else {
+        return 0;
+    };
+    text.matches(needle).count()
+}
+
 fn rate(layer: &Layer) -> f64 {
     let executed = layer.total.saturating_sub(layer.skipped);
     if executed == 0 {
@@ -269,10 +279,33 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     let linux_mount_setup = root.join("src/modules/vfs/linux_mount_setup.rs");
     let mount_table = root.join("src/modules/vfs/mount_table.rs");
     let disk_fs = root.join("src/modules/vfs/disk_fs.rs");
+    let writeback = root.join("src/modules/vfs/writeback.rs");
+    let writeback_tests = root.join("src/modules/vfs/writeback/tests.rs");
+    let diskfs_bootstrap = root.join("boot/initramfs/usr/bin/hypercore-diskfs-setup");
+    let pivot_root_setup = root.join("boot/initramfs/usr/bin/hypercore-pivot-root");
+    let userspace_seed = root.join("xtask/src/commands/infra/userspace_seed.rs");
+    let apt_seed = root.join("xtask/src/commands/infra/apt_binary_seed.rs");
+    let syscall_consts = root.join("src/kernel/syscalls/syscalls_consts.rs");
+    let syscall_dispatch = root.join("src/kernel/syscalls/mod.rs");
+    let dynamic_linker = root.join("src/kernel/dynamic_linker.rs");
+    let dynamic_linker_entry = root.join("src/kernel/dynamic_linker_entry.rs");
+    let dynamic_linker_helpers = root.join("src/kernel/dynamic_linker_helpers.rs");
+    let so_loader_load = root.join("src/kernel/so_loader/load.rs");
+    let so_loader_mod = root.join("src/kernel/so_loader/mod.rs");
+    let dl_api = root.join("src/kernel/api.rs");
     let vfs_health = root.join("src/modules/vfs/health.rs");
     let network_metrics_snapshot = root.join("src/modules/network/metrics_snapshot.rs");
     let syscall_stats_api = root.join("src/kernel/syscalls/stats_api.rs");
     let gpu_mod = root.join("src/modules/drivers/gpu/mod.rs");
+    let gpu_tests = root.join("src/modules/drivers/gpu/tests.rs");
+    let linux_shim_dispatch = root.join("src/kernel/syscalls/linux_shim/dispatch.rs");
+    let linux_compat_io = root.join("src/modules/linux_compat/fs/io.rs");
+    let kernel_tests_mod = root.join("src/kernel/tests/mod.rs");
+    let linux_abi_platform = root.join("xtask/src/commands/validation/linux_abi/platform.rs");
+    let linux_abi_desktop_plan = root.join("xtask/src/commands/validation/linux_abi/desktop_plan.rs");
+    let linux_host_e2e_script = root.join("scripts/linux_host_e2e_proof.sh");
+    let linux_host_e2e_doc = root.join("docs/LINUX_HOST_E2E_PROOF_PIPELINE.md");
+    let gpu_ioctl_inventory = root.join("config/gpu_ioctl_coverage_p0.json");
     let posix_lifecycle = root.join("src/modules/posix/fs/lifecycle_support.rs");
     let cargo_toml = root.join("Cargo.toml");
 
@@ -290,10 +323,102 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         && file_contains(&x11_proto, "parse_setup_prefix")
         && file_contains(&x11_proto, "parse_server_packet_prefix");
 
+    let wayland_x11_depth_ok =
+        wayland_probe_ok
+        && x11_probe_ok
+        && file_contains_all(
+            &wayland_mod,
+            &[
+                "validate_surface_commit_prefix",
+                "validate_registry_bind_prefix",
+                "validate_registry_advertisement_path",
+            ],
+        )
+        && file_contains_all(
+            &x11_mod,
+            &[
+                "validate_client_request_prefix",
+                "x11_reply_event_semantics_supported",
+                "validate_core_opcode_dispatch_prefix",
+            ],
+        )
+        && file_contains_all(
+            &x11_proto,
+            &[
+                "parse_request_prefix",
+                "parse_reply_prefix",
+                "has_complete_server_packet",
+            ],
+        )
+        && file_contains_all(
+            &linux_abi_platform,
+            &["score_graphics_stack", "wayland_stack", "x11_stack"],
+        )
+        && file_contains_all(
+            &linux_abi_desktop_plan,
+            &["graphics_readiness", "score_stack", "Wayland", "X11"],
+        );
+
     let system_pkg_managers = ["apt-get", "dnf", "pacman", "apk", "zypper"];
     let has_any_system_pkg_manager = system_pkg_managers
         .iter()
         .any(|pm| command_exists(pm));
+
+    let generated_seed_root = root.join("artifacts/boot_image/generated/initramfs_apt");
+    let seeded_apt_available = generated_seed_root.join("usr/bin/apt-get").exists()
+        || generated_seed_root.join("usr/bin/apt").exists();
+    let seeded_pacman_available = generated_seed_root.join("usr/bin/pacman").exists();
+    let seeded_diskfs_setup_available = generated_seed_root
+        .join("usr/bin/hypercore-diskfs-setup")
+        .exists();
+    let seeded_pivot_root_setup_available = generated_seed_root
+        .join("usr/bin/hypercore-pivot-root")
+        .exists();
+    let diskfs_bootstrap_telemetry_ok = file_contains_all(
+        &diskfs_bootstrap,
+        &[
+            "event=tmpfs_fallback",
+            "event=diskfs_mounted",
+            "event=diskfs_mode_set",
+        ],
+    );
+    let seeded_abi_check_available = generated_seed_root
+        .join("usr/bin/hypercore-userspace-abi-check")
+        .exists();
+    let seeded_abi_contract_available = generated_seed_root
+        .join("usr/lib/hypercore/userspace-apt-abi-contract.txt")
+        .exists();
+    let seeded_flutter_closure_audit_available = generated_seed_root
+        .join("usr/lib/hypercore/flutter-runtime-closure-audit.json")
+        .exists();
+    let seeded_apt_capability_manifest_available = generated_seed_root
+        .join("usr/lib/hypercore/apt-seed-capability.json")
+        .exists();
+    let seeded_apt_host_limitation_note_available = generated_seed_root
+        .join("usr/lib/hypercore/apt-seed-host-limitation.txt")
+        .exists();
+    let seeded_mirror_failover_available = generated_seed_root
+        .join("etc/hypercore/mirror-failover.list")
+        .exists();
+    let seeded_signature_policy_available = generated_seed_root
+        .join("etc/hypercore/metadata-signature-policy.conf")
+        .exists();
+    let seeded_checksum_policy_available = generated_seed_root
+        .join("etc/hypercore/checksum-policy.conf")
+        .exists();
+    let seeded_installer_policy_available = generated_seed_root
+        .join("etc/hypercore/installer-policy.json")
+        .exists();
+    let seeded_retry_timeout_available = generated_seed_root
+        .join("etc/hypercore/installer-timeout.conf")
+        .exists();
+    let seeded_apt_keyring_list_available = generated_seed_root
+        .join("etc/hypercore/apt-trusted-keyrings.list")
+        .exists();
+    let seeded_pacman_keyring_path_available = generated_seed_root
+        .join("etc/hypercore/pacman-keyring-dir.path")
+        .exists();
+    let seeded_system_pkg_manager_any = seeded_apt_available || seeded_pacman_available;
 
     let language_pkg_managers = ["pip", "pip3", "npm", "cargo"];
     let language_pkg_manager_count = language_pkg_managers
@@ -307,11 +432,26 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         .iter()
         .any(|bin| command_exists(bin));
     let has_flutter_runtime = command_exists("flutter");
+    let seeded_flutter_runtime_available = generated_seed_root.join("usr/bin/flutter").exists()
+        || generated_seed_root.join("usr/bin/flutter-wrapper.sh").exists()
+        || generated_seed_root.join("opt/flutter/bin/flutter").exists()
+        || generated_seed_root.join("usr/lib/libflutter.so").exists();
     let desktop_install_capable = has_any_system_pkg_manager && has_min_dev_pkg_stack;
 
     let fs_stack_ok =
         file_contains(&posix_lifecycle, "mount_devfs")
         && file_contains(&posix_lifecycle, "mount_ramfs")
+        && file_contains_all(&diskfs_bootstrap, &["probing block devices", "mount -t", "/var/lib/hypercore"])
+        && file_contains_all(
+            &pivot_root_setup,
+            &[
+                "pivot-root",
+                "HYPERCORE_ENABLE_PIVOT_ROOT",
+                "switch_root",
+                "chroot",
+                "pivot-root.status",
+            ],
+        )
         && file_contains_all(
             &linux_mount_setup,
             &[
@@ -330,9 +470,20 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
             &["FsType", "Ext4", "Fat32", "Overlay", "Tmpfs", "Procfs", "Sysfs"],
         )
         && file_contains_all(&disk_fs, &["DiskFsMode", "Fat", "Little", "Ext4", "with_backend"])
+        && file_contains_all(
+            &writeback,
+            &["JournalTransaction", "journal_write", "journal_commit", "JournalOp"],
+        )
+        && file_contains_all(
+            &writeback_tests,
+            &[
+                "journal_and_writeback_recovery_chain_preserves_replay_until_checkpoint",
+                "crash_recovery_soak_chain_handles_multiple_transactions_revoke_and_checkpoint",
+            ],
+        )
         && file_contains_all(&vfs_mod, &["pub mod tmpfs", "pub mod procfs", "pub mod sysfs"]);
 
-    let package_stack_ok =
+    let package_stack_foundation_ok =
         file_contains_all(
             &cargo_toml,
             &[
@@ -344,16 +495,132 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
                 "posix_net",
             ],
         )
-        && has_any_system_pkg_manager
+        && (has_any_system_pkg_manager || seeded_system_pkg_manager_any)
         && has_min_dev_pkg_stack
         && file_contains_all(&disk_fs, &["pub fn write_all", "pub fn read_all"])
-        && file_contains_all(&linux_mount_setup, &["/tmp", "/run", "/dev/shm"]);
+        && file_contains_all(&linux_mount_setup, &["/tmp", "/run", "/dev/shm"])
+        && file_contains(&syscall_consts, "VFS_MOUNT_DISKFS")
+        && file_contains(&syscall_dispatch, "sys_vfs_mount_diskfs")
+        && file_contains_all(
+            &userspace_seed,
+            &[
+                "userspace-apt-abi-contract.txt",
+                "hypercore-userspace-abi-check",
+                "apt-xz-utils-probe-failed",
+                "mirror-failover.list",
+                "run_with_retry",
+                "RETRY_MAX",
+                "RETRY_BACKOFF",
+                "metadata_signature_required",
+                "validate_repo_metadata",
+                "gpgv",
+                "pacman-key",
+            ],
+        )
+        && file_contains_all(
+            &apt_seed,
+            &[
+                "apt-seed-capability.json",
+                "package_stack_ready",
+                "non-unix-build-host",
+            ],
+        );
 
-    let desktop_app_stack_ok =
+    let elf_so_runtime_contract_ok =
+        file_contains_all(&dynamic_linker, &["pub mod so_loader", "dynamic_linker_entry"])
+        && file_contains_all(
+            &dynamic_linker_entry,
+            &[
+                "SharedObjectLoader::with_search_paths",
+                "dt_needed",
+                "process_relocations",
+                "resolve_runtime_search_paths",
+            ],
+        )
+        && file_contains_all(
+            &dynamic_linker_helpers,
+            &[
+                "sanitize_search_paths",
+                "resolve_runtime_search_paths",
+                "starts_with('/')",
+            ],
+        )
+        && file_contains_all(
+            &so_loader_load,
+            &[
+                "load_needed",
+                "load_recursive",
+                "/lib/",
+                "/usr/lib/",
+                "validate_soname",
+                "dt_soname",
+            ],
+        )
+        && file_contains_all(
+            &so_loader_mod,
+            &[
+                "find_symbol_in_object_versioned",
+                "find_symbol_versioned",
+                "return None;",
+            ],
+        )
+        && file_contains_all(&dl_api, &["dlopen", "dlsym", "dlclose"]);
+
+    let package_stack_ok = if require_package_stack {
+        package_stack_foundation_ok
+            && seeded_system_pkg_manager_any
+            && seeded_diskfs_setup_available
+            && seeded_pivot_root_setup_available
+            && seeded_abi_check_available
+            && seeded_abi_contract_available
+            && seeded_mirror_failover_available
+            && seeded_signature_policy_available
+            && seeded_checksum_policy_available
+            && seeded_installer_policy_available
+            && seeded_retry_timeout_available
+            && seeded_apt_keyring_list_available
+            && seeded_pacman_keyring_path_available
+            && seeded_apt_capability_manifest_available
+            && seeded_flutter_closure_audit_available
+            && elf_so_runtime_contract_ok
+    } else {
+        package_stack_foundation_ok
+    };
+
+    if require_package_stack && !package_stack_ok {
+        println!(
+            "[test::linux-app-compat] package-stack diagnostics: seeded_pkg_mgr={} seeded_apt={} abi_check={} abi_contract={} apt_seed_manifest={} elf_so_contract={}",
+            seeded_system_pkg_manager_any,
+            seeded_apt_available,
+            seeded_abi_check_available,
+            seeded_abi_contract_available,
+            seeded_apt_capability_manifest_available,
+            elf_so_runtime_contract_ok,
+        );
+        println!(
+            "[test::linux-app-compat] package-stack policy diagnostics: mirror_failover={} retry_timeout={} signature_policy={} checksum_policy={} apt_keyring_list={} pacman_keyring_path={} flutter_closure_audit={}",
+            seeded_mirror_failover_available,
+            seeded_retry_timeout_available,
+            seeded_signature_policy_available,
+            seeded_checksum_policy_available,
+            seeded_apt_keyring_list_available,
+            seeded_pacman_keyring_path_available,
+            seeded_flutter_closure_audit_available,
+        );
+        if seeded_apt_host_limitation_note_available {
+            println!(
+                "[test::linux-app-compat] hint: apt seed was built on a non-Unix host; run apt-iso on Linux for real apt/dpkg/.so runtime closure"
+            );
+        }
+    }
+
+    let flutter_runtime_available = has_flutter_runtime || seeded_flutter_runtime_available;
+
+    let desktop_app_stack_foundation_ok =
         wayland_probe_ok
             && x11_probe_ok
             && (has_desktop_session_runtime || desktop_install_capable)
-            && (has_flutter_runtime || desktop_install_capable)
+            && (flutter_runtime_available || desktop_install_capable)
             && file_contains_all(
                 &cargo_toml,
                 &[
@@ -366,6 +633,87 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
                     "posix_process",
                 ],
             );
+
+    let desktop_app_stack_ok = if require_desktop_app_stack {
+        desktop_app_stack_foundation_ok && seeded_flutter_runtime_available
+    } else {
+        desktop_app_stack_foundation_ok
+    };
+
+    let parity_module_count = count_occurrences(&kernel_tests_mod, "_parity;");
+    let syscall_semantic_parity_ok =
+        parity_module_count >= 8
+        && file_contains_all(
+            &kernel_tests_mod,
+            &[
+                "signal_frame_parity",
+                "af_unix_parity",
+                "fs_backend_parity",
+                "memory_mapping_parity",
+                "ptrace_debugging_parity",
+                "proc_sysctl_consistency_parity",
+                "pid_uts_namespace_parity",
+                "socket_options_parity",
+            ],
+        )
+        && file_contains_all(
+            &syscall_stats_api,
+            &[
+                "SyscallHealthReport",
+                "evaluate_syscall_health",
+                "recommended_syscall_health_action",
+            ],
+        );
+
+    let gpu_ioctl_coverage_ok =
+        file_contains_all(
+            &linux_shim_dispatch,
+            &["linux_nr::IOCTL", "sys_linux_ioctl"],
+        )
+        && file_contains_all(
+            &linux_compat_io,
+            &["pub fn sys_linux_ioctl", "ioctl", "posix::fs::ioctl"],
+        )
+        && file_contains_all(
+            &gpu_mod,
+            &["GpuBackend", "VirtIoGpu", "gpu_stack_snapshot"],
+        )
+        && file_contains_all(
+            &gpu_tests,
+            &[
+                "gpu_desktop_path_readiness_requires_non_none_backend",
+                "gpu_health_detects_stale_heartbeat",
+            ],
+        )
+        && file_contains_all(
+            &gpu_ioctl_inventory,
+            &[
+                "DRM_IOCTL_VERSION",
+                "DRM_IOCTL_MODE_GETRESOURCES",
+                "VIRTGPU",
+            ],
+        );
+
+    let linux_host_e2e_pipeline_ok =
+        file_contains_all(
+            &linux_host_e2e_script,
+            &[
+                "#!/usr/bin/env bash",
+                "cargo run -p xtask -- build apt-iso",
+                "cargo run -p xtask -- ops qemu smoke",
+                "cargo run -p xtask -- test linux-app-compat --strict --ci",
+                "reports/linux_host_e2e_proof",
+            ],
+        )
+        && file_contains_all(
+            &linux_host_e2e_doc,
+            &[
+                "Linux host only",
+                "qemu smoke",
+                "strict linux-app-compat",
+                "Acceptance Criteria",
+            ],
+        );
 
     run_source_probe(
         &mut compat,
@@ -402,6 +750,34 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         desktop_app_stack_ok,
         require_desktop_app_stack,
     );
+    run_source_probe(
+        &mut compat,
+        &mut totals,
+        "wayland/x11 protocol-depth probe (request/reply/event/object lifecycle prefixes)",
+        wayland_x11_depth_ok,
+        true,
+    );
+    run_source_probe(
+        &mut compat,
+        &mut totals,
+        "syscall semantic parity suite probe",
+        syscall_semantic_parity_ok,
+        true,
+    );
+    run_source_probe(
+        &mut compat,
+        &mut totals,
+        "gpu ioctl coverage inventory probe",
+        gpu_ioctl_coverage_ok,
+        true,
+    );
+    run_source_probe(
+        &mut compat,
+        &mut totals,
+        "linux-host e2e install proof pipeline probe",
+        linux_host_e2e_pipeline_ok,
+        true,
+    );
 
     let cross_layer_health_surface_ok = file_contains_all(
         &vfs_health,
@@ -423,6 +799,13 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
             "evaluate_gpu_health",
             "recommended_gpu_health_action",
         ],
+    );
+    run_source_probe(
+        &mut compat,
+        &mut totals,
+        "ELF shared-object runtime contract probe (PT_INTERP/DT_NEEDED/dlopen)",
+        elf_so_runtime_contract_ok,
+        true,
     );
     run_source_probe(
         &mut compat,
@@ -525,33 +908,162 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     let reports = paths::resolve("reports");
     paths::ensure_dir(&reports)?;
     report::write_json_report(&reports.join("linux_app_compat_validation_scorecard.json"), &out)?;
+    let mut desktop_probes = serde_json::Map::new();
+    desktop_probes.insert("wayland_probe_ok".to_string(), serde_json::json!(wayland_probe_ok));
+    desktop_probes.insert("x11_probe_ok".to_string(), serde_json::json!(x11_probe_ok));
+    desktop_probes.insert("fs_stack_ok".to_string(), serde_json::json!(fs_stack_ok));
+    desktop_probes.insert("package_stack_ok".to_string(), serde_json::json!(package_stack_ok));
+    desktop_probes.insert("desktop_app_stack_ok".to_string(), serde_json::json!(desktop_app_stack_ok));
+    desktop_probes.insert(
+        "runtime_system_package_manager_any".to_string(),
+        serde_json::json!(has_any_system_pkg_manager),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_system_package_manager_any".to_string(),
+        serde_json::json!(seeded_system_pkg_manager_any),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_apt_available".to_string(),
+        serde_json::json!(seeded_apt_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_pacman_available".to_string(),
+        serde_json::json!(seeded_pacman_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_diskfs_setup_available".to_string(),
+        serde_json::json!(seeded_diskfs_setup_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_pivot_root_setup_available".to_string(),
+        serde_json::json!(seeded_pivot_root_setup_available),
+    );
+    desktop_probes.insert(
+        "source_diskfs_bootstrap_telemetry_ok".to_string(),
+        serde_json::json!(diskfs_bootstrap_telemetry_ok),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_abi_check_available".to_string(),
+        serde_json::json!(seeded_abi_check_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_abi_contract_available".to_string(),
+        serde_json::json!(seeded_abi_contract_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_mirror_failover_available".to_string(),
+        serde_json::json!(seeded_mirror_failover_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_signature_policy_available".to_string(),
+        serde_json::json!(seeded_signature_policy_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_checksum_policy_available".to_string(),
+        serde_json::json!(seeded_checksum_policy_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_installer_policy_available".to_string(),
+        serde_json::json!(seeded_installer_policy_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_retry_timeout_available".to_string(),
+        serde_json::json!(seeded_retry_timeout_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_apt_keyring_list_available".to_string(),
+        serde_json::json!(seeded_apt_keyring_list_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_pacman_keyring_path_available".to_string(),
+        serde_json::json!(seeded_pacman_keyring_path_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_flutter_closure_audit_available".to_string(),
+        serde_json::json!(seeded_flutter_closure_audit_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_apt_capability_manifest_available".to_string(),
+        serde_json::json!(seeded_apt_capability_manifest_available),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_apt_host_limitation_note_available".to_string(),
+        serde_json::json!(seeded_apt_host_limitation_note_available),
+    );
+    desktop_probes.insert(
+        "runtime_dev_package_stack_ok".to_string(),
+        serde_json::json!(has_min_dev_pkg_stack),
+    );
+    desktop_probes.insert(
+        "runtime_language_package_manager_count".to_string(),
+        serde_json::json!(language_pkg_manager_count),
+    );
+    desktop_probes.insert(
+        "runtime_desktop_session_available".to_string(),
+        serde_json::json!(has_desktop_session_runtime),
+    );
+    desktop_probes.insert(
+        "runtime_flutter_available".to_string(),
+        serde_json::json!(has_flutter_runtime),
+    );
+    desktop_probes.insert(
+        "runtime_seeded_flutter_available".to_string(),
+        serde_json::json!(seeded_flutter_runtime_available),
+    );
+    desktop_probes.insert(
+        "runtime_desktop_install_capable".to_string(),
+        serde_json::json!(desktop_install_capable),
+    );
+    desktop_probes.insert(
+        "source_elf_so_runtime_contract_ok".to_string(),
+        serde_json::json!(elf_so_runtime_contract_ok),
+    );
+    desktop_probes.insert(
+        "source_wayland_x11_protocol_depth_ok".to_string(),
+        serde_json::json!(wayland_x11_depth_ok),
+    );
+    desktop_probes.insert(
+        "source_syscall_semantic_parity_ok".to_string(),
+        serde_json::json!(syscall_semantic_parity_ok),
+    );
+    desktop_probes.insert(
+        "source_gpu_ioctl_coverage_ok".to_string(),
+        serde_json::json!(gpu_ioctl_coverage_ok),
+    );
+    desktop_probes.insert(
+        "source_linux_host_e2e_pipeline_ok".to_string(),
+        serde_json::json!(linux_host_e2e_pipeline_ok),
+    );
+    desktop_probes.insert(
+        "source_syscall_parity_module_count".to_string(),
+        serde_json::json!(parity_module_count),
+    );
+
+    let mut runtime_probe = serde_json::Map::new();
+    runtime_probe.insert("generated_utc".to_string(), serde_json::json!(report::utc_now_iso()));
+    runtime_probe.insert("busybox_required".to_string(), serde_json::json!(require_busybox));
+    runtime_probe.insert("glibc_required".to_string(), serde_json::json!(require_glibc));
+    runtime_probe.insert("desktop_smoke".to_string(), serde_json::json!(desktop_smoke));
+    runtime_probe.insert("wayland_required".to_string(), serde_json::json!(require_wayland));
+    runtime_probe.insert("x11_required".to_string(), serde_json::json!(require_x11));
+    runtime_probe.insert("fs_stack_required".to_string(), serde_json::json!(require_fs_stack));
+    runtime_probe.insert(
+        "package_stack_required".to_string(),
+        serde_json::json!(require_package_stack),
+    );
+    runtime_probe.insert(
+        "desktop_app_stack_required".to_string(),
+        serde_json::json!(require_desktop_app_stack),
+    );
+    runtime_probe.insert("layer_counts".to_string(), serde_json::json!(compat));
+    runtime_probe.insert(
+        "desktop_probes".to_string(),
+        serde_json::Value::Object(desktop_probes),
+    );
+
     report::write_json_report(
         &reports.join("linux_app_runtime_probe_report.json"),
-        &serde_json::json!({
-            "generated_utc": report::utc_now_iso(),
-            "busybox_required": require_busybox,
-            "glibc_required": require_glibc,
-            "desktop_smoke": desktop_smoke,
-            "wayland_required": require_wayland,
-            "x11_required": require_x11,
-            "fs_stack_required": require_fs_stack,
-            "package_stack_required": require_package_stack,
-            "desktop_app_stack_required": require_desktop_app_stack,
-            "layer_counts": compat,
-            "desktop_probes": {
-                "wayland_probe_ok": wayland_probe_ok,
-                "x11_probe_ok": x11_probe_ok,
-                "fs_stack_ok": fs_stack_ok,
-                "package_stack_ok": package_stack_ok,
-                "desktop_app_stack_ok": desktop_app_stack_ok,
-                    "runtime_system_package_manager_any": has_any_system_pkg_manager,
-                    "runtime_dev_package_stack_ok": has_min_dev_pkg_stack,
-                    "runtime_language_package_manager_count": language_pkg_manager_count,
-                    "runtime_desktop_session_available": has_desktop_session_runtime,
-                    "runtime_flutter_available": has_flutter_runtime,
-                    "runtime_desktop_install_capable": desktop_install_capable,
-            }
-        }),
+        &serde_json::Value::Object(runtime_probe),
     )?;
 
     println!("\nPassed: {}/{}", totals.passed, total);

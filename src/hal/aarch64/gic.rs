@@ -8,6 +8,9 @@ use crate::hal::common::mmio::MmioBlock;
 /// INTID 1023 — the GIC's pseudo-interrupt for "no pending interrupt".
 pub const GIC_SPURIOUS_INTID: u32 = 1023;
 
+/// GICv2 software-generated interrupt register offset.
+pub const GICD_SGIR_OFFSET: usize = 0xF00;
+
 /// Snapshot of the runtime-visible GIC state used by platform/virt profiles.
 #[derive(Debug, Clone, Copy)]
 pub struct GicStats {
@@ -53,22 +56,26 @@ impl Gic {
 
     #[inline(always)]
     unsafe fn write_dist(&self, offset: usize, val: u32) {
-        self.dist_block.reg::<u32>(offset).write(val);
+        unsafe {
+            self.dist_block.reg::<u32>(offset).write(val);
+        }
     }
 
     #[inline(always)]
     unsafe fn read_dist(&self, offset: usize) -> u32 {
-        self.dist_block.reg::<u32>(offset).read()
+        unsafe { self.dist_block.reg::<u32>(offset).read() }
     }
 
     #[inline(always)]
     unsafe fn write_cpu(&self, offset: usize, val: u32) {
-        self.cpu_block.reg::<u32>(offset).write(val);
+        unsafe {
+            self.cpu_block.reg::<u32>(offset).write(val);
+        }
     }
 
     #[inline(always)]
     unsafe fn read_cpu(&self, offset: usize) -> u32 {
-        self.cpu_block.reg::<u32>(offset).read()
+        unsafe { self.cpu_block.reg::<u32>(offset).read() }
     }
 
     pub fn update_bases(&mut self, gicd: usize, gicc: usize) {
@@ -92,16 +99,22 @@ impl Gic {
 impl InterruptController for Gic {
     unsafe fn init(&mut self) {
         // Enable GIC Distributor (GICD_CTLR)
-        self.write_dist(bits::GICD_CTLR, 1);
+        unsafe {
+            self.write_dist(bits::GICD_CTLR, 1);
+        }
 
         // Enable CPU Interface (GICC_CTLR)
-        self.write_cpu(bits::GICC_CTLR, 1);
+        unsafe {
+            self.write_cpu(bits::GICC_CTLR, 1);
+        }
 
         // Priority mask configured via Cargo metadata (0-255).
-        self.write_cpu(
-            bits::GICC_PMR,
-            (AARCH64_GIC_CPU_PRIORITY_MASK as u32).min(0xFF),
-        );
+        unsafe {
+            self.write_cpu(
+                bits::GICC_PMR,
+                (AARCH64_GIC_CPU_PRIORITY_MASK as u32).min(0xFF),
+            );
+        }
 
         GIC_INITIALIZED.store(true, Ordering::Relaxed);
         // Version detection happens in update_bases.
@@ -111,17 +124,23 @@ impl InterruptController for Gic {
         let reg = (irq / 32) * 4;
         let bit = irq % 32;
         // GICD_ISENABLERn
-        self.write_dist(bits::GICD_ISENABLER + reg as usize, 1 << bit);
+        unsafe {
+            self.write_dist(bits::GICD_ISENABLER + reg as usize, 1 << bit);
+        }
     }
 
     unsafe fn disable_interrupt(&mut self, irq: u32) {
         let reg = (irq / 32) * 4;
         let bit = irq % 32;
         // GICD_ICENABLERn
-        self.write_dist(bits::GICD_ICENABLER + reg as usize, 1 << bit);
+        unsafe {
+            self.write_dist(bits::GICD_ICENABLER + reg as usize, 1 << bit);
+        }
     }
 
     unsafe fn end_of_interrupt(&mut self, irq: u32) {
-        self.write_cpu(bits::GICC_EOIR, irq);
+        unsafe {
+            self.write_cpu(bits::GICC_EOIR, irq);
+        }
     }
 }

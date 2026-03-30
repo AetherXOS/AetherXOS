@@ -6,7 +6,7 @@ use crate::kernel::bit_utils::paging as bits;
 use crate::interfaces::memory::page_flags as common_bits;
 
 pub const PAGE_SIZE: usize = bits::PAGE_SIZE;
-const ADDR_MASK: u64 = bits::ENTRY_ADDR_MASK;
+const ADDR_MASK: u64 = bits::PHYS_ADDR_MASK;
 
 define_flags!(pub struct ArchPageFlags: u64 {
     VALID       = 1 << 0,

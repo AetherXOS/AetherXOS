@@ -7,6 +7,10 @@ pub(crate) fn service_vfs_runtime() {
         .wrapping_add(1);
 
     if sample % super::super::VFS_SLO_SAMPLE_INTERVAL == 0 {
+        // Allow host-side telemetry to influence conservative mount policy decisions
+        // (best-effort; no-op on kernel/no-std builds).
+        hypercore::modules::vfs::mount_policy::poll_and_apply_mount_policy();
+
         let report = hypercore::modules::vfs::evaluate_mount_health_slo();
         if report.breach_count > 0 {
             super::super::VFS_SLO_BREACH_STREAK.fetch_add(1, Ordering::Relaxed);

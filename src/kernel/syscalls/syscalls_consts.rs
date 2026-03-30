@@ -94,6 +94,8 @@ pub mod nr {
     pub const SET_POLICY_DRIFT_CONTROL: usize = 58;
     pub const GET_POLICY_DRIFT_CONTROL: usize = 59;
     pub const GET_POLICY_DRIFT_REASON_TEXT: usize = 60;
+    pub const VFS_MOUNT_DISKFS: usize = 61;
+    pub const VFS_MOUNT_OVERLAY: usize = 62;
 }
 
 #[path = "syscalls_consts/linux_numbers.rs"]

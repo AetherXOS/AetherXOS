@@ -3,6 +3,10 @@ use alloc::boxed::Box;
 #[cfg(feature = "vfs")]
 use alloc::vec::Vec;
 #[cfg(feature = "vfs")]
+use alloc::string::String;
+#[cfg(feature = "vfs")]
+use alloc::sync::Arc;
+#[cfg(feature = "vfs")]
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 #[cfg(feature = "vfs")]
 #[path = "vfs_control_support.rs"]
@@ -72,6 +76,9 @@ pub struct MountStats {
 #[repr(usize)]
 pub enum MountFsKind {
     RamFs = 1,
+    Ext4 = 2,
+    Fat32 = 3,
+    Overlay = 4,
 }
 
 #[cfg(feature = "vfs")]
@@ -192,6 +199,175 @@ pub fn mount_ramfs(path: &[u8]) -> Result<usize, MountError> {
 }
 
 #[cfg(feature = "vfs")]
+pub fn mount_diskfs(path: &[u8], fs_kind: MountFsKind, readonly: bool) -> Result<usize, MountError> {
+    if !matches!(fs_kind, MountFsKind::Ext4 | MountFsKind::Fat32) {
+        return Err(MountError::InvalidPath);
+    }
+
+    MOUNT_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
+
+    let Some(normalized) =
+        normalize_mount_path(path, crate::config::KernelConfig::vfs_max_mount_path())
+    else {
+        PATH_VALIDATION_FAILURES.fetch_add(1, Ordering::Relaxed);
+        MOUNT_FAILURES.fetch_add(1, Ordering::Relaxed);
+        return Err(MountError::InvalidPath);
+    };
+    let path_len = normalized.len();
+
+    let mut registry = MOUNT_REGISTRY.lock();
+    if registry.len() >= crate::config::KernelConfig::vfs_max_mounts() {
+        MOUNT_FAILURES.fetch_add(1, Ordering::Relaxed);
+        return Err(MountError::RegistryFull);
+    }
+
+    if registry
+        .iter()
+        .any(|e| e.path_len == path_len && e.path == normalized)
+    {
+        MOUNT_FAILURES.fetch_add(1, Ordering::Relaxed);
+        return Err(MountError::AlreadyMounted);
+    }
+
+    let mount_id = NEXT_MOUNT_ID.fetch_add(1, Ordering::Relaxed);
+    let tid = current_task_id();
+
+    registry.push(MountEntry {
+        id: mount_id,
+        fs_kind,
+        path: normalized,
+        path_len,
+        owner: tid,
+        readonly,
+    });
+
+    LAST_MOUNT_ID.store(mount_id, Ordering::Relaxed);
+    MOUNT_SUCCESS.fetch_add(1, Ordering::Relaxed);
+    Ok(mount_id)
+}
+
+#[cfg(feature = "vfs")]
+/// Create an overlay mount entry.
+///
+/// This is a conservative, minimal API that records an overlay mount in the
+/// VFS registry. Full overlay semantics (copy-up, upper/lower lifecycles)
+/// are implemented in `modules::vfs::writable_fs` and will be wired to the
+/// mount registry in subsequent work.
+pub fn mount_overlay(path: &[u8], lower_fs_kind: MountFsKind, readonly_upper: bool) -> Result<usize, MountError> {
+    // Lower must be a disk-backed fs for now.
+    if !matches!(lower_fs_kind, MountFsKind::Ext4 | MountFsKind::Fat32) {
+        return Err(MountError::InvalidPath);
+    }
+
+    MOUNT_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
+
+    let Some(normalized) =
+        normalize_mount_path(path, crate::config::KernelConfig::vfs_max_mount_path())
+    else {
+        PATH_VALIDATION_FAILURES.fetch_add(1, Ordering::Relaxed);
+        MOUNT_FAILURES.fetch_add(1, Ordering::Relaxed);
+        return Err(MountError::InvalidPath);
+    };
+    let path_len = normalized.len();
+
+    let mut registry = MOUNT_REGISTRY.lock();
+    if registry.len() >= crate::config::KernelConfig::vfs_max_mounts() {
+        MOUNT_FAILURES.fetch_add(1, Ordering::Relaxed);
+        return Err(MountError::RegistryFull);
+    }
+
+    if registry
+        .iter()
+        .any(|e| e.path_len == path_len && e.path == normalized)
+    {
+        MOUNT_FAILURES.fetch_add(1, Ordering::Relaxed);
+        return Err(MountError::AlreadyMounted);
+    }
+
+    let mount_id = NEXT_MOUNT_ID.fetch_add(1, Ordering::Relaxed);
+    let tid = current_task_id();
+
+    registry.push(MountEntry {
+        id: mount_id,
+        fs_kind: MountFsKind::Overlay,
+        path: normalized,
+        path_len,
+        owner: tid,
+        readonly: readonly_upper,
+    });
+
+    LAST_MOUNT_ID.store(mount_id, Ordering::Relaxed);
+    MOUNT_SUCCESS.fetch_add(1, Ordering::Relaxed);
+
+    // Try to instantiate a WritableOverlayFs instance and register it with
+    // the writeback engine. Prefer attaching to an existing disk-backed
+    // lower mount if one exists; otherwise fall back to an in-memory base.
+    {
+        // Find a candidate lower mount path (first matching fs kind).
+        let lower_path_opt: Option<String> = {
+            let reg = MOUNT_REGISTRY.lock();
+            reg.iter()
+                .find(|e| e.fs_kind == lower_fs_kind)
+                .and_then(|e| core::str::from_utf8(&e.path).ok().map(|s| s.to_string()))
+        };
+
+        // Best-effort: attempt to attach a DiskFs base when available.
+        let mut instantiated = false;
+
+        if let Some(lower_path) = lower_path_opt {
+            #[cfg(feature = "vfs_disk_fs")]
+            {
+                if let Ok(base) = crate::modules::vfs::disk_fs::DiskFsLibrary::attach_existing(&lower_path) {
+                    // Prefer a block-backed writeback sink when drivers are available.
+                    #[cfg(feature = "drivers")]
+                    {
+                        let adapter = crate::modules::vfs::writable_fs::StorageManagerBlockAdapter::new();
+                        let block_sink = crate::modules::vfs::BlockWritebackSink::new(Box::new(adapter), 4);
+                        let sink: Arc<dyn crate::modules::vfs::writeback::WritebackSink> = Arc::new(block_sink);
+                        let overlay = crate::modules::vfs::WritableOverlayFs::new(base, mount_id, sink.clone());
+                        // Create a tmpfs upper for copy-up and register both overlay and upper
+                        let upper = crate::modules::vfs::tmpfs::TmpFs::new();
+                        crate::modules::vfs::overlay_registry::register_overlay_with_upper(
+                            mount_id,
+                            Box::new(overlay),
+                            Some(Box::new(upper)),
+                        );
+                        instantiated = true;
+                    }
+                    #[cfg(not(feature = "drivers"))]
+                    {
+                        let sink: Arc<dyn crate::modules::vfs::writeback::WritebackSink> =
+                            Arc::new(crate::modules::vfs::RamWritebackSink::new());
+                        let overlay = crate::modules::vfs::WritableOverlayFs::new(base, mount_id, sink.clone());
+                        // Create a tmpfs upper for copy-up and register both overlay and upper
+                        let upper = crate::modules::vfs::tmpfs::TmpFs::new();
+                        crate::modules::vfs::overlay_registry::register_overlay_with_upper(
+                            mount_id,
+                            Box::new(overlay),
+                            Some(Box::new(upper)),
+                        );
+                        instantiated = true;
+                    }
+                }
+            }
+        }
+
+        if !instantiated {
+            // Fallback: use an in-memory tmpfs as the read-only base so the
+            // writable overlay object exists and writeback is registered.
+            let base = crate::modules::vfs::tmpfs::TmpFs::new();
+            let sink: Arc<dyn crate::modules::vfs::writeback::WritebackSink> =
+                Arc::new(crate::modules::vfs::RamWritebackSink::new());
+            let overlay = crate::modules::vfs::WritableOverlayFs::new(base, mount_id, sink.clone());
+            crate::modules::vfs::overlay_registry::register_overlay(mount_id, Box::new(overlay));
+        }
+
+    }
+
+    Ok(mount_id)
+}
+
+#[cfg(feature = "vfs")]
 pub fn mount_count() -> usize {
     MOUNT_REGISTRY.lock().len()
 }
@@ -260,6 +436,9 @@ pub fn unmount(mount_id: usize) -> Result<(), MountError> {
     if let Some(index) = instances.iter().position(|(id, _)| *id == mount_id) {
         instances.remove(index);
     }
+
+    // Best-effort: remove any writable overlay instance for this mount.
+    let _ = crate::modules::vfs::overlay_registry::unregister_overlay(mount_id);
 
     UNMOUNT_SUCCESS.fetch_add(1, Ordering::Relaxed);
     Ok(())

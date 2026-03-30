@@ -1,4 +1,5 @@
 pub use crate::hal::common::boot::{acpi_rsdp_addr, dtb_addr, framebuffer, hhdm_offset, mem_map};
+use crate::interfaces::hardware::InterruptController;
 use crate::interfaces::HardwareAbstraction;
 use core::arch::naked_asm;
 
@@ -57,7 +58,7 @@ impl HAL {
     }
 
     pub fn init_timer() {
-        timer::init();
+        timer::GenericTimer::init();
     }
 
     /// Bring-up hook for secondary cores on AArch64.
@@ -151,7 +152,7 @@ impl HardwareAbstraction for HAL {
     }
 
     fn serial_write_raw(s: &str) {
-        pl011::write_raw(s);
+        serial::write_raw(s);
     }
 }
 

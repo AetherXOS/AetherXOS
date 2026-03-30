@@ -3,13 +3,11 @@
 /// Uses the EL1 virtual timer (cntv_*) which is the preferred timer for
 /// OS kernels running at EL1.  The physical counter (cntpct_el0) is used
 /// for raw wall-clock reads.
-use crate::interfaces::Timer;
+use crate::interfaces::hardware::Timer;
 use core::sync::atomic::{AtomicU64, Ordering};
 
 use crate::generated_consts::{AARCH64_TIMER_REARM_MAX_TICKS, AARCH64_TIMER_REARM_MIN_TICKS};
 use crate::hal::common::timer::{clamp_ticks, ns_to_ticks, ticks_to_ns};
-
-use crate::kernel::bit_utils::BitField32;
 
 // ── Named constants for CNTV_CTL_EL0 bits ────────────────────────────────────
 /// CNTV_CTL_EL0 bit definitions
@@ -128,10 +126,7 @@ impl GenericTimer {
 
         LAST_PROGRAMMED_TICKS.store(programmed, Ordering::Relaxed);
         write_cntv_tval(programmed);
-        
-        let mut ctl = BitField32::new(0);
-        ctl.set_bit(0, true); // ENABLE
-        write_cntv_ctl(ctl.bits());
+        write_cntv_ctl(CNTV_CTL_ENABLE);
     }
 
     /// Disable the virtual timer.
@@ -141,10 +136,7 @@ impl GenericTimer {
 
     /// Mask the timer interrupt without stopping the counter.
     pub fn mask() {
-        let mut ctl = BitField32::new(0);
-        ctl.set_bit(0, true); // ENABLE
-        ctl.set_bit(1, true); // IMASK
-        write_cntv_ctl(ctl.bits());
+        write_cntv_ctl(CNTV_CTL_ENABLE | CNTV_CTL_IMASK);
     }
 
     /// Read the clock frequency in Hz.

@@ -79,6 +79,7 @@ fn user_page_access_fault(addr: usize, mode: UserAccessMode) -> Option<UserAcces
 
 #[cfg(target_arch = "aarch64")]
 fn user_page_access_fault(addr: usize, mode: UserAccessMode) -> Option<UserAccessFault> {
+    use crate::interfaces::cpu::CpuRegisters;
     use crate::kernel::bit_utils::paging as bits;
 
     let Some(hhdm) = crate::hal::aarch64::hhdm_offset() else {

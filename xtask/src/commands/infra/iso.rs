@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use std::fs;
 use std::path::Path;
 
@@ -26,7 +26,10 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
     for name in &required {
         let p = limine_bin_dir.join(name);
         if !p.exists() {
-            bail!("Missing Limine binary: {}. Run limine fetch first.", p.display());
+            bail!(
+                "Missing Limine binary: {}. Run limine fetch first.",
+                p.display()
+            );
         }
     }
 
@@ -50,11 +53,26 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
     }
 
     // Copy Limine binaries
-    fs::copy(limine_bin_dir.join("limine-bios-cd.bin"), iso_root.join("boot/limine-bios-cd.bin"))?;
-    fs::copy(limine_bin_dir.join("limine-bios.sys"), iso_root.join("boot/limine-bios.sys"))?;
-    fs::copy(limine_bin_dir.join("limine-bios.sys"), iso_root.join("limine-bios.sys"))?;
-    fs::copy(limine_bin_dir.join("limine-uefi-cd.bin"), iso_root.join("boot/limine-uefi-cd.bin"))?;
-    fs::copy(limine_bin_dir.join("BOOTX64.EFI"), iso_root.join("EFI/BOOT/BOOTX64.EFI"))?;
+    fs::copy(
+        limine_bin_dir.join("limine-bios-cd.bin"),
+        iso_root.join("boot/limine-bios-cd.bin"),
+    )?;
+    fs::copy(
+        limine_bin_dir.join("limine-bios.sys"),
+        iso_root.join("boot/limine-bios.sys"),
+    )?;
+    fs::copy(
+        limine_bin_dir.join("limine-bios.sys"),
+        iso_root.join("limine-bios.sys"),
+    )?;
+    fs::copy(
+        limine_bin_dir.join("limine-uefi-cd.bin"),
+        iso_root.join("boot/limine-uefi-cd.bin"),
+    )?;
+    fs::copy(
+        limine_bin_dir.join("BOOTX64.EFI"),
+        iso_root.join("EFI/BOOT/BOOTX64.EFI"),
+    )?;
 
     // Build ISO via xorriso
     paths::ensure_dir(out_iso.parent().unwrap())?;
@@ -65,16 +83,21 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
     process::run_checked(
         &xorriso,
         &[
-            "-as", "mkisofs",
-            "-b", "boot/limine-bios-cd.bin",
+            "-as",
+            "mkisofs",
+            "-b",
+            "boot/limine-bios-cd.bin",
             "-no-emul-boot",
-            "-boot-load-size", "4",
+            "-boot-load-size",
+            "4",
             "-boot-info-table",
-            "--efi-boot", "boot/limine-uefi-cd.bin",
+            "--efi-boot",
+            "boot/limine-uefi-cd.bin",
             "-efi-boot-part",
             "--efi-boot-image",
             "--protective-msdos-label",
-            "-o", &out_iso_arg,
+            "-o",
+            &out_iso_arg,
             &iso_root_arg,
         ],
     )?;
@@ -89,20 +112,32 @@ fn find_xorriso() -> Result<String> {
         return Ok("xorriso".to_string());
     }
     // Windows MSYS2 fallback
-    let msys = Path::new(r"C:\msys64\usr\bin\xorriso.exe");
-    if msys.exists() {
-        return Ok(msys.to_string_lossy().to_string());
+    // Check common MSYS2 and Git Bash xorriso locations
+    for msys_path in &[
+        r"C:\msys64\usr\bin\xorriso.exe",
+        r"C:\msys32\usr\bin\xorriso.exe",
+        r"C:\Program Files\Git\usr\bin\xorriso.exe",
+    ] {
+        if Path::new(msys_path).exists() {
+            return Ok(msys_path.to_string());
+        }
     }
     bail!("xorriso not found in PATH or MSYS2. Install it to build ISO images.")
 }
 
 /// Convert a Windows path to MSYS2-compatible format if needed.
-fn maybe_msys_path(path: &Path, xorriso_bin: &str) -> String {
+fn maybe_msys_path(path: &Path, _xorriso_bin: &str) -> String {
     let raw = path.to_string_lossy().to_string();
     // Only convert if using MSYS2 xorriso and path looks like a Windows drive path
-    if xorriso_bin.contains("msys64") && raw.len() >= 2 && raw.as_bytes()[1] == b':' {
+    // Always convert Windows drive paths when xorriso is from MSYS, regardless of original case
+    // On Windows, always convert drive paths to POSIX format for MSYS tools
+    // Check if we're on Windows AND have a drive path (C:\, D:\, etc)
+    let is_drive_path = raw.len() >= 2 && raw.as_bytes()[1] == b':';
+    if cfg!(windows) && is_drive_path {
         let drive = raw.as_bytes()[0].to_ascii_lowercase() as char;
-        format!("/{}{}", drive, &raw[2..].replace('\\', "/"))
+        // Convert C:\path\to\file -> /c/path/to/file
+        let path_part = raw[2..].replace('\\', "/");
+        format!("/{}{}", drive, path_part)
     } else {
         raw
     }

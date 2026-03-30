@@ -29,6 +29,23 @@ fn with_ramfs_mut<T>(
     f(fs)
 }
 
+// Generic FileSystem resolver: try RAMFS instances, then overlay instances.
+fn with_fs_instance<T>(
+    mount_id: usize,
+    f: impl FnOnce(&dyn crate::modules::vfs::FileSystem) -> Result<T, &'static str>,
+) -> Result<T, &'static str> {
+    // Try ramfs instances first (fast path)
+    {
+        let instances = super::RAMFS_INSTANCES.lock();
+        if let Some((_, fs)) = instances.iter().find(|(id, _)| *id == mount_id) {
+            return f(&**fs as &dyn crate::modules::vfs::FileSystem);
+        }
+    }
+
+    // Fallback: overlay registry instances
+    crate::modules::vfs::overlay_registry::with_overlay(mount_id, |fs| f(fs))
+}
+
 pub fn ramfs_used_pages(mount_id: usize) -> Result<usize, &'static str> {
     with_ramfs(mount_id, |fs| Ok(fs.used_pages()))
 }
@@ -38,7 +55,7 @@ pub fn ramfs_open_file(
     path: &str,
     tid: TaskId,
 ) -> Result<Box<dyn crate::modules::vfs::File>, &'static str> {
-    with_ramfs(mount_id, |fs| fs.open(path, tid))
+    with_fs_instance(mount_id, |fs| fs.open(path, tid))
 }
 
 pub fn ramfs_create_file(
@@ -46,19 +63,19 @@ pub fn ramfs_create_file(
     path: &str,
     tid: TaskId,
 ) -> Result<Box<dyn crate::modules::vfs::File>, &'static str> {
-    with_ramfs_mut(mount_id, |fs| fs.create(path, tid))
+    with_fs_instance(mount_id, |fs| fs.create(path, tid))
 }
 
 pub fn ramfs_remove_file(mount_id: usize, path: &str, tid: TaskId) -> Result<(), &'static str> {
-    with_ramfs_mut(mount_id, |fs| fs.remove(path, tid))
+    with_fs_instance(mount_id, |fs| fs.remove(path, tid))
 }
 
 pub fn ramfs_mkdir(mount_id: usize, path: &str, tid: TaskId) -> Result<(), &'static str> {
-    with_ramfs_mut(mount_id, |fs| fs.mkdir(path, tid))
+    with_fs_instance(mount_id, |fs| fs.mkdir(path, tid))
 }
 
 pub fn ramfs_rmdir(mount_id: usize, path: &str, tid: TaskId) -> Result<(), &'static str> {
-    with_ramfs_mut(mount_id, |fs| fs.rmdir(path, tid))
+    with_fs_instance(mount_id, |fs| fs.rmdir(path, tid))
 }
 
 pub fn ramfs_rename(
@@ -67,7 +84,7 @@ pub fn ramfs_rename(
     new_path: &str,
     tid: TaskId,
 ) -> Result<(), &'static str> {
-    with_ramfs_mut(mount_id, |fs| fs.rename(old_path, new_path, tid))
+    with_fs_instance(mount_id, |fs| fs.rename(old_path, new_path, tid))
 }
 
 pub fn ramfs_chmod(
@@ -76,7 +93,7 @@ pub fn ramfs_chmod(
     mode: u16,
     tid: TaskId,
 ) -> Result<(), &'static str> {
-    with_ramfs_mut(mount_id, |fs| fs.chmod(path, mode, tid))
+    with_fs_instance(mount_id, |fs| fs.chmod(path, mode, tid))
 }
 
 pub fn ramfs_chown(
@@ -86,7 +103,7 @@ pub fn ramfs_chown(
     gid: u32,
     tid: TaskId,
 ) -> Result<(), &'static str> {
-    with_ramfs_mut(mount_id, |fs| fs.chown(path, uid, gid, tid))
+    with_fs_instance(mount_id, |fs| fs.chown(path, uid, gid, tid))
 }
 
 pub fn ramfs_link(
@@ -95,7 +112,7 @@ pub fn ramfs_link(
     new_path: &str,
     tid: TaskId,
 ) -> Result<(), &'static str> {
-    with_ramfs_mut(mount_id, |fs| fs.link(old_path, new_path, tid))
+    with_fs_instance(mount_id, |fs| fs.link(old_path, new_path, tid))
 }
 
 pub fn ramfs_symlink(
@@ -104,11 +121,11 @@ pub fn ramfs_symlink(
     link_path: &str,
     tid: TaskId,
 ) -> Result<(), &'static str> {
-    with_ramfs_mut(mount_id, |fs| fs.symlink(target, link_path, tid))
+    with_fs_instance(mount_id, |fs| fs.symlink(target, link_path, tid))
 }
 
 pub fn ramfs_readlink(mount_id: usize, path: &str, tid: TaskId) -> Result<String, &'static str> {
-    with_ramfs(mount_id, |fs| fs.readlink(path, tid))
+    with_fs_instance(mount_id, |fs| fs.readlink(path, tid))
 }
 
 pub fn ramfs_readdir(
@@ -116,7 +133,7 @@ pub fn ramfs_readdir(
     path: &str,
     tid: TaskId,
 ) -> Result<alloc::vec::Vec<crate::modules::vfs::types::DirEntry>, &'static str> {
-    with_ramfs(mount_id, |fs| fs.readdir(path, tid))
+    with_fs_instance(mount_id, |fs| fs.readdir(path, tid))
 }
 
 pub fn ramfs_metadata(
@@ -124,7 +141,7 @@ pub fn ramfs_metadata(
     path: &str,
     tid: TaskId,
 ) -> Result<crate::modules::vfs::types::FileStats, &'static str> {
-    with_ramfs(mount_id, |fs| fs.stat(path, tid))
+    with_fs_instance(mount_id, |fs| fs.stat(path, tid))
 }
 
 pub fn ramfs_set_times(
@@ -136,8 +153,8 @@ pub fn ramfs_set_times(
     mtime_nsec: i32,
     tid: TaskId,
 ) -> Result<(), &'static str> {
-    with_ramfs_mut(mount_id, |fs| {
-        fs.set_times(path, atime_sec, atime_nsec, mtime_sec, mtime_nsec, tid)
+    with_fs_instance(mount_id, |fs| {
+        fs.set_times(path, atime_sec as u64, mtime_sec as u64, tid)
     })
 }
 

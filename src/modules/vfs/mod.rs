@@ -16,6 +16,7 @@ mod journal_support;
 #[cfg(feature = "vfs_library_backends")]
 pub mod library_backends;
 pub mod mount_table;
+pub mod overlay_registry;
 #[cfg(feature = "vfs_network_fs")]
 pub mod network_fs;
 pub mod path;
@@ -30,6 +31,7 @@ pub mod writable_fs;
 mod writable_fs_support;
 pub mod writeback;
 mod writeback_support;
+pub mod mount_policy;
 pub mod xattr;
 
 // ── Linux compatibility virtual filesystems ─────────────────────────────────

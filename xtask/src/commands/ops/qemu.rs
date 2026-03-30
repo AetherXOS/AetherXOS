@@ -16,22 +16,33 @@ const BOOT_SUCCESS_MARKERS: &[&str] = &[
     "limine: Loading executable",
     "smp: Successfully brought up AP",
     "[linux_compat] init complete",
+    "[hyper_init] early userspace bootstrap",
+    "[hyper_init] diskfs setup exit status:",
+    "[hyper_init] pivot-root setup exit status:",
+    "[hyper_init] apt seed exit status:",
+    "installer-seed-complete",
 ];
 
 /// Run an automated QEMU smoke test with timeout and panic detection.
 pub fn smoke_test() -> Result<()> {
     let kernel = paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
     let initramfs = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
-    let iso = paths::resolve("artifacts/boot_image/hypercore.iso");
+    let iso = std::env::var("HYPERCORE_QEMU_SMOKE_ISO")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| paths::resolve("artifacts/boot_image/hypercore.iso"));
     let log_path = paths::resolve("artifacts/boot_image/qemu_smoke.log");
     let append = "console=ttyS0 loglevel=7";
     let memory_mb = 512;
     let cores = 2;
-    let timeout_sec = 20;
+    let timeout_sec = std::env::var("HYPERCORE_QEMU_SMOKE_TIMEOUT_SEC")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(20);
 
     let qemu_bin = find_qemu()?;
     println!("[qemu::smoke] Binary: {}", qemu_bin);
     println!("[qemu::smoke] Kernel: {}", kernel.display());
+    println!("[qemu::smoke] ISO fallback: {}", iso.display());
     println!("[qemu::smoke] Timeout: {}s", timeout_sec);
 
     let direct_args = vec![

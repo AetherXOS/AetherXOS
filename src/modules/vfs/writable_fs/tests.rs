@@ -86,3 +86,46 @@ fn block_writeback_sink_journal_write_targets_expected_slot() {
     op_bytes.copy_from_slice(&buf[8..12]);
     assert_eq!(u32::from_le_bytes(op_bytes), 1);
 }
+
+#[test_case]
+fn overlay_copy_up_persists_into_tmpfs_upper() {
+    use crate::interfaces::TaskId;
+    use crate::modules::vfs::{WritableOverlayFs, RamWritebackSink, overlay_registry, tmpfs};
+
+    // Prepare a base filesystem and populate a file
+    let mut base = tmpfs::TmpFs::new();
+    {
+        let mut f = base.create("/greeting", TaskId(0)).expect("create base file");
+        f.write(b"hello").expect("write base");
+    }
+
+    // Create overlay instance with the base moved in and a RAM sink.
+    let mount_id = 42usize;
+    let sink = alloc::sync::Arc::new(RamWritebackSink::new());
+    let overlay = WritableOverlayFs::new(base, mount_id, sink.clone());
+
+    // Register overlay with a tmpfs upper so copy-up will write into it.
+    let upper = tmpfs::TmpFs::new();
+    overlay_registry::register_overlay_with_upper(mount_id, Box::new(overlay), Some(Box::new(upper)));
+
+    // Open the file through the overlay (triggers copy-up)
+    overlay_registry::with_overlay(mount_id, |fs| {
+        let mut of = fs.open("/greeting", TaskId(0)).expect("open overlay");
+        let mut buf = [0u8; 16];
+        let n = of.read(&mut buf).expect("read overlay");
+        assert_eq!(&buf[..n], b"hello");
+        Ok(())
+    })
+    .expect("overlay open op");
+
+    // Verify the upper tmpfs contains the copied data
+    overlay_registry::with_upper(mount_id, |upper_opt| {
+        let upper = upper_opt.ok_or("no upper registered")?;
+        let mut uf = upper.open("/greeting", TaskId(0)).expect("open upper");
+        let mut ubuf = [0u8; 16];
+        let m = uf.read(&mut ubuf).expect("read upper");
+        assert_eq!(&ubuf[..m], b"hello");
+        Ok(())
+    })
+    .expect("upper check");
+}

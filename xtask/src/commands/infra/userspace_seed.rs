@@ -4,6 +4,8 @@ use serde::Serialize;
 use std::fs;
 use std::path::Path;
 
+use crate::commands::infra::apt_binary_seed;
+use crate::commands::infra::flutter_engine_seed;
 use crate::commands::infra::installer_policy::InstallerPolicy;
 use crate::commands::infra::installer_profile::{InstallerSelection, PackageManager};
 
@@ -33,11 +35,28 @@ pub fn inject_seed(
     let etc_hypercore = initramfs_root.join("etc/hypercore");
     let bundle_dst = initramfs_root.join("usr/share/hypercore/userspace_apps");
     let bin_dir = initramfs_root.join("usr/bin");
+    let lib_hypercore = initramfs_root.join("usr/lib/hypercore");
 
     fs::create_dir_all(&etc_hypercore)?;
     fs::create_dir_all(&bundle_dst)?;
     fs::create_dir_all(&bin_dir)?;
+    fs::create_dir_all(&lib_hypercore)?;
 
+    // Prepare APT binary seed for live package installation
+    if let Err(e) = apt_binary_seed::prepare_apt_seed(initramfs_root) {
+        println!(
+            "[userspace-seed] ⚠️ APT binary seed preparation failed (non-critical): {}",
+            e
+        );
+    }
+
+    // Prepare Flutter engine seed for desktop app support
+    if let Err(e) = flutter_engine_seed::prepare_flutter_seed(initramfs_root) {
+        println!(
+            "[userspace-seed] ⚠️ Flutter engine seed preparation failed (non-critical): {}",
+            e
+        );
+    }
     let package_list = selection.packages.join("\n");
     fs::write(
         etc_hypercore.join("apt-preload-packages.txt"),
@@ -132,7 +151,10 @@ pub fn inject_seed(
     )?;
     fs::write(
         etc_hypercore.join("installer-timeout.conf"),
-        format!("INSTALL_TIMEOUT_SECONDS={}\n", policy.install_timeout_seconds),
+        format!(
+            "INSTALL_TIMEOUT_SECONDS={}\n",
+            policy.install_timeout_seconds
+        ),
     )?;
     fs::write(
         etc_hypercore.join("transaction-journal.path"),
@@ -183,7 +205,9 @@ pub fn inject_seed(
 
     let mut copied_bundles: Vec<(String, String)> = Vec::new();
     if bundle_dir.exists() {
-        for entry in fs::read_dir(bundle_dir).context("failed to read userspace app bundle directory")? {
+        for entry in
+            fs::read_dir(bundle_dir).context("failed to read userspace app bundle directory")?
+        {
             let entry = entry?;
             let src = entry.path();
             if !src.is_file() {
@@ -204,7 +228,10 @@ pub fn inject_seed(
             }
 
             fs::copy(&src, bundle_dst.join(name)).with_context(|| {
-                format!("failed to copy bundle descriptor into initramfs: {}", src.display())
+                format!(
+                    "failed to copy bundle descriptor into initramfs: {}",
+                    src.display()
+                )
             })?;
         }
     }
@@ -215,6 +242,75 @@ pub fn inject_seed(
         manifest.push_str(&format!("{}={}\n", id, version));
     }
     fs::write(etc_hypercore.join("userspace-bundles.manifest"), manifest)?;
+
+        let apt_abi_contract = format!(
+                "# HyperCore userspace ABI contract for production package-manager workloads\n\
+abi.surface=hypercore-linux-compat\n\
+abi.profile={}\n\
+required.mounts=/proc,/sys,/dev/shm,/run,/tmp\n\
+required.diskfs=/var/lib/hypercore\n\
+required.tools=apt-get,dpkg,xz\n\
+required.syscalls=openat2,statx,renameat2,faccessat2,clone3,epoll_pwait2\n\
+flutter.requested={}\n",
+                selection.profile,
+                selection.selected_apps.iter().any(|app| app == "flutter")
+        );
+        fs::write(
+                lib_hypercore.join("userspace-apt-abi-contract.txt"),
+                apt_abi_contract,
+        )?;
+
+        let abi_check_script = r#"#!/bin/sh
+set -eu
+
+missing=0
+
+check_path() {
+    p="$1"
+    if [ ! -e "$p" ]; then
+        echo "[userspace-abi-check] missing path: $p"
+        missing=1
+    fi
+}
+
+check_mountpoint() {
+    m="$1"
+    if ! grep -q " $m " /proc/mounts 2>/dev/null; then
+        echo "[userspace-abi-check] mount missing: $m"
+        missing=1
+    fi
+}
+
+check_path /proc/sys/hypercore/abi/platform
+check_path /proc/sys/hypercore/abi/abi_version_major
+check_path /proc/sys/hypercore/abi/abi_version_minor
+check_path /proc/sys/hypercore/abi/abi_version_patch
+
+check_mountpoint /proc
+check_mountpoint /sys
+check_mountpoint /tmp
+check_mountpoint /run
+check_mountpoint /dev/shm
+
+if [ ! -d /var/lib/hypercore ]; then
+    echo "[userspace-abi-check] persistent package state directory missing: /var/lib/hypercore"
+    missing=1
+fi
+
+if ! command -v apt-get >/dev/null 2>&1 && ! command -v pacman >/dev/null 2>&1; then
+    echo "[userspace-abi-check] no supported package manager in PATH"
+    missing=1
+fi
+
+if [ "$missing" -ne 0 ]; then
+    echo "[userspace-abi-check] FAIL"
+    exit 1
+fi
+
+echo "[userspace-abi-check] OK"
+exit 0
+"#;
+        fs::write(bin_dir.join("hypercore-userspace-abi-check"), abi_check_script)?;
 
     let mirror = selection.mirror.as_deref().unwrap_or("");
     let script = format!(
@@ -243,6 +339,7 @@ MIRROR="{mirror}"
 RETRY_MAX={retry_max}
 RETRY_BACKOFF={retry_backoff}
 INSTALL_TIMEOUT={install_timeout}
+ABI_CHECK_BIN="/usr/bin/hypercore-userspace-abi-check"
 
 read_first_line() {{
     if [ -f "$1" ]; then
@@ -627,6 +724,10 @@ if [ -f "$ARTIFACT_FILE" ] && [ -s "$ARTIFACT_FILE" ]; then
 fi
 
 echo "[hypercore-apt-seed] bundle descriptors available under /usr/share/hypercore/userspace_apps"
+if [ -x "$ABI_CHECK_BIN" ]; then
+    echo "[hypercore-apt-seed] running userspace ABI preflight"
+    "$ABI_CHECK_BIN" || fail_install "userspace-abi-preflight-failed"
+fi
 replay_previous_state
 log_event "installer-seed-start"
 log_tx "BEGIN seed-install profile={profile} apps={apps}"
@@ -655,6 +756,15 @@ if command -v apt-get >/dev/null 2>&1; then
     log_tx "STAGE package-install"
     set_tx_state "stage:package-install"
     timeout "$INSTALL_TIMEOUT" xargs -r apt-get install -y < "$PKG_FILE" || fail_install "apt-install-failed"
+
+    # Production package-manager sanity probes
+    if ! command -v xz >/dev/null 2>&1; then
+        run_with_retry apt-get install -y xz-utils || fail_install "apt-xz-utils-probe-failed"
+    fi
+    if [ -f "$APP_FILE" ] && grep -Eq '^flutter$' "$APP_FILE"; then
+        run_with_retry apt-get install -y flutter || fail_install "apt-flutter-install-failed"
+        command -v flutter >/dev/null 2>&1 || fail_install "flutter-runtime-not-found-after-install"
+    fi
 elif command -v pacman >/dev/null 2>&1; then
     if [ -f "$MIRROR_FILE" ] && [ -f /etc/pacman.d/mirrorlist ]; then
         first_mirror="$(head -n 1 "$MIRROR_FILE" || true)"
@@ -669,6 +779,8 @@ elif command -v pacman >/dev/null 2>&1; then
     log_tx "STAGE package-install"
     set_tx_state "stage:package-install"
     timeout "$INSTALL_TIMEOUT" xargs -r pacman -S --needed --noconfirm < "$PKG_FILE" || fail_install "pacman-install-failed"
+else
+    fail_install "no-supported-package-manager"
 fi
 
 if [ -f "$HOOK_FILE" ] && [ -s "$HOOK_FILE" ]; then

@@ -79,10 +79,10 @@ pub mod io;
 pub mod x86_64_arch;
 pub mod aarch64_arch;
 
-pub use paging::*;
-pub use interrupts::*;
+pub use paging::{generic as paging_generic, x86 as paging_x86, BitField64 as PagingBitField64, PAGE_SIZE};
+pub use interrupts::{apic, gic, pic};
 pub use io::*;
-pub use crate::kernel::bit_utils::io::{perf, com};
+pub use crate::kernel::bit_utils::io::{com, perf};
 
 #[cfg(test)]
 mod tests {

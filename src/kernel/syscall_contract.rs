@@ -189,6 +189,7 @@ pub fn run_syscall_contract_self_test() -> SyscallContractReport {
         nr::SET_POLICY_DRIFT_CONTROL,
         nr::GET_POLICY_DRIFT_CONTROL,
         nr::GET_POLICY_DRIFT_REASON_TEXT,
+        nr::VFS_MOUNT_DISKFS,
     ];
     let strictly_increasing = core_nrs.windows(2).all(|w| w[0] < w[1]);
     check!(

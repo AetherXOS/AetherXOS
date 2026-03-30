@@ -164,7 +164,7 @@ pub extern "C" fn handle_sync(frame: &mut ExceptionFrame) {
         core::arch::asm!("mrs {}, far_el1", out(reg) far);
     }
 
-    use crate::kernel::bit_utils::aarch64 as esr_bits;
+    use crate::kernel::bit_utils::io::aarch64_sys as esr_bits;
     let ec = esr_bits::ESR_EC.read(esr as u32) as u64;
     let iss = esr_bits::ESR_ISS.read(esr as u32) as u64;
 
@@ -215,7 +215,7 @@ pub extern "C" fn handle_sync(frame: &mut ExceptionFrame) {
         esr,
     );
 
-    if ec == esr_bits::EC_DABORT_CUR || ec == esr_bits::EC_DABORT_LOWER {
+    if ec == esr_bits::EC_DABORT_CUR as u64 || ec == esr_bits::EC_DABORT_LOWER as u64 {
         if is_lower_el_exception(frame) {
             #[cfg(feature = "paging_enable")]
             if crate::kernel::vmm::handle_user_page_fault(far).is_ok() {
@@ -232,7 +232,7 @@ pub extern "C" fn handle_sync(frame: &mut ExceptionFrame) {
             frame.elr,
             AARCH64_EXCEPTION_PANIC_ON_KERNEL_SYNC,
         );
-    } else if ec == esr_bits::EC_IABORT_CUR || ec == esr_bits::EC_IABORT_LOWER {
+    } else if ec == esr_bits::EC_IABORT_CUR as u64 || ec == esr_bits::EC_IABORT_LOWER as u64 {
         if is_lower_el_exception(frame) {
             #[cfg(feature = "paging_enable")]
             if crate::kernel::vmm::handle_user_page_fault(far).is_ok() {
@@ -249,7 +249,7 @@ pub extern "C" fn handle_sync(frame: &mut ExceptionFrame) {
             frame.elr,
             AARCH64_EXCEPTION_PANIC_ON_KERNEL_SYNC,
         );
-    } else if ec == esr_bits::EC_SVC64 {
+    } else if ec == esr_bits::EC_SVC64 as u64 {
         crate::klog_warn!("SVC call: {}", iss);
         frame.elr += 4; // Skip SVC instruction
     } else {
@@ -373,7 +373,7 @@ pub extern "C" fn handle_irq(_frame: &mut ExceptionFrame) {
 
         // Send EOI
         use crate::interfaces::InterruptController;
-        unsafe { gic.end_of_interrupt(irq_id as u8) };
+        unsafe { gic.end_of_interrupt(irq_id) };
     } else {
         IRQ_SPURIOUS_EXCEPTIONS.fetch_add(1, Ordering::Relaxed);
     }

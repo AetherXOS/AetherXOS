@@ -56,12 +56,37 @@ impl SharedObjectLoader {
             strtab_off as u64,
             symtab_off as u64,
             sym_count,
-            None,
-            None,
-            None,
+            dyn_sec.dt_versym,
+            dyn_sec.dt_verneed,
+            dyn_sec.dt_verdef,
         ) else {
             return;
         };
+
+        let soname = dyn_sec.dt_soname.and_then(|name_off| {
+            let start = strtab_off.saturating_add(name_off as usize);
+            if start >= image.len() {
+                return None;
+            }
+            let mut end = start;
+            while end < image.len() && image[end] != 0 {
+                end += 1;
+            }
+            core::str::from_utf8(&image[start..end])
+                .ok()
+                .map(|s| s.to_string())
+        });
+        validate_soname(lib, soname.as_deref());
+
+        let has_version_tables =
+            dyn_sec.dt_versym.is_some() || dyn_sec.dt_verdef.is_some() || dyn_sec.dt_verneed.is_some();
+        if has_version_tables && symtab.symbols.iter().all(|sym| sym.vers_name.is_none()) {
+            crate::klog_warn!(
+                "shared object version tables present but symbol version names unresolved: {}",
+                lib
+            );
+        }
+
         let base_addr = super::SYNTHETIC_SO_BASE_START
             + (visited.len() as u64 * super::SYNTHETIC_SO_BASE_STRIDE);
         let runtime_hooks = parse_runtime_hooks(&image, &dyn_sec, base_addr).unwrap_or_default();
@@ -137,5 +162,28 @@ impl SharedObjectLoader {
         let msg = alloc::format!("failed to load shared object: {}", lib);
         crate::klog_warn!("{}", msg);
         None
+    }
+}
+
+fn normalize_object_basename(name: &str) -> &str {
+    name.rsplit('/').next().unwrap_or(name)
+}
+
+fn validate_soname(requested_name: &str, soname: Option<&str>) {
+    let Some(soname_name) = soname else {
+        return;
+    };
+    if soname_name.is_empty() {
+        crate::klog_warn!("shared object has empty DT_SONAME: {}", requested_name);
+        return;
+    }
+
+    let requested_base = normalize_object_basename(requested_name);
+    if requested_base != soname_name {
+        crate::klog_warn!(
+            "shared object SONAME mismatch: requested={} soname={}",
+            requested_base,
+            soname_name
+        );
     }
 }

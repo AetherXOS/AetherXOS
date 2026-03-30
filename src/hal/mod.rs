@@ -62,7 +62,7 @@ impl HardwareAbstraction for Hal {
         #[cfg(target_arch = "x86_64")]
         x86_64::serial::write_raw(s);
         #[cfg(target_arch = "aarch64")]
-        aarch64::pl011::write_raw(s);
+        aarch64::serial::write_raw(s);
     }
 }
 
@@ -112,6 +112,6 @@ pub use x86_64::{
 pub use aarch64::HAL;
 #[cfg(target_arch = "aarch64")]
 pub use aarch64::{
-    dtb_addr, exception, framebuffer, gic, hhdm_offset, mem_map, paging, platform, pl011, smp,
-    timer,
+    acpi, dtb_addr, exception, framebuffer, gic, hhdm_offset, mem_map, paging, pci, platform,
+    pl011, smp, timer, virt,
 };

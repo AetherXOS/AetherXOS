@@ -29,7 +29,7 @@ mod block_sink;
 mod filesystem_impl;
 #[path = "writable_fs/ram_sink.rs"]
 mod ram_sink;
-pub use block_sink::{BlockDeviceAdapter, BlockWritebackSink};
+pub use block_sink::{BlockDeviceAdapter, BlockWritebackSink, StorageManagerBlockAdapter};
 pub use ram_sink::RamWritebackSink;
 
 const PAGE_SIZE: usize = 4096;
@@ -166,15 +166,27 @@ impl<Base: FileSystem> WritableOverlayFs<Base> {
         GLOBAL_INODE_CACHE.insert(inode.clone());
         writeback::register_inode(ino, self.mount_id);
 
-        // Copy content from base
+        // Copy content from base and (best-effort) into an optional upper tmpfs
         if let Ok(mut base_file) = self.base.open(path, tid) {
             let mut offset = 0u64;
             let mut buf = [0u8; PAGE_SIZE];
+
+            // Best-effort: create an upper file in a registered tmpfs for this mount
+            let mut maybe_upper: Option<Box<dyn crate::modules::vfs::File>> = None;
+            let _ = crate::modules::vfs::overlay_registry::with_upper(self.mount_id, |upper_opt| {
+                if let Some(upper) = upper_opt {
+                    if let Ok(f) = upper.create(path, tid) {
+                        maybe_upper = Some(f);
+                    }
+                }
+                Ok(())
+            });
+
             loop {
                 match base_file.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
-                        // Write to inode's page cache (but don't mark dirty ÔÇö this is copy-up, not a user write)
+                        // Write to inode's page cache (but don't mark dirty — this is copy-up, not a user write)
                         let idx = offset / PAGE_SIZE as u64;
                         let mut cache = inode.pages.lock();
                         let page = cache.entry(idx).or_insert_with(|| {
@@ -184,8 +196,13 @@ impl<Base: FileSystem> WritableOverlayFs<Base> {
                         let copy_len = n.min(p.data.len());
                         p.data[..copy_len].copy_from_slice(&buf[..copy_len]);
                         p.referenced = true;
-                        // NOT marking dirty here ÔÇö the data matches the base
+                        // NOT marking dirty here — the data matches the base
                         offset += n as u64;
+
+                        // Best-effort: write to upper file if available
+                        if let Some(uf) = maybe_upper.as_mut() {
+                            let _ = uf.write(&buf[..n]);
+                        }
                     }
                     Err(_) => break,
                 }

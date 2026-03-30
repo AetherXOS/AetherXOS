@@ -57,6 +57,55 @@ pub(super) fn split_search_paths(raw: &str) -> alloc::vec::Vec<alloc::string::St
         .collect()
 }
 
+pub(super) fn sanitize_search_paths(
+    raw_paths: &[alloc::string::String],
+) -> alloc::vec::Vec<alloc::string::String> {
+    let mut sanitized = alloc::vec::Vec::new();
+    for path in raw_paths {
+        let trimmed = path.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        // Keep linker search scope deterministic and avoid relative traversal paths.
+        if !trimmed.starts_with('/') || trimmed.contains("..") {
+            continue;
+        }
+        if sanitized
+            .iter()
+            .any(|existing: &alloc::string::String| existing == trimmed)
+        {
+            continue;
+        }
+        sanitized.push(trimmed.to_string());
+    }
+    sanitized
+}
+
+pub(super) fn resolve_runtime_search_paths(
+    runpath: Option<&str>,
+    rpath: Option<&str>,
+) -> alloc::vec::Vec<alloc::string::String> {
+    let raw = if let Some(runpath_value) = runpath {
+        split_search_paths(runpath_value)
+    } else if let Some(rpath_value) = rpath {
+        split_search_paths(rpath_value)
+    } else {
+        alloc::vec::Vec::new()
+    };
+
+    let mut resolved = sanitize_search_paths(&raw);
+    let defaults = ["/lib", "/usr/lib", "/lib64", "/usr/lib64"];
+    for default_path in defaults {
+        if !resolved
+            .iter()
+            .any(|existing: &alloc::string::String| existing == default_path)
+        {
+            resolved.push(default_path.to_string());
+        }
+    }
+    resolved
+}
+
 #[inline]
 fn read_u16_le(bytes: &[u8], off: usize) -> Option<u16> {
     let raw: [u8; 2] = bytes.get(off..off + 2)?.try_into().ok()?;

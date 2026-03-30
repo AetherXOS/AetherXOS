@@ -182,6 +182,12 @@ extern "C" fn rust_syscall_handler(
         nr::GET_PROCESS_IMAGE_STATE => sys_get_process_image_state(arg1, arg2, arg3),
         nr::GET_PROCESS_MAPPING_STATE => sys_get_process_mapping_state(arg1, arg2, arg3),
         nr::VFS_MOUNT_RAMFS => crate::kernel::syscalls::vfs::sys_vfs_mount_ramfs(arg1, arg2),
+        nr::VFS_MOUNT_DISKFS => {
+            crate::kernel::syscalls::vfs::sys_vfs_mount_diskfs(arg1, arg2, arg3, arg4)
+        }
+        nr::VFS_MOUNT_OVERLAY => {
+            crate::kernel::syscalls::vfs::sys_vfs_mount_overlay(arg1, arg2, arg3, arg4)
+        }
         nr::VFS_LIST_MOUNTS => crate::kernel::syscalls::vfs::sys_vfs_list_mounts(arg1, arg2),
         nr::GET_POWER_STATS => sys_get_power_stats(arg1, arg2),
         nr::SET_POWER_OVERRIDE => sys_set_power_override(arg1),

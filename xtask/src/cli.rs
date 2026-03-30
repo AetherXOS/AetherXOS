@@ -279,6 +279,20 @@ pub enum SetupAction {
     Repair,
     /// Full workspace bootstrap (audit + repair + build + smoke + dashboard)
     Bootstrap,
+    /// Bootstrap a Debian rootfs, package Flutter, install into rootfs, make image and boot QEMU
+    BootstrapFlutter {
+        /// Output directory for the rootfs (host path)
+        #[arg(long)]
+        outdir: String,
+
+        /// Flutter tar.xz URL to download
+        #[arg(long)]
+        flutter_url: String,
+
+        /// Kernel image to boot (defaults to kernel.x in repo root)
+        #[arg(long, default_value = "kernel.x")]
+        kernel_image: String,
+    },
 }
 
 // ---------------------------------------------------------------------------

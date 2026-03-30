@@ -1,5 +1,8 @@
 use super::*;
 
+use crate::modules::drivers::{BlockDriverKind, StorageManager};
+use crate::modules::drivers::block::SECTOR_SIZE as DRIVER_SECTOR_SIZE;
+
 /// Writeback sink that persists pages to a block device.
 /// Maintains a simple block allocation bitmap and inode->block mapping.
 pub struct BlockWritebackSink {
@@ -92,6 +95,81 @@ impl BlockWritebackSink {
         let phys = self.alloc_block().ok_or("block device full")?;
         map.insert((ino, logical_block), phys);
         Ok(phys)
+    }
+}
+
+/// Adapter that forwards page-sized block I/O to the global StorageManager.
+///
+/// This is a best-effort adapter that looks for any available block driver
+/// (NVMe, AHCI, VirtIO) and issues sector-based reads/writes. It's intentionally
+/// simple: it's used to back `BlockWritebackSink` when a disk-backed lower
+/// filesystem is present.
+pub struct StorageManagerBlockAdapter {
+    /// Preferred driver ordering.
+    pref: [BlockDriverKind; 3],
+}
+
+impl StorageManagerBlockAdapter {
+    pub fn new() -> Self {
+        Self {
+            pref: [
+                BlockDriverKind::Nvme,
+                BlockDriverKind::Ahci,
+                BlockDriverKind::VirtIoBlock,
+            ],
+        }
+    }
+
+    fn find_driver(&mut self) -> Option<&mut dyn crate::modules::drivers::ManagedStorageDriver> {
+        let mut guard = StorageManager::global().lock();
+        let manager_opt = guard.as_mut()?;
+        for kind in &self.pref {
+            if let Some(dev) = manager_opt.first_by_kind(*kind) {
+                return Some(dev);
+            }
+        }
+        None
+    }
+}
+
+impl BlockDeviceAdapter for StorageManagerBlockAdapter {
+    fn read_block(&mut self, block: u64, buf: &mut [u8]) -> Result<(), &'static str> {
+        let sectors_per_page = (PAGE_SIZE / DRIVER_SECTOR_SIZE) as u16;
+        let lba = block.saturating_mul(sectors_per_page as u64);
+        let dev = self.find_driver().ok_or("no storage driver")?;
+        let _ = dev.read_blocks(lba, sectors_per_page, buf)?;
+        Ok(())
+    }
+
+    fn write_block(&mut self, block: u64, data: &[u8]) -> Result<(), &'static str> {
+        let sectors_per_page = (PAGE_SIZE / DRIVER_SECTOR_SIZE) as u16;
+        let lba = block.saturating_mul(sectors_per_page as u64);
+        let dev = self.find_driver().ok_or("no storage driver")?;
+        let _ = dev.write_blocks(lba, sectors_per_page, data)?;
+        Ok(())
+    }
+
+    fn flush(&mut self) -> Result<(), &'static str> {
+        if let Some(dev) = self.find_driver() {
+            dev.flush()?;
+            Ok(())
+        } else {
+            Err("no storage driver")
+        }
+    }
+
+    fn block_count(&self) -> u64 {
+        // Note: no &mut self available here for driver lookup helper; lock directly.
+        let mut guard = StorageManager::global().lock();
+        if let Some(manager) = guard.as_mut() {
+            for kind in &[BlockDriverKind::Nvme, BlockDriverKind::Ahci, BlockDriverKind::VirtIoBlock] {
+                if let Some(dev) = manager.first_by_kind(*kind) {
+                    let sectors_per_page = (PAGE_SIZE / DRIVER_SECTOR_SIZE) as u64;
+                    return dev.sector_count().saturating_div(sectors_per_page);
+                }
+            }
+        }
+        0
     }
 }
 

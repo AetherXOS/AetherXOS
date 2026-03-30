@@ -231,6 +231,33 @@ EOF
   fi
 fi
 
+if [ "${HYPERCORE_RUN_DISKFS_SETUP:-1}" = "1" ] && [ -x /usr/bin/hypercore-diskfs-setup ]; then
+  echo "[hyper_init] running diskfs setup: /usr/bin/hypercore-diskfs-setup"
+  /usr/bin/hypercore-diskfs-setup
+  HYPERCORE_DISKFS_SETUP_STATUS="$?"
+  export HYPERCORE_DISKFS_SETUP_STATUS
+  echo "[hyper_init] diskfs setup exit status: ${HYPERCORE_DISKFS_SETUP_STATUS}"
+fi
+
+if [ "${HYPERCORE_RUN_PIVOT_ROOT_SETUP:-1}" = "1" ] && [ -x /usr/bin/hypercore-pivot-root ]; then
+  echo "[hyper_init] running pivot-root setup: /usr/bin/hypercore-pivot-root"
+  /usr/bin/hypercore-pivot-root
+  HYPERCORE_PIVOT_ROOT_SETUP_STATUS="$?"
+  export HYPERCORE_PIVOT_ROOT_SETUP_STATUS
+  echo "[hyper_init] pivot-root setup exit status: ${HYPERCORE_PIVOT_ROOT_SETUP_STATUS}"
+  if [ -r /run/hypercore/pivot-root.status ]; then
+    echo "[hyper_init] pivot-root status file: /run/hypercore/pivot-root.status"
+  fi
+fi
+
+if [ "${HYPERCORE_RUN_APT_SEED:-1}" = "1" ] && [ -x /usr/bin/hypercore-apt-seed ]; then
+  echo "[hyper_init] running userspace package seed: /usr/bin/hypercore-apt-seed"
+  /usr/bin/hypercore-apt-seed
+  HYPERCORE_APT_SEED_STATUS="$?"
+  export HYPERCORE_APT_SEED_STATUS
+  echo "[hyper_init] apt seed exit status: ${HYPERCORE_APT_SEED_STATUS}"
+fi
+
 for candidate in /usr/lib/hypercore/init.elf /usr/lib/hypercore/probe.elf /usr/lib/hypercore/init /usr/bin/init /bin/init /bin/sh
 do
   if [ -x "${candidate}" ]; then

@@ -1,0 +1,54 @@
+#!/bin/sh
+set -eu
+
+echo "[diskfs-setup] probing block devices for persistent package state"
+mkdir -p /run/hypercore /var/lib/hypercore /opt/hypercore/persist
+mkdir -p /run/hypercore/telemetry
+
+if ! command -v mount >/dev/null 2>&1; then
+  echo "[diskfs-setup] mount command unavailable; continuing with tmpfs-only mode"
+  echo "mode=tmpfs" > /run/hypercore/diskfs.status
+  echo "event=tmpfs_fallback reason=mount_cmd_unavailable" >> /run/hypercore/telemetry/mount_policy_events
+  exit 0
+fi
+
+try_mount() {
+  dev="$1"
+  fstype="$2"
+  target="$3"
+  mkdir -p "$target"
+  if mount -t "$fstype" "$dev" "$target" 2>/dev/null; then
+    echo "[diskfs-setup] mounted $dev on $target ($fstype)"
+    echo "event=diskfs_mounted dev=$dev fstype=$fstype" >> /run/hypercore/telemetry/mount_policy_events
+    return 0
+  fi
+  return 1
+}
+
+mounted=0
+for dev in /dev/vda1 /dev/vdb1 /dev/sda1 /dev/sdb1; do
+  [ -b "$dev" ] || continue
+
+  if try_mount "$dev" ext4 /var/lib/hypercore; then
+    mounted=1
+    break
+  fi
+
+  if try_mount "$dev" vfat /var/lib/hypercore; then
+    mounted=1
+    break
+  fi
+
+done
+
+if [ "$mounted" -eq 1 ]; then
+  mkdir -p /var/lib/hypercore/apt /var/lib/hypercore/pacman
+  echo "mode=diskfs" > /run/hypercore/diskfs.status
+  echo "event=diskfs_mode_set mode=diskfs" >> /run/hypercore/telemetry/mount_policy_events
+  exit 0
+fi
+
+echo "[diskfs-setup] no mountable ext4/vfat partition found; using tmpfs fallback"
+echo "mode=tmpfs" > /run/hypercore/diskfs.status
+echo "event=tmpfs_fallback reason=no_mountable_partitions" >> /run/hypercore/telemetry/mount_policy_events
+exit 0

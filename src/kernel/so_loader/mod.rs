@@ -102,14 +102,12 @@ impl SharedObjectLoader {
         let _g = self.mutex.lock();
         let so = self.loaded.iter().find(|so| so.name == object_name)?;
         if let Some(version_name) = version {
-            if let Some(sym) = so
+            return so
                 .symbols
                 .symbols
                 .iter()
                 .find(|s| s.name == symbol_name && s.vers_name.as_deref() == Some(version_name))
-            {
-                return Some(sym.clone());
-            }
+                .cloned();
         }
         so.symbols.find_by_name(symbol_name).cloned()
     }
@@ -236,6 +234,7 @@ impl SharedObjectLoader {
                     return Some(sym.clone());
                 }
             }
+            return None;
         }
         for so in &self.loaded {
             if !so.global_visible.load(Ordering::Relaxed) {

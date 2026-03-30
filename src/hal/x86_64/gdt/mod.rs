@@ -48,8 +48,8 @@ pub struct GdtTss {
 impl GdtTss {
     pub fn new() -> Self {
         Self::new_with_ist(
-            stack_end_from_static(unsafe { core::ptr::addr_of!(DOUBLE_FAULT_IST_STACK) as *const u8 }, IST_STACK_SIZE),
-            stack_end_from_static(unsafe { core::ptr::addr_of!(PAGE_FAULT_IST_STACK) as *const u8 }, IST_STACK_SIZE),
+            stack_end_from_static(core::ptr::addr_of!(DOUBLE_FAULT_IST_STACK) as *const u8, IST_STACK_SIZE),
+            stack_end_from_static(core::ptr::addr_of!(PAGE_FAULT_IST_STACK) as *const u8, IST_STACK_SIZE),
         )
     }
 

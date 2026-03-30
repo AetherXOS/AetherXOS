@@ -1,0 +1,47 @@
+#!/bin/sh
+set -eu
+
+STATUS_DIR="/run/hypercore"
+STATUS_FILE="${STATUS_DIR}/pivot-root.status"
+DISK_STATUS_FILE="${STATUS_DIR}/diskfs.status"
+NEW_ROOT="/var/lib/hypercore/rootfs"
+
+mkdir -p "${STATUS_DIR}" "${NEW_ROOT}"
+
+echo "[pivot-root] preparing disk-backed rootfs handoff" > "${STATUS_FILE}"
+
+if [ ! -r "${DISK_STATUS_FILE}" ] || ! grep -q '^mode=diskfs' "${DISK_STATUS_FILE}"; then
+  echo "[pivot-root] diskfs mode unavailable; staying on initramfs" >> "${STATUS_FILE}"
+  exit 0
+fi
+
+for d in proc sys dev run; do
+  mkdir -p "${NEW_ROOT}/${d}"
+done
+
+if command -v mount >/dev/null 2>&1; then
+  mount --bind /proc "${NEW_ROOT}/proc" 2>/dev/null || true
+  mount --bind /sys "${NEW_ROOT}/sys" 2>/dev/null || true
+  mount --bind /dev "${NEW_ROOT}/dev" 2>/dev/null || true
+  mount --bind /run "${NEW_ROOT}/run" 2>/dev/null || true
+fi
+
+echo "[pivot-root] staged bind mounts for proc/sys/dev/run" >> "${STATUS_FILE}"
+
+if [ "${HYPERCORE_ENABLE_PIVOT_ROOT:-0}" != "1" ]; then
+  echo "[pivot-root] pivot execution disabled (set HYPERCORE_ENABLE_PIVOT_ROOT=1 to enable)" >> "${STATUS_FILE}"
+  exit 0
+fi
+
+if command -v switch_root >/dev/null 2>&1; then
+  echo "[pivot-root] switching root via switch_root" >> "${STATUS_FILE}"
+  exec switch_root "${NEW_ROOT}" /usr/bin/hyper_init
+fi
+
+if command -v chroot >/dev/null 2>&1; then
+  echo "[pivot-root] switching root via chroot fallback" >> "${STATUS_FILE}"
+  exec chroot "${NEW_ROOT}" /usr/bin/hyper_init
+fi
+
+echo "[pivot-root] no switch_root/chroot available; staying on initramfs" >> "${STATUS_FILE}"
+exit 0
