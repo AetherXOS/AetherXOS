@@ -52,10 +52,10 @@ pub fn detect_hardware_security() -> HardwareSecurityBackend {
     {
         let id_pfr1: u64;
         unsafe {
-            core::arch::asm!("mrs {}, id_pfr1_el1", out(reg) id_pfr1, options(nomem, nostack));
+            core::arch::asm!("mrs {}, id_aa64pfr0_el1", out(reg) id_pfr1, options(nomem, nostack));
         }
-        // Check bits [7:4] for Security Extension
-        if ((id_pfr1 >> 4) & 0xF) != 0 {
+        // Check bits [15:12] for Security Extension (EL3) in ID_AA64PFR0_EL1
+        if ((id_pfr1 >> 12) & 0xF) != 0 {
             return HardwareSecurityBackend::ArmTrustZone;
         }
         return HardwareSecurityBackend::None;
@@ -195,7 +195,7 @@ fn enforce_cpu_protections_aarch64() {
     if pan_support >= 1 {
         // Enable PAN — PSTATE.PAN = 1 (analogue of SMAP)
         unsafe {
-            core::arch::asm!("msr pan, #1", options(nomem, nostack));
+            core::arch::asm!("msr S3_0_C4_C1_1, {0}", in(reg) 1u64, options(nomem, nostack));
         }
         SMAP_ENABLED.store(true, Ordering::Relaxed);
     }
@@ -227,7 +227,7 @@ pub fn smap_disable_guard() -> SmapGuard {
     {
         if SMAP_ENABLED.load(Ordering::Relaxed) {
             unsafe {
-                core::arch::asm!("msr pan, #0", options(nomem, nostack));
+                core::arch::asm!("msr S3_0_C4_C1_1, {0}", in(reg) 0u64, options(nomem, nostack));
             }
             return SmapGuard { was_active: true };
         }
@@ -249,7 +249,7 @@ impl Drop for SmapGuard {
             }
             #[cfg(target_arch = "aarch64")]
             unsafe {
-                core::arch::asm!("msr pan, #1", options(nomem, nostack));
+                core::arch::asm!("msr S3_0_C4_C1_1, {0}", in(reg) 1u64, options(nomem, nostack));
             }
         }
     }

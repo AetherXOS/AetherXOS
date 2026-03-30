@@ -2,7 +2,8 @@ use crate::common::{fs, plan};
 
 #[test]
 fn cargo_fuzz_assets_and_plan_stay_aligned() {
-    let cmd = plan::integration().named("cargofuzz");
+    let plan = plan::integration();
+    let cmd = plan.named("cargofuzz");
 
     assert_eq!(cmd.program, "cargo");
     assert_eq!(cmd.workdir, "fuzz");
