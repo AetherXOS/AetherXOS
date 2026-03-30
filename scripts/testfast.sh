@@ -20,8 +20,9 @@ optional() {
     fi
 }
 
-run nextest cargo nextest run --config-file "$root/.config/nextest.toml" --target "$host" --features kernel_test_mode --test fast
+run nextest env RUSTFLAGS="-A warnings" cargo nextest run --config-file "$root/.config/nextest.toml" --target "$host" --features kernel_test_mode --test fast
 run clippy cargo clippy --manifest-path "$root/Cargo.toml" --lib --target "$host" --features kernel_test_mode -- \
+    -A warnings \
     -A unused \
     -A dead_code \
     -A unused_imports \
