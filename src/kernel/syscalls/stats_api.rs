@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct SyscallStats {
     pub total: u64,
     pub unknown: u64,
@@ -59,6 +59,72 @@ pub struct SyscallStats {
     pub policy_drift_control_set_calls: u64,
     pub policy_drift_control_get_calls: u64,
     pub policy_drift_reason_text_calls: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyscallHealthAction {
+    None,
+    AuditUnknownSyscalls,
+    TightenUserPointerValidation,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SyscallHealthReport {
+    pub total: u64,
+    pub unknown_rate_per_mille: u64,
+    pub invalid_arg_rate_per_mille: u64,
+    pub user_access_denied_rate_per_mille: u64,
+    pub control_plane_ratio_per_mille: u64,
+    pub degraded: bool,
+}
+
+#[inline(always)]
+fn ratio_per_mille(numerator: u64, denominator: u64) -> u64 {
+    if denominator == 0 {
+        0
+    } else {
+        numerator.saturating_mul(1000).saturating_div(denominator)
+    }
+}
+
+pub fn evaluate_syscall_health(stats: SyscallStats) -> SyscallHealthReport {
+    let control_plane_calls = stats
+        .network_stats_calls
+        .saturating_add(stats.vfs_stats_calls)
+        .saturating_add(stats.power_stats_calls)
+        .saturating_add(stats.process_count_calls)
+        .saturating_add(stats.process_list_calls)
+        .saturating_add(stats.core_pressure_snapshot_calls)
+        .saturating_add(stats.lottery_replay_latest_calls);
+
+    let unknown_rate = ratio_per_mille(stats.unknown, stats.total);
+    let invalid_arg_rate = ratio_per_mille(stats.invalid_args, stats.total);
+    let denied_rate = ratio_per_mille(stats.user_access_denied, stats.total);
+    let control_plane_ratio = ratio_per_mille(control_plane_calls, stats.total);
+    let degraded = unknown_rate > 50 || invalid_arg_rate > 100 || denied_rate > 120;
+
+    SyscallHealthReport {
+        total: stats.total,
+        unknown_rate_per_mille: unknown_rate,
+        invalid_arg_rate_per_mille: invalid_arg_rate,
+        user_access_denied_rate_per_mille: denied_rate,
+        control_plane_ratio_per_mille: control_plane_ratio,
+        degraded,
+    }
+}
+
+pub fn recommended_syscall_health_action(report: SyscallHealthReport) -> SyscallHealthAction {
+    if report.unknown_rate_per_mille > 50 {
+        return SyscallHealthAction::AuditUnknownSyscalls;
+    }
+    if report.invalid_arg_rate_per_mille > 100 || report.user_access_denied_rate_per_mille > 120 {
+        return SyscallHealthAction::TightenUserPointerValidation;
+    }
+    SyscallHealthAction::None
+}
+
+pub fn current_syscall_health() -> SyscallHealthReport {
+    evaluate_syscall_health(stats())
 }
 
 pub fn stats() -> SyscallStats {
@@ -125,5 +191,35 @@ pub fn stats() -> SyscallStats {
             .load(Ordering::Relaxed),
         policy_drift_reason_text_calls: SYSCALL_POLICY_DRIFT_REASON_TEXT_CALLS
             .load(Ordering::Relaxed),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn syscall_health_detects_unknown_spike() {
+        let mut s = SyscallStats::default();
+        s.total = 1000;
+        s.unknown = 90;
+        let report = evaluate_syscall_health(s);
+        assert!(report.degraded);
+        assert_eq!(
+            recommended_syscall_health_action(report),
+            SyscallHealthAction::AuditUnknownSyscalls
+        );
+    }
+
+    #[test_case]
+    fn syscall_health_prefers_pointer_validation_on_access_denials() {
+        let mut s = SyscallStats::default();
+        s.total = 1000;
+        s.user_access_denied = 300;
+        let report = evaluate_syscall_health(s);
+        assert_eq!(
+            recommended_syscall_health_action(report),
+            SyscallHealthAction::TightenUserPointerValidation
+        );
     }
 }

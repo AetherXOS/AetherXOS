@@ -222,6 +222,10 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     let linux_mount_setup = root.join("src/modules/vfs/linux_mount_setup.rs");
     let mount_table = root.join("src/modules/vfs/mount_table.rs");
     let disk_fs = root.join("src/modules/vfs/disk_fs.rs");
+    let vfs_health = root.join("src/modules/vfs/health.rs");
+    let network_metrics_snapshot = root.join("src/modules/network/metrics_snapshot.rs");
+    let syscall_stats_api = root.join("src/kernel/syscalls/stats_api.rs");
+    let gpu_mod = root.join("src/modules/drivers/gpu/mod.rs");
     let posix_lifecycle = root.join("src/modules/posix/fs/lifecycle_support.rs");
     let cargo_toml = root.join("Cargo.toml");
 
@@ -350,6 +354,35 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         "desktop app stack probe (XFCE/GNOME/Flutter prerequisites)",
         desktop_app_stack_ok,
         require_desktop_app_stack,
+    );
+
+    let cross_layer_health_surface_ok = file_contains_all(
+        &vfs_health,
+        &["VfsHealthSummary", "current_mount_health_summary", "summarize_mount_health"],
+    ) && file_contains_all(
+        &network_metrics_snapshot,
+        &["runtime_health_report", "recommended_runtime_health_action"],
+    ) && file_contains_all(
+        &syscall_stats_api,
+        &[
+            "SyscallHealthReport",
+            "evaluate_syscall_health",
+            "recommended_syscall_health_action",
+        ],
+    ) && file_contains_all(
+        &gpu_mod,
+        &[
+            "GpuHealthReport",
+            "evaluate_gpu_health",
+            "recommended_gpu_health_action",
+        ],
+    );
+    run_source_probe(
+        &mut compat,
+        &mut totals,
+        "cross-layer health surface probe (fs/net/syscalls/gpu)",
+        cross_layer_health_surface_ok,
+        true,
     );
 
     println!("\nPhase 2: Kernel Gates");

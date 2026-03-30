@@ -138,6 +138,27 @@ pub enum BuildAction {
     Full,
     /// Build only the bootable ISO image
     Iso,
+    /// Build ISO with apt/userspace seed preloaded into initramfs
+    AptIso {
+        /// Base distro profile id from artifacts/tooling/installer/profiles.json
+        #[arg(long, default_value = "debian")]
+        profile: String,
+        /// Optional comma-separated app targets from artifacts/tooling/installer/app_targets.json
+        #[arg(long)]
+        apps: Option<String>,
+        /// Optional comma-separated package override list (replaces profile defaults)
+        #[arg(long)]
+        packages: Option<String>,
+        /// Optional comma-separated package additions
+        #[arg(long)]
+        include: Option<String>,
+        /// Optional comma-separated package removals
+        #[arg(long)]
+        exclude: Option<String>,
+        /// Optional package mirror URL used by first-boot seed installer
+        #[arg(long)]
+        mirror: Option<String>,
+    },
     /// Compile the kernel ELF binary only (no boot image assembly)
     Kernel,
     /// Generate initramfs archive from boot/initramfs directory
@@ -311,8 +332,6 @@ pub enum LinuxAbiAction {
     PlatformReadiness,
     /// Linux desktop integration plan (Wayland/X11 + XFCE/GNOME roadmap)
     DesktopPlan,
-    /// APT + desktop stack readiness audit (kernel and runtime gaps)
-    DesktopStackAudit,
     /// ABI gate enforcement
     Gate,
     /// Policy drift ABI smoke test

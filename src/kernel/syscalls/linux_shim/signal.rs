@@ -32,7 +32,7 @@ pub(super) fn sys_linux_rt_sigaction_shim(
                     sa_handler: action.handler.map(|h| h as usize as u64).unwrap_or(0),
                     sa_flags: action.flags as u64,
                     sa_restorer: action.restorer,
-                    sa_mask: action.mask,
+                    sa_mask: sanitize_linux_sigmask(action.mask),
                 })
                 .unwrap_or_default();
             if let Err(err) = write_sigaction(oldact, &previous) {
@@ -60,7 +60,7 @@ pub(super) fn sys_linux_rt_sigaction_shim(
             if signal::signal_action(
                 sig,
                 handler,
-                action.sa_mask,
+                sanitize_linux_sigmask(action.sa_mask),
                 action.sa_flags as u32,
                 action.sa_restorer,
             )
@@ -116,10 +116,11 @@ pub(super) fn sys_linux_rt_sigprocmask_shim(
     }
 
     if set != 0 {
-        let new_mask = match read_signal_set(set) {
+        let raw_mask = match read_signal_set(set) {
             Ok(v) => v,
             Err(err) => return err,
         };
+        let new_mask = sanitize_linux_sigmask(raw_mask);
 
         task.signal_mask = match how {
             crate::modules::posix_consts::signal::SIG_BLOCK => old_mask | new_mask,
@@ -207,6 +208,213 @@ pub(super) fn sys_linux_rt_sigpending_shim(set_ptr: usize, sigsetsize: usize) ->
     };
 
     write_signal_set(set_ptr, pending).map_or_else(|err| err, |_| 0)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[cfg(feature = "posix_signal")]
+fn map_signal_wait_errno_for_sigwait(errno: i32) -> usize {
+    if errno == crate::modules::posix_consts::errno::ETIMEDOUT {
+        linux_errno(crate::modules::posix_consts::errno::EINTR)
+    } else {
+        linux_errno(errno)
+    }
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[cfg(feature = "posix_signal")]
+fn map_signal_wait_errno_for_sigtimed(errno: i32) -> usize {
+    if errno == crate::modules::posix_consts::errno::ETIMEDOUT {
+        linux_errno(crate::modules::posix_consts::errno::EAGAIN)
+    } else {
+        linux_errno(errno)
+    }
+}
+
+#[cfg(not(feature = "linux_compat"))]
+fn decode_required_wait_mask(set_ptr: usize, sigsetsize: usize) -> Result<u64, usize> {
+    validate_linux_sigset_size(sigsetsize)?;
+    if !should_write_signal_set(set_ptr) {
+        return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT));
+    }
+
+    let wait_mask = sanitize_linux_sigmask(read_signal_set(set_ptr)?);
+    if wait_mask == 0 {
+        return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
+    }
+
+    Ok(wait_mask)
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_signal"))]
+fn finish_wait_signum_with_siginfo(siginfo_ptr: usize, signum: i32) -> usize {
+    use crate::modules::posix::signal;
+
+    match write_signal_wait_siginfo(siginfo_ptr, signum, signal::current_pid_pub()) {
+        Ok(()) => signum as usize,
+        Err(err) => err,
+    }
+}
+
+#[cfg(all(not(feature = "linux_compat"), not(feature = "posix_signal")))]
+fn finish_wait_signum_with_siginfo(siginfo_ptr: usize, signum: i32) -> usize {
+    match write_signal_wait_siginfo(siginfo_ptr, signum, 0) {
+        Ok(()) => signum as usize,
+        Err(err) => err,
+    }
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_rt_sigwaitinfo_shim(
+    set_ptr: usize,
+    siginfo_ptr: usize,
+    sigsetsize: usize,
+) -> usize {
+    let wait_mask = match decode_required_wait_mask(set_ptr, sigsetsize) {
+        Ok(mask) => mask,
+        Err(err) => return err,
+    };
+
+    #[cfg(feature = "posix_signal")]
+    {
+        use crate::modules::posix::signal;
+
+        match signal::sigwaitinfo(wait_mask) {
+            Ok(signum) => finish_wait_signum_with_siginfo(siginfo_ptr, signum),
+            Err(err) => map_signal_wait_errno_for_sigwait(err.code()),
+        }
+    }
+
+    #[cfg(not(feature = "posix_signal"))]
+    {
+        let task_arc = match current_task_arc_for_signal_shim() {
+            Ok(task_arc) => task_arc,
+            Err(err) => return err,
+        };
+        let mut task = task_arc.lock();
+        let available = task.pending_signals & wait_mask;
+        let Some(signum) = first_signal_from_mask(available) else {
+            return linux_errno(crate::modules::posix_consts::errno::EINTR);
+        };
+
+        let bit = 1u64 << ((signum as u64).saturating_sub(1));
+        task.pending_signals &= !bit;
+        finish_wait_signum_with_siginfo(siginfo_ptr, signum)
+    }
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_rt_sigtimedwait_shim(
+    set_ptr: usize,
+    siginfo_ptr: usize,
+    timeout_ptr: usize,
+    sigsetsize: usize,
+) -> usize {
+    let wait_mask = match decode_required_wait_mask(set_ptr, sigsetsize) {
+        Ok(mask) => mask,
+        Err(err) => return err,
+    };
+
+    let timeout_budget = match read_signal_wait_timeout_spin_budget(timeout_ptr) {
+        Ok(v) => v,
+        Err(err) => return err,
+    };
+
+    if timeout_budget.is_none() {
+        return sys_linux_rt_sigwaitinfo_shim(set_ptr, siginfo_ptr, sigsetsize);
+    }
+
+    #[cfg(feature = "posix_signal")]
+    {
+        use crate::modules::posix::signal;
+
+        match signal::sigtimedwait(wait_mask, timeout_budget.unwrap_or(0)) {
+            Ok(Some(signum)) => finish_wait_signum_with_siginfo(siginfo_ptr, signum),
+            Ok(None) => linux_errno(crate::modules::posix_consts::errno::EAGAIN),
+            Err(err) => map_signal_wait_errno_for_sigtimed(err.code()),
+        }
+    }
+
+    #[cfg(not(feature = "posix_signal"))]
+    {
+        let task_arc = match current_task_arc_for_signal_shim() {
+            Ok(task_arc) => task_arc,
+            Err(err) => return err,
+        };
+        let mut task = task_arc.lock();
+        let available = task.pending_signals & wait_mask;
+        let Some(signum) = first_signal_from_mask(available) else {
+            return linux_errno(crate::modules::posix_consts::errno::EAGAIN);
+        };
+
+        let bit = 1u64 << ((signum as u64).saturating_sub(1));
+        task.pending_signals &= !bit;
+        finish_wait_signum_with_siginfo(siginfo_ptr, signum)
+    }
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_rt_sigsuspend_shim(unmask_ptr: usize, sigsetsize: usize) -> usize {
+    if let Err(err) = validate_linux_sigset_size(sigsetsize) {
+        return err;
+    }
+
+    let temporary_mask = if should_write_signal_set(unmask_ptr) {
+        match read_signal_set(unmask_ptr) {
+            Ok(mask) => sanitize_linux_sigmask(mask),
+            Err(err) => return err,
+        }
+    } else {
+        0
+    };
+
+    #[cfg(feature = "posix_signal")]
+    {
+        use crate::modules::posix::signal;
+
+        match signal::sigsuspend(temporary_mask) {
+            Ok(_) => linux_errno(crate::modules::posix_consts::errno::EINTR),
+            Err(err) => {
+                let errno = err.code();
+                if errno == crate::modules::posix_consts::errno::ETIMEDOUT {
+                    linux_errno(crate::modules::posix_consts::errno::EINTR)
+                } else {
+                    linux_errno(errno)
+                }
+            }
+        }
+    }
+
+    #[cfg(not(feature = "posix_signal"))]
+    {
+        let task_arc = match current_task_arc_for_signal_shim() {
+            Ok(task_arc) => task_arc,
+            Err(err) => return err,
+        };
+        let mut task = task_arc.lock();
+        let old_mask = task.signal_mask;
+        task.signal_mask = temporary_mask;
+        task.signal_mask = old_mask;
+        linux_errno(crate::modules::posix_consts::errno::EINTR)
+    }
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub(super) fn sys_linux_pause_shim() -> usize {
+    #[cfg(feature = "posix_signal")]
+    {
+        match crate::modules::posix::signal::pause() {
+            Ok(_) => linux_errno(crate::modules::posix_consts::errno::EINTR),
+            Err(err) => map_signal_wait_errno_for_sigwait(err.code()),
+        }
+    }
+
+    #[cfg(not(feature = "posix_signal"))]
+    {
+        if let Err(err) = current_task_arc_for_signal_shim() {
+            return err;
+        }
+        linux_errno(crate::modules::posix_consts::errno::EINTR)
+    }
 }
 
 #[cfg(all(not(feature = "linux_compat"), target_arch = "x86_64"))]
@@ -351,6 +559,74 @@ mod tests {
         assert_eq!(
             sys_linux_rt_sigpending_shim(0, core::mem::size_of::<u64>()),
             0
+        );
+    }
+
+    #[test_case]
+    fn sigsuspend_rejects_invalid_sigset_size() {
+        assert_eq!(
+            sys_linux_rt_sigsuspend_shim(0, core::mem::size_of::<u32>()),
+            linux_errno(crate::modules::posix_consts::errno::EINVAL)
+        );
+    }
+
+    #[test_case]
+    fn sigwaitinfo_rejects_invalid_sigset_size() {
+        assert_eq!(
+            sys_linux_rt_sigwaitinfo_shim(0, 0, core::mem::size_of::<u32>()),
+            linux_errno(crate::modules::posix_consts::errno::EINVAL)
+        );
+    }
+
+    #[test_case]
+    fn sigwaitinfo_rejects_null_set_pointer() {
+        assert_eq!(
+            sys_linux_rt_sigwaitinfo_shim(0, 0, core::mem::size_of::<u64>()),
+            linux_errno(crate::modules::posix_consts::errno::EFAULT)
+        );
+    }
+
+    #[test_case]
+    fn sigtimedwait_rejects_invalid_sigset_size() {
+        assert_eq!(
+            sys_linux_rt_sigtimedwait_shim(0, 0, 0, core::mem::size_of::<u32>()),
+            linux_errno(crate::modules::posix_consts::errno::EINVAL)
+        );
+    }
+
+    #[test_case]
+    fn sigtimedwait_rejects_invalid_timeout_timespec() {
+        let wait_mask = 1u64;
+        let invalid_timeout = LinuxTimespecCompat {
+            tv_sec: 0,
+            tv_nsec: 1_000_000_000,
+        };
+        assert_eq!(
+            sys_linux_rt_sigtimedwait_shim(
+                (&wait_mask as *const u64) as usize,
+                0,
+                (&invalid_timeout as *const LinuxTimespecCompat) as usize,
+                core::mem::size_of::<u64>(),
+            ),
+            linux_errno(crate::modules::posix_consts::errno::EINVAL)
+        );
+    }
+
+    #[cfg(not(feature = "posix_signal"))]
+    #[test_case]
+    fn pause_without_task_context_returns_esrch() {
+        assert_eq!(
+            sys_linux_pause_shim(),
+            linux_errno(crate::modules::posix_consts::errno::ESRCH)
+        );
+    }
+
+    #[cfg(not(feature = "posix_signal"))]
+    #[test_case]
+    fn sigsuspend_without_task_context_returns_esrch() {
+        assert_eq!(
+            sys_linux_rt_sigsuspend_shim(0, core::mem::size_of::<u64>()),
+            linux_errno(crate::modules::posix_consts::errno::ESRCH)
         );
     }
 

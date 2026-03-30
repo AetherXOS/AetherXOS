@@ -75,6 +75,7 @@ pub struct JobControlState {
     stopped_count: core::sync::atomic::AtomicUsize,
 
     /// Timestamp of last state change (for debugging/diagnostics)
+    #[allow(dead_code)]
     state_change_ticks: core::sync::atomic::AtomicU64,
 }
 
@@ -134,6 +135,7 @@ impl JobControlState {
 /// - Foreground/background transitions
 /// - Signal delivery to groups
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ProcessGroupManager {
     /// All active process groups: pgrp_id → set of process IDs
     groups: BTreeMap<ProcessGroupId, alloc::vec::Vec<ProcessId>>,
@@ -145,6 +147,7 @@ pub struct ProcessGroupManager {
     group_states: BTreeMap<ProcessGroupId, JobControlState>,
 }
 
+#[allow(dead_code)]
 impl ProcessGroupManager {
     pub fn new() -> Self {
         ProcessGroupManager {
@@ -198,7 +201,7 @@ impl ProcessGroupManager {
 
     /// Check if a process group is orphaned
     /// (all parent processes in the session have exited)
-    pub fn is_orphaned(&self, pgrp: ProcessGroupId) -> bool {
+    pub fn is_orphaned(&self, _pgrp: ProcessGroupId) -> bool {
         // TODO: Implement orphan detection logic
         // An orphaned process group has no parent process that is member of the same session
         false
@@ -208,11 +211,11 @@ impl ProcessGroupManager {
     pub fn signal_group(
         &self,
         pgrp: ProcessGroupId,
-        signal: u8,
+        _signal: u8,
     ) -> crate::interfaces::KernelResult<usize> {
         if let Some(procs) = self.groups.get(&pgrp) {
             let mut delivered = 0;
-            for &pid in procs {
+            for &_pid in procs {
                 // TODO: Actually deliver signal to process
                 // For now, just count
                 delivered += 1;

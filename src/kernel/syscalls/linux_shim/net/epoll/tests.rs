@@ -79,6 +79,21 @@ fn epoll_pwait_rejects_invalid_sigset_size() {
 }
 
 #[test_case]
+fn epoll_pwait_sigmask_sanitizes_unblockable_signals() {
+    let kill_bit =
+        1u64 << ((crate::modules::posix_consts::signal::SIGKILL as u64).saturating_sub(1));
+    let stop_bit =
+        1u64 << ((crate::modules::posix_consts::signal::SIGSTOP as u64).saturating_sub(1));
+    let keep_bit = 1u64 << 5;
+    let mask = kill_bit | stop_bit | keep_bit;
+
+    assert_eq!(
+        parse_sigmask((&mask as *const u64) as usize, core::mem::size_of::<u64>()),
+        Ok(Some(keep_bit))
+    );
+}
+
+#[test_case]
 fn epoll_pwait2_rejects_negative_timeout_nsec() {
     let epfd = sys_linux_epoll_create1(0);
     let ts = LinuxTimespecCompat {

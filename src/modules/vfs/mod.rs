@@ -58,7 +58,8 @@ pub use cache::{
 };
 pub use file_lock::{FlockLock, LockManager, LockType, PosixLock};
 pub use health::{
-    evaluate_mount_health_slo, mount_slo_thresholds, recommended_mount_health_action,
+    current_mount_health_summary, evaluate_mount_health_slo, mount_slo_thresholds,
+    recommended_mount_health_action, summarize_mount_health, VfsHealthSummary, VfsHealthTier,
     VfsMountHealthAction, VfsMountSloReport, VfsMountSloThresholds,
 };
 pub use mount_table::{FsType, MountEntry, MountFlags, MountId, MountTable};

@@ -175,7 +175,17 @@ fn parse_sigmask(sigmask_ptr: usize, sigset_size: usize) -> Result<Option<u64>, 
 
     let mask = read_user_pod::<u64>(sigmask_ptr)?;
 
-    Ok(Some(mask))
+    Ok(Some(sanitize_wait_sigmask(mask)))
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+#[inline]
+fn sanitize_wait_sigmask(mask: u64) -> u64 {
+    let sigkill_bit =
+        1u64 << ((crate::modules::posix_consts::signal::SIGKILL as u64).saturating_sub(1));
+    let sigstop_bit =
+        1u64 << ((crate::modules::posix_consts::signal::SIGSTOP as u64).saturating_sub(1));
+    mask & !(sigkill_bit | sigstop_bit)
 }
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]

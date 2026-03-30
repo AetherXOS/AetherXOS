@@ -1,9 +1,5 @@
 #[cfg(feature = "vfs")]
-use crate::modules::vfs::FileSystem;
-#[cfg(feature = "vfs")]
 use alloc::boxed::Box;
-#[cfg(feature = "vfs")]
-use alloc::string::String;
 #[cfg(feature = "vfs")]
 use alloc::vec::Vec;
 #[cfg(feature = "vfs")]

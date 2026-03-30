@@ -9,6 +9,7 @@ pub const IPC_PAGE_SIZE_BYTES: usize = 4096;
 pub use crate::generated_consts::IPC_RING_BUFFER_SIZE_BYTES;
 
 #[cfg(feature = "ipc_unix_domain")]
+#[allow(unused_imports)]
 pub use crate::generated_consts::IPC_UNIX_SOCKET_QUEUE_LIMIT;
 
 #[cfg(feature = "ipc_binder")]

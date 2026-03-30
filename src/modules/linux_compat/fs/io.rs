@@ -11,6 +11,7 @@ lazy_static! {
     static ref LINUX_FD_FLAGS: Mutex<BTreeMap<u32, usize>> = Mutex::new(BTreeMap::new());
 }
 
+#[allow(dead_code)]
 pub(crate) fn linux_fd_get_descriptor_flags(fd: u32) -> usize {
     let linux_flags = LINUX_FD_FLAGS.lock().get(&fd).copied().unwrap_or(0);
     let posix_flags =

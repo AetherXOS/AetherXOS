@@ -35,7 +35,7 @@ pub use public_exports::*;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::sync::atomic::Ordering;
-pub(super) use state_counters::*;
+use state_counters::*;
 use state::clear_runtime_state_tables;
 #[cfg(feature = "network_http")]
 use state::HTTP_STATIC_ASSETS;

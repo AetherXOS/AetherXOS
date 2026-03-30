@@ -29,6 +29,7 @@ fn read_exec_image_from_fs(fs_id: u32, path: &str) -> Result<alloc::vec::Vec<u8>
 }
 
 #[cfg(all(feature = "vfs", feature = "posix_fs"))]
+#[allow(dead_code)]
 fn read_exec_image(path: &str) -> Result<alloc::vec::Vec<u8>, PosixErrno> {
     let fs_id = (*EXEC_FS_ID.lock()).ok_or(PosixErrno::BadFileDescriptor)?;
     read_exec_image_from_fs(fs_id, path)
@@ -65,10 +66,10 @@ fn read_exec_image_with_validated_interp_from_fs(
     Ok(image)
 }
 
-pub(super) fn execve(path: &str, argv: &[&str], envp: &[&str]) -> Result<(), PosixErrno> {
+pub(super) fn execve(path: &str, _argv: &[&str], _envp: &[&str]) -> Result<(), PosixErrno> {
     #[cfg(not(feature = "process_abstraction"))]
     {
-        let _ = (path, argv, envp);
+        let _ = (path, _argv, _envp);
         return Err(PosixErrno::NoSys);
     }
 
@@ -76,7 +77,7 @@ pub(super) fn execve(path: &str, argv: &[&str], envp: &[&str]) -> Result<(), Pos
     {
         #[cfg(not(all(feature = "vfs", feature = "posix_fs")))]
         {
-            let _ = (path, argv, envp);
+            let _ = (path, _argv, _envp);
             return Err(PosixErrno::NoSys);
         }
 
@@ -175,10 +176,10 @@ pub(super) fn resolve_interp_path(image: &[u8]) -> Result<Option<String>, PosixE
 }
 
 #[cfg(all(feature = "vfs", feature = "posix_fs"))]
-pub(super) fn execveat(fs_id: u32, path: &str, argv: &[&str], envp: &[&str]) -> Result<(), PosixErrno> {
+pub(super) fn execveat(fs_id: u32, path: &str, _argv: &[&str], _envp: &[&str]) -> Result<(), PosixErrno> {
     #[cfg(not(feature = "process_abstraction"))]
     {
-        let _ = (fs_id, path, argv, envp);
+        let _ = (fs_id, path, _argv, _envp);
         return Err(PosixErrno::NoSys);
     }
 

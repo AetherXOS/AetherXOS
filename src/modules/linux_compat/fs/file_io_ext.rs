@@ -146,11 +146,11 @@ pub fn sys_linux_splice(
     fd_in: Fd,
     off_in: UserPtr<i64>,
     fd_out: Fd,
-    off_out: UserPtr<i64>,
+    _off_out: UserPtr<i64>,
     len: usize,
     _flags: usize,
 ) -> usize {
-    crate::require_posix_pipe!((fd_in, off_in, fd_out, off_out, len, _flags) => {
+    crate::require_posix_pipe!((fd_in, off_in, fd_out, _off_out, len, _flags) => {
         // Advanced zero-copy pipeline semantics not yet modeled.
         // Provide semantic fallback: regular sendfile behavior since splice allows
         // moving between file descriptors like sendfile does.

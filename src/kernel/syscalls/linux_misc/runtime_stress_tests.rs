@@ -282,3 +282,82 @@ fn p2_mixed_poll_select_epoll_timerfd_churn() {
         );
     }
 }
+
+#[test_case]
+fn p2_minecraft_java_game_like_epoll_socket_timerfd_soak() {
+    #[cfg(feature = "posix_net")]
+    {
+        let epfd = linux_shim_call(
+            crate::kernel::syscalls::syscalls_consts::linux_numbers::EPOLL_CREATE1,
+            0,
+            0,
+            0,
+            0,
+            0,
+        );
+        if is_linux_error(epfd) {
+            return;
+        }
+
+        for _ in 0..20usize {
+            let tfd = linux_shim_call(
+                crate::kernel::syscalls::syscalls_consts::linux_numbers::TIMERFD_CREATE,
+                crate::modules::posix_consts::time::CLOCK_MONOTONIC as usize,
+                0,
+                0,
+                0,
+                0,
+            );
+            if is_linux_error(tfd) {
+                break;
+            }
+
+            let spec = LinuxItimerspecCompat {
+                it_interval: LinuxTimespecCompat {
+                    tv_sec: 0,
+                    tv_nsec: 2_000_000,
+                },
+                it_value: LinuxTimespecCompat {
+                    tv_sec: 0,
+                    tv_nsec: 2_000_000,
+                },
+            };
+            let _ = linux_shim_call(
+                crate::kernel::syscalls::syscalls_consts::linux_numbers::TIMERFD_SETTIME,
+                tfd,
+                0,
+                (&spec as *const LinuxItimerspecCompat) as usize,
+                0,
+                0,
+            );
+
+            let mut evs = [LinuxEpollEventCompat::default(); 8];
+            let _ = linux_shim_call(
+                crate::kernel::syscalls::syscalls_consts::linux_numbers::EPOLL_PWAIT2,
+                epfd,
+                evs.as_mut_ptr() as usize,
+                evs.len(),
+                1,
+                0,
+            );
+
+            let _ = linux_shim_call(
+                linux_nr::CLOSE,
+                tfd,
+                0,
+                0,
+                0,
+                0,
+            );
+        }
+
+        let _ = linux_shim_call(
+            linux_nr::CLOSE,
+            epfd,
+            0,
+            0,
+            0,
+            0,
+        );
+    }
+}

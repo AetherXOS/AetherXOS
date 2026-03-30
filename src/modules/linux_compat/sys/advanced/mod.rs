@@ -74,7 +74,7 @@ fn require_control_plane_access(resource: u64) -> Result<(), usize> {
 }
 
 pub(crate) use capability_and_sysctl::{sys_linux_capget, sys_linux_capset};
-pub use capability_and_sysctl::{
+pub(crate) use capability_and_sysctl::{
     sys_linux_rt_sigqueueinfo, sys_linux_sysctl, sys_linux_sysfs,
 };
 pub use fd_async_sandbox::{

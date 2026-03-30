@@ -7,6 +7,7 @@ use crate::interfaces::KernelError;
 
 /// Process group errno codes (Linux ENOSYS = 38, EPERM = 1, etc.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
 pub enum ProcessGroupErrno {
     /// Operation not permitted (e.g., trying to setpgid on someone else's child after exec)
     EPERM = 1,

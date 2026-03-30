@@ -9,7 +9,6 @@ use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
-use alloc::vec;
 use alloc::vec::Vec;
 use core::any::Any;
 use spin::Mutex;
@@ -184,6 +183,7 @@ impl TmpFs {
         }
     }
 
+    #[allow(dead_code)]
     fn basename(path: &str) -> String {
         let normalized = Self::normalize(path);
         match normalized.rfind('/') {

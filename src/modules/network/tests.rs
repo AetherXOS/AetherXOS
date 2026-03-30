@@ -37,6 +37,18 @@ fn reset_runtime_stats_resets_interval_and_force_poll_counter() {
 }
 
 #[test_case]
+fn runtime_health_report_is_accessible_after_reset() {
+    reset_runtime_stats();
+    let report = runtime_health_report();
+    assert_eq!(report.polls, 0);
+    assert!(report.low_poll_activity);
+    assert_eq!(
+        recommended_runtime_health_action(),
+        NetworkRuntimeHealthAction::ForcePollingUntilRecovered
+    );
+}
+
+#[test_case]
 fn loopback_reports_queue_drop_when_full() {
     reset_runtime_stats();
     let mut loopback = Loopback::new();

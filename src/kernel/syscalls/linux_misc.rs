@@ -355,16 +355,19 @@ pub(super) fn sys_linux_sched_setaffinity(
 }
 
 #[cfg(not(feature = "linux_compat"))]
+#[allow(dead_code)]
 pub(crate) fn linux_prctl_seccomp_mode_for_tid(tid: usize) -> u8 {
     proc_ctl::seccomp_mode_for_tid(tid)
 }
 
 #[cfg(not(feature = "linux_compat"))]
+#[allow(dead_code)]
 pub(crate) fn linux_prctl_no_new_privs_for_tid(tid: usize) -> bool {
     proc_ctl::no_new_privs_for_tid(tid)
 }
 
 #[cfg(all(test, not(feature = "linux_compat")))]
+#[allow(dead_code)]
 pub(crate) fn linux_set_prctl_state_for_tid_for_test(
     tid: usize,
     seccomp_mode: u8,

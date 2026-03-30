@@ -16,7 +16,7 @@ use alloc::collections::VecDeque;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicU64, Ordering};
 use spin::Mutex;
 
 mod registry;
@@ -91,6 +91,7 @@ impl UnixAddr {
         }
     }
 
+    #[allow(dead_code)]
     fn registry_key(&self) -> Option<String> {
         match self {
             Self::Unnamed => None,
@@ -177,6 +178,7 @@ struct UnixSocketInner {
     accept_queue: VecDeque<Arc<UnixSocket>>,
     backlog: usize,
     nonblocking: bool,
+    #[allow(dead_code)]
     pass_cred: bool,
     rcvbuf: usize,
     sndbuf: usize,

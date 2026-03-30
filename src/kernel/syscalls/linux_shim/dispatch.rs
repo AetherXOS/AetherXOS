@@ -83,6 +83,28 @@ pub(super) fn sys_linux_shim(
         linux_nr::RT_SIGPROCMASK => Some(signal::sys_linux_rt_sigprocmask_shim(
             arg1, arg2, arg3, arg4,
         )),
+        #[cfg(not(feature = "linux_compat"))]
+        linux_nr::RT_SIGTIMEDWAIT => Some(signal::sys_linux_rt_sigtimedwait_shim(
+            arg1, arg2, arg3, arg4,
+        )),
+        #[cfg(feature = "linux_compat")]
+        linux_nr::RT_SIGTIMEDWAIT => Some(crate::modules::linux_compat::sys_linux_rt_sigtimedwait(
+            crate::modules::linux_compat::UserPtr::new(arg1),
+            arg2,
+            arg3,
+            arg4,
+        )),
+        #[cfg(feature = "linux_compat")]
+        linux_nr::RT_SIGSUSPEND => Some(crate::modules::linux_compat::sys_linux_rt_sigsuspend(
+            crate::modules::linux_compat::UserPtr::new(arg1),
+            arg2,
+        )),
+        #[cfg(not(feature = "linux_compat"))]
+        linux_nr::RT_SIGSUSPEND => Some(signal::sys_linux_rt_sigsuspend_shim(arg1, arg2)),
+        #[cfg(feature = "linux_compat")]
+        linux_nr::PAUSE => Some(crate::modules::linux_compat::sys_linux_pause()),
+        #[cfg(not(feature = "linux_compat"))]
+        linux_nr::PAUSE => Some(signal::sys_linux_pause_shim()),
         #[cfg(feature = "linux_compat")]
         linux_nr::IOCTL => Some(crate::modules::linux_compat::sys_linux_ioctl(
             crate::modules::linux_compat::Fd::from(arg1),

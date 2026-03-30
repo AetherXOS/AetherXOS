@@ -3,6 +3,10 @@ use super::*;
 mod metrics_snapshot;
 
 pub use metrics_snapshot::{bridge_stats, NetworkBridgeStats};
+pub use metrics_snapshot::{
+    recommended_runtime_health_action, runtime_health_report, NetworkRuntimeHealthAction,
+    NetworkRuntimeHealthReport,
+};
 
 pub(super) fn update_loopback_high_water(depth: usize) {
     update_high_water(&LOOPBACK_QUEUE_HIGH_WATER, depth);

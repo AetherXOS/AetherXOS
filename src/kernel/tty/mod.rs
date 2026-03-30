@@ -142,12 +142,15 @@ pub struct TtyDevice {
     is_open: AtomicBool,
 
     /// Input queue (for line buffering in canonical mode)
+    #[allow(dead_code)]
     input_buffer: core::sync::atomic::AtomicPtr<u8>,
 
     /// Output queue position (bytes written)
+    #[allow(dead_code)]
     output_pos: AtomicU32,
 
     /// Job control state (process groups, sessions, suspension state)
+    #[allow(dead_code)]
     job_control: core::sync::atomic::AtomicPtr<JobControlState>,
 }
 

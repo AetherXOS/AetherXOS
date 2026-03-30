@@ -38,7 +38,10 @@ pub(crate) use self::ipc_control::*;
 pub(crate) use self::linux_shim::{
     execve_stack_required_bytes, prepare_execve_user_stack, read_user_c_string_array,
 };
-pub use self::stats_api::{stats, SyscallStats};
+pub use self::stats_api::{
+    current_syscall_health, evaluate_syscall_health, recommended_syscall_health_action, stats,
+    SyscallHealthAction, SyscallHealthReport, SyscallStats,
+};
 pub(crate) use self::user_access::*;
 #[cfg(test)]
 pub(crate) use self::user_access::{
@@ -83,16 +86,19 @@ pub(crate) fn robust_list_for_tid(tid: usize) -> Option<(usize, usize)> {
 }
 
 #[cfg(not(feature = "linux_compat"))]
+#[allow(dead_code)]
 pub(crate) fn linux_seccomp_mode_for_tid(tid: usize) -> u8 {
     linux_misc::linux_prctl_seccomp_mode_for_tid(tid)
 }
 
 #[cfg(not(feature = "linux_compat"))]
+#[allow(dead_code)]
 pub(crate) fn linux_no_new_privs_for_tid(tid: usize) -> bool {
     linux_misc::linux_prctl_no_new_privs_for_tid(tid)
 }
 
 #[cfg(all(test, not(feature = "linux_compat")))]
+#[allow(dead_code)]
 pub(crate) fn linux_set_prctl_state_for_tid_for_test(
     tid: usize,
     seccomp_mode: u8,

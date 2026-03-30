@@ -14,5 +14,7 @@ pub use public_transport_exports::*;
 
 pub use super::metrics_facade::{
     bridge_stats, reset_runtime_stats, runtime_poll_interval_ticks, runtime_polling_enabled,
-    set_runtime_poll_interval_ticks, set_runtime_polling_enabled, NetworkBridgeStats,
+    set_runtime_poll_interval_ticks, set_runtime_polling_enabled,
+    recommended_runtime_health_action, runtime_health_report, NetworkBridgeStats,
+    NetworkRuntimeHealthAction, NetworkRuntimeHealthReport,
 };

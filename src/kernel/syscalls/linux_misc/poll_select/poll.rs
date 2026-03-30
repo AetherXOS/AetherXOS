@@ -22,7 +22,7 @@ fn parse_sigmask(sigmask_ptr: usize, sigset_size: usize) -> Result<Option<u64>, 
 
     let mask = read_user_pod::<u64>(sigmask_ptr)?;
 
-    Ok(Some(mask))
+    Ok(Some(super::compat::sanitize_wait_sigmask(mask)))
 }
 
 #[cfg(all(
@@ -286,6 +286,21 @@ mod tests {
         assert_eq!(
             sys_linux_ppoll(0, 0, 0, (&mask as *const u64) as usize, 4),
             linux_errno(crate::modules::posix_consts::errno::EINVAL)
+        );
+    }
+
+    #[test_case]
+    fn ppoll_sigmask_sanitizes_unblockable_signals() {
+        let kill_bit =
+            1u64 << ((crate::modules::posix_consts::signal::SIGKILL as u64).saturating_sub(1));
+        let stop_bit =
+            1u64 << ((crate::modules::posix_consts::signal::SIGSTOP as u64).saturating_sub(1));
+        let keep_bit = 1u64 << 3;
+        let mask = kill_bit | stop_bit | keep_bit;
+
+        assert_eq!(
+            parse_sigmask((&mask as *const u64) as usize, core::mem::size_of::<u64>()),
+            Ok(Some(keep_bit))
         );
     }
 

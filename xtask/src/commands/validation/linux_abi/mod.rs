@@ -6,7 +6,6 @@ pub mod gate;
 pub mod utils;
 pub mod platform;
 pub mod desktop_plan;
-pub mod desktop_stack_audit;
 pub mod glibc;
 pub mod p2_gap;
 
@@ -23,7 +22,6 @@ pub fn execute(action: &LinuxAbiAction) -> Result<()> {
         LinuxAbiAction::ShimErrnoConformance => errno::run_shim_conformance(),
         LinuxAbiAction::PlatformReadiness => platform::run(),
         LinuxAbiAction::DesktopPlan => desktop_plan::run(),
-        LinuxAbiAction::DesktopStackAudit => desktop_stack_audit::run(),
         LinuxAbiAction::Gate => gate::run(),
         LinuxAbiAction::PolicyDrift => drift::run(),
         LinuxAbiAction::GlibcNeeds => glibc::run_analysis(),

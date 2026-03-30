@@ -30,6 +30,7 @@ pub(super) fn no_new_privs_for_tid(tid: usize) -> bool {
 }
 
 #[cfg(all(test, not(feature = "linux_compat")))]
+#[allow(dead_code)]
 pub(super) fn set_prctl_state_for_tid_for_test(tid: usize, seccomp_mode: u8, no_new_privs: bool) {
     SECCOMP_MODE_BY_TID.lock().insert(tid, seccomp_mode);
     NO_NEW_PRIVS_BY_TID.lock().insert(tid, no_new_privs);

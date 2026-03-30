@@ -1,4 +1,5 @@
 pub(crate) mod common;
+pub mod logind;
 pub mod pipe;
 
 #[cfg(feature = "ipc_binder")]
@@ -39,6 +40,7 @@ pub use futex::Futex;
 #[cfg(feature = "ipc_message_passing")]
 pub use message_passing::MessagePassing;
 pub use pipe::{PipeEnd, PipeId, PipeRegistry, PipeStats};
+pub use logind::{mark_session_active, register_session, session_snapshot};
 #[cfg(feature = "ipc_ring_buffer")]
 pub use ring_buffer::RingBuffer;
 #[cfg(feature = "ipc_sysv_sem")]

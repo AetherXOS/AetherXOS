@@ -6,6 +6,13 @@ pub enum VfsMountHealthAction {
     ThrottleMountChurn,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VfsHealthTier {
+    Healthy,
+    Degraded,
+    Critical,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct VfsMountSloThresholds {
     pub max_read_latency_ticks: u64,
@@ -32,6 +39,14 @@ pub struct VfsMountSloReport {
     pub path_validation_breach: bool,
     pub mount_capacity_breach: bool,
     pub breach_count: u8,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct VfsHealthSummary {
+    pub slo: VfsMountSloReport,
+    pub score_per_mille: u16,
+    pub tier: VfsHealthTier,
+    pub recommended_action: VfsMountHealthAction,
 }
 
 fn ms_to_watchdog_ticks(ms: u64) -> u64 {
@@ -144,6 +159,29 @@ pub fn recommended_mount_health_action(report: VfsMountSloReport) -> VfsMountHea
     VfsMountHealthAction::None
 }
 
+pub fn summarize_mount_health(report: VfsMountSloReport) -> VfsHealthSummary {
+    let penalty = (report.breach_count as u16).saturating_mul(180);
+    let score_per_mille = 1000u16.saturating_sub(penalty);
+    let tier = if report.breach_count == 0 {
+        VfsHealthTier::Healthy
+    } else if report.breach_count <= 2 {
+        VfsHealthTier::Degraded
+    } else {
+        VfsHealthTier::Critical
+    };
+
+    VfsHealthSummary {
+        slo: report,
+        score_per_mille,
+        tier,
+        recommended_action: recommended_mount_health_action(report),
+    }
+}
+
+pub fn current_mount_health_summary() -> VfsHealthSummary {
+    summarize_mount_health(evaluate_mount_health_slo())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,5 +256,52 @@ mod tests {
             recommended_mount_health_action(report),
             VfsMountHealthAction::ThrottleMountChurn
         );
+    }
+
+    #[test_case]
+    fn summary_marks_healthy_when_no_breach() {
+        let report = VfsMountSloReport {
+            read_latency_p99_ticks: 1,
+            write_latency_p99_ticks: 1,
+            mount_failure_rate_per_mille: 0,
+            unmount_failure_rate_per_mille: 0,
+            path_validation_failures: 0,
+            total_mounts: 1,
+            mount_capacity_percent: 1,
+            read_latency_breach: false,
+            write_latency_breach: false,
+            mount_failure_rate_breach: false,
+            unmount_failure_rate_breach: false,
+            path_validation_breach: false,
+            mount_capacity_breach: false,
+            breach_count: 0,
+        };
+        let summary = summarize_mount_health(report);
+        assert_eq!(summary.tier, VfsHealthTier::Healthy);
+        assert_eq!(summary.score_per_mille, 1000);
+        assert_eq!(summary.recommended_action, VfsMountHealthAction::None);
+    }
+
+    #[test_case]
+    fn summary_marks_critical_when_many_breaches() {
+        let report = VfsMountSloReport {
+            read_latency_p99_ticks: 80,
+            write_latency_p99_ticks: 90,
+            mount_failure_rate_per_mille: 350,
+            unmount_failure_rate_per_mille: 140,
+            path_validation_failures: 500,
+            total_mounts: 128,
+            mount_capacity_percent: 99,
+            read_latency_breach: true,
+            write_latency_breach: true,
+            mount_failure_rate_breach: true,
+            unmount_failure_rate_breach: true,
+            path_validation_breach: false,
+            mount_capacity_breach: true,
+            breach_count: 5,
+        };
+        let summary = summarize_mount_health(report);
+        assert_eq!(summary.tier, VfsHealthTier::Critical);
+        assert!(summary.score_per_mille < 200);
     }
 }

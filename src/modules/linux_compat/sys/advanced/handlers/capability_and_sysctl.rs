@@ -86,7 +86,7 @@ pub fn sys_linux_sysfs(option: usize, arg1: usize, arg2: usize) -> usize {
     }
 }
 
-pub fn sys_linux_sysctl(args_ptr: UserPtr<HyperCompatSysctlArgs>) -> usize {
+pub(crate) fn sys_linux_sysctl(args_ptr: UserPtr<HyperCompatSysctlArgs>) -> usize {
     if args_ptr.is_null() {
         return linux_fault();
     }

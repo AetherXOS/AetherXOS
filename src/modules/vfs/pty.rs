@@ -33,6 +33,7 @@ struct PtyPairInner {
     /// Data written by slave, read by master (slave→master direction)
     slave_to_master: VecDeque<u8>,
     /// PTY index number
+    #[allow(dead_code)]
     index: u32,
     /// Locked state (TIOCSPTLCK)
     locked: bool,
@@ -116,7 +117,7 @@ impl File for PtyMaster {
             return Err("EIO");
         }
         // Master writes to the slave read buffer
-        let canonical = inner.termios.lflag & 0o000002 != 0; // ICANON
+        let _canonical = inner.termios.lflag & 0o000002 != 0; // ICANON
 
         for &byte in buf {
             // Input processing (ICRNL etc.)

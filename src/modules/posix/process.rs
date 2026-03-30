@@ -304,6 +304,7 @@ pub fn set_exec_fs(fs_id: u32) {
 }
 
 #[cfg(all(feature = "vfs", feature = "posix_fs"))]
+#[allow(dead_code)]
 fn resolve_interp_path(image: &[u8]) -> Result<Option<String>, PosixErrno> {
     exec_runtime::resolve_interp_path(image)
 }

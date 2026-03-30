@@ -181,6 +181,7 @@ fn build_surface_summary() -> String {
     out
 }
 
+#[allow(dead_code)]
 fn render_compat_virtual_file(path: &str) -> Result<String, &'static str> {
     match path.trim() {
         "/proc/hypercore/config" | "proc/hypercore/config" => render_proc_config_snapshot(),
@@ -195,6 +196,7 @@ fn render_compat_virtual_file(path: &str) -> Result<String, &'static str> {
     }
 }
 
+#[allow(dead_code)]
 fn refresh_visible_compat_surface_after_write() {
     #[cfg(feature = "vfs")]
     {

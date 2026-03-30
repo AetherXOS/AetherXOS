@@ -1,5 +1,3 @@
-use super::*;
-
 #[test_case]
 fn dpkg_style_file_ops_sequence_succeeds() {
     #[cfg(feature = "posix_fs")]
@@ -602,5 +600,69 @@ fn p2_package_manager_fault_injection_chain_retry_idempotent() {
                 || chown_retry
                     == crate::kernel::syscalls::linux_errno(crate::modules::posix_consts::errno::EPERM)
         );
+    }
+}
+
+#[test_case]
+fn p2_package_manager_metadata_retry_idempotence_multicycle() {
+    #[cfg(feature = "posix_fs")]
+    {
+        let root = b"/linux_shim_p2_meta_retry\0";
+        let path = b"/linux_shim_p2_meta_retry/pkg.db\0";
+
+        assert_eq!(
+            sys_linux_mkdirat(
+                crate::kernel::syscalls::syscalls_consts::linux::AT_FDCWD,
+                root.as_ptr() as usize,
+                0o755,
+            ),
+            0
+        );
+
+        for _ in 0..6usize {
+            let fd = sys_linux_openat(
+                crate::kernel::syscalls::syscalls_consts::linux::AT_FDCWD,
+                path.as_ptr() as usize,
+                crate::kernel::syscalls::syscalls_consts::linux::open_flags::O_CREAT,
+                0o644,
+            );
+            assert!(fd <= u32::MAX as usize);
+            assert_eq!(sys_linux_close(fd), 0);
+
+            assert_eq!(
+                sys_linux_fchmodat(
+                    crate::kernel::syscalls::syscalls_consts::linux::AT_FDCWD as usize,
+                    path.as_ptr() as usize,
+                    0o640,
+                    0,
+                ),
+                0
+            );
+
+            let chown = sys_linux_fchownat(
+                crate::kernel::syscalls::syscalls_consts::linux::AT_FDCWD as usize,
+                path.as_ptr() as usize,
+                0,
+                0,
+                0,
+            );
+            assert!(
+                chown == 0
+                    || chown
+                        == crate::kernel::syscalls::linux_errno(
+                            crate::modules::posix_consts::errno::EPERM,
+                        )
+            );
+
+            let opened = sys_linux_openat(
+                crate::kernel::syscalls::syscalls_consts::linux::AT_FDCWD,
+                path.as_ptr() as usize,
+                0,
+                0,
+            );
+            assert!(opened <= u32::MAX as usize);
+            assert_eq!(sys_linux_fdatasync(opened), 0);
+            assert_eq!(sys_linux_close(opened), 0);
+        }
     }
 }

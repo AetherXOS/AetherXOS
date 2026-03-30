@@ -130,6 +130,7 @@ fn refresh_visible_compat_surface_after_write() {
         let _ = ensure_runtime_compat_surface_state();
     }
 }
+#[allow(dead_code)]
 fn export_abi_key_tree(
     mount_id: usize,
     base_dir: &str,
@@ -245,6 +246,7 @@ fn export_abi_key_tree(
     }
     Ok(exported)
 }
+#[allow(dead_code)]
 fn export_runtime_key_tree(
     mount_id: usize,
     base_dir: &str,
@@ -268,6 +270,7 @@ fn export_runtime_key_tree(
     }
     Ok(exported)
 }
+#[allow(dead_code)]
 fn export_library_key_tree(
     mount_id: usize,
     base_dir: &str,
@@ -298,6 +301,7 @@ fn export_library_key_tree(
     }
     Ok(exported)
 }
+#[allow(dead_code)]
 fn export_compat_key_tree(
     mount_id: usize,
     base_dir: &str,
@@ -324,6 +328,7 @@ fn export_compat_key_tree(
     }
     Ok(exported)
 }
+#[allow(dead_code)]
 fn export_feature_tree(
     mount_id: usize,
     base_dir: &str,
@@ -351,6 +356,7 @@ fn export_feature_tree(
     Ok(exported)
 }
 
+#[allow(dead_code)]
 fn sanitize_path_component(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     for ch in raw.chars() {
@@ -384,6 +390,7 @@ fn normalize_runtime_style_key(key: &str) -> String {
     out.trim_matches('_').to_string()
 }
 
+#[allow(dead_code)]
 fn syscall_abi_platform() -> &'static str {
     #[cfg(target_arch = "x86_64")]
     {

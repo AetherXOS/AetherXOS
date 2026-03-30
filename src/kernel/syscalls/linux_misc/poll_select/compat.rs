@@ -22,6 +22,22 @@ pub(super) fn clamp_fdset_nfds(nfds: usize) -> usize {
     core::cmp::min(nfds, LINUX_FD_SETSIZE_COMPAT)
 }
 
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+#[inline]
+pub(super) fn linux_unblockable_signal_mask() -> u64 {
+    let sigkill_bit =
+        1u64 << ((crate::modules::posix_consts::signal::SIGKILL as u64).saturating_sub(1));
+    let sigstop_bit =
+        1u64 << ((crate::modules::posix_consts::signal::SIGSTOP as u64).saturating_sub(1));
+    sigkill_bit | sigstop_bit
+}
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+#[inline]
+pub(super) fn sanitize_wait_sigmask(mask: u64) -> u64 {
+    mask & !linux_unblockable_signal_mask()
+}
+
 #[repr(C)]
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 #[derive(Clone, Copy)]
@@ -152,5 +168,19 @@ mod tests {
 
         assert_eq!(out.fds_bits[0], (1u64 << 0) | (1u64 << 63));
         assert_eq!(out.fds_bits[1], 0);
+    }
+
+    #[test_case]
+    fn sanitize_wait_sigmask_clears_unblockable_bits() {
+        let kill_bit =
+            1u64 << ((crate::modules::posix_consts::signal::SIGKILL as u64).saturating_sub(1));
+        let stop_bit =
+            1u64 << ((crate::modules::posix_consts::signal::SIGSTOP as u64).saturating_sub(1));
+        let keep_bit = 1u64 << 2;
+
+        let sanitized = sanitize_wait_sigmask(kill_bit | stop_bit | keep_bit);
+        assert_eq!(sanitized & kill_bit, 0);
+        assert_eq!(sanitized & stop_bit, 0);
+        assert_ne!(sanitized & keep_bit, 0);
     }
 }

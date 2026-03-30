@@ -1,5 +1,7 @@
 pub mod status;
 pub mod transport;
+pub mod opengl;
+pub mod vulkan;
 #[cfg(feature = "linux_userspace_wayland")]
 pub mod wayland;
 #[cfg(feature = "linux_userspace_x11")]
@@ -7,6 +9,29 @@ pub mod x11;
 
 pub use self::status::*;
 pub use self::transport::*;
+pub use self::opengl::{
+	is_opengl_context_path_ready,
+	mark_opengl_context_path_ready,
+	opengl_runtime_contract_supported,
+	opengl_runtime_snapshot,
+	register_opengl_runtime,
+	OpenGlRuntimeSnapshot,
+	OPENGL_EXT_FBO,
+	OPENGL_EXT_SHADER_OBJECTS,
+	OPENGL_EXT_TEXTURE_STORAGE,
+	OPENGL_EXT_VBO,
+};
+pub use self::vulkan::{
+	is_vulkan_swapchain_path_ready,
+	mark_vulkan_swapchain_path_ready,
+	register_vulkan_runtime,
+	vulkan_runtime_contract_supported,
+	vulkan_runtime_snapshot,
+	VulkanRuntimeSnapshot,
+	VULKAN_QUEUE_COMPUTE,
+	VULKAN_QUEUE_GRAPHICS,
+	VULKAN_QUEUE_TRANSFER,
+};
 #[cfg(feature = "linux_userspace_wayland")]
 pub use self::wayland::{
     connect_sockaddr_precheck as wayland_connect_sockaddr_precheck,

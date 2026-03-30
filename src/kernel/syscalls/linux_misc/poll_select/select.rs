@@ -70,7 +70,7 @@ fn parse_pselect6_sigmask(sigmask_desc_ptr: usize) -> Result<Option<u64>, usize>
 
     let mask = read_user_pod::<u64>(desc.ss_ptr)?;
 
-    Ok(Some(mask))
+    Ok(Some(super::compat::sanitize_wait_sigmask(mask)))
 }
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
@@ -307,6 +307,25 @@ mod tests {
                 (&desc as *const LinuxPselect6SigmaskCompat) as usize,
             ),
             linux_errno(crate::modules::posix_consts::errno::EINVAL)
+        );
+    }
+
+    #[test_case]
+    fn pselect6_sigmask_sanitizes_unblockable_signals() {
+        let kill_bit =
+            1u64 << ((crate::modules::posix_consts::signal::SIGKILL as u64).saturating_sub(1));
+        let stop_bit =
+            1u64 << ((crate::modules::posix_consts::signal::SIGSTOP as u64).saturating_sub(1));
+        let keep_bit = 1u64 << 4;
+        let mask = kill_bit | stop_bit | keep_bit;
+        let desc = LinuxPselect6SigmaskCompat {
+            ss_ptr: (&mask as *const u64) as usize,
+            ss_len: core::mem::size_of::<u64>(),
+        };
+
+        assert_eq!(
+            parse_pselect6_sigmask((&desc as *const LinuxPselect6SigmaskCompat) as usize),
+            Ok(Some(keep_bit))
         );
     }
 }

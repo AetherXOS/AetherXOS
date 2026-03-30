@@ -65,7 +65,7 @@ mod tests {
             trapno: u64,
             oldmask: u64,
             cr2: u64,
-        };
+        }
 
         // On x86_64, ucontext must be 16-byte aligned for XSAVE
         assert_eq!(mem::align_of::<UContext>() % 16, 0, 

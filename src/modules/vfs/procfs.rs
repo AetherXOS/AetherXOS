@@ -111,10 +111,12 @@ impl ProcFs {
         Self
     }
 
+    #[allow(dead_code)]
     fn is_self_path(path: &str) -> bool {
         path == "self" || path.starts_with("self/")
     }
 
+    #[allow(dead_code)]
     fn self_subpath(path: &str) -> Option<&str> {
         path.strip_prefix("self/")
     }
@@ -134,7 +136,7 @@ impl FileSystem for ProcFs {
                 first.parse::<usize>().unwrap()
             };
 
-            let proc = match crate::kernel::process_registry::get_process(crate::interfaces::task::ProcessId(pid_val)) {
+            let _proc = match crate::kernel::process_registry::get_process(crate::interfaces::task::ProcessId(pid_val)) {
                 Some(p) => p,
                 None => if first == "self" { return Err("ENOENT"); } else { return Err("ENOENT"); }
             };
