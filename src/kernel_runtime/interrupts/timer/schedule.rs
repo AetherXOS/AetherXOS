@@ -152,9 +152,7 @@ pub(super) fn prepare_scheduler_switch(
         }
         (None, Some(_)) => {
             #[cfg(target_arch = "x86_64")]
-            hypercore::hal::x86_64::serial::write_raw(
-                "[EARLY SERIAL] timer next_sp missing\n",
-            );
+            hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] timer next_sp missing\n");
             None
         }
         (Some(_), None) => {

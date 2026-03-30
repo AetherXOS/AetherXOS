@@ -31,7 +31,9 @@ impl RuntimeBootContext {
         boot_sequence::write_stage_serial_marker("[EARLY SERIAL] prelude finalize deferred");
         let _ = self.prelude.linked_probe_boot();
         boot_sequence::log_linked_probe_boot(&self.prelude);
-        boot_sequence::write_stage_serial_marker("[EARLY SERIAL] runtime boot hal early init complete");
+        boot_sequence::write_stage_serial_marker(
+            "[EARLY SERIAL] runtime boot hal early init complete",
+        );
         mark_stage(StartupStage::HalEarlyInit);
     }
 
@@ -46,7 +48,9 @@ impl RuntimeBootContext {
         boot_sequence::finalize_boot_prelude(&self.prelude);
         boot_sequence::write_stage_serial_marker("[EARLY SERIAL] prelude finalize returned");
         crate::kernel_runtime::heap::finalize_heap_bootstrap();
-        boot_sequence::write_stage_serial_marker("[EARLY SERIAL] runtime boot platform services complete");
+        boot_sequence::write_stage_serial_marker(
+            "[EARLY SERIAL] runtime boot platform services complete",
+        );
         mark_stage(StartupStage::PlatformServicesInit);
     }
 

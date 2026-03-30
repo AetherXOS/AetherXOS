@@ -9,8 +9,8 @@
 //! Falls back to a 32 MiB static heap (enough for kernel boot) until a proper
 //! DTB / UEFI memory map parser hands us a dynamic range.
 
-use hypercore::interfaces::memory::HeapAllocator;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use hypercore::interfaces::memory::HeapAllocator;
 
 const BYTES_PER_MIB: usize = 1024 * 1024;
 static PENDING_HEAP_PHYS_ADDR: AtomicUsize = AtomicUsize::new(0);
@@ -62,7 +62,9 @@ pub(super) fn init_heap(allocator: &hypercore::modules::allocators::selector::Ac
                 }
             }
 
-            hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init memmap scan complete\n");
+            hypercore::hal::x86_64::serial::write_raw(
+                "[EARLY SERIAL] heap init memmap scan complete\n",
+            );
 
             if best_base != 0 {
                 let phys_addr = best_base;
@@ -70,10 +72,14 @@ pub(super) fn init_heap(allocator: &hypercore::modules::allocators::selector::Ac
                 // Cap the region at the configured heap size so we don't over-commit.
                 let actual_size = (best_len as usize).min(heap_size);
                 #[cfg(target_arch = "x86_64")]
-                hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap allocator init begin\n");
+                hypercore::hal::x86_64::serial::write_raw(
+                    "[EARLY SERIAL] heap allocator init begin\n",
+                );
                 allocator.init(virt_addr as usize, actual_size);
                 #[cfg(target_arch = "x86_64")]
-                hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap allocator init complete\n");
+                hypercore::hal::x86_64::serial::write_raw(
+                    "[EARLY SERIAL] heap allocator init complete\n",
+                );
                 PENDING_HEAP_PHYS_ADDR.store(phys_addr as usize, Ordering::Relaxed);
                 PENDING_HEAP_VIRT_ADDR.store(virt_addr as usize, Ordering::Relaxed);
                 PENDING_HEAP_ACTUAL_SIZE.store(actual_size, Ordering::Relaxed);
@@ -83,7 +89,8 @@ pub(super) fn init_heap(allocator: &hypercore::modules::allocators::selector::Ac
                 // so the buddy allocator can reclaim them later.
                 let remainder = best_len as usize - actual_size;
                 if remainder >= 4096 {
-                    PENDING_COMPACTION_BASE.store((phys_addr as usize) + actual_size, Ordering::Relaxed);
+                    PENDING_COMPACTION_BASE
+                        .store((phys_addr as usize) + actual_size, Ordering::Relaxed);
                     PENDING_COMPACTION_PAGES.store(remainder / 4096, Ordering::Relaxed);
                 }
                 PENDING_HEAP_FINALIZE.store(true, Ordering::Relaxed);

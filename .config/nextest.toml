@@ -1,11 +1,3 @@
-[script.unix]
-fast = "scripts/test_fast.sh"
-integration = "scripts/test_integration.sh"
-nightly = "scripts/test_nightly.sh"
-
-[report]
-store = "tests/reports/nextest"
-
 [test-groups]
 fast = { max-threads = 8 }
 integration = { max-threads = 4 }
