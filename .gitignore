@@ -14,7 +14,6 @@ dashboard-ui/node_modules/
 dashboard-ui/.svelte-kit/
 node_modules/
 target/
-*.s
 *.md
 *.md.resolved
 *.toml.example
@@ -32,3 +31,5 @@ pnpm-debug.log*
 *.so
 *.ls
 boot/initramfs/usr/lib/
+outdir/
+kernel.x
