@@ -2,7 +2,7 @@
   <img src="https://i.ibb.co/jZx3WR0B/1000046094-edit-1211083931953110.png" alt="AetherXOS Banner" width="100%">
 </p>
 
-# AetherX)S
+# AetherXOS
 
 AetherXOS is a next-generation high-performance computing layer built on an Exokernel architecture. By eliminating traditional monolithic kernel abstractions, AetherXOS provides applications with direct-to-silicon resource management, enabling sub-nanosecond instruction dispatch and hardware-enforced isolation.
 
@@ -10,7 +10,7 @@ AetherXOS is a next-generation high-performance computing layer built on an Exok
 
 Traditional operating systems act as a generic "middleman," introducing overhead and latency through complex syscall layers and forced abstractions. AetherXOS rejects this model in favor of a dual-component architecture:
 
-*   **Exokernel Core:** A minimalist (~15k LOC) safety and multiplexing layer. It manages hardware protection boundaries without imposing high-level abstractions on the application.
+*   **Exokernel Core:** A minimalist (~150k LOC) safety and multiplexing layer. It manages hardware protection boundaries without imposing high-level abstractions on the application.
 *   **LibraryOS (LibOS):** Modular operating system components (TCP/IP stacks, File Systems, Schedulers) that are linked at compile-time. Developers only include the specific functionality required by the application, reducing the attack surface and binary footprint by up to 90%.
 
 ## Key Specifications
