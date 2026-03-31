@@ -263,7 +263,7 @@ pub fn clear(color: Color) {
 pub fn scroll_up(lines: u32, fill_color: Color) {
     let state = FB_STATE.lock();
     let info = match state.info {
-        Some(ref i) => i,
+        Some(info) => info,
         None => return,
     };
 
@@ -277,17 +277,16 @@ pub fn scroll_up(lines: u32, fill_color: Color) {
     let pitch = info.pitch as usize;
     let copy_rows = (info.height - lines) as usize;
 
-    // Move rows up
     unsafe {
         let src = base.add(lines as usize * pitch);
         let dst = base;
         core::ptr::copy(src, dst, copy_rows * pitch);
     }
 
-    // Fill vacated bottom
     let fill_start = copy_rows as u32;
+    let width = info.width;
     drop(state);
-    fill_rect(0, fill_start, info.width, lines, fill_color);
+    fill_rect(0, fill_start, width, lines, fill_color);
 }
 
 // ─── 8x16 Bitmap Font Console ───────────────────────────────────────

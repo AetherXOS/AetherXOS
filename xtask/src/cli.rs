@@ -141,7 +141,14 @@ pub enum BuildAction {
         #[arg(long)]
         release: bool,
     },
+
+    /// Generate P0/P1/P2 tier readiness status
+    TierStatus,
 }
+
+// ---------------------------------------------------------------------------
+// Build subcommands
+// ---------------------------------------------------------------------------
 
 #[derive(Subcommand, Debug)]
 pub enum RunAction {
@@ -175,8 +182,34 @@ pub enum RunAction {
 #[derive(Subcommand, Debug)]
 pub enum TestAction {
     QualityGate,
-    Host { #[arg(long)] release: bool },
+    /// Run host-side cargo check feature matrix validation
+    Host {
+        /// Run in release mode
+        #[arg(long)]
+        release: bool,
+    },
+    /// Run dashboard agent contract verification
+    AgentContract,
+    /// Run all core test tiers sequentially
+    All {
+        /// Use CI nextest profile and artifact-oriented behavior
+        #[arg(long)]
+        ci: bool,
+    },
+    /// POSIX conformance gate
     PosixConformance,
+    /// Driver config smoke test
+    DriverSmoke,
+    /// Run a named CI tier locally or in GitHub Actions
+    Tier {
+        /// Tier name: fast, integration, nightly
+        #[arg(long)]
+        tier: String,
+        /// Use CI nextest profile and artifact-oriented behavior
+        #[arg(long)]
+        ci: bool,
+    },
+    /// Linux app compatibility layered validator (strict/quick/qemu)
     LinuxAppCompat {
         #[arg(long)] strict: bool,
         #[arg(long)] qemu: bool,

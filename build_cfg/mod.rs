@@ -9,6 +9,7 @@ mod config_types;
 mod emitter;
 mod feature_graph;
 mod runtime_codegen;
+mod linked_probe_codegen;
 mod validators;
 
 use std::fs;
@@ -30,12 +31,15 @@ pub fn run() {
     // Phase 2: Generate runtime key autogen
     runtime_codegen::generate_runtime_key_autogen();
 
-    // Phase 3: Emit generated_consts.rs
+    // Phase 3: Generate optional linked-probe image include
+    linked_probe_codegen::generate();
+
+    // Phase 4: Emit generated_consts.rs
     let dest_path = Path::new("src/generated_consts.rs");
     let content = emitter::emit_all_consts(&config);
     fs::write(dest_path, content).expect("Failed to write generated_consts.rs");
 
-    // Phase 4: Emit rustc-cfg flags
+    // Phase 5: Emit rustc-cfg flags
     cfg_emitter::emit_check_cfgs();
     cfg_emitter::emit_compile_cfgs(&config);
 }

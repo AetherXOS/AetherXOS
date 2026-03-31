@@ -5,4 +5,4 @@ target = "x86_64-unknown-none"
 rustflags = ["-C", "link-arg=-z", "-C", "link-arg=max-page-size=0x1000"]
 
 [alias]
-xtask = "run --package xtask --target x86_64-pc-windows-msvc --"
+xtask = "run --package xtask --target-dir target/xtask --target x86_64-unknown-linux-gnu --"

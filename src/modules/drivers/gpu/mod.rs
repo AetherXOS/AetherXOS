@@ -71,7 +71,7 @@ pub fn set_gpu_backend(backend: GpuBackend) {
 
 pub fn gpu_backend_supports_acceleration() -> bool {
     !matches!(
-        GpuBackend::from_u8(GPU_BACKEND.load(Ordering::Relaxed)),
+        GpuBackend::from_u8(GPU_BACKEND.load(Ordering::Relaxed)).unwrap_or(GpuBackend::None),
         GpuBackend::None
     )
 }
@@ -163,7 +163,8 @@ pub fn gpu_stack_snapshot() -> GpuStackSnapshot {
     } else {
         GpuStackState::Uninitialized
     };
-    let backend = GpuBackend::from_u8(GPU_BACKEND.load(Ordering::Relaxed));
+    let backend =
+        GpuBackend::from_u8(GPU_BACKEND.load(Ordering::Relaxed)).unwrap_or(GpuBackend::None);
     let kms_ready = GPU_KMS_READY.load(Ordering::Relaxed);
     let input_ready = GPU_INPUT_READY.load(Ordering::Relaxed);
     GpuStackSnapshot {

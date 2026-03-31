@@ -1,7 +1,8 @@
 use super::*;
 
-use crate::modules::drivers::{BlockDriverKind, StorageManager};
 use crate::modules::drivers::block::SECTOR_SIZE as DRIVER_SECTOR_SIZE;
+use crate::modules::drivers::storage::ManagedStorageDriver;
+use crate::modules::drivers::{BlockDriverKind, StorageManager};
 
 /// Writeback sink that persists pages to a block device.
 /// Maintains a simple block allocation bitmap and inode->block mapping.
@@ -120,15 +121,18 @@ impl StorageManagerBlockAdapter {
         }
     }
 
-    fn find_driver(&mut self) -> Option<&mut dyn crate::modules::drivers::ManagedStorageDriver> {
+    fn with_driver<T>(
+        &mut self,
+        f: impl FnOnce(&mut dyn ManagedStorageDriver) -> Result<T, &'static str>,
+    ) -> Result<T, &'static str> {
         let mut guard = StorageManager::global().lock();
-        let manager_opt = guard.as_mut()?;
-        for kind in &self.pref {
-            if let Some(dev) = manager_opt.first_by_kind(*kind) {
-                return Some(dev);
+        let manager = guard.as_mut().ok_or("no storage driver")?;
+        for kind in self.pref {
+            if let Some(dev) = manager.first_by_kind(kind) {
+                return f(dev);
             }
         }
-        None
+        Err("no storage driver")
     }
 }
 
@@ -136,26 +140,26 @@ impl BlockDeviceAdapter for StorageManagerBlockAdapter {
     fn read_block(&mut self, block: u64, buf: &mut [u8]) -> Result<(), &'static str> {
         let sectors_per_page = (PAGE_SIZE / DRIVER_SECTOR_SIZE) as u16;
         let lba = block.saturating_mul(sectors_per_page as u64);
-        let dev = self.find_driver().ok_or("no storage driver")?;
-        let _ = dev.read_blocks(lba, sectors_per_page, buf)?;
-        Ok(())
+        self.with_driver(|dev| {
+            let _ = dev.read_blocks(lba, sectors_per_page, buf)?;
+            Ok(())
+        })
     }
 
     fn write_block(&mut self, block: u64, data: &[u8]) -> Result<(), &'static str> {
         let sectors_per_page = (PAGE_SIZE / DRIVER_SECTOR_SIZE) as u16;
         let lba = block.saturating_mul(sectors_per_page as u64);
-        let dev = self.find_driver().ok_or("no storage driver")?;
-        let _ = dev.write_blocks(lba, sectors_per_page, data)?;
-        Ok(())
+        self.with_driver(|dev| {
+            let _ = dev.write_blocks(lba, sectors_per_page, data)?;
+            Ok(())
+        })
     }
 
     fn flush(&mut self) -> Result<(), &'static str> {
-        if let Some(dev) = self.find_driver() {
+        self.with_driver(|dev| {
             dev.flush()?;
             Ok(())
-        } else {
-            Err("no storage driver")
-        }
+        })
     }
 
     fn block_count(&self) -> u64 {

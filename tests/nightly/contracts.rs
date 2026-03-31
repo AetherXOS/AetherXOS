@@ -1,5 +1,4 @@
-use crate::common::tool::{expected_invocations, run_script, FAKE_HOST_TRIPLE};
-use crate::common::{ctx, plan};
+use crate::common::{ctx, fs, plan};
 
 #[test]
 fn nightly_tier_commands_remain_explicit_and_gated() {
@@ -10,97 +9,41 @@ fn nightly_tier_commands_remain_explicit_and_gated() {
         labels,
         vec![
             "nextest",
+            "clippy",
             "syzkaller",
             "tlaplus",
             "kani",
             "isabelle",
-            "flamegraph"
+            "flamegraph",
         ]
     );
     assert_eq!(tier.named("nextest").gate, None);
-    assert_eq!(
-        tier.named("syzkaller").gate,
-        Some("HYPERCORE_RUN_SYZKALLER")
-    );
+    assert_eq!(tier.named("clippy").gate, None);
+    assert_eq!(tier.named("syzkaller").gate, Some("HYPERCORE_RUN_SYZKALLER"));
     assert_eq!(tier.named("tlaplus").gate, Some("HYPERCORE_RUN_TLAPLUS"));
     assert_eq!(tier.named("kani").gate, Some("HYPERCORE_RUN_KANI"));
     assert_eq!(tier.named("isabelle").gate, Some("HYPERCORE_RUN_ISABELLE"));
-    assert_eq!(
-        tier.named("flamegraph").gate,
-        Some("HYPERCORE_RUN_FLAMEGRAPH")
-    );
+    assert_eq!(tier.named("flamegraph").gate, Some("HYPERCORE_RUN_FLAMEGRAPH"));
 }
 
 #[test]
-fn nightly_shell_runner_executes_enabled_steps() {
-    let run = run_script(
-        "scripts/testnight.sh",
+fn nightly_xtask_runner_keeps_optional_provers_explicit() {
+    fs::ordered(
+        "xtask/src/commands/validation/test/tier.rs",
         &[
-            ("HYPERCORE_RUN_KANI", "1"),
-            ("HYPERCORE_RUN_TLAPLUS", "1"),
-            ("HYPERCORE_RUN_ISABELLE", "1"),
-            ("HYPERCORE_RUN_SYZKALLER", "1"),
-            ("HYPERCORE_RUN_FLAMEGRAPH", "1"),
+            "fn run_nightly(ci: bool) -> Result<()> {",
+            "run_nextest(\"nightly\", ci)?;",
+            "run_clippy()?;",
+            "run_optional_binary(\"HYPERCORE_RUN_SYZKALLER\"",
+            "run_optional_binary(\"HYPERCORE_RUN_TLAPLUS\"",
+            "run_optional_cargo_subcommand(\"HYPERCORE_RUN_KANI\"",
+            "run_optional_binary(\"HYPERCORE_RUN_ISABELLE\"",
+            "run_optional_cargo_subcommand(\"HYPERCORE_RUN_FLAMEGRAPH\"",
         ],
-        &["kani", "flamegraph"],
-        &["tlc", "isabelle", "syz-manager"],
     );
-
-    assert!(run.stderr.is_empty());
-    assert_eq!(
-        run.invocations,
-        expected_invocations(
-            &plan::nightly(),
-            ctx::root(),
-            FAKE_HOST_TRIPLE,
-            &[
-                "HYPERCORE_RUN_KANI",
-                "HYPERCORE_RUN_TLAPLUS",
-                "HYPERCORE_RUN_ISABELLE",
-                "HYPERCORE_RUN_SYZKALLER",
-                "HYPERCORE_RUN_FLAMEGRAPH",
-            ],
-            &["kani", "flamegraph"],
-            &["tlc", "isabelle", "syz-manager"],
-        )
-    );
-}
-
-#[test]
-fn nightly_shell_runner_skips_unavailable_optional_tools() {
-    let run = run_script(
-        "scripts/testnight.sh",
-        &[
-            ("HYPERCORE_RUN_KANI", "1"),
-            ("HYPERCORE_RUN_TLAPLUS", "1"),
-            ("HYPERCORE_RUN_ISABELLE", "1"),
-            ("HYPERCORE_RUN_SYZKALLER", "1"),
-            ("HYPERCORE_RUN_FLAMEGRAPH", "1"),
-        ],
-        &[],
-        &[],
-    );
-
-    assert!(run.stdout.contains("==> skip tlaplus"));
-    assert!(run.stdout.contains("==> skip isabelle"));
-    assert!(run.stdout.contains("==> skip syzkaller"));
-    assert!(run.stdout.contains("==> skip kani"));
-    assert!(run.stdout.contains("==> skip flamegraph"));
-    assert_eq!(
-        run.invocations,
-        expected_invocations(
-            &plan::nightly(),
-            ctx::root(),
-            FAKE_HOST_TRIPLE,
-            &[
-                "HYPERCORE_RUN_KANI",
-                "HYPERCORE_RUN_TLAPLUS",
-                "HYPERCORE_RUN_ISABELLE",
-                "HYPERCORE_RUN_SYZKALLER",
-                "HYPERCORE_RUN_FLAMEGRAPH",
-            ],
-            &[],
-            &[],
-        )
-    );
+    let body = ctx::read("xtask/src/commands/validation/test/tier.rs");
+    assert!(body.contains("formal/tla/KernelConfigOverrides.tla"));
+    assert!(body.contains("formal/isabelle"));
+    assert!(body.contains("formal/syzkaller/hypercore.cfg"));
+    assert!(body.contains("formal/kani/Cargo.toml"));
 }

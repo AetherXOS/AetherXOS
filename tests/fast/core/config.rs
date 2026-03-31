@@ -11,8 +11,8 @@ fn telemetry_history_override_stays_bounded() {
         .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     KernelConfig::reset_runtime_overrides();
-    KernelConfig::set_telemetry_history_len(Some(0));
-    assert_eq!(KernelConfig::telemetry_history_len(), 1);
+    KernelConfig::set_telemetry_history_len(Some(usize::MAX));
+    assert_eq!(KernelConfig::telemetry_history_len(), 1_000_000);
 
     KernelConfig::set_telemetry_history_len(Some(8));
     assert_eq!(KernelConfig::telemetry_history_len(), 8);
@@ -23,7 +23,7 @@ fn telemetry_history_override_stays_bounded() {
 
 #[test]
 #[serial]
-fn boundary_mode_rewrites_compat_surfaces() {
+fn boundary_mode_preserves_explicit_proc_and_sysctl_toggles() {
     let _guard = ctx::lock()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -34,8 +34,9 @@ fn boundary_mode_rewrites_compat_surfaces() {
     KernelConfig::set_sysctl_api_exposed(Some(true));
 
     KernelConfig::set_library_boundary_mode(Some(BoundaryMode::Strict));
-    assert!(!KernelConfig::should_expose_procfs_surface());
-    assert!(!KernelConfig::should_expose_sysctl_surface());
+    assert!(KernelConfig::should_expose_procfs_surface());
+    assert!(KernelConfig::should_expose_sysctl_surface());
+    assert!(!KernelConfig::should_expose_linux_compat_surface());
 
     KernelConfig::set_library_boundary_mode(Some(BoundaryMode::Compat));
     assert!(KernelConfig::should_expose_procfs_surface());

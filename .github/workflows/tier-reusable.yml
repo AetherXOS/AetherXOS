@@ -1,0 +1,50 @@
+name: Tier Reusable
+
+on:
+  workflow_call:
+    inputs:
+      job_name:
+        required: true
+        type: string
+      runner:
+        required: true
+        type: string
+      tier:
+        required: true
+        type: string
+      timeout_minutes:
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_TERM_COLOR: always
+
+jobs:
+  tier:
+    name: ${{ inputs.job_name }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+          components: clippy,rustfmt,llvm-tools-preview,rust-src
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tier-${{ inputs.runner }}-${{ inputs.tier }}
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Run tier
+        run: cargo xtask test tier ${{ inputs.tier }} --ci
