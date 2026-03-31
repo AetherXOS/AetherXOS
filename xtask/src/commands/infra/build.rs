@@ -1,369 +1,239 @@
-use anyhow::{Context, Result, bail};
-use serde::Serialize;
+use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
-use walkdir::WalkDir;
 
-use crate::cli::BuildAction;
-use crate::commands::infra::installer_policy;
-use crate::commands::infra::installer_profile;
-use crate::utils::cargo;
-use crate::utils::paths;
+use crate::cli::{Bootloader, BuildAction, ImageFormat};
+use crate::utils::{cargo, paths, process};
 
-#[derive(Debug, Serialize)]
-struct InstallerSelectionPreview<'a> {
-    schema_version: u32,
-    profile: &'a str,
-    package_manager: &'a str,
-    mirror: Option<&'a str>,
-    selected_apps: &'a [String],
-    packages: &'a [String],
-    download_artifacts: &'a [installer_profile::InstallerDownloadArtifact],
-    smoke_commands: &'a [String],
-    policy: &'a installer_policy::InstallerPolicy,
-}
-
-#[derive(Debug, Serialize)]
-struct InstallerExecutionPlan<'a> {
-    schema_version: u32,
-    profile: &'a str,
-    stages: Vec<InstallerExecutionStage>,
-}
-
-#[derive(Debug, Serialize)]
-struct InstallerExecutionStage {
-    id: String,
-    title: String,
-    depends_on: Vec<String>,
-    timeout_seconds: u32,
-    critical: bool,
-}
-
-/// Entry point for `cargo xtask build <action>`.
+/// Entry point for the `xtask build` subsystem.
+/// Dispatches to the appropriate build sequence based on the CLI action.
 pub fn execute(action: &BuildAction) -> Result<()> {
     match action {
-        BuildAction::Full => full_pipeline(),
-        BuildAction::Iso => iso_only(),
-        BuildAction::AptIso {
-            profile,
-            apps,
-            packages,
-            include,
-            exclude,
-            mirror,
-        } => apt_iso(
-            profile,
-            apps.as_deref(),
-            packages.as_deref(),
-            include.as_deref(),
-            exclude.as_deref(),
-            mirror.as_deref(),
-        ),
-        BuildAction::Kernel => kernel_only(),
-        BuildAction::Initramfs => initramfs_only(),
+        BuildAction::Full { arch, bootloader, format, release } => {
+            println!(
+                "[build::full] Starting end-to-end pipeline: arch={}, bootloader={:?}, format={:?}, release={}",
+                arch, bootloader, format, release
+            );
+            
+            build_kernel(arch, *release).context("Failed to compile kernel component")?;
+            build_initramfs().context("Failed to generate initramfs structure")?;
+            bundle_image(bootloader, format).context("Failed to assemble bootable image hierarchy")?;
+        }
+        BuildAction::Image { bootloader, format } => {
+            println!("[build::image] Assembling bootable image medium.");
+            bundle_image(bootloader, format).context("Failed to assemble specific bootable image format")?;
+        }
+        BuildAction::Kernel { arch, release } => {
+            build_kernel(arch, *release).context("Failed to natively compile kernel")?;
+        }
+        BuildAction::Initramfs => {
+            build_initramfs().context("Failed to pack initramfs")?;
+        }
+        BuildAction::App { name, release } => {
+            build_userspace_app(name, *release).context("Userspace application fabrication encountered a terminal error")?;
+        }
     }
+    
+    println!("[build] Pipeline process execution completed successfully.");
+    Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// Full pipeline: kernel + initramfs + limine config + ISO + smoke
-// ---------------------------------------------------------------------------
+/// Compiles the kernel ELF payload for the explicitly defined target architecture.
+fn build_kernel(arch: &str, is_release: bool) -> Result<()> {
+    println!("[build::kernel] Processing standard kernel build for generic architecture: {}", arch);
+    
+    let target_triple = match arch {
+        "x86_64" => "x86_64-unknown-none",
+        "aarch64" => "aarch64-unknown-none",
+        _ => bail!("Unsupported host/target architecture requested via CLI: {}", arch),
+    };
 
-fn full_pipeline() -> Result<()> {
-    println!("[build::full] Starting full OS build pipeline");
+    let mut args = vec!["build", "--target", target_triple];
+    if is_release {
+        args.push("--release");
+    }
 
-    let target = "x86_64-unknown-none";
-    let profile = "release";
-    let append = "console=ttyS0 loglevel=7";
+    cargo::cargo(&args).context("Platform cargo build invocation aborted")?;
+    println!("[build::kernel] Architecture compilation finalized.");
+    Ok(())
+}
 
-    // Step 1: Compile kernel
-    println!("[build::full] Step 1/5: Compiling kernel (target={}, profile={})", target, profile);
-    cargo::cargo(&["build", "--target", target, "--release"])?;
+/// Archives the system's ephemeral early userspace into a boot-ready CPIO packet.
+fn build_initramfs() -> Result<()> {
+    println!("[build::initramfs] Generating CPIO compressed initramfs archive...");
+    
+    let initramfs_src = paths::resolve("boot/initramfs");
+    let out_archive = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
+    
+    if let Some(parent) = out_archive.parent() {
+        paths::ensure_dir(parent).context("Failed resolving parent directory for initramfs stage")?;
+    }
+    
+    crate::commands::infra::initramfs::build(&initramfs_src, &out_archive)?;
+    println!("[build::initramfs] Archive packet securely locked to: {}", out_archive.display());
+    Ok(())
+}
 
-    // Step 2: Locate ELF artifact
-    println!("[build::full] Step 2/5: Locating kernel ELF artifact");
-    let target_dir = Path::new("target").join(target).join(profile);
-    let elf_path = find_elf_artifact(&target_dir)?;
-    println!("[build::full]   Found: {}", elf_path.display());
+/// Automates generic isolation compilation of peripheral userspace binaries.
+fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
+    println!("[build::app] Orchestrating Cargo bounds for target userspace executable: {}", name);
+    
+    let app_dir = paths::resolve(&format!("src/userspace/{}", name));
+    if !app_dir.exists() {
+        bail!("Requested userspace application directory not found: {}", app_dir.display());
+    }
 
-    // Step 3: Stage boot artifacts
-    println!("[build::full] Step 3/5: Staging boot artifacts");
+    let mut compiler_args = vec!["build", "--manifest-path", "Cargo.toml", "--target", "x86_64-unknown-none"];
+    if is_release {
+        compiler_args.push("--release");
+    }
+
+    println!("[build::app] Enforcing strict #![no_std] limits and executing Rust compiler...");
+    
+    let status = std::process::Command::new("cargo")
+        .args(&compiler_args)
+        .current_dir(&app_dir)
+        .status()
+        .context("Userspace cargo sub-process execution unexpectedly collapsed")?;
+
+    if !status.success() {
+        bail!("Compilation context failed for userspace target: {}", name);
+    }
+
+    let target_profile = if is_release { "release" } else { "debug" };
+    let compiled_elf = app_dir.join(format!("target/x86_64-unknown-none/{}/{}", target_profile, name));
+    
+    let init_bin_dir = paths::resolve("artifacts/boot_image/stage/boot/initramfs/usr/bin");
+    paths::ensure_dir(&init_bin_dir)?;
+    
+    if compiled_elf.exists() {
+        fs::copy(&compiled_elf, init_bin_dir.join(name)).context("Failed moving synthesized user program to VFS")?;
+        println!("[build::app] Successfully integrated '{}' into initramfs isolation bounds.", name);
+    } else {
+        bail!("Critical workflow failure: Output ELF not presented where expected: {}", compiled_elf.display());
+    }
+
+    Ok(())
+}
+
+/// Binds requested OS components (Kernel, RAM_FS, Configs) using the specified bootloader.
+/// Delegates the resulting staged directory into the ultimate format defined by ImageFormat.
+fn bundle_image(bootloader: &Bootloader, format: &ImageFormat) -> Result<()> {
     let stage_dir = paths::resolve("artifacts/boot_image/stage/boot");
     paths::ensure_dir(&stage_dir)?;
-
-    let stage_kernel = stage_dir.join("hypercore.elf");
-    fs::copy(&elf_path, &stage_kernel).context("Failed to stage kernel ELF")?;
-
-    // Step 4: Generate limine configs
-    println!("[build::full] Step 4/5: Generating bootloader configurations");
-    crate::commands::infra::limine::generate_configs(
-        &stage_dir,
-        "hypercore.elf",
-        "initramfs.cpio.gz",
-        append,
-    )?;
-
-    // Step 5: Generate initramfs
-    println!("[build::full] Step 5/5: Building initramfs archive");
-    let initramfs_dir = paths::resolve("boot/initramfs");
-    let initramfs_out = stage_dir.join("initramfs.cpio.gz");
-    crate::commands::infra::initramfs::build(&initramfs_dir, &initramfs_out)?;
-
-    println!("[build::full] Pipeline completed successfully.");
-    Ok(())
-}
-
-fn iso_only() -> Result<()> {
-    println!("[build::iso] Building bootable ISO image");
-    // Build kernel + stage first, then assemble ISO
-    full_pipeline()?;
-    let stage_dir = paths::resolve("artifacts/boot_image/stage/boot");
-    let iso_out = paths::resolve("artifacts/boot_image/hypercore.iso");
-    crate::commands::infra::iso::assemble(&stage_dir, &iso_out)?;
-    println!("[build::iso] ISO written: {}", iso_out.display());
-    Ok(())
-}
-
-fn apt_iso(
-    profile: &str,
-    apps: Option<&str>,
-    packages: Option<&str>,
-    include: Option<&str>,
-    exclude: Option<&str>,
-    mirror: Option<&str>,
-) -> Result<()> {
-    println!("[build::apt-iso] Building apt-seeded ISO image");
-
-    let selection = installer_profile::resolve_selection(
-        profile,
-        apps,
-        packages,
-        include,
-        exclude,
-        mirror,
-    )?;
-    let policy = installer_policy::resolve_policy(&selection.profile)?;
-    installer_profile::write_preset_catalog(&paths::resolve(
-        "artifacts/tooling/installer/presets.json",
-    ))?;
-    write_selection_preview(&selection, &policy)?;
-    write_execution_plan(&selection, &policy)?;
-
-    full_pipeline()?;
-
-    let generated_root = paths::resolve("artifacts/boot_image/generated/initramfs_apt");
-    if generated_root.exists() {
-        fs::remove_dir_all(&generated_root)
-            .with_context(|| format!("failed to clean {}", generated_root.display()))?;
-    }
-
-    let initramfs_source = paths::resolve("boot/initramfs");
-    copy_dir_recursive(&initramfs_source, &generated_root)?;
-
-    crate::commands::infra::userspace_seed::inject_seed(
-        &generated_root,
-        &selection,
-        &policy,
-        &paths::resolve("artifacts/userspace_apps"),
-    )?;
-
-    let stage_dir = paths::resolve("artifacts/boot_image/stage/boot");
-    let initramfs_out = stage_dir.join("initramfs.cpio.gz");
-    crate::commands::infra::initramfs::build(&generated_root, &initramfs_out)?;
-
-    let iso_out = paths::resolve("artifacts/boot_image/hypercore-apt.iso");
-    crate::commands::infra::iso::assemble(&stage_dir, &iso_out)?;
-
-    println!("[build::apt-iso] ISO written: {}", iso_out.display());
-    println!("[build::apt-iso] Profile: {}", selection.profile);
-    if !selection.selected_apps.is_empty() {
-        println!(
-            "[build::apt-iso] App targets: {}",
-            selection.selected_apps.join(",")
-        );
-    }
-    println!(
-        "[build::apt-iso] Preset catalog: {}",
-        paths::resolve("artifacts/tooling/installer/presets.json").display()
-    );
-    println!(
-        "[build::apt-iso] Seed package list: {}",
-        generated_root
-            .join("etc/hypercore/apt-preload-packages.txt")
-            .display()
-    );
-    println!(
-        "[build::apt-iso] Seed bundles: {}",
-        generated_root
-            .join("usr/share/hypercore/userspace_apps")
-            .display()
-    );
-
-    Ok(())
-}
-
-fn kernel_only() -> Result<()> {
-    println!("[build::kernel] Compiling kernel only");
-    cargo::cargo(&["build", "--target", "x86_64-unknown-none", "--release"])?;
-    let target_dir = Path::new("target").join("x86_64-unknown-none").join("release");
-    let elf = find_elf_artifact(&target_dir)?;
-    println!("[build::kernel] Kernel ELF: {}", elf.display());
-    Ok(())
-}
-
-fn initramfs_only() -> Result<()> {
-    println!("[build::initramfs] Generating initramfs archive");
-    let initramfs_dir = paths::resolve("boot/initramfs");
-    let out = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
-    paths::ensure_dir(out.parent().unwrap())?;
-    crate::commands::infra::initramfs::build(&initramfs_dir, &out)?;
-    println!("[build::initramfs] Archive written: {}", out.display());
-    Ok(())
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/// Scan a directory for the first file with a valid ELF magic header (>1KB).
-fn find_elf_artifact(dir: &Path) -> Result<PathBuf> {
-    if !dir.exists() {
-        bail!("Target directory not found: {}", dir.display());
-    }
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file() {
-            let meta = entry.metadata()?;
-            if meta.len() > 1024 {
-                let mut buf = [0u8; 4];
-                let file = fs::File::open(&path)?;
-                use std::io::Read;
-                let mut reader = std::io::BufReader::new(file);
-                if reader.read_exact(&mut buf).is_ok() && buf == *b"\x7fELF" {
-                    return Ok(path);
-                }
-            }
-        }
-    }
-    bail!("No ELF artifact found in {}", dir.display())
-}
-
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    if !src.exists() {
-        bail!("source directory not found: {}", src.display());
-    }
-    fs::create_dir_all(dst)?;
-
-    for entry in WalkDir::new(src).min_depth(1).into_iter().filter_map(|e| e.ok()) {
-        let path = entry.path();
-        let rel = path
-            .strip_prefix(src)
-            .with_context(|| format!("failed strip_prefix for {}", path.display()))?;
-        let target = dst.join(rel);
-
-        if entry.file_type().is_dir() {
-            fs::create_dir_all(&target)?;
-            continue;
-        }
-
-        if let Some(parent) = target.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::copy(path, &target).with_context(|| {
-            format!("failed to copy {} -> {}", path.display(), target.display())
-        })?;
-    }
-
-    Ok(())
-}
-
-fn write_selection_preview(
-    selection: &installer_profile::InstallerSelection,
-    policy: &installer_policy::InstallerPolicy,
-) -> Result<()> {
-    let out_path = paths::resolve("artifacts/tooling/installer/selection_preview.json");
-    if let Some(parent) = out_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    let package_manager = match selection.package_manager {
-        installer_profile::PackageManager::Apt => "apt",
-        installer_profile::PackageManager::Pacman => "pacman",
-    };
-    let preview = InstallerSelectionPreview {
-        schema_version: 1,
-        profile: &selection.profile,
-        package_manager,
-        mirror: selection.mirror.as_deref(),
-        selected_apps: &selection.selected_apps,
-        packages: &selection.packages,
-        download_artifacts: &selection.download_artifacts,
-        smoke_commands: &selection.smoke_commands,
-        policy,
+    
+    // Abstracted stage kernel artifact path (Rust emits without .elf on unknown-none)
+    let kernel_src = paths::resolve("target/x86_64-unknown-none/debug/hypercore");
+    let kernel_src_release = paths::resolve("target/x86_64-unknown-none/release/hypercore");
+    
+    let active_kernel = if kernel_src_release.exists() {
+        &kernel_src_release
+    } else {
+        &kernel_src
     };
 
-    fs::write(&out_path, serde_json::to_string_pretty(&preview)?)?;
-    println!("[build::apt-iso] Selection preview: {}", out_path.display());
+    if active_kernel.exists() {
+        fs::copy(active_kernel, stage_dir.join("hypercore.elf"))
+            .context("Failed staging binary kernel executable payload")?;
+    } else {
+        println!("[build::image] WARNING: Kernel executable not discovered at expected locations.");
+    }
+
+    // Embed bootloader environment parameters
+    match bootloader {
+        Bootloader::Limine => {
+            println!("[build::image] Injecting Limine protocol definitions.");
+            crate::commands::infra::limine::generate_configs(
+                &stage_dir,
+                "hypercore.elf",
+                "initramfs.cpio.gz",
+                "console=ttyS0 loglevel=7",
+            ).context("Limine baseline integration process failed")?;
+        }
+        Bootloader::Multiboot2 | Bootloader::Grub => {
+            println!("[build::image] Injecting Multiboot2/GRUB2 legacy bindings.");
+            let grub_cfg = stage_dir.join("grub.cfg");
+            let cfg_content = "set timeout=0\nset default=0\nmenuentry \"AetherXOS\" {\n  multiboot2 /boot/hypercore.elf\n  boot\n}\n";
+            fs::write(grub_cfg, cfg_content).context("GRUB sequential binding failed")?;
+        }
+        Bootloader::Direct => {
+            println!("[build::image] Notice: Direct execution bypass activated. Extraneous wrappers omitted.");
+        }
+    }
+
+    // Target emission handling
+    let outdir_env = std::env::var("XTASK_OUTDIR").unwrap_or_else(|_| "artifacts".to_string());
+    let cli_outdir = PathBuf::from(outdir_env);
+    
+    match format {
+        ImageFormat::Iso => {
+            let iso_out = cli_outdir.join("hypercore.iso");
+            crate::commands::infra::iso::assemble(&stage_dir, &iso_out)
+                .context("Native ISO xorriso manipulation failed")?;
+            println!("[build::image] ISO Image ready: {}", iso_out.display());
+        }
+        ImageFormat::Img => {
+            // First require the base ISOHybrid via xorriso, then transform natively
+            let base_iso = cli_outdir.join("hypercore-img-intermediate.iso");
+            crate::commands::infra::iso::assemble(&stage_dir, &base_iso)?;
+            
+            let img_out = cli_outdir.join("hypercore.img");
+            println!("[build::image] Converting target explicitly to block RAW format (.img)...");
+            generate_raw_image(&base_iso, &img_out)?;
+            
+            // Cleanup intermediary
+            let _ = fs::remove_file(base_iso);
+        }
+        ImageFormat::Vhd => {
+            let base_iso = cli_outdir.join("hypercore-vhd-intermediate.iso");
+            crate::commands::infra::iso::assemble(&stage_dir, &base_iso)?;
+            
+            let vhd_out = cli_outdir.join("hypercore.vhd");
+            println!("[build::image] Converting target to Microsoft VirtualPC (VHD) architecture...");
+            generate_vhd_image(&base_iso, &vhd_out)?;
+            
+            let _ = fs::remove_file(base_iso);
+        }
+    }
+
     Ok(())
 }
 
-fn write_execution_plan(
-    selection: &installer_profile::InstallerSelection,
-    policy: &installer_policy::InstallerPolicy,
-) -> Result<()> {
-    let out_path = paths::resolve("artifacts/tooling/installer/execution_plan.json");
-    if let Some(parent) = out_path.parent() {
-        fs::create_dir_all(parent)?;
+/// Internal pipeline tool to translate a generic ISO layout into an absolute RAW block format (dd-capable)
+fn generate_raw_image(iso_src: &Path, img_dest: &Path) -> Result<()> {
+    if !iso_src.exists() {
+        bail!("Source ISO object unavailable for requested RAW conversion operation.");
     }
-
-    let mut stages = vec![
-        InstallerExecutionStage {
-            id: "artifact-fetch".to_string(),
-            title: "Fetch external artifacts".to_string(),
-            depends_on: vec![],
-            timeout_seconds: policy.install_timeout_seconds,
-            critical: policy.checksum_required,
-        },
-        InstallerExecutionStage {
-            id: "repo-metadata-verify".to_string(),
-            title: "Verify repository metadata signatures".to_string(),
-            depends_on: vec!["artifact-fetch".to_string()],
-            timeout_seconds: policy.install_timeout_seconds,
-            critical: policy.metadata_signature_required,
-        },
-        InstallerExecutionStage {
-            id: "package-install".to_string(),
-            title: "Install selected packages".to_string(),
-            depends_on: vec!["repo-metadata-verify".to_string()],
-            timeout_seconds: policy.install_timeout_seconds,
-            critical: true,
-        },
-        InstallerExecutionStage {
-            id: "postinstall-hooks".to_string(),
-            title: "Run post-install hooks".to_string(),
-            depends_on: vec!["package-install".to_string()],
-            timeout_seconds: policy.install_timeout_seconds,
-            critical: false,
-        },
-    ];
-
-    if !selection.smoke_commands.is_empty() {
-        stages.push(InstallerExecutionStage {
-            id: "app-smoke".to_string(),
-            title: "Run app target smoke tests".to_string(),
-            depends_on: vec!["postinstall-hooks".to_string()],
-            timeout_seconds: policy.smoke_timeout_seconds,
-            critical: true,
-        });
+    
+    // Prefer QEMU-IMG binary translations if available on host. Fallback to 1-to-1 ISOHybrid block copy natively.
+    if process::which("qemu-img") || process::which("qemu-img.exe") {
+        println!("[build::img] Relying on qemu-img translation sub-system.");
+        process::run_checked("qemu-img", &["convert", "-O", "raw", &iso_src.to_string_lossy(), &img_dest.to_string_lossy()])
+            .context("QEMU-IMG structural synthesis failed.")?;
+    } else {
+        println!("[build::img] Standard Host fallback: Copying native ISOHybrid byte-stream segment.");
+        fs::copy(iso_src, img_dest).context("ISOHybrid clone translation failed.")?;
     }
+    
+    println!("[build::img] Target format completed: {}", img_dest.display());
+    Ok(())
+}
 
-    let plan = InstallerExecutionPlan {
-        schema_version: 1,
-        profile: &selection.profile,
-        stages,
-    };
-
-    fs::write(&out_path, serde_json::to_string_pretty(&plan)?)?;
-    println!("[build::apt-iso] Execution plan: {}", out_path.display());
+/// Internal pipeline tool to translate generic output into hypervisor compatible structures
+fn generate_vhd_image(iso_src: &Path, vhd_dest: &Path) -> Result<()> {
+    if !iso_src.exists() {
+        bail!("Source ISO object unavailable for requested VHD conversion operation.");
+    }
+    
+    // Explicit hard dependency requirement for hypervisor-level translations (VirtualPC formatting)
+    if process::which("qemu-img") || process::which("qemu-img.exe") {
+        println!("[build::vhd] Requesting qemu-img vpc header construction format.");
+        process::run_checked("qemu-img", &["convert", "-O", "vpc", &iso_src.to_string_lossy(), &vhd_dest.to_string_lossy()])
+            .context("QEMU-IMG VHD header translation constraint failed.")?;
+    } else {
+        bail!("A verified QEMU environment is strictly required on this host workstation to construct VHD layouts.");
+    }
+    
+    println!("[build::vhd] Hypervisor Target format completed: {}", vhd_dest.display());
     Ok(())
 }

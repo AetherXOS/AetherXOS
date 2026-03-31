@@ -25,11 +25,12 @@ const BOOT_SUCCESS_MARKERS: &[&str] = &[
 
 /// Run an automated QEMU smoke test with timeout and panic detection.
 pub fn smoke_test() -> Result<()> {
+    let outdir = std::env::var("XTASK_OUTDIR").unwrap_or_else(|_| "artifacts".to_string());
     let kernel = paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
     let initramfs = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
     let iso = std::env::var("HYPERCORE_QEMU_SMOKE_ISO")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| paths::resolve("artifacts/boot_image/hypercore.iso"));
+        .unwrap_or_else(|_| paths::resolve(&format!("{}/hypercore.iso", outdir)));
     let log_path = paths::resolve("artifacts/boot_image/qemu_smoke.log");
     let append = "console=ttyS0 loglevel=7";
     let memory_mb = 512;
@@ -105,7 +106,35 @@ pub fn smoke_test() -> Result<()> {
     println!("[qemu::smoke] Panic detected: {}", panic_seen);
     println!("[qemu::smoke] Boot marker detected: {}", boot_marker_seen);
     println!("[qemu::smoke] Exit success: {}", final_result.success);
-    println!("[qemu::smoke] Log: {}", log_path.display());
+    println!("[qemu::smoke] Text Log: {}", log_path.display());
+
+    // Export Enterprise-Grade CI/CD XML structured reports
+    let junit_path = paths::resolve("artifacts/qemu_smoke_junit.xml");
+    let failure_tag = if pass { String::new() } else { 
+        format!("<failure message=\"Boot assertion failed\"><![CDATA[Panic Seen: {} | Timed Out: {}]]></failure>", panic_seen, final_result.timed_out)
+    };
+    
+    let xml = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="1" failures="{failures}" errors="0" time="{time:.3}">
+    <testsuite name="QemuSmokeTest" tests="1" failures="{failures}" errors="0" time="{time:.3}">
+        <testcase name="Hypercore_Limine_Boot" classname="kernel.boot" time="{time:.3}">
+            {failure_tag}
+            <system-out><![CDATA[{stdout}]]></system-out>
+            <system-err><![CDATA[{stderr}]]></system-err>
+        </testcase>
+    </testsuite>
+</testsuites>"#,
+        failures = if pass { 0 } else { 1 },
+        time = final_result.elapsed.as_secs_f64(),
+        failure_tag = failure_tag,
+        stdout = final_result.stdout.replace("]]>", "]]>]]&gt;<![CDATA["),
+        stderr = final_result.stderr.replace("]]>", "]]>]]&gt;<![CDATA["),
+    );
+    
+    if std::fs::write(&junit_path, xml).is_ok() {
+        println!("[qemu::smoke] CI/CD JUnit API Report exported: {}", junit_path.display());
+    }
 
     if !pass {
         bail!(
@@ -238,4 +267,30 @@ impl WaitTimeout for std::process::Child {
             }
         }
     }
+}
+
+/// Launches QEMU paused (-S -s) to await a GDB localhost:1234 attachment.
+pub fn debug_session() -> Result<()> {
+    let kernel = paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
+    let initramfs = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
+    let qemu_bin = find_qemu()?;
+
+    println!("[qemu::debug] QEMU initialized with paused CPU states.");
+    println!("[qemu::debug] Exposing local debugger port... Run 'target remote :1234' on GDB");
+    
+    let status = Command::new(&qemu_bin)
+        .args([
+            "-m", "512",
+            "-smp", "2",
+            "-kernel", &kernel.to_string_lossy(),
+            "-initrd", &initramfs.to_string_lossy(),
+            "-append", "console=ttyS0 loglevel=7",
+            "-S", "-s",
+        ])
+        .status()?;
+
+    if !status.success() {
+        bail!("QEMU debug overlay exited with error code: {}", status.code().unwrap_or(-1));
+    }
+    Ok(())
 }

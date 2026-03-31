@@ -1,12 +1,10 @@
-; Bu dosya senin kernel'ının "kimlik kartı" olacak.
 section .multiboot2
 align 8
 header_start:
-    dd 0xe85250d6                ; Magic number (Multiboot2)
-    dd 0                         ; Architecture (i386/x86_64)
-    dd header_end - header_start ; Header length
-    ; Checksum
-    dd 0x100000000 - (0xe85250d6 + 0 + (header_end - header_start))
+    dd 0xe85250d6                ; magic
+    dd 0                         ; architecture (0 = i386)
+    dd header_end - header_start ; length
+    dd 0x100000000 - (0xe85250d6 + 0 + (header_end - header_start)) ; checksum
 
     ; End tag
     dw 0
@@ -15,9 +13,9 @@ header_start:
 header_end:
 
 section .text
+[bits 32] ; Force 32-bit instructions for the entry point
 global _start
 _start:
-    ; Kernel burada başlar. Şimdilik sadece dur (halt).
     cli
 .hang:
     hlt

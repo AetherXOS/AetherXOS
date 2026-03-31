@@ -145,9 +145,7 @@ impl HAL {
         }
         serial::write_raw("[EARLY SERIAL] x86_64 cpu local initialized\n");
 
-        serial::write_raw("[EARLY SERIAL] x86_64 bsp register begin\n");
-        smp::register_cpu(bsp_local);
-        serial::write_raw("[EARLY SERIAL] x86_64 bsp registered\n");
+        serial::write_raw("[EARLY SERIAL] x86_64 bsp register phase deferred to init_smp due to Heap dependencies.\n");
 
         // 6. Initialize Syscalls (Ring 3 -> 0) after CpuLocal/GS/kernel stack.
         #[cfg(feature = "ring_protection")]
@@ -166,6 +164,10 @@ impl HAL {
     }
 
     pub fn init_smp() {
+        serial::write_raw("[EARLY SERIAL] x86_64 late bsp registration initialized\n");
+        let bsp_local = unsafe { bootstrap_bsp_cpu_local() };
+        smp::register_cpu(bsp_local);
+        serial::write_raw("[EARLY SERIAL] x86_64 late bsp registered successfully\n");
         smp::init();
     }
 
@@ -244,7 +246,7 @@ impl HardwareAbstraction for HAL {
     }
 
     fn init_smp() {
-        smp::init();
+        Self::init_smp();
     }
 
     fn init_cpu_local(ptr: usize) {

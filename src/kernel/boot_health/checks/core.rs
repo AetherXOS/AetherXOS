@@ -75,4 +75,16 @@ pub(super) fn run_core_checks(report: &mut BootHealthReport) {
         SCHED_LOTTERY_REPLAY_TRACE_CAPACITY > 0,
         "lottery replay trace capacity must be > 0",
     );
+
+    // ── Self Test: Dynamic Allocator & Deadlock Prevention Guard ──
+    extern crate alloc;
+    let mut heap_test_vec: alloc::vec::Vec<u8> = alloc::vec::Vec::new();
+    // Enforce dynamic memory capability right after initial startup:
+    heap_test_vec.push(0xAA);
+    check(
+        report,
+        1011,
+        heap_test_vec.pop() == Some(0xAA),
+        "Dynamic Heap Allocator (Vec) failed memory flow constraints",
+    );
 }

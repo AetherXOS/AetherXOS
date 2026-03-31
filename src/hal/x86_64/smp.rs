@@ -40,14 +40,12 @@ const TLB_SHOOTDOWN_TIMEOUT_SPINS: usize = 2_000_000;
 
 // ── Kernel stack allocation ───────────────────────────────────────────────────
 
-#[cfg(feature = "ring_protection")]
 const KERNEL_STACK_BYTES: usize = crate::generated_consts::STACK_SIZE_PAGES * 4096;
 #[cfg(feature = "ring_protection")]
 const BOOTSTRAP_LAUNCH_STACK_SLOTS: usize = 8;
 static AP_CPU_LOCAL_READY_MASK: AtomicU64 = AtomicU64::new(0);
 static mut AP_CPU_LOCAL: [MaybeUninit<CpuLocal>; crate::generated_consts::KERNEL_MAX_CPUS] =
     [const { MaybeUninit::uninit() }; crate::generated_consts::KERNEL_MAX_CPUS];
-#[cfg(feature = "ring_protection")]
 static mut AP_KERNEL_STACKS: [[u8; KERNEL_STACK_BYTES]; crate::generated_consts::KERNEL_MAX_CPUS] =
     [[0u8; KERNEL_STACK_BYTES]; crate::generated_consts::KERNEL_MAX_CPUS];
 #[cfg(feature = "ring_protection")]
@@ -56,7 +54,6 @@ static mut BOOTSTRAP_LAUNCH_STACKS: [[u8; KERNEL_STACK_BYTES]; BOOTSTRAP_LAUNCH_
 #[cfg(feature = "ring_protection")]
 static NEXT_BOOTSTRAP_LAUNCH_STACK_SLOT: AtomicUsize = AtomicUsize::new(0);
 
-#[cfg(feature = "ring_protection")]
 fn ap_kernel_stack_top(slot: usize) -> usize {
     let top = unsafe {
         (core::ptr::addr_of!(AP_KERNEL_STACKS[slot]) as *const u8 as usize) + KERNEL_STACK_BYTES
@@ -227,6 +224,13 @@ extern "C" fn ap_entry(info: *const limine::SmpInfo) -> ! {
     }
     crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap gdt load returned\n");
 
+    // 1b. Load the shared IDT on this AP core.
+    // The IDTR register is per-CPU; without this, any interrupt on the AP
+    // will read IDT base = 0 and immediately triple-fault.
+    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap idt load begin\n");
+    crate::hal::x86_64::idt::init();
+    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap idt load returned\n");
+
     // 2. Enable this AP's Local APIC.
     crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap local apic begin\n");
     unsafe {
@@ -261,7 +265,29 @@ extern "C" fn ap_entry(info: *const limine::SmpInfo) -> ! {
     // Signal BSP that we are up.
     AP_ONLINE_COUNT.fetch_add(1, Ordering::Release);
 
-    // 5. Enable interrupts and idle.
+    // 5. Switch from Limine's tiny bootstrap stack to our 64 KiB kernel
+    //    stack, then enable interrupts and idle.
+    //    Without this the AP overflows its ~4 KiB bootstrap stack within
+    //    a few dozen timer ticks and triple-faults.
+    let new_stack_top = ap_kernel_stack_top(cpu_id.0);
+    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap stack switch begin\n");
+    unsafe {
+        core::arch::asm!(
+            "mov rsp, {0}",
+            "call {1}",
+            in(reg) new_stack_top,
+            sym ap_idle_loop,
+            options(noreturn),
+        );
+    }
+}
+
+/// AP idle loop — runs on the AP's own kernel stack.
+/// This function is called via `call` after switching RSP, so it must
+/// never return.
+#[inline(never)]
+fn ap_idle_loop() -> ! {
+    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap idle loop entered\n");
     x86_64::instructions::interrupts::enable();
     loop {
         crate::kernel::idle_once();
