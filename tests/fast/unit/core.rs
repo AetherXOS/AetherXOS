@@ -38,10 +38,10 @@ fn runtime_override_reset_restores_default_bounds() {
     let default_history_len = KernelConfig::telemetry_history_len();
     let default_mount_path = KernelConfig::vfs_max_mount_path();
 
-    KernelConfig::set_telemetry_history_len(Some(0));
+    KernelConfig::set_telemetry_history_len(Some(usize::MAX));
     KernelConfig::set_vfs_max_mount_path(Some(1));
 
-    assert_eq!(KernelConfig::telemetry_history_len(), 1);
+    assert_eq!(KernelConfig::telemetry_history_len(), 1_000_000);
     assert_eq!(KernelConfig::vfs_max_mount_path(), 2);
 
     KernelConfig::reset_runtime_overrides();

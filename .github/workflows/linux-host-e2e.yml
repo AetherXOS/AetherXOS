@@ -2,9 +2,6 @@ name: Linux-host E2E Proof
 
 on:
   workflow_dispatch: {}
-  push:
-    branches:
-      - main
 
 jobs:
   linux_host_e2e:

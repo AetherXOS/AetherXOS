@@ -6,12 +6,13 @@ on:
       - '.cargo/**'
       - '.config/**'
       - '.github/workflows/arm64-fast.yml'
+      - '.github/workflows/tier-reusable.yml'
       - 'Cargo.lock'
       - 'Cargo.toml'
       - 'rust-toolchain.toml'
-      - 'scripts/**'
       - 'src/**'
       - 'tests/**'
+      - 'xtask/**'
   push:
     branches:
       - main
@@ -19,47 +20,24 @@ on:
       - '.cargo/**'
       - '.config/**'
       - '.github/workflows/arm64-fast.yml'
+      - '.github/workflows/tier-reusable.yml'
       - 'Cargo.lock'
       - 'Cargo.toml'
       - 'rust-toolchain.toml'
-      - 'scripts/**'
       - 'src/**'
       - 'tests/**'
+      - 'xtask/**'
   workflow_dispatch:
 
 concurrency:
   group: arm64-fast-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
-env:
-  CARGO_INCREMENTAL: '0'
-  CARGO_TERM_COLOR: always
-
 jobs:
   fast:
-    name: arm64 / fast
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: nightly
-          components: clippy,rustfmt,llvm-tools-preview,rust-src
-
-      - name: Cache Rust artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: arm64-fast
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
-
-      - name: Run fast tier
-        run: scripts/testfast.sh
+    uses: ./.github/workflows/tier-reusable.yml
+    with:
+      job_name: arm64 / fast
+      runner: ubuntu-24.04-arm
+      tier: fast
+      timeout_minutes: 30

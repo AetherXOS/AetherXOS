@@ -3,13 +3,14 @@ use hypercore::kernel::module_loader::{
     build_load_plan, inspect_elf_image, snapshot_module_image, ModuleLoadError,
 };
 
-static PROBE: &[u8] = include_bytes!("../../../boot/initramfs/usr/lib/hypercore/probe-linked.elf");
+use crate::common::elf::minimal_loadable_image;
 
 #[test]
 fn module_snapshot_matches_public_loader_views() {
-    let snapshot = snapshot_module_image(PROBE).expect("snapshot");
-    let info = inspect_elf_image(PROBE).expect("inspect");
-    let plan = build_load_plan(PROBE).expect("plan");
+    let probe = minimal_loadable_image();
+    let snapshot = snapshot_module_image(&probe).expect("snapshot");
+    let info = inspect_elf_image(&probe).expect("inspect");
+    let plan = build_load_plan(&probe).expect("plan");
 
     assert_eq!(snapshot.info.entry, info.entry);
     assert_eq!(snapshot.info.machine, info.machine);
@@ -20,7 +21,10 @@ fn module_snapshot_matches_public_loader_views() {
 
 #[test]
 fn loader_rejects_invalid_requests_without_bootstrap_side_effects() {
-    assert_eq!(inspect_elf_image(&[0u8; 8]), Err(ModuleLoadError::TooSmall));
+    assert!(matches!(
+        inspect_elf_image(&[0u8; 8]),
+        Err(ModuleLoadError::TooSmall)
+    ));
     assert_eq!(
         spawn_bootstrap_from_image(b"", &[1u8], 0, 0, 0, 0),
         Err(LaunchError::InvalidSpawnRequest)

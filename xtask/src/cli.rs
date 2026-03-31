@@ -3,8 +3,10 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(name = "xtask")]
 #[command(about = "AetherXOS Task Runner - Unified High-Performance Operations")]
-#[command(long_about = "Replaces all legacy Python and PowerShell scripts with a single, \
-    modular, type-safe Rust binary. Every OS workflow is accessible via subcommands.")]
+#[command(
+    long_about = "Replaces all legacy Python and PowerShell scripts with a single, \
+    modular, type-safe Rust binary. Every OS workflow is accessible via subcommands."
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -125,7 +127,6 @@ pub enum Commands {
 
     /// Generate P0/P1/P2 tier readiness status
     TierStatus,
-
 }
 
 // ---------------------------------------------------------------------------
@@ -193,10 +194,25 @@ pub enum TestAction {
     },
     /// Run dashboard agent contract verification
     AgentContract,
+    /// Run all core test tiers sequentially
+    All {
+        /// Use CI nextest profile and artifact-oriented behavior
+        #[arg(long)]
+        ci: bool,
+    },
     /// POSIX conformance gate
     PosixConformance,
     /// Driver config smoke test
     DriverSmoke,
+    /// Run a named CI tier locally or in GitHub Actions
+    Tier {
+        /// Tier name: fast, integration, nightly
+        #[arg(long)]
+        tier: String,
+        /// Use CI nextest profile and artifact-oriented behavior
+        #[arg(long)]
+        ci: bool,
+    },
     /// Linux app compatibility layered validator (strict/quick/qemu)
     LinuxAppCompat {
         /// Desktop smoke profile (enforces Wayland/X11 probes)

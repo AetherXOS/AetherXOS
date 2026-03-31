@@ -1,11 +1,12 @@
-pub mod posix;
 pub mod driver;
 pub mod host;
-pub mod linux_app_compat;
 pub mod kernel_refactor_audit;
+pub mod linux_app_compat;
+pub mod posix;
+pub mod tier;
 
-use anyhow::{Result, bail};
 use crate::cli::TestAction;
+use anyhow::{bail, Result};
 
 /// Entry point for `cargo xtask test <action>`.
 pub fn execute(action: &TestAction) -> Result<()> {
@@ -13,6 +14,8 @@ pub fn execute(action: &TestAction) -> Result<()> {
         TestAction::QualityGate => quality_gate(),
         TestAction::Host { release } => host::validate_feature_matrix(*release),
         TestAction::AgentContract => agent_contract(),
+        TestAction::All { ci } => tier::run_all(*ci),
+        TestAction::Tier { tier, ci } => tier::run(tier, *ci),
         TestAction::PosixConformance => posix::run_gate(),
         TestAction::DriverSmoke => driver::run_smoke(),
         TestAction::LinuxAppCompat {
@@ -28,25 +31,24 @@ pub fn execute(action: &TestAction) -> Result<()> {
             require_fs_stack,
             require_package_stack,
             require_desktop_app_stack,
-        } => {
-            linux_app_compat::run(linux_app_compat::LinuxAppCompatOptions {
-                desktop_smoke: *desktop_smoke,
-                quick: *quick,
-                qemu: *qemu,
-                strict: *strict,
-                ci: *ci,
-                require_busybox: *require_busybox,
-                require_glibc: *require_glibc,
-                require_wayland: *require_wayland,
-                require_x11: *require_x11,
-                require_fs_stack: *require_fs_stack,
-                require_package_stack: *require_package_stack,
-                require_desktop_app_stack: *require_desktop_app_stack,
-            })
-        }
-        TestAction::KernelRefactorAudit { max_lines, magic_repeat_threshold } => {
-            kernel_refactor_audit::run(*max_lines, *magic_repeat_threshold)
-        }
+        } => linux_app_compat::run(linux_app_compat::LinuxAppCompatOptions {
+            desktop_smoke: *desktop_smoke,
+            quick: *quick,
+            qemu: *qemu,
+            strict: *strict,
+            ci: *ci,
+            require_busybox: *require_busybox,
+            require_glibc: *require_glibc,
+            require_wayland: *require_wayland,
+            require_x11: *require_x11,
+            require_fs_stack: *require_fs_stack,
+            require_package_stack: *require_package_stack,
+            require_desktop_app_stack: *require_desktop_app_stack,
+        }),
+        TestAction::KernelRefactorAudit {
+            max_lines,
+            magic_repeat_threshold,
+        } => kernel_refactor_audit::run(*max_lines, *magic_repeat_threshold),
     }
 }
 
@@ -71,16 +73,9 @@ fn agent_contract() -> Result<()> {
     let dashboard_dir = crate::utils::paths::resolve("dashboard");
 
     // Build and workflow tests act as the agent contract baseline.
-    crate::utils::process::run_checked_in_dir(
-        "npm",
-        &["run", "build"],
-        &dashboard_dir,
-    )?;
-    let workflow = crate::utils::process::run_status_in_dir(
-        "npm",
-        &["run", "test:workflow"],
-        &dashboard_dir,
-    )?;
+    crate::utils::process::run_checked_in_dir("npm", &["run", "build"], &dashboard_dir)?;
+    let workflow =
+        crate::utils::process::run_status_in_dir("npm", &["run", "test:workflow"], &dashboard_dir)?;
     if !workflow.success() {
         bail!("dashboard workflow contract test failed");
     }

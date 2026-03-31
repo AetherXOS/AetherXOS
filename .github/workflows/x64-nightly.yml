@@ -1,65 +1,19 @@
 name: X64 Nightly
 
 on:
-  pull_request:
-    paths:
-      - '.cargo/**'
-      - '.config/**'
-      - '.github/workflows/x64-nightly.yml'
-      - 'Cargo.lock'
-      - 'Cargo.toml'
-      - 'rust-toolchain.toml'
-      - 'scripts/**'
-      - 'src/**'
-      - 'tests/**'
-  push:
-    branches:
-      - main
-    paths:
-      - '.cargo/**'
-      - '.config/**'
-      - '.github/workflows/x64-nightly.yml'
-      - 'Cargo.lock'
-      - 'Cargo.toml'
-      - 'rust-toolchain.toml'
-      - 'scripts/**'
-      - 'src/**'
-      - 'tests/**'
+  schedule:
+    - cron: '0 16 * * 6,0'
   workflow_dispatch:
 
 concurrency:
   group: x64-nightly-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
-env:
-  CARGO_INCREMENTAL: '0'
-  CARGO_TERM_COLOR: always
-
 jobs:
   nightly:
-    name: x64 / nightly
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: nightly
-          components: clippy,rustfmt,llvm-tools-preview,rust-src
-
-      - name: Cache Rust artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: x64-nightly
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
-
-      - name: Run nightly tier
-        run: scripts/testnight.sh
+    uses: ./.github/workflows/tier-reusable.yml
+    with:
+      job_name: x64 / nightly
+      runner: ubuntu-24.04
+      tier: nightly
+      timeout_minutes: 60

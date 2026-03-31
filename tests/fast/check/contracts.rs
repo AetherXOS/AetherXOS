@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 
-use crate::common::tool::{
-    expected_invocations, run_script, Availability, TierPlan, FAKE_HOST_TRIPLE,
-};
+use crate::common::tool::{Availability, TierPlan};
 use crate::common::{ctx, fs, plan};
 use toml::Value;
 
@@ -14,12 +12,21 @@ fn tier_plans_stay_well_formed_and_asset_backed() {
     );
     assert_tier_contract(
         &plan::integration(),
-        &["nextest", "kasan", "kmsan", "ubsan", "virtme", "cargofuzz"],
+        &[
+            "nextest",
+            "clippy",
+            "kasan",
+            "kmsan",
+            "ubsan",
+            "virtme",
+            "cargofuzz",
+        ],
     );
     assert_tier_contract(
         &plan::nightly(),
         &[
             "nextest",
+            "clippy",
             "syzkaller",
             "tlaplus",
             "kani",
@@ -67,82 +74,67 @@ fn cargo_test_targets_and_nextest_profiles_stay_aligned() {
 }
 
 #[test]
-fn fast_shell_runner_executes_required_steps_and_respects_optional_gates() {
-    let disabled = run_script(
-        "scripts/testfast.sh",
-        &[],
-        &["geiger", "rudra", "audit"],
-        &[],
-    );
-
-    assert!(disabled.stderr.is_empty());
-    assert!(disabled.stdout.contains("==> nextest"));
-    assert!(disabled.stdout.contains("==> clippy"));
-    assert!(disabled.stdout.contains("==> rustfmt"));
-    assert!(disabled.stdout.contains("==> skip geiger"));
-    assert!(disabled.stdout.contains("==> skip rudra"));
-    assert!(disabled.stdout.contains("==> skip audit"));
-    assert_eq!(
-        disabled.invocations,
-        expected_invocations(
-            &plan::fast(),
-            ctx::root(),
-            FAKE_HOST_TRIPLE,
-            &[],
-            &["geiger", "rudra", "audit"],
-            &[],
-        )
-    );
-
-    let enabled = run_script(
-        "scripts/testfast.sh",
+fn xtask_tier_runner_is_the_single_ci_entrypoint() {
+    fs::file("xtask/src/commands/validation/test/tier.rs");
+    fs::ordered(
+        "xtask/src/cli.rs",
         &[
-            ("HYPERCORE_ENABLE_GEIGER", "1"),
-            ("HYPERCORE_ENABLE_RUDRA", "1"),
-            ("HYPERCORE_ENABLE_AUDIT", "1"),
+            "pub enum TestAction",
+            "Tier {",
+            "tier: String",
+            "ci: bool",
         ],
-        &["geiger", "rudra", "audit"],
-        &[],
     );
-
-    assert!(enabled.stderr.is_empty());
-    assert_eq!(
-        enabled.invocations,
-        expected_invocations(
-            &plan::fast(),
-            ctx::root(),
-            FAKE_HOST_TRIPLE,
-            &[
-                "HYPERCORE_ENABLE_GEIGER",
-                "HYPERCORE_ENABLE_RUDRA",
-                "HYPERCORE_ENABLE_AUDIT",
-            ],
-            &["geiger", "rudra", "audit"],
-            &[],
-        )
+    fs::ordered(
+        "xtask/src/commands/validation/test/mod.rs",
+        &[
+            "pub mod tier;",
+            "TestAction::Tier { tier, ci } => tier::run(tier, *ci)",
+        ],
+    );
+    fs::ordered(
+        "xtask/src/commands/validation/test/tier.rs",
+        &[
+            "const TEST_FEATURES: &str = \"kernel_test_mode,vfs,drivers\";",
+            "pub fn run(tier: &str, ci: bool) -> Result<()> {",
+            "\"fast\" => run_fast(ci)",
+            "\"integration\" => run_integration(ci)",
+            "\"nightly\" => run_nightly(ci)",
+        ],
     );
 }
 
 #[test]
-fn powershell_fast_runner_stays_aligned_with_fast_tier() {
-    fs::ordered(
-        "scripts/run_tests_host.ps1",
-        &[
-            "$ErrorActionPreference = \"Stop\"",
-            "function Get-HostTriple",
-            "function Invoke-CargoStep",
-            "function Invoke-OptionalCargoStep",
-            "Invoke-CargoStep -Label \"Fast / nextest\"",
-            "Invoke-CargoStep -Label \"Fast / clippy\"",
-            "Invoke-CargoStep -Label \"Fast / rustfmt\"",
-            "Invoke-OptionalCargoStep -Gate \"HYPERCORE_ENABLE_GEIGER\"",
-            "Invoke-OptionalCargoStep -Gate \"HYPERCORE_ENABLE_RUDRA\"",
-            "Invoke-OptionalCargoStep -Gate \"HYPERCORE_ENABLE_AUDIT\"",
-        ],
+fn reusable_workflows_drive_tier_commands() {
+    fs::file(".github/workflows/tier-reusable.yml");
+    for workflow in [
+        ".github/workflows/x64-fast.yml",
+        ".github/workflows/x64-integration.yml",
+        ".github/workflows/x64-nightly.yml",
+        ".github/workflows/arm64-fast.yml",
+        ".github/workflows/arm64-integration.yml",
+        ".github/workflows/arm64-nightly.yml",
+    ] {
+        fs::text(workflow, "uses: ./.github/workflows/tier-reusable.yml");
+        fs::text(workflow, "tier:");
+    }
+    fs::text(
+        ".github/workflows/tier-reusable.yml",
+        "cargo xtask test tier ${{ inputs.tier }} --ci",
     );
+    fs::text(".github/workflows/x64-integration.yml", "cron: '0 16 * * *'");
+    fs::text(".github/workflows/arm64-integration.yml", "cron: '0 16 * * *'");
+    fs::text(".github/workflows/x64-nightly.yml", "cron: '0 16 * * 6,0'");
+    fs::text(".github/workflows/arm64-nightly.yml", "cron: '0 16 * * 6,0'");
+    assert!(ctx::path(".github/workflows/linux-host-e2e.yml").exists());
+}
 
-    fs::text("scripts/run_tests_host.ps1", ".config/nextest.toml");
-    fs::text("scripts/run_tests_host.ps1", "-D\", \"warnings\"");
+#[test]
+fn legacy_shell_tier_entrypoints_are_removed() {
+    assert!(!ctx::path("scripts/testfast.sh").exists());
+    assert!(!ctx::path("scripts/testint.sh").exists());
+    assert!(!ctx::path("scripts/testnight.sh").exists());
+    assert!(!ctx::path("scripts/run_tests_host.ps1").exists());
 }
 
 fn assert_tier_contract(tier: &TierPlan, expected_labels: &[&str]) {

@@ -18,7 +18,10 @@ fn launch_stats_snapshot_remains_self_consistent() {
 
 #[test]
 fn invalid_bootstrap_requests_are_rejected_before_launch() {
-    assert_eq!(inspect_elf_image(&[0u8; 8]), Err(ModuleLoadError::TooSmall));
+    assert!(matches!(
+        inspect_elf_image(&[0u8; 8]),
+        Err(ModuleLoadError::TooSmall)
+    ));
     assert_eq!(
         spawn_bootstrap_from_image(b"", &[1u8], 0, 0, 0, 0),
         Err(LaunchError::InvalidSpawnRequest)

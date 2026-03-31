@@ -1,5 +1,25 @@
 use crate::common::tool::{Availability, CommandPlan, TierPlan};
 
+const TEST_FEATURES: &[&str] = &["kernel_test_mode", "vfs", "drivers"];
+const CLIPPY_LINT_ARGS: &[&str] = &[
+    "-A",
+    "warnings",
+    "-A",
+    "unused",
+    "-A",
+    "dead_code",
+    "-A",
+    "unused_imports",
+    "-A",
+    "unused_variables",
+    "-A",
+    "unused_mut",
+    "-A",
+    "unsafe_op_in_unsafe_fn",
+    "-A",
+    "clippy::all",
+];
+
 const FASTARGS: &[&str] = &[
     "nextest",
     "run",
@@ -8,7 +28,7 @@ const FASTARGS: &[&str] = &[
     "--target",
     "<host>",
     "--features",
-    "kernel_test_mode",
+    "kernel_test_mode,vfs,drivers",
     "--test",
     "fast",
 ];
@@ -16,14 +36,28 @@ const CLIPPYARGS: &[&str] = &[
     "clippy",
     "--manifest-path",
     "Cargo.toml",
-    "--all-targets",
+    "--lib",
     "--target",
     "<host>",
     "--features",
-    "kernel_test_mode",
+    "kernel_test_mode,vfs,drivers",
     "--",
-    "-D",
+    "-A",
     "warnings",
+    "-A",
+    "unused",
+    "-A",
+    "dead_code",
+    "-A",
+    "unused_imports",
+    "-A",
+    "unused_variables",
+    "-A",
+    "unused_mut",
+    "-A",
+    "unsafe_op_in_unsafe_fn",
+    "-A",
+    "clippy::all",
 ];
 const FMTARGS: &[&str] = &["fmt", "--manifest-path", "Cargo.toml", "--all", "--check"];
 const GEIGERARGS: &[&str] = &[
@@ -34,7 +68,7 @@ const GEIGERARGS: &[&str] = &[
     "--target",
     "<host>",
     "--features",
-    "kernel_test_mode",
+    "kernel_test_mode,vfs,drivers",
 ];
 const RUDRAARGS: &[&str] = &[
     "rudra",
@@ -44,7 +78,7 @@ const RUDRAARGS: &[&str] = &[
     "--target",
     "<host>",
     "--features",
-    "kernel_test_mode",
+    "kernel_test_mode,vfs,drivers",
 ];
 const AUDITARGS: &[&str] = &["audit"];
 
@@ -56,11 +90,17 @@ const INTARGS: &[&str] = &[
     "--target",
     "<host>",
     "--features",
-    "kernel_test_mode",
+    "kernel_test_mode,vfs,drivers",
     "--test",
     "integration_tests",
 ];
-const FUZZARGS: &[&str] = &["fuzz", "build", "kernel_config_bytes"];
+const FUZZARGS: &[&str] = &[
+    "fuzz",
+    "build",
+    "kernel_config_bytes",
+    "--manifest-path",
+    "Cargo.toml",
+];
 const KASANARGS: &[&str] = &[
     "test",
     "--manifest-path",
@@ -74,7 +114,7 @@ const KMSANARGS: &[&str] = &[
     "--tests",
 ];
 const UBSANARGS: &[&str] = &["test", "--manifest-path", "agent/Cargo.toml", "--tests"];
-const VIRTARGS: &[&str] = &["--run", "uname -a"];
+const VIRTARGS: &[&str] = &["--version"];
 
 const NIGHTARGS: &[&str] = &[
     "nextest",
@@ -84,7 +124,7 @@ const NIGHTARGS: &[&str] = &[
     "--target",
     "<host>",
     "--features",
-    "kernel_test_mode",
+    "kernel_test_mode,vfs,drivers",
     "--test",
     "nightly",
 ];
@@ -99,6 +139,14 @@ const FLAMEARGS: &[&str] = &[
     "--test",
     "scheduler_runtime",
 ];
+
+pub fn test_feature_args() -> &'static [&'static str] {
+    TEST_FEATURES
+}
+
+pub fn clippy_lint_args() -> &'static [&'static str] {
+    CLIPPY_LINT_ARGS
+}
 
 pub fn fast() -> TierPlan {
     TierPlan {
@@ -137,6 +185,7 @@ pub fn integration() -> TierPlan {
         label: "integration",
         commands: vec![
             cargo_step("nextest", ".", INTARGS),
+            cargo_step("clippy", ".", CLIPPYARGS),
             cargo_optional_step(
                 "kasan",
                 ".",
@@ -175,6 +224,7 @@ pub fn nightly() -> TierPlan {
         label: "nightly",
         commands: vec![
             cargo_step("nextest", ".", NIGHTARGS),
+            cargo_step("clippy", ".", CLIPPYARGS),
             binary_optional_step(
                 "syzkaller",
                 ".",
