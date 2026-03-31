@@ -1,14 +1,14 @@
 <p align="center">
-  <img src="https://i.ibb.co/jZx3WR0B/1000046094-edit-1211083931953110.png" alt="AetherXOS Banner" width="100%">
+  <img src="https://i.ibb.co/jZx3WR0B/1000046094-edit-1211083931953110.png" alt="Aether X OS Banner" width="100%">
 </p>
 
-# AetherXOS
+# Aether X OS
 
-AetherXOS is a next-generation high-performance computing layer built on an Exokernel architecture. By eliminating traditional monolithic kernel abstractions, AetherXOS provides applications with direct-to-silicon resource management, enabling sub-nanosecond instruction dispatch and hardware-enforced isolation.
+Aether X OS is a next-generation high-performance computing layer built on an Exokernel architecture. By eliminating traditional monolithic kernel abstractions, Aether X OS provides applications with direct-to-silicon resource management, enabling sub-nanosecond instruction dispatch and hardware-enforced isolation.
 
 ## Technical Philosophy
 
-Traditional operating systems act as a generic "middleman," introducing overhead and latency through complex syscall layers and forced abstractions. AetherXOS rejects this model in favor of a dual-component architecture:
+Traditional operating systems act as a generic "middleman," introducing overhead and latency through complex syscall layers and forced abstractions. Aether X OS rejects this model in favor of a dual-component architecture:
 
 *   **Exokernel Core:** A minimalist (~150k LOC) safety and multiplexing layer. It manages hardware protection boundaries without imposing high-level abstractions on the application.
 *   **LibraryOS (LibOS):** Modular operating system components (TCP/IP stacks, File Systems, Schedulers) that are linked at compile-time. Developers only include the specific functionality required by the application, reducing the attack surface and binary footprint by up to 90%.
@@ -36,7 +36,7 @@ Traditional operating systems act as a generic "middleman," introducing overhead
 
 ## Configuration as Code
 
-AetherXOS is defined declaratively. The system surface area is managed through a centralized configuration, allowing for granular control over hardware slices and enabled LibraryOS modules.
+Aether X OS is defined declaratively. The system surface area is managed through a centralized configuration, allowing for granular control over hardware slices and enabled LibraryOS modules.
 
 ```toml
 [kernel.features]
@@ -51,7 +51,7 @@ optimization_level = "aggro-3"
 
 ## Verification and Security
 
-Security in AetherXOS is not an afterthought but a compile-time constraint:
+Security in Aether X OS is not an afterthought but a compile-time constraint:
 
 1.  **Hardware-Enforced Isolation:** Each application operates within a dedicated "hardware slice," preventing cross-process interference at the physical boundary.
 2.  **Zero-Trust Memory:** Leveraging Rust's ownership model and Kani model checking to guarantee memory safety without a garbage collector.
