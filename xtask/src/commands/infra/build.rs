@@ -19,14 +19,14 @@ pub fn execute(action: &BuildAction) -> Result<()> {
             
             build_kernel(arch, *release).context("Failed to compile kernel component")?;
             build_initramfs().context("Failed to generate initramfs structure")?;
-            bundle_image(bootloader, format).context("Failed to assemble bootable image hierarchy")?;
+            bundle_image(arch, bootloader, format).context("Failed to assemble bootable image hierarchy")?;
         }
         BuildAction::Image { bootloader, format } => {
             logging::info("build", "assembling bootable image medium", &[
                 ("bootloader", &format!("{:?}", bootloader)), 
                 ("format", &format!("{:?}", format))
             ]);
-            bundle_image(bootloader, format).context("Failed to assemble specific bootable image format")?;
+            bundle_image("x86_64", bootloader, format).context("Failed to assemble specific bootable image format")?;
         }
         BuildAction::Kernel { arch, release } => {
             build_kernel(arch, *release).context("Failed to natively compile kernel")?;
@@ -124,13 +124,19 @@ fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
 
 /// Binds requested OS components (Kernel, RAM_FS, Configs) using the specified bootloader.
 /// Delegates the resulting staged directory into the ultimate format defined by ImageFormat.
-fn bundle_image(bootloader: &Bootloader, format: &ImageFormat) -> Result<()> {
+fn bundle_image(arch: &str, bootloader: &Bootloader, format: &ImageFormat) -> Result<()> {
     let stage_dir = paths::resolve("artifacts/boot_image/stage/boot");
     paths::ensure_dir(&stage_dir)?;
     
+    let target_triple = match arch {
+        "x86_64" => "x86_64-unknown-none",
+        "aarch64" => "aarch64-unknown-none",
+        _ => bail!("Unsupported architecture for bundling: {}", arch),
+    };
+
     // Abstracted stage kernel artifact path (Rust emits without .elf on unknown-none)
-    let kernel_src = paths::resolve("target/x86_64-unknown-none/debug/hypercore");
-    let kernel_src_release = paths::resolve("target/x86_64-unknown-none/release/hypercore");
+    let kernel_src = paths::resolve(&format!("target/{}/debug/hypercore", target_triple));
+    let kernel_src_release = paths::resolve(&format!("target/{}/release/hypercore", target_triple));
     
     let active_kernel = if kernel_src_release.exists() {
         &kernel_src_release

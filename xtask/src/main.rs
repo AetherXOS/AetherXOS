@@ -11,7 +11,22 @@ use utils::logging;
 
 fn main() -> Result<()> {
     let about = format!("AetherXOS xtask/{} rustc/{}", env!("CARGO_PKG_VERSION"), "1.76.0");
-    let system = format!("{} {} ({})", env::consts::OS, env::consts::ARCH, "Unknown CPU");
+    
+    let cpu_info = if std::path::Path::new("/proc/cpuinfo").exists() {
+        std::fs::read_to_string("/proc/cpuinfo")
+            .ok()
+            .and_then(|s| {
+                s.lines()
+                    .find(|l| l.contains("model name") || l.contains("Processor"))
+                    .and_then(|l| l.split(':').nth(1))
+                    .map(|s| s.trim().to_string())
+            })
+            .unwrap_or_else(|| "Generic CPU".to_string())
+    } else {
+        "Host CPU".to_string()
+    };
+
+    let system = format!("{} {} ({})", env::consts::OS, env::consts::ARCH, cpu_info);
     let target = "x86_64-unknown-none (Release: false)";
 
     logging::print_header(&about, &system, target);
@@ -32,6 +47,10 @@ fn main() -> Result<()> {
         cli::Commands::Run { ref action } => {
             commands::ops::run::execute(action)
                 .context("Critical run operations pipeline failure")?;
+        }
+        cli::Commands::Test { ref action } => {
+            commands::validation::test::execute(action)
+                .context("Test suite execution failed")?;
         }
         cli::Commands::Setup { ref action } => {
             commands::infra::setup::execute(action)
