@@ -38,9 +38,7 @@ Traditional operating systems act as a generic "middleman," introducing overhead
 
 Aether X OS is defined declaratively. The system surface area is managed through a centralized configuration, allowing for granular control over hardware slices and enabled LibraryOS modules.
 
-<p align="center">
-  <img src="https://i.ibb.co/Zpsk5X5q/carbon.png" alt="Configuration as Code" width="480">
-</p>
+<<img src="https://i.ibb.co/Zpsk5X5q/carbon.png" alt="Kernel Config" width="480">
 
 
 ## Verification and Security
@@ -63,10 +61,7 @@ The project utilizes `xtask` to provide a unified entry point for all developmen
 
 ### Commands
 
-<p align="center">
-  <img src="https://i.ibb.co/HfjzYCg5/carbon-1.png" alt="commands" width="480">
-</p>
-
+<img src="https://i.ibb.co/HfjzYCg5/carbon-1.png" alt="Build Commands" width="480">
 
 ## Deployment Roadmap
 
