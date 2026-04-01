@@ -8,6 +8,6 @@ rustflags = ["-C", "link-arg=-z", "-C", "link-arg=max-page-size=0x1000"]
 rustflags = ["-C", "link-arg=-z", "-C", "link-arg=max-page-size=0x1000"]
 
 [alias]
-xtask = "run --package xtask --target-dir target/xtask --"
+xtask = ["run", "--package", "xtask", "--target", "x86_64-unknown-linux-gnu", "--target-dir", "target/xtask", "--"]
 kbuild = "build --target x86_64-unknown-none"
 akbuild = "build --target aarch64-unknown-none"
