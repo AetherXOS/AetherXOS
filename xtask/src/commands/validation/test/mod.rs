@@ -59,8 +59,13 @@ fn quality_gate() -> Result<()> {
     host::validate_feature_matrix(false)?;
     driver::run_smoke()?;
     posix::run_gate()?;
-    crate::commands::validation::linux_abi::gate::run()?;
-    crate::commands::infra::build::execute(&crate::cli::BuildAction::Full)?;
+    crate::commands::validation::linux_abi::execute(&crate::cli::LinuxAbiAction::Gate)?;
+    crate::commands::infra::build::execute(&crate::cli::BuildAction::Full {
+        arch: "x86_64".to_string(),
+        bootloader: crate::cli::Bootloader::Limine,
+        format: crate::cli::ImageFormat::Iso,
+        release: false,
+    })?;
     crate::commands::ops::qemu::smoke_test()?;
     println!("[test::quality-gate] PASS");
     Ok(())

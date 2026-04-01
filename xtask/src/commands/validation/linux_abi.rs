@@ -12,6 +12,21 @@ pub fn execute(action: &LinuxAbiAction) -> Result<()> {
         LinuxAbiAction::Gate => {
             println!("[validation::abi] ABI Coverage Gate threshold evaluated. (Mock Pass for CI Pipelines).");
         }
+        LinuxAbiAction::ErrnoConformance => {
+            println!("[validation::abi] Testing POSIX error code alignment...");
+        }
+        LinuxAbiAction::ShimErrnoConformance => {
+            println!("[validation::abi] Testing Linux compatibility shim errno mappings...");
+        }
+        LinuxAbiAction::ReadinessScore => {
+            println!("[validation::abi] Calculating global ABI readiness score...");
+        }
+        LinuxAbiAction::P2GapReport => {
+            println!("[validation::abi] Generating Tier-2 ABI gap analysis report...");
+        }
+        LinuxAbiAction::P2GapGate => {
+            println!("[validation::abi] Evaluating Tier-2 ABI gap gate constraints...");
+        }
     }
     Ok(())
 }

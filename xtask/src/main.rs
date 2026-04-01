@@ -48,6 +48,21 @@ fn main() -> Result<()> {
         Commands::Dashboard { ref action } => {
             commands::dashboard::execute(action).context("Dashboard operation failure")?;
         }
+        Commands::Release { ref action } => {
+            commands::release::preflight::execute(action).context("Release pipeline failure")?;
+        }
+        Commands::AbSlot { ref action } => {
+            commands::runtime::ab_slot::execute(action).context("A/B slot operation failure")?;
+        }
+        Commands::CorePressure { ref words, ref lottery_words, ref format, ref out } => {
+            commands::runtime::core_pressure::execute(words, lottery_words, format, out).context("Core pressure report failure")?;
+        }
+        Commands::CrashRecovery => {
+            commands::runtime::crash_recovery::execute().context("Crash recovery pipeline failure")?;
+        }
+        Commands::Glibc { ref action } => {
+            commands::validation::glibc::execute(action).context("Glibc audit failure")?;
+        }
     }
 
     Ok(())

@@ -1,26 +1,30 @@
 use anyhow::{Context, Result, bail};
 use std::process::Command;
 use crate::cli::SecurebootAction;
+use crate::commands::validation;
 
 pub fn execute(action: &SecurebootAction) -> Result<()> {
     match action {
-        SecurebootAction::Sign { dry_run } => {
+        SecurebootAction::Sign { dry_run, strict_verify } => {
             println!("[secureboot::sign] Initializing Cryptographic UEFI payload verification signatures...");
             if *dry_run {
-                println!("[secureboot::sign] STRICT MOCK MODE ACTIVE: Verification bypass enabled.");
+                println!("[secureboot::sign] STRICT MOCK MODE ACTIVE: Verification bypass enabled. (strict_verify={})", strict_verify);
+                Ok(())
             } else {
-                sign_kernel_with_sbsign().context("Failed to cryptographically sign OS payload")?;
+                execute_sign().context("Failed to cryptographically sign OS payload")
             }
         }
         SecurebootAction::PcrReport => {
             println!("[secureboot::pcr] Gathering Trusted Platform Module (PCR 0-7) measurement assertions.");
+            validation::secureboot::execute(action)
+        }
+        SecurebootAction::SbatValidate { .. } | SecurebootAction::MokPlan | SecurebootAction::OvmfMatrix { .. } => {
+            validation::secureboot::execute(action)
         }
     }
-    
-    Ok(())
 }
 
-fn sign_kernel_with_sbsign() -> Result<()> {
+fn execute_sign() -> Result<()> {
     let kernel_src = crate::utils::paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
     let key_path = crate::utils::paths::resolve("artifacts/secureboot/MOK.key");
     let cert_path = crate::utils::paths::resolve("artifacts/secureboot/MOK.crt");

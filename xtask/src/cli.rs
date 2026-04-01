@@ -88,6 +88,39 @@ pub enum Commands {
         #[command(subcommand)]
         action: SecurebootAction,
     },
+
+    /// Release engineering, preflight gates, and candidate acceptance
+    Release {
+        #[command(subcommand)]
+        action: ReleaseAction,
+    },
+
+    /// Runtime A/B slot management and boot recovery gates
+    AbSlot {
+        #[command(subcommand)]
+        action: AbSlotAction,
+    },
+
+    CorePressure {
+        #[arg(long)]
+        words: String,
+
+        #[arg(long)]
+        lottery_words: Option<String>,
+
+        #[arg(long, default_value = "text")]
+        format: String,
+
+        #[arg(long)]
+        out: Option<String>,
+    },
+
+    CrashRecovery,
+
+    Glibc {
+        #[command(subcommand)]
+        action: GlibcAction,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -145,10 +178,6 @@ pub enum BuildAction {
     /// Generate P0/P1/P2 tier readiness status
     TierStatus,
 }
-
-// ---------------------------------------------------------------------------
-// Build subcommands
-// ---------------------------------------------------------------------------
 
 #[derive(Subcommand, Debug)]
 pub enum RunAction {
@@ -246,17 +275,79 @@ pub enum SetupAction {
 #[derive(Subcommand, Debug)]
 pub enum DashboardAction {
     Build,
+    Test,
     Open,
+    AgentStart {
+        #[arg(long)]
+        no_safe: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]
 pub enum LinuxAbiAction {
     GapInventory,
     Gate,
+    ErrnoConformance,
+    ShimErrnoConformance,
+    ReadinessScore,
+    P2GapReport,
+    P2GapGate,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum SecurebootAction {
-    Sign { #[arg(long)] dry_run: bool },
+    Sign {
+        #[arg(long)] dry_run: bool,
+        #[arg(long)] strict_verify: bool,
+    },
+    SbatValidate {
+        #[arg(long)] strict: bool,
+    },
     PcrReport,
+    MokPlan,
+    OvmfMatrix {
+        #[arg(long)] dry_run: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ReleaseAction {
+    Preflight {
+        #[arg(long)] skip_host_tests: bool,
+        #[arg(long)] skip_boot_artifacts: bool,
+    },
+    CandidateGate,
+    P0Gate,
+    P0Acceptance,
+    P1Nightly,
+    P1Acceptance,
+    P0P1Nightly,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AbSlotAction {
+    Init,
+    Stage { slot: String },
+    NightlyFlip,
+    RecoveryGate,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum GlibcAction {
+    Audit {
+        #[arg(long, default_value = "md")] format: String,
+        #[arg(long)] out: Option<String>,
+        #[arg(long)] verbose: bool,
+    },
+    ClosureGate {
+        #[arg(long)] quick: bool,
+        #[arg(long)] strict: bool,
+        #[arg(long)] family: Option<String>,
+        #[arg(long, default_value = "md")] format: String,
+        #[arg(long)] out: Option<String>,
+    },
+    Scorecard {
+        #[arg(long, default_value = "json")] format: String,
+        #[arg(long)] out: Option<String>,
+    },
 }
