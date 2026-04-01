@@ -19,6 +19,26 @@ pub fn resolve(relative: &str) -> PathBuf {
     }
 }
 
+/// Resolve the kernel source root directory.
+pub fn kernel_src_root() -> PathBuf {
+    repo_root().join("kernel/src")
+}
+
+/// Resolve a path under the kernel source tree.
+pub fn kernel_src(relative: &str) -> PathBuf {
+    kernel_src_root().join(relative)
+}
+
+/// Resolve the userspace app source root directory.
+pub fn userspace_src_root() -> PathBuf {
+    kernel_src_root().join("userspace")
+}
+
+/// Resolve a path under the userspace source tree.
+pub fn userspace_src(relative: &str) -> PathBuf {
+    userspace_src_root().join(relative)
+}
+
 /// Ensure a directory exists, creating it and all parents if necessary.
 pub fn ensure_dir(dir: &Path) -> std::io::Result<()> {
     if !dir.exists() {

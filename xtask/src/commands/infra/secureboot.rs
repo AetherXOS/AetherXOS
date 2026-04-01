@@ -30,7 +30,7 @@ fn execute_sign() -> Result<()> {
     let cert_path = crate::utils::paths::resolve("artifacts/secureboot/MOK.crt");
     
     if !kernel_src.exists() {
-        bail!("Missing kernel payload to encrypt: execute 'cargo xtask build full' first.");
+        bail!("Missing kernel payload to encrypt: execute 'cargo run -p xtask -- build full' first.");
     }
     
     if !key_path.exists() || !cert_path.exists() {

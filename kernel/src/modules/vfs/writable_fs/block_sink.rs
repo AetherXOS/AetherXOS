@@ -1,8 +1,14 @@
 use super::*;
 
+#[cfg(feature = "drivers")]
 use crate::modules::drivers::block::SECTOR_SIZE as DRIVER_SECTOR_SIZE;
+#[cfg(feature = "drivers")]
 use crate::modules::drivers::storage::ManagedStorageDriver;
+#[cfg(feature = "drivers")]
 use crate::modules::drivers::{BlockDriverKind, StorageManager};
+
+#[cfg(not(feature = "drivers"))]
+const DRIVER_SECTOR_SIZE: usize = 512;
 
 /// Writeback sink that persists pages to a block device.
 /// Maintains a simple block allocation bitmap and inode->block mapping.
@@ -105,11 +111,16 @@ impl BlockWritebackSink {
 /// (NVMe, AHCI, VirtIO) and issues sector-based reads/writes. It's intentionally
 /// simple: it's used to back `BlockWritebackSink` when a disk-backed lower
 /// filesystem is present.
+#[cfg(feature = "drivers")]
 pub struct StorageManagerBlockAdapter {
     /// Preferred driver ordering.
     pref: [BlockDriverKind; 3],
 }
 
+#[cfg(not(feature = "drivers"))]
+pub struct StorageManagerBlockAdapter;
+
+#[cfg(feature = "drivers")]
 impl StorageManagerBlockAdapter {
     pub fn new() -> Self {
         Self {
@@ -136,6 +147,14 @@ impl StorageManagerBlockAdapter {
     }
 }
 
+#[cfg(not(feature = "drivers"))]
+impl StorageManagerBlockAdapter {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+#[cfg(feature = "drivers")]
 impl BlockDeviceAdapter for StorageManagerBlockAdapter {
     fn read_block(&mut self, block: u64, buf: &mut [u8]) -> Result<(), &'static str> {
         let sectors_per_page = (PAGE_SIZE / DRIVER_SECTOR_SIZE) as u16;
@@ -173,6 +192,25 @@ impl BlockDeviceAdapter for StorageManagerBlockAdapter {
                 }
             }
         }
+        0
+    }
+}
+
+#[cfg(not(feature = "drivers"))]
+impl BlockDeviceAdapter for StorageManagerBlockAdapter {
+    fn read_block(&mut self, _block: u64, _buf: &mut [u8]) -> Result<(), &'static str> {
+        Err("drivers feature disabled")
+    }
+
+    fn write_block(&mut self, _block: u64, _data: &[u8]) -> Result<(), &'static str> {
+        Err("drivers feature disabled")
+    }
+
+    fn flush(&mut self) -> Result<(), &'static str> {
+        Err("drivers feature disabled")
+    }
+
+    fn block_count(&self) -> u64 {
         0
     }
 }

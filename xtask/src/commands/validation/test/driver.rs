@@ -9,10 +9,10 @@ pub fn run_smoke() -> Result<()> {
 
     let root = paths::repo_root();
     let cargo_path = root.join("Cargo.toml");
-    let generated_path = root.join("src/generated_consts.rs");
+    let generated_path = paths::kernel_src("generated_consts.rs");
 
     if !cargo_path.exists() || !generated_path.exists() {
-        bail!("Missing Cargo.toml or src/generated_consts.rs at root");
+        bail!("Missing Cargo.toml or kernel/src/generated_consts.rs at root");
     }
 
     let cargo_text = fs::read_to_string(&cargo_path)?;

@@ -16,3 +16,5 @@ name = "kernel_config_bytes"
 path = "fuzz_targets/kernel_config_bytes.rs"
 test = false
 doc = false
+
+[workspace]

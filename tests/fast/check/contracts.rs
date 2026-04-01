@@ -120,7 +120,7 @@ fn reusable_workflows_drive_tier_commands() {
     }
     fs::text(
         ".github/workflows/tier-reusable.yml",
-        "cargo xtask test tier ${{ inputs.tier }} --ci",
+        "cargo run -p xtask --target-dir target/xtask -- test tier ${{ inputs.tier }} --ci",
     );
     fs::text(".github/workflows/x64-integration.yml", "cron: '0 16 * * *'");
     fs::text(".github/workflows/arm64-integration.yml", "cron: '0 16 * * *'");

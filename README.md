@@ -23,15 +23,21 @@ Traditional operating systems act as a generic "middleman," introducing overhead
 ## Repository Structure
 
 ```text
-├── agent/            # Rust-based management agent for system telemetry
-├── boot/             # Bootloader configuration and initramfs structure
-├── build_cfg/        # Static validation for kernel and driver configurations
-├── config/           # Hypercore policy definitions and CJSON task manifests
-├── dashboard/        # SvelteKit-based visualization and control interface
-├── formal/           # Mathematical proofs and model checking specifications
-├── fuzz/             # LibFuzzer-driven security testing suite
-├── src/              # Core Exokernel implementation (HAL, Scheduler, VFS)
-└── xtask/            # Automation framework for builds, testing, and deployment
+├── kernel/                 # Kernel crate source (kernel/src/**)
+├── xtask/                  # Automation entrypoint (build/test/validation tooling)
+├── xagent/                 # Rust automation/agent crate (workspace member)
+├── dashboard/              # SvelteKit ops and observability dashboard
+├── config/                 # Runtime/build policy manifests and defaults
+├── build_cfg/              # Typed config loading, validation, and code generation
+├── boot/                   # Boot artifacts, initramfs, and boot image staging
+├── tests/                  # Host-side and integration test suites
+├── host_tools/             # Host utility binaries/scripts
+├── host_rust_tests/        # Host-only Rust test harnesses
+├── fuzz/                   # Standalone fuzz workspace (LibFuzzer targets)
+├── formal/                 # Formal verification assets (Kani and models)
+├── docs/                   # Architecture, roadmap, and operations documentation
+├── scripts/                # Repo scripts not yet migrated to xtask
+└── artifacts/              # Generated outputs and run artifacts
 ```
 
 ## Configuration as Code

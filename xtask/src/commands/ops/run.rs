@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use crate::cli::RunAction;
 
-/// Entry point for `cargo xtask run <action>`.
+/// Entry point for `cargo run -p xtask -- run <action>`.
 /// Isolates emulation layers and hardware block-level testing environments.
 pub fn execute(action: &RunAction) -> Result<()> {
     match action {
@@ -52,7 +52,7 @@ pub fn execute(action: &RunAction) -> Result<()> {
             
             let img_path = crate::utils::paths::resolve("artifacts/hypercore.img");
             if !img_path.exists() {
-                bail!("Logical RAW medium missing: 'hypercore.img'. Terminated. Execute 'cargo xtask build full --format img' first.");
+                bail!("Logical RAW medium missing: 'hypercore.img'. Terminated. Execute 'cargo run -p xtask -- build full --format img' first.");
             }
             
             println!("[run::deploy] Origin block source verified: {}", img_path.display());

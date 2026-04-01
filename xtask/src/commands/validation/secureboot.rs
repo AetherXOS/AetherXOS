@@ -13,7 +13,7 @@ use crate::utils::report;
 
 const REPORT_SCHEMA_VERSION: u32 = 1;
 
-/// Entry point for `cargo xtask secureboot <action>`.
+/// Entry point for `cargo run -p xtask -- secureboot <action>`.
 pub fn execute(action: &SecurebootAction) -> Result<()> {
     match action {
         SecurebootAction::Sign {

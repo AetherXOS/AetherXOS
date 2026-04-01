@@ -52,7 +52,7 @@ struct LotteryReplay {
 
 /// Decode and report core pressure snapshot from raw syscall words.
 ///
-/// Usage: cargo xtask core-pressure --words "2,8,10,4,1250,0,12,0,1024,40,20,3,2,5,8,0,1,1"
+/// Usage: cargo run -p xtask -- core-pressure --words "2,8,10,4,1250,0,12,0,1024,40,20,3,2,5,8,0,1,1"
 pub fn execute(words_str: &str, lottery_words_str: &Option<String>, format: &str, out: &Option<String>) -> Result<()> {
     println!("[core-pressure] Decoding core pressure snapshot");
 

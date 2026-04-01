@@ -37,10 +37,10 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
 
     let root = paths::repo_root();
 
-    // Scan dispatch files for syscall mappings
-    let dispatch_globs = &[
-        "src/modules/linux_compat/sys_dispatcher",
-        "src/kernel/syscalls",
+    // Scan dispatch files for syscall mappings.
+    let dispatch_dirs = vec![
+        paths::kernel_src("modules/linux_compat/sys_dispatcher"),
+        paths::kernel_src("kernel/syscalls"),
     ];
 
     let mut mappings: HashMap<String, String> = HashMap::new();
@@ -49,8 +49,7 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
     ).unwrap();
     let fn_re = regex::Regex::new(r"\b(sys_linux_[a-zA-Z0-9_]+)\b").unwrap();
 
-    for base in dispatch_globs {
-        let dir = root.join(base);
+    for dir in &dispatch_dirs {
         if !dir.exists() { continue; }
         for entry in walkdir::WalkDir::new(&dir)
             .into_iter()
@@ -70,17 +69,16 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
         }
     }
 
-    // Scan handler files for function bodies
-    let handler_dirs = &[
-        "src/modules/linux_compat",
-        "src/kernel/syscalls",
+    // Scan handler files for function bodies.
+    let handler_dirs = vec![
+        paths::kernel_src("modules/linux_compat"),
+        paths::kernel_src("kernel/syscalls"),
     ];
 
     let fn_def_re = regex::Regex::new(r"\bfn\s+(sys_linux_[a-zA-Z0-9_]+)\s*\(").unwrap();
     let mut handler_bodies: HashMap<String, (String, String)> = HashMap::new(); // name -> (file, body)
 
-    for base in handler_dirs {
-        let dir = root.join(base);
+    for dir in &handler_dirs {
         if !dir.exists() { continue; }
         for entry in walkdir::WalkDir::new(&dir)
             .into_iter()

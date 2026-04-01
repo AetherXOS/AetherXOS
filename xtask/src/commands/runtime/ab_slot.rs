@@ -8,7 +8,7 @@ use crate::cli::AbSlotAction;
 use crate::utils::paths;
 use crate::utils::report;
 
-/// Entry point for `cargo xtask ab-slot <action>`.
+/// Entry point for `cargo run -p xtask -- ab-slot <action>`.
 ///
 /// Replaces: ab_boot_slots.py, ab_nightly_slot_flip.py, ab_boot_recovery_gate.py
 pub fn execute(action: &AbSlotAction) -> Result<()> {
@@ -148,7 +148,7 @@ fn stage(slot: &str) -> Result<()> {
     let initramfs_src = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
     let limine_src = paths::resolve("artifacts/boot_image/stage/boot/limine.conf");
 
-    if !kernel_src.exists() { bail!("Kernel not found: {}. Run `cargo xtask build full` first", kernel_src.display()); }
+    if !kernel_src.exists() { bail!("Kernel not found: {}. Run `cargo run -p xtask -- build full` first", kernel_src.display()); }
     if !initramfs_src.exists() { bail!("Initramfs not found: {}", initramfs_src.display()); }
 
     fs::copy(&kernel_src, slot_boot.join("hypercore.elf"))?;

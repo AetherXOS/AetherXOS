@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::cli::{Bootloader, BuildAction, ImageFormat};
 use crate::utils::{cargo, paths, logging};
+use crate::constants::{self, cargo as cargo_consts};
 
 /// Entry point for the `xtask build` subsystem.
 /// Dispatches to the appropriate build sequence based on the CLI action.
@@ -26,7 +27,7 @@ pub fn execute(action: &BuildAction) -> Result<()> {
                 ("bootloader", &format!("{:?}", bootloader)), 
                 ("format", &format!("{:?}", format))
             ]);
-            bundle_image("x86_64", bootloader, format).context("Failed to assemble specific bootable image format")?;
+            bundle_image(constants::defaults::ARCH, bootloader, format).context("Failed to assemble specific bootable image format")?;
         }
         BuildAction::Kernel { arch, release } => {
             build_kernel(arch, *release).context("Failed to natively compile kernel")?;
@@ -50,15 +51,17 @@ pub fn execute(action: &BuildAction) -> Result<()> {
 fn build_kernel(arch: &str, is_release: bool) -> Result<()> {
     logging::info("kernel", "processing standard kernel build", &[("arch", arch)]);
     
-    let target_triple = match arch {
-        "x86_64" => "x86_64-unknown-none",
-        "aarch64" => "aarch64-unknown-none",
-        _ => bail!("Unsupported host/target architecture requested via CLI: {}", arch),
-    };
+    // Validate architecture is supported
+    if !constants::arch::is_valid(arch) {
+        bail!("Unsupported architecture '{}'. Supported: {:?}", arch, constants::arch::supported());
+    }
+    
+    let target_triple = constants::arch::to_bare_metal_triple(arch)
+        .expect("Architecture already validated");
 
-    let mut args = vec!["build", "--target", target_triple];
+    let mut args = vec![cargo_consts::CMD_BUILD, cargo_consts::ARG_TARGET, target_triple];
     if is_release {
-        args.push("--release");
+        args.push(cargo_consts::ARG_RELEASE);
     }
 
     cargo::cargo(&args).context("Platform cargo build invocation aborted")?;
@@ -86,14 +89,14 @@ fn build_initramfs() -> Result<()> {
 fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
     logging::info("app", "orchestrating cargo build for target app", &[("name", name)]);
     
-    let app_dir = paths::resolve(&format!("src/userspace/{}", name));
+    let app_dir = paths::userspace_src(name);
     if !app_dir.exists() {
         bail!("Requested userspace application directory not found: {}", app_dir.display());
     }
 
     let mut compiler_args = vec!["build", "--manifest-path", "Cargo.toml", "--target", "x86_64-unknown-none"];
     if is_release {
-        compiler_args.push("--release");
+        compiler_args.push(cargo_consts::ARG_RELEASE);
     }
 
     let status = std::process::Command::new("cargo")
@@ -128,11 +131,13 @@ fn bundle_image(arch: &str, bootloader: &Bootloader, format: &ImageFormat) -> Re
     let stage_dir = paths::resolve("artifacts/boot_image/stage/boot");
     paths::ensure_dir(&stage_dir)?;
     
-    let target_triple = match arch {
-        "x86_64" => "x86_64-unknown-none",
-        "aarch64" => "aarch64-unknown-none",
-        _ => bail!("Unsupported architecture for bundling: {}", arch),
-    };
+    // Validate architecture
+    if !constants::arch::is_valid(arch) {
+        bail!("Invalid architecture for bundling: '{}'. Supported: {:?}", arch, constants::arch::supported());
+    }
+    
+    let target_triple = constants::arch::to_bare_metal_triple(arch)
+        .expect("Architecture already validated");
 
     // Abstracted stage kernel artifact path (Rust emits without .elf on unknown-none)
     let kernel_src = paths::resolve(&format!("target/{}/debug/hypercore", target_triple));

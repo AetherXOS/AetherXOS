@@ -4,6 +4,13 @@ version = "0.2.0"
 edition = "2021"
 authors = ["HyperCore Architect <systems@hypercore.os>"]
 
+[lib]
+path = "kernel/src/lib.rs"
+
+[[bin]]
+name = "hypercore"
+path = "kernel/src/main.rs"
+
 [package.metadata.hypercore]
 
 [package.metadata.hypercore.config.meta]
@@ -516,4 +523,8 @@ members = [
     ".",
     "xtask",
     "xagent",
+]
+exclude = [
+    "fuzz",
+    "formal/kani",
 ]

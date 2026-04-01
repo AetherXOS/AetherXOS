@@ -47,4 +47,4 @@ jobs:
         uses: taiki-e/install-action@nextest
 
       - name: Run tier
-        run: cargo xtask test tier ${{ inputs.tier }} --ci
+        run: cargo run -p xtask --target-dir target/xtask -- test tier ${{ inputs.tier }} --ci

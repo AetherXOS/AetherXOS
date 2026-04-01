@@ -20,8 +20,8 @@ pub use config_loader::load_config_from_manifest;
 /// Main entry point called from build.rs.
 pub fn run() {
     println!("cargo:rerun-if-changed=Cargo.toml");
-    println!("cargo:rerun-if-changed=src/config.rs");
-    println!("cargo:rerun-if-changed=src/config");
+    println!("cargo:rerun-if-changed=kernel/src/config.rs");
+    println!("cargo:rerun-if-changed=kernel/src/config");
 
     let config = load_config_from_manifest();
 
@@ -35,7 +35,7 @@ pub fn run() {
     linked_probe_codegen::generate();
 
     // Phase 4: Emit generated_consts.rs
-    let dest_path = Path::new("src/generated_consts.rs");
+    let dest_path = Path::new("kernel/src/generated_consts.rs");
     let content = emitter::emit_all_consts(&config);
     fs::write(dest_path, content).expect("Failed to write generated_consts.rs");
 

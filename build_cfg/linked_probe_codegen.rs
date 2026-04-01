@@ -2,6 +2,16 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
+fn include_bytes_path(path: &Path) -> String {
+    let mut s = path.display().to_string();
+    if cfg!(windows) {
+        if let Some(stripped) = s.strip_prefix(r"\\?\") {
+            s = stripped.to_string();
+        }
+    }
+    s.replace('\\', "\\\\")
+}
+
 pub fn generate() {
     let rel_path = "boot/initramfs/usr/lib/hypercore/probe-linked.elf";
     println!("cargo:rerun-if-changed={rel_path}");
@@ -15,7 +25,7 @@ pub fn generate() {
         let canonical = source_path
             .canonicalize()
             .unwrap_or_else(|_| source_path.clone());
-        let escaped = canonical.display().to_string().replace('\\', "\\\\");
+        let escaped = include_bytes_path(&canonical);
         format!(
             "pub static LINKED_PROBE_IMAGE: &[u8] = include_bytes!(r\"{}\");\n",
             escaped

@@ -42,7 +42,7 @@ fn audit_host_environment() -> Result<()> {
     }
     
     if missing > 0 {
-        bail!("Environment audit concluded with {} missing severe dependencies. Run 'cargo xtask setup bootstrap' to inherently resolve these.", missing);
+        bail!("Environment audit concluded with {} missing severe dependencies. Run 'cargo run -p xtask -- setup bootstrap' to inherently resolve these.", missing);
     } else {
         println!("[setup::audit] Success. Workstation meets all structural limits for OS engineering.");
     }

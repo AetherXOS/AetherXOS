@@ -7,8 +7,18 @@ pub mod tier;
 
 use crate::cli::TestAction;
 use anyhow::{bail, Result};
+use crate::constants::npm;
 
-/// Entry point for `cargo xtask test <action>`.
+#[inline(always)]
+fn npm_bin() -> &'static str {
+    if cfg!(windows) {
+        "npm.cmd"
+    } else {
+        "npm"
+    }
+}
+
+/// Entry point for `cargo run -p xtask -- test <action>`.
 pub fn execute(action: &TestAction) -> Result<()> {
     match action {
         TestAction::QualityGate => quality_gate(),
@@ -78,9 +88,12 @@ fn agent_contract() -> Result<()> {
     let dashboard_dir = crate::utils::paths::resolve("dashboard");
 
     // Build and workflow tests act as the agent contract baseline.
-    crate::utils::process::run_checked_in_dir("npm", &["run", "build"], &dashboard_dir)?;
-    let workflow =
-        crate::utils::process::run_status_in_dir("npm", &["run", "test:workflow"], &dashboard_dir)?;
+    crate::utils::process::run_checked_in_dir(npm_bin(), &[npm::ARG_RUN, npm::SCRIPT_BUILD], &dashboard_dir)?;
+    let workflow = crate::utils::process::run_status_in_dir(
+        npm_bin(),
+        &[npm::ARG_RUN, npm::SCRIPT_WORKFLOW_TEST],
+        &dashboard_dir,
+    )?;
     if !workflow.success() {
         bail!("dashboard workflow contract test failed");
     }

@@ -1,6 +1,7 @@
 mod cli;
 mod commands;
 mod config;
+mod constants;
 mod utils;
 
 use anyhow::{Context, Result};

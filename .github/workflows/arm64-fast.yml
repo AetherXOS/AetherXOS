@@ -3,28 +3,28 @@ name: ARM64 Fast
 on:
   pull_request:
     paths:
-      - '.cargo/**'
+      - 'kernel/.cargo/**'
       - '.config/**'
       - '.github/workflows/arm64-fast.yml'
       - '.github/workflows/tier-reusable.yml'
       - 'Cargo.lock'
       - 'Cargo.toml'
       - 'rust-toolchain.toml'
-      - 'src/**'
+      - 'kernel/src/**'
       - 'tests/**'
       - 'xtask/**'
   push:
     branches:
       - main
     paths:
-      - '.cargo/**'
+      - 'kernel/.cargo/**'
       - '.config/**'
       - '.github/workflows/arm64-fast.yml'
       - '.github/workflows/tier-reusable.yml'
       - 'Cargo.lock'
       - 'Cargo.toml'
       - 'rust-toolchain.toml'
-      - 'src/**'
+      - 'kernel/src/**'
       - 'tests/**'
       - 'xtask/**'
   workflow_dispatch:

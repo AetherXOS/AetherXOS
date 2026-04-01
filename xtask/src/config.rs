@@ -1,14 +1,26 @@
 //! Shared configuration and constants for the xtask runner.
 //! Centralizing these avoids magic values and duplication across modules.
 
+use std::path::PathBuf;
+
+use crate::utils::paths;
+
 #[allow(dead_code)]
-pub const KERNEL_COMPAT_PATH: &str = "src/modules/linux_compat";
+pub fn kernel_compat_path() -> PathBuf {
+    paths::kernel_src("modules/linux_compat")
+}
 #[allow(dead_code)]
-pub const KERNEL_SHIM_PATH: &str = "src/kernel/syscalls/linux_shim";
+pub fn kernel_shim_path() -> PathBuf {
+    paths::kernel_src("kernel/syscalls/linux_shim")
+}
 #[allow(dead_code)]
-pub const SYSCALL_CONSTS_PATH: &str = "src/kernel/syscalls/syscalls_consts.rs";
+pub fn syscall_consts_path() -> PathBuf {
+    paths::kernel_src("kernel/syscalls/syscalls_consts.rs")
+}
 #[allow(dead_code)]
-pub const GENERATED_CONSTS_PATH: &str = "src/generated_consts.rs";
+pub fn generated_consts_path() -> PathBuf {
+    paths::kernel_src("generated_consts.rs")
+}
 
 pub mod repo_paths {
     #[allow(dead_code)]

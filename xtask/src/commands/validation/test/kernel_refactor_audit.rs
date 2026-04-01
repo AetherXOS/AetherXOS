@@ -40,7 +40,7 @@ pub fn run(max_lines: usize, magic_repeat_threshold: usize) -> Result<()> {
     println!("[test::kernel-refactor-audit] Scanning kernel structure hotspots");
 
     let root = paths::repo_root();
-    let src_kernel = root.join("src/kernel");
+    let src_kernel = paths::kernel_src("kernel");
 
     let number_re = Regex::new(r"\b(?:0x[0-9a-fA-F]+|\d{2,})\b")?;
 

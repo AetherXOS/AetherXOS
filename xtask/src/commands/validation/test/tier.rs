@@ -2,8 +2,8 @@ use anyhow::{bail, Result};
 use std::env;
 
 use crate::utils::{cargo, process};
+use crate::constants::{cargo as cargo_consts, test as test_consts};
 
-const TEST_FEATURES: &str = "kernel_test_mode,vfs,drivers";
 const CLIPPY_LINT_ARGS: &[&str] = &[
     "-A",
     "warnings",
@@ -59,10 +59,10 @@ pub fn run_all(ci: bool) -> Result<()> {
 
 fn tier_specs(tier: &str, ci: bool, host: &str) -> Result<Vec<CommandSpec>> {
     match tier {
-        "fast" => Ok(fast_specs(ci, host)),
-        "integration" => Ok(integration_specs(ci, host)),
-        "nightly" => Ok(nightly_specs(ci, host)),
-        other => bail!("unknown tier: {other}. expected fast, integration, or nightly"),
+        test_consts::TIER_FAST => Ok(fast_specs(ci, host)),
+        test_consts::TIER_INTEGRATION => Ok(integration_specs(ci, host)),
+        test_consts::TIER_NIGHTLY => Ok(nightly_specs(ci, host)),
+        other => bail!("unknown tier: {other}. Supported: {:?}", test_consts::all_tiers()),
     }
 }
 
@@ -76,13 +76,13 @@ fn fast_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
             "HYPERCORE_ENABLE_GEIGER",
             vec![
                 "geiger".into(),
-                "--manifest-path".into(),
-                "Cargo.toml".into(),
+                cargo_consts::ARG_MANIFEST_PATH.into(),
+                cargo_consts::MANIFEST_FILE.into(),
                 "--all-targets".into(),
-                "--target".into(),
+                cargo_consts::ARG_TARGET.into(),
                 host.into(),
-                "--features".into(),
-                TEST_FEATURES.into(),
+                cargo_consts::ARG_FEATURES.into(),
+                test_consts::TEST_FEATURES.into(),
             ],
         ),
         cargo_subcommand_spec(
@@ -96,7 +96,7 @@ fn fast_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
                 "--target".into(),
                 host.into(),
                 "--features".into(),
-                TEST_FEATURES.into(),
+                test_consts::TEST_FEATURES.into(),
             ],
         ),
         cargo_subcommand_spec("audit", "HYPERCORE_ENABLE_AUDIT", vec!["audit".into()]),
@@ -199,7 +199,7 @@ fn nextest_spec(test_name: &'static str, ci: bool, host: &str) -> CommandSpec {
         "--target".into(),
         host.into(),
         "--features".into(),
-        TEST_FEATURES.into(),
+        test_consts::TEST_FEATURES.into(),
         "--test".into(),
         test_name.into(),
     ]);
@@ -222,7 +222,7 @@ fn clippy_spec(host: &str) -> CommandSpec {
         "--target".into(),
         host.into(),
         "--features".into(),
-        TEST_FEATURES.into(),
+        test_consts::TEST_FEATURES.into(),
         "--".into(),
     ];
     args.extend(CLIPPY_LINT_ARGS.iter().map(|arg| (*arg).to_string()));
