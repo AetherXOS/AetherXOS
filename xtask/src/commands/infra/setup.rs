@@ -1,5 +1,4 @@
 use anyhow::{Context, Result, bail};
-use std::fs;
 use std::process::Command;
 use crate::cli::SetupAction;
 use crate::utils::paths;

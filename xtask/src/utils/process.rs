@@ -1,10 +1,11 @@
 use anyhow::{bail, Context, Result};
 use std::path::Path;
 use std::process::Command;
+use crate::utils::logging;
 
 /// Run an arbitrary command, only checking for success.
 pub fn run_checked(program: &str, args: &[&str]) -> Result<()> {
-    println!("[exec] {} {}", program, args.join(" "));
+    logging::exec("exec", &format!("{} {}", program, args.join(" ")));
     let status = Command::new(program)
         .args(args)
         .status()
@@ -19,9 +20,10 @@ pub fn run_checked(program: &str, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn run_checked_owned(program: &str, args: &[String]) -> Result<()> {
     let rendered = args.join(" ");
-    println!("[exec] {} {}", program, rendered);
+    logging::exec("exec", &format!("{} {}", program, rendered));
     let status = Command::new(program)
         .args(args)
         .status()
@@ -37,8 +39,9 @@ pub fn run_checked_owned(program: &str, args: &[String]) -> Result<()> {
 }
 
 /// Run a command with explicit environment variables.
+#[allow(dead_code)]
 pub fn run_checked_with_env(program: &str, args: &[&str], envs: &[(&str, &str)]) -> Result<()> {
-    println!("[exec] {} {}", program, args.join(" "));
+    logging::exec("exec", &format!("{} {}", program, args.join(" ")));
     let status = Command::new(program)
         .args(args)
         .envs(envs.iter().copied())
@@ -54,13 +57,14 @@ pub fn run_checked_with_env(program: &str, args: &[&str], envs: &[(&str, &str)])
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn run_checked_with_env_owned(
     program: &str,
     args: &[String],
     envs: &[(&str, &str)],
 ) -> Result<()> {
     let rendered = args.join(" ");
-    println!("[exec] {} {}", program, rendered);
+    logging::exec("exec", &format!("{} {}", program, rendered));
     let status = Command::new(program)
         .args(args)
         .envs(envs.iter().copied())
@@ -77,13 +81,9 @@ pub fn run_checked_with_env_owned(
 }
 
 /// Run an arbitrary command in a specific working directory.
+#[allow(dead_code)]
 pub fn run_checked_in_dir(program: &str, args: &[&str], cwd: &Path) -> Result<()> {
-    println!(
-        "[exec] (cd {}) {} {}",
-        cwd.display(),
-        program,
-        args.join(" ")
-    );
+    logging::exec("exec", &format!("(cd {}) {} {}", cwd.display(), program, args.join(" ")));
     let status = Command::new(program)
         .args(args)
         .current_dir(cwd)
@@ -107,17 +107,13 @@ pub fn run_checked_in_dir(program: &str, args: &[&str], cwd: &Path) -> Result<()
 }
 
 /// Run a command in a specific directory and return raw exit status.
+#[allow(dead_code)]
 pub fn run_status_in_dir(
     program: &str,
     args: &[&str],
     cwd: &Path,
 ) -> Result<std::process::ExitStatus> {
-    println!(
-        "[exec] (cd {}) {} {}",
-        cwd.display(),
-        program,
-        args.join(" ")
-    );
+    logging::exec("exec", &format!("(cd {}) {} {}", cwd.display(), program, args.join(" ")));
     Command::new(program)
         .args(args)
         .current_dir(cwd)

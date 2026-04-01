@@ -7,21 +7,23 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use cli::Cli;
 use std::env;
+use utils::logging;
 
 fn main() -> Result<()> {
-    // Parse command line arguments via clap interface.
-    let args = Cli::parse();
+    let about = format!("AetherXOS xtask/{} rustc/{}", env!("CARGO_PKG_VERSION"), "1.76.0");
+    let system = format!("{} {} ({})", env::consts::OS, env::consts::ARCH, "Unknown CPU");
+    let target = "x86_64-unknown-none (Release: false)";
 
-    // Ensure the global output directory exists.
+    logging::print_header(&about, &system, target);
+
+    let args = Cli::parse();
     let outdir = &args.outdir;
+    
     utils::paths::ensure_dir(outdir)
         .with_context(|| format!("Failed to create global output directory context: {}", outdir.display()))?;
 
-    // Export output directory explicitly to child processes or external commands
-    // that rely on environmental context instead of direct argument passing.
     env::set_var("XTASK_OUTDIR", outdir.to_str().unwrap_or("artifacts"));
 
-    // Route the requested subcommand to the appropriate isolated execution module.
     match args.command {
         cli::Commands::Build { ref action } => {
             commands::infra::build::execute(action)
@@ -44,7 +46,7 @@ fn main() -> Result<()> {
                 .context("UEFI Secure Boot validation protocol collapsed")?;
         }
         _ => {
-            println!("[main] This command branch is currently deprecated or undergoing modular refactoring.");
+            logging::info("main", "command branch undergoing modular refactoring", &[]);
         }
     }
 

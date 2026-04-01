@@ -515,5 +515,5 @@ resolver = "2"
 members = [
     ".",
     "xtask",
-    "agent",
+    "xagent",
 ]

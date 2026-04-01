@@ -1,9 +1,10 @@
 use anyhow::{Context, Result, bail};
 use std::process::Command;
+use crate::utils::logging;
 
 /// Run `cargo` with the given arguments and bail on failure.
 pub fn cargo(args: &[&str]) -> Result<()> {
-    println!("[cargo] cargo {}", args.join(" "));
+    logging::exec("cargo", &format!("cargo {}", args.join(" ")));
     let status = Command::new("cargo")
         .args(args)
         .status()
@@ -15,8 +16,9 @@ pub fn cargo(args: &[&str]) -> Result<()> {
 }
 
 /// Run `cargo check` for a specific feature combination.
+#[allow(dead_code)]
 pub fn cargo_check_features(label: &str, features: &str, host_target: Option<&str>, release: bool) -> Result<()> {
-    println!("[test::host] Checking variant: {}", label);
+    logging::info("cargo", &format!("checking variant: {}", label), &[]);
     let mut args = vec!["check", "--lib"];
     if !features.is_empty() {
         args.push("--features");
@@ -33,6 +35,7 @@ pub fn cargo_check_features(label: &str, features: &str, host_target: Option<&st
 }
 
 /// Detect the host target triple from `rustc -vV`.
+#[allow(dead_code)]
 pub fn detect_host_triple() -> Result<String> {
     let output = Command::new("rustc")
         .args(["-vV"])
