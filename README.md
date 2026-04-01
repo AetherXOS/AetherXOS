@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://i.ibb.co/jZx3WR0B/1000046094-edit-1211083931953110.png" alt="Aether X OS Banner" width="100%">
+  <img src="https://i.ibb.co/jZx3WR0B/1000046094-edit-1211083931953110.png" alt="Aether X OS Banner" width="90%">
 </p>
 
 # Aether X OS
@@ -39,7 +39,7 @@ Traditional operating systems act as a generic "middleman," introducing overhead
 Aether X OS is defined declaratively. The system surface area is managed through a centralized configuration, allowing for granular control over hardware slices and enabled LibraryOS modules.
 
 <p align="center">
-  <img src="https://i.ibb.co/Zpsk5X5q/carbon.png" alt="Configuration as Code" width="100%">
+  <img src="https://i.ibb.co/Zpsk5X5q/carbon.png" alt="Configuration as Code" width="480">
 </p>
 
 
@@ -64,7 +64,7 @@ The project utilizes `xtask` to provide a unified entry point for all developmen
 ### Commands
 
 <p align="center">
-  <img src="https://i.ibb.co/HfjzYCg5/carbon-1.png" alt="Aether X OS Banner" width="100%">
+  <img src="https://i.ibb.co/HfjzYCg5/carbon-1.png" alt="commands" width="480">
 </p>
 
 
