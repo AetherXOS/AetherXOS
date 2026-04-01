@@ -38,7 +38,7 @@ Traditional operating systems act as a generic "middleman," introducing overhead
 
 Aether X OS is defined declaratively. The system surface area is managed through a centralized configuration, allowing for granular control over hardware slices and enabled LibraryOS modules.
 
-<<img src="https://i.ibb.co/Zpsk5X5q/carbon.png" alt="Kernel Config" width="480">
+<img src="https://i.ibb.co/Zpsk5X5q/carbon.png" alt="Kernel Config" width="380">
 
 
 ## Verification and Security
