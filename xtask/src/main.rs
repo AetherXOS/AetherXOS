@@ -5,69 +5,71 @@ mod utils;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use cli::Cli;
+use cli::{Cli, Commands};
 use std::env;
 use utils::logging;
 
 fn main() -> Result<()> {
-    let about = format!("AetherXOS xtask/{} rustc/{}", env!("CARGO_PKG_VERSION"), "1.76.0");
+    let version = env!("CARGO_PKG_VERSION");
+    let cpu_model = get_cpu_model();
     
-    let cpu_info = if std::path::Path::new("/proc/cpuinfo").exists() {
-        std::fs::read_to_string("/proc/cpuinfo")
-            .ok()
-            .and_then(|s| {
-                s.lines()
-                    .find(|l| l.contains("model name") || l.contains("Processor"))
-                    .and_then(|l| l.split(':').nth(1))
-                    .map(|s| s.trim().to_string())
-            })
-            .unwrap_or_else(|| "Generic CPU".to_string())
-    } else {
-        "Host CPU".to_string()
-    };
-
-    let system = format!("{} {} ({})", env::consts::OS, env::consts::ARCH, cpu_info);
-    let target = "x86_64-unknown-none (Release: false)";
+    let about = format!("AetherXOS xtask/{} rustc/1.76.0", version);
+    let system = format!("{} {} ({})", env::consts::OS, env::consts::ARCH, cpu_model);
+    let target = "AetherXOS-Generic (Release: false)";
 
     logging::print_header(&about, &system, target);
 
     let args = Cli::parse();
-    let outdir = &args.outdir;
     
-    utils::paths::ensure_dir(outdir)
-        .with_context(|| format!("Failed to create global output directory context: {}", outdir.display()))?;
+    utils::paths::ensure_dir(&args.outdir)
+        .with_context(|| format!("Failed to initialize artifacts directory: {}", args.outdir.display()))?;
 
-    env::set_var("XTASK_OUTDIR", outdir.to_str().unwrap_or("artifacts"));
+    env::set_var("XTASK_OUTDIR", args.outdir.to_str().unwrap_or("artifacts"));
 
     match args.command {
-        cli::Commands::Build { ref action } => {
-            commands::infra::build::execute(action)
-                .context("Critical build pipeline failure")?;
+        Commands::Build { ref action } => {
+            commands::infra::build::execute(action).context("Build pipeline failure")?;
         }
-        cli::Commands::Run { ref action } => {
-            commands::ops::run::execute(action)
-                .context("Critical run operations pipeline failure")?;
+        Commands::Run { ref action } => {
+            commands::ops::run::execute(action).context("Execution pipeline failure")?;
         }
-        cli::Commands::Test { ref action } => {
-            commands::validation::test::execute(action)
-                .context("Test suite execution failed")?;
+        Commands::Test { ref action } => {
+            commands::validation::test::execute(action).context("Validation suite failure")?;
         }
-        cli::Commands::Setup { ref action } => {
-            commands::infra::setup::execute(action)
-                .context("Advanced toolchain host setup pipeline failed")?;
+        Commands::Setup { ref action } => {
+            commands::infra::setup::execute(action).context("Host setup failure")?;
         }
-        cli::Commands::LinuxAbi { ref action } => {
-            commands::validation::linux_abi::execute(action)
-                .context("Linux ABI subsystem gap parser failed unexpectedly")?;
+        Commands::LinuxAbi { ref action } => {
+            commands::validation::linux_abi::execute(action).context("ABI parser failure")?;
         }
-        cli::Commands::Secureboot { ref action } => {
-            commands::infra::secureboot::execute(action)
-                .context("UEFI Secure Boot validation protocol collapsed")?;
+        Commands::Secureboot { ref action } => {
+            commands::infra::secureboot::execute(action).context("Secure Boot protocol failure")?;
         }
-        _ => {
-            logging::info("main", "command branch undergoing modular refactoring", &[]);
+        Commands::Dashboard { ref action } => {
+            commands::dashboard::execute(action).context("Dashboard operation failure")?;
         }
     }
 
     Ok(())
+}
+
+fn get_cpu_model() -> String {
+    if let Ok(content) = std::fs::read_to_string("/proc/cpuinfo") {
+        for line in content.lines() {
+            if line.contains("model name") || line.contains("Processor") {
+                if let Some(model) = line.split(':').nth(1) {
+                    return model.trim().to_string();
+                }
+            }
+        }
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(output) = std::process::Command::new("sysctl").arg("-n").arg("machdep.cpu.brand_string").output() {
+            return String::from_utf8_lossy(&output.stdout).trim().to_string();
+        }
+    }
+
+    env::var("PROCESSOR_IDENTIFIER").unwrap_or_else(|_| "Generic Host CPU".to_string())
 }

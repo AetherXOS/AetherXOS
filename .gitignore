@@ -33,9 +33,7 @@ pnpm-debug.log*
 boot/initramfs/usr/lib/
 outdir/
 kernel.x
-
-# ── GSD baseline (auto-generated) ──
-.gsd
+.bg-shell
 .DS_Store
 Thumbs.db
 *.swp
