@@ -38,16 +38,10 @@ Traditional operating systems act as a generic "middleman," introducing overhead
 
 Aether X OS is defined declaratively. The system surface area is managed through a centralized configuration, allowing for granular control over hardware slices and enabled LibraryOS modules.
 
-```toml
-[kernel.features]
-direct_gpu_access = true
-async_net_stack = true
-hardware_isolation = "enforced"
+<p align="center">
+  <img src="https://i.ibb.co/Zpsk5X5q/carbon.png" alt="Configuration as Code" width="100%">
+</p>
 
-[target.architecture]
-platform = "x86_64" # or "aarch64"
-optimization_level = "aggro-3"
-```
 
 ## Verification and Security
 
@@ -68,16 +62,11 @@ The project utilizes `xtask` to provide a unified entry point for all developmen
 *   LLVM/Clang (for BPF and low-level codegen)
 
 ### Commands
-```bash
-# Build the core kernel and default LibraryOS modules
-cargo xtask build
 
-# Execute integration tests within a QEMU environment
-cargo xtask test --integration
+<p align="center">
+  <img src="https://i.ibb.co/HfjzYCg5/carbon-1.png" alt="Aether X OS Banner" width="100%">
+</p>
 
-# Launch the system with the specified configuration
-cargo xtask run --config default
-```
 
 ## Deployment Roadmap
 
