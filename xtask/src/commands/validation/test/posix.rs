@@ -4,6 +4,7 @@ use std::fs;
 use std::process::{Command, Stdio};
 use std::time::Instant;
 
+use crate::constants::{cargo as cargo_consts, tools};
 use crate::utils::{paths, report};
 
 #[derive(Serialize)]
@@ -35,14 +36,14 @@ pub fn run_gate() -> Result<()> {
     let mut steps = Vec::new();
 
     let mut host_check_default = vec![
-        "cargo".to_string(),
-        "check".to_string(),
+        tools::CARGO.to_string(),
+        cargo_consts::CMD_CHECK.to_string(),
         "--lib".to_string(),
-        "--features".to_string(),
+        cargo_consts::ARG_FEATURES.to_string(),
         "posix_deep_tests".to_string(),
     ];
     if let Some(target) = host_target.as_deref() {
-        host_check_default.push("--target".to_string());
+        host_check_default.push(cargo_consts::ARG_TARGET.to_string());
         host_check_default.push(target.to_string());
     }
     steps.push(run_cmd(
@@ -51,14 +52,14 @@ pub fn run_gate() -> Result<()> {
     ));
 
     let mut host_check_feature_bundle = vec![
-        "cargo".to_string(),
-        "check".to_string(),
+        tools::CARGO.to_string(),
+        cargo_consts::CMD_CHECK.to_string(),
         "--lib".to_string(),
-        "--features".to_string(),
+        cargo_consts::ARG_FEATURES.to_string(),
         "posix_deep_tests,posix_fs,posix_process,posix_net,posix_signal,posix_time".to_string(),
     ];
     if let Some(target) = host_target.as_deref() {
-        host_check_feature_bundle.push("--target".to_string());
+        host_check_feature_bundle.push(cargo_consts::ARG_TARGET.to_string());
         host_check_feature_bundle.push(target.to_string());
     }
     steps.push(run_cmd(

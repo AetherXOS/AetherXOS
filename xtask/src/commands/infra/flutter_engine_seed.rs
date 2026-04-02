@@ -3,6 +3,7 @@
 /// into the initramfs for Flutter app execution capability.
 
 use crate::utils::logging;
+use crate::constants::defaults;
 use anyhow::Result;
 use serde_json::json;
 use std::fs;
@@ -14,8 +15,6 @@ use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
 const FLUTTER_ENGINE_VERSION: &str = "3.24.0";
-const FLUTTER_STABILITY_CHANNEL: &str = "stable";
-
 const FLUTTER_ESSENTIAL_BINARIES: &[&str] = &[
     "flutter",
     "dart",
@@ -128,7 +127,7 @@ fn write_flutter_closure_audit(initramfs_root: &Path) -> Result<()> {
     let manifest = json!({
         "schema": "hypercore.flutter.runtime.closure.v1",
         "flutter_engine_version": FLUTTER_ENGINE_VERSION,
-        "stability_channel": FLUTTER_STABILITY_CHANNEL,
+        "stability_channel": defaults::FLUTTER_CHANNEL,
         "build_host": std::env::consts::OS,
         "required_count": required_count,
         "seeded_count": seeded_count,
@@ -291,7 +290,7 @@ fn download_flutter_binaries(bin_dir: &Path, lib_dir: &Path, _flutter_dir: &Path
 
     let flutter_url = format!(
         "https://storage.googleapis.com/flutter_infra_release/releases/{}/flutter-linux-{}-{}.tar.xz",
-        FLUTTER_STABILITY_CHANNEL, arch, FLUTTER_ENGINE_VERSION
+        defaults::FLUTTER_CHANNEL, arch, FLUTTER_ENGINE_VERSION
     );
 
     logging::info("infra::flutter_engine_seed", "Downloading from", &[("url", &flutter_url)]);

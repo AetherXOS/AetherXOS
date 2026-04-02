@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 
 use crate::cli::DashboardAction;
 use crate::utils::{process, paths};
-use crate::constants::{npm, commands};
+use crate::constants::{commands, npm, paths as const_paths};
 
 #[inline(always)]
 fn npm_bin() -> &'static str {
@@ -15,7 +15,7 @@ fn npm_bin() -> &'static str {
 
 /// Entry point for `cargo run -p xtask -- dashboard <action>`.
 pub fn execute(action: &DashboardAction) -> Result<()> {
-    let dashboard_dir = paths::resolve("dashboard");
+    let dashboard_dir = paths::resolve(const_paths::DASHBOARD_DIR);
     match action {
         DashboardAction::Build => {
             println!("[dashboard::build] Regenerating dashboard data, HTML, and UI assets");

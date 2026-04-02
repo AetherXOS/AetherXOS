@@ -1,4 +1,5 @@
 use crate::cli::SetupAction;
+use crate::constants::tools;
 use crate::utils::logging;
 use crate::utils::paths;
 use anyhow::{bail, Context, Result};
@@ -31,7 +32,7 @@ pub fn execute(action: &SetupAction) -> Result<()> {
 fn audit_host_environment() -> Result<()> {
     logging::info("setup::audit", "Scanning host workstation architecture and active PATHs...", &[]);
 
-    let required_bins = vec!["qemu-system-x86_64", "xorriso", "rustc", "cargo"];
+    let required_bins = vec![tools::QEMU_X86_64, tools::XORRISO, tools::RUSTC, tools::CARGO];
     let mut missing = 0;
 
     for bin in required_bins {
@@ -67,8 +68,8 @@ fn provision_host_environment() -> Result<()> {
     // ------------------------------------------------------------------------------------------------ //
     // 1. QEMU EMULATOR PROVISIONING
     // ------------------------------------------------------------------------------------------------ //
-    if !crate::utils::process::which("qemu-system-x86_64")
-        && !crate::utils::process::which("qemu-system-x86_64.exe")
+    if !crate::utils::process::which(tools::QEMU_X86_64)
+        && !crate::utils::process::which(tools::QEMU_X86_64_EXE)
     {
         logging::info(
             "setup::provision",
@@ -119,7 +120,9 @@ fn provision_host_environment() -> Result<()> {
     // ------------------------------------------------------------------------------------------------ //
     // 2. XORRISO IMAGE MANIPULATOR PROVISIONING
     // ------------------------------------------------------------------------------------------------ //
-    if !crate::utils::process::which("xorriso") && !crate::utils::process::which("xorriso.exe") {
+    if !crate::utils::process::which(tools::XORRISO)
+        && !crate::utils::process::which(&format!("{}.exe", tools::XORRISO))
+    {
         logging::info(
             "setup::provision",
             "Xorriso dependency missing. Attempting structural acquisition.",

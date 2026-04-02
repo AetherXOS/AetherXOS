@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
+use crate::constants::{paths as const_paths, tools};
 use crate::utils::{context, logging, paths, process};
 
 const PANIC_MARKERS: &[&str] = &[
@@ -24,12 +25,12 @@ const BOOT_SUCCESS_MARKERS: &[&str] = &[
 
 /// Run an automated QEMU smoke test with timeout and panic detection.
 pub fn smoke_test() -> Result<()> {
-    let kernel = paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
-    let initramfs = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
+    let kernel = paths::resolve(&format!("{}/boot/hypercore.elf", const_paths::ARTIFACTS_BOOT_IMAGE_STAGE));
+    let initramfs = paths::resolve(const_paths::BOOT_INITRAMFS_OUT);
     let iso = std::env::var("HYPERCORE_QEMU_SMOKE_ISO")
         .map(PathBuf::from)
         .unwrap_or_else(|_| context::out_dir().join("hypercore.iso"));
-    let log_path = paths::resolve("artifacts/boot_image/qemu_smoke.log");
+    let log_path = paths::resolve(&format!("{}/qemu_smoke.log", const_paths::ARTIFACTS_BOOT_IMAGE));
     let append = "console=ttyS0 loglevel=7";
     let memory_mb = 512;
     let cores = 2;
@@ -271,18 +272,17 @@ pub fn interactive() -> Result<()> {
 
 /// Locate the qemu-system-x86_64 binary on the system.
 fn find_qemu() -> Result<String> {
-    if process::which("qemu-system-x86_64") {
-        return Ok("qemu-system-x86_64".to_string());
+    if process::which(tools::QEMU_X86_64) {
+        return Ok(tools::QEMU_X86_64.to_string());
     }
-    // Windows fallback: check Program Files
     let pf = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".to_string());
     let candidate = PathBuf::from(pf)
         .join("qemu")
-        .join("qemu-system-x86_64.exe");
+        .join(tools::QEMU_X86_64_EXE);
     if candidate.exists() {
         return Ok(candidate.to_string_lossy().to_string());
     }
-    bail!("qemu-system-x86_64 not found in PATH or Program Files")
+    bail!("{} not found in PATH or Program Files", tools::QEMU_X86_64)
 }
 
 /// Extension trait for wait_timeout on child processes.
@@ -315,8 +315,8 @@ impl WaitTimeout for std::process::Child {
 
 /// Launches QEMU paused (-S -s) to await a GDB localhost:1234 attachment.
 pub fn debug_session() -> Result<()> {
-    let kernel = paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
-    let initramfs = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
+    let kernel = paths::resolve(&format!("{}/boot/hypercore.elf", const_paths::ARTIFACTS_BOOT_IMAGE_STAGE));
+    let initramfs = paths::resolve(const_paths::BOOT_INITRAMFS_OUT);
     let qemu_bin = find_qemu()?;
 
     logging::info("ops::qemu", "QEMU initialized with paused CPU states", &[]);

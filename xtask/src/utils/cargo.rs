@@ -1,3 +1,4 @@
+use crate::constants::{cargo as cargo_consts, tools};
 use crate::utils::{context, logging};
 use anyhow::{bail, Context, Result};
 use std::process::Command;
@@ -5,7 +6,7 @@ use std::process::Command;
 /// Run `cargo` with the given arguments and bail on failure.
 pub fn cargo(args: &[&str]) -> Result<()> {
     logging::exec("cargo", &format!("cargo {}", args.join(" ")));
-    let status = Command::new("cargo")
+    let status = Command::new(tools::CARGO)
         .args(args)
         .status()
         .context("Failed to invoke cargo")?;
@@ -27,17 +28,17 @@ pub fn cargo_check_features(
     release: bool,
 ) -> Result<()> {
     logging::info("cargo", &format!("checking variant: {}", label), &[]);
-    let mut args = vec!["check", "--lib"];
+    let mut args = vec![cargo_consts::CMD_CHECK, "--lib"];
     if !features.is_empty() {
-        args.push("--features");
+        args.push(cargo_consts::ARG_FEATURES);
         args.push(features);
     }
     if let Some(target) = host_target {
-        args.push("--target");
+        args.push(cargo_consts::ARG_TARGET);
         args.push(target);
     }
     if release {
-        args.push("--release");
+        args.push(cargo_consts::ARG_RELEASE);
     }
     cargo(&args)
 }
@@ -47,7 +48,7 @@ pub fn detect_host_triple() -> Result<String> {
     match context::host_target() {
         Ok(host) => Ok(host.to_string()),
         Err(_) => {
-            let output = Command::new("rustc")
+            let output = Command::new(tools::RUSTC)
                 .args(["-vV"])
                 .output()
                 .context("Failed to run rustc -vV")?;

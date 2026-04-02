@@ -4,6 +4,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use crate::constants::telemetry;
 use crate::utils::{paths, report};
 
 #[derive(Default)]
@@ -440,9 +441,9 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     let diskfs_bootstrap_telemetry_ok = file_contains_all(
         &diskfs_bootstrap,
         &[
-            "event=tmpfs_fallback",
-            "event=diskfs_mounted",
-            "event=diskfs_mode_set",
+            telemetry::EVENT_TMPFS_FALLBACK,
+            telemetry::EVENT_DISKFS_MOUNTED,
+            telemetry::EVENT_DISKFS_MODE_SET,
         ],
     );
     let seeded_abi_check_available = generated_seed_root

@@ -10,7 +10,7 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install required packages
         run: |
@@ -18,11 +18,9 @@ jobs:
           sudo apt-get install -y qemu-system-x86 xorriso pkg-config libssl-dev
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
-          profile: minimal
-          override: true
 
       - name: Build apt-iso
         run: cargo run -p xtask -- build apt-iso

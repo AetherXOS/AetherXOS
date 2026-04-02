@@ -7,6 +7,7 @@ use std::process::Command;
 use std::time::Instant;
 
 use crate::cli::SecurebootAction;
+use crate::constants::tools;
 use crate::utils::paths;
 use crate::utils::process;
 use crate::utils::report;
@@ -794,20 +795,20 @@ fn run_ovmf_case(
 }
 
 fn find_qemu() -> Result<String> {
-    if crate::utils::process::which("qemu-system-x86_64") {
-        return Ok("qemu-system-x86_64".to_string());
+    if crate::utils::process::which(tools::QEMU_X86_64) {
+        return Ok(tools::QEMU_X86_64.to_string());
     }
 
     let program_files =
         std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".to_string());
     let candidate = PathBuf::from(program_files)
         .join("qemu")
-        .join("qemu-system-x86_64.exe");
+        .join(tools::QEMU_X86_64_EXE);
     if candidate.exists() {
         return Ok(candidate.display().to_string());
     }
 
-    bail!("qemu-system-x86_64 not found in PATH or Program Files")
+    bail!("{} not found in PATH or Program Files", tools::QEMU_X86_64)
 }
 
 fn read_pipe_to_string(mut pipe: std::process::ChildStdout) -> String {

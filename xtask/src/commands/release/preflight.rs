@@ -4,6 +4,7 @@ use crate::cli::ReleaseAction;
 use crate::commands::infra;
 use crate::commands::ops;
 use crate::commands::validation;
+use crate::constants::{arch, cargo as cargo_consts, tools};
 use crate::utils::logging;
 use crate::utils::{cargo, process};
 
@@ -26,19 +27,19 @@ fn preflight(skip_host_tests: bool, skip_boot_artifacts: bool) -> Result<()> {
     logging::info("release::preflight", "Starting release preflight validation", &[]);
 
     logging::info("release::preflight", "Step 1: Toolchain information", &[]);
-    process::run_checked("rustc", &["-vV"])?;
-    process::run_checked("cargo", &["-V"])?;
+    process::run_checked(tools::RUSTC, &["-vV"])?;
+    process::run_checked(tools::CARGO, &["-V"])?;
 
     logging::info("release::preflight", "Step 2: Clean check (all targets)", &[]);
-    cargo::cargo(&["check", "--all-targets"])?;
+    cargo::cargo(&[cargo_consts::CMD_CHECK, "--all-targets"])?;
 
     logging::info("release::preflight", "Step 3: Release build profile check", &[]);
-    cargo::cargo(&["build", "--release"])?;
+    cargo::cargo(&[cargo_consts::CMD_BUILD, cargo_consts::ARG_RELEASE])?;
 
     if !skip_boot_artifacts {
         logging::info("release::preflight", "Step 4: Full boot artifact build validation", &[]);
         infra::build::execute(&crate::cli::BuildAction::Full {
-            arch: "x86_64".to_string(),
+            arch: arch::X86_64.to_string(),
             bootloader: crate::cli::Bootloader::Limine,
             format: crate::cli::ImageFormat::Iso,
             release: false,
@@ -62,7 +63,11 @@ fn preflight(skip_host_tests: bool, skip_boot_artifacts: bool) -> Result<()> {
     )?;
 
     logging::info("release::preflight", "Step 7: linux_compat profile compile and syscall gate", &[]);
-    cargo::cargo(&["check", "--features", "linux_compat,posix_deep_tests"])?;
+    cargo::cargo(&[
+        cargo_consts::CMD_CHECK,
+        cargo_consts::ARG_FEATURES,
+        "linux_compat,posix_deep_tests",
+    ])?;
     validation::syscall_coverage::execute(
         true,
         "md",

@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_path_resolution_mechanics() {
-        let relative = resolve("artifacts/boot_image");
+        let relative = resolve(crate::constants::paths::ARTIFACTS_BOOT_IMAGE);
         assert!(
             relative.is_absolute(),
             "Relative raw strings should be transformed into absolute workspace locators."

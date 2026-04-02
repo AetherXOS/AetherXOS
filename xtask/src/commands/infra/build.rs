@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::cli::{Bootloader, BuildAction, ImageFormat};
-use crate::utils::{cargo, paths, logging};
+use crate::utils::{cargo, logging, paths};
 use crate::constants::{self, cargo as cargo_consts};
 
 /// Entry point for the `xtask build` subsystem.
@@ -73,8 +73,8 @@ fn build_kernel(arch: &str, is_release: bool) -> Result<()> {
 fn build_initramfs() -> Result<()> {
     logging::info("ramfs", "generating CPIO compressed initramfs archive", &[]);
     
-    let initramfs_src = paths::resolve("boot/initramfs");
-    let out_archive = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
+    let initramfs_src = paths::resolve(constants::paths::BOOT_INITRAMFS);
+    let out_archive = paths::resolve(constants::paths::BOOT_INITRAMFS_OUT);
     
     if let Some(parent) = out_archive.parent() {
         paths::ensure_dir(parent).context("Failed resolving parent directory for initramfs stage")?;
@@ -94,12 +94,20 @@ fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
         bail!("Requested userspace application directory not found: {}", app_dir.display());
     }
 
-    let mut compiler_args = vec!["build", "--manifest-path", "Cargo.toml", "--target", "x86_64-unknown-none"];
+    let target_triple = constants::arch::to_bare_metal_triple(constants::defaults::ARCH)
+        .expect("default architecture must map to a bare-metal target");
+    let mut compiler_args = vec![
+        cargo_consts::CMD_BUILD,
+        cargo_consts::ARG_MANIFEST_PATH,
+        cargo_consts::MANIFEST_FILE,
+        cargo_consts::ARG_TARGET,
+        target_triple,
+    ];
     if is_release {
         compiler_args.push(cargo_consts::ARG_RELEASE);
     }
 
-    let status = std::process::Command::new("cargo")
+    let status = std::process::Command::new(constants::tools::CARGO)
         .args(&compiler_args)
         .current_dir(&app_dir)
         .status()
@@ -109,8 +117,8 @@ fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
         bail!("Compilation context failed for userspace target: {}", name);
     }
 
-    let target_profile = if is_release { "release" } else { "debug" };
-    let compiled_elf = app_dir.join(format!("target/x86_64-unknown-none/{}/{}", target_profile, name));
+    let target_profile = constants::defaults::profile_name(is_release);
+    let compiled_elf = app_dir.join(format!("target/{}/{}/{}", target_triple, target_profile, name));
     
     let init_bin_dir = paths::resolve("artifacts/boot_image/stage/boot/initramfs/usr/bin");
     paths::ensure_dir(&init_bin_dir)?;
@@ -128,7 +136,7 @@ fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
 /// Binds requested OS components (Kernel, RAM_FS, Configs) using the specified bootloader.
 /// Delegates the resulting staged directory into the ultimate format defined by ImageFormat.
 fn bundle_image(arch: &str, bootloader: &Bootloader, format: &ImageFormat) -> Result<()> {
-    let stage_dir = paths::resolve("artifacts/boot_image/stage/boot");
+    let stage_dir = paths::resolve(&format!("{}/boot", constants::paths::ARTIFACTS_BOOT_IMAGE_STAGE));
     paths::ensure_dir(&stage_dir)?;
     
     // Validate architecture
