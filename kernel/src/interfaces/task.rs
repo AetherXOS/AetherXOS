@@ -120,6 +120,7 @@ pub struct KernelTaskBootstrapSpec {
 }
 
 impl KernelTask {
+    #[cfg(target_arch = "x86_64")]
     extern "C" fn initial_task_return_trap() -> ! {
         panic!("kernel task entry returned unexpectedly")
     }

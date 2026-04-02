@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::fs;
@@ -6,6 +6,8 @@ use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use walkdir::WalkDir;
+
+use crate::utils::logging;
 
 /// CPIO newc magic number.
 const CPIO_MAGIC: &str = "070701";
@@ -27,15 +29,28 @@ const FORCE_EXECUTABLE: &[&str] = &[
 
 /// Required directories in the initramfs layout.
 const REQUIRED_DIRS: &[&str] = &[
-    "bin", "dev", "etc", "proc", "run", "sys", "tmp",
-    "usr", "usr/bin", "usr/lib", "usr/lib/hypercore",
-    "var", "var/log",
+    "bin",
+    "dev",
+    "etc",
+    "proc",
+    "run",
+    "sys",
+    "tmp",
+    "usr",
+    "usr/bin",
+    "usr/lib",
+    "usr/lib/hypercore",
+    "var",
+    "var/log",
 ];
 
 /// Build a cpio newc + gzip archive from a directory tree.
 pub fn build(initramfs_dir: &Path, out_path: &Path) -> Result<()> {
     if !initramfs_dir.exists() {
-        bail!("Initramfs source directory not found: {}", initramfs_dir.display());
+        bail!(
+            "Initramfs source directory not found: {}",
+            initramfs_dir.display()
+        );
     }
 
     validate_layout(initramfs_dir)?;
@@ -58,7 +73,8 @@ pub fn build(initramfs_dir: &Path, out_path: &Path) -> Result<()> {
 
     for entry in &entries {
         let abs_path = entry.path();
-        let rel = abs_path.strip_prefix(initramfs_dir)
+        let rel = abs_path
+            .strip_prefix(initramfs_dir)
             .context("Failed to compute relative path")?;
         let rel_str = rel.to_string_lossy().replace('\\', "/");
 
@@ -96,8 +112,16 @@ pub fn build(initramfs_dir: &Path, out_path: &Path) -> Result<()> {
     gz.write_all(&cpio_buf)?;
     gz.finish()?;
 
-    println!("[initramfs] Archive written: {} ({} entries, {} bytes uncompressed)",
-        out_path.display(), ino - 1, cpio_buf.len());
+    logging::info(
+        "initramfs",
+        &format!(
+            "Archive written: {} ({} entries, {} bytes uncompressed)",
+            out_path.display(),
+            ino - 1,
+            cpio_buf.len()
+        ),
+        &[],
+    );
     Ok(())
 }
 
@@ -110,12 +134,16 @@ fn validate_layout(dir: &Path) -> Result<()> {
     }
 
     // Check required directories
-    let missing: Vec<&str> = REQUIRED_DIRS.iter()
+    let missing: Vec<&str> = REQUIRED_DIRS
+        .iter()
         .filter(|d| !dir.join(d).exists())
         .copied()
         .collect();
     if !missing.is_empty() {
-        bail!("Initramfs is missing required directories: {}", missing.join(", "));
+        bail!(
+            "Initramfs is missing required directories: {}",
+            missing.join(", ")
+        );
     }
 
     // Check /etc/profile
@@ -143,19 +171,19 @@ fn append_cpio_entry(buf: &mut Vec<u8>, name: &str, ino: u32, mode: u32, mtime: 
     let header = format!(
         "{}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}",
         CPIO_MAGIC,
-        ino,        // inode
-        mode,       // mode
-        0u32,       // uid
-        0u32,       // gid
-        1u32,       // nlink
-        mtime,      // mtime
-        file_size,  // filesize
-        0u32,       // devmajor
-        0u32,       // devminor
-        0u32,       // rdevmajor
-        0u32,       // rdevminor
-        name_len,   // namesize
-        0u32,       // checksum
+        ino,       // inode
+        mode,      // mode
+        0u32,      // uid
+        0u32,      // gid
+        1u32,      // nlink
+        mtime,     // mtime
+        file_size, // filesize
+        0u32,      // devmajor
+        0u32,      // devminor
+        0u32,      // rdevmajor
+        0u32,      // rdevminor
+        name_len,  // namesize
+        0u32,      // checksum
     );
 
     buf.extend_from_slice(header.as_bytes());

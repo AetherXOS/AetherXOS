@@ -1,10 +1,8 @@
 #![cfg_attr(target_os = "none", no_std)]
 #![cfg_attr(target_os = "none", no_main)]
 #![cfg_attr(target_os = "none", feature(custom_test_frameworks))]
-#![cfg_attr(target_os = "none", feature(abi_x86_interrupt))]
 #![warn(unsafe_op_in_unsafe_fn)]
 #![warn(unused_must_use)]
-#![allow(dead_code, unused_imports, unused_mut, unused_variables)]
 #![allow(clippy::all)]
 #![cfg_attr(target_os = "none", test_runner(crate::test_runner))]
 #![cfg_attr(target_os = "none", reexport_test_harness_main = "test_main")]
@@ -18,6 +16,7 @@ mod kernel_runtime;
 use core::panic::PanicInfo;
 
 // Global Allocator Definition
+#[cfg(target_os = "none")]
 use hypercore::modules::allocators::selector::ActiveHeapAllocator;
 
 #[global_allocator]
@@ -29,6 +28,7 @@ pub static ALLOCATOR: ActiveHeapAllocator = ActiveHeapAllocator::new();
 // ============================================================================
 // MUST be placed in first 32KB of binary, 8-byte aligned, and BEFORE entry point
 #[repr(C, align(8))]
+#[cfg(all(target_os = "none", target_arch = "x86_64"))]
 pub struct MultibootHeader {
     // Multiboot2 header
     magic: u32,              // 0xE85250D6 (magic number)
@@ -42,6 +42,7 @@ pub struct MultibootHeader {
     end_tag_size: u32,       // 8 bytes
 }
 
+#[cfg(all(target_os = "none", target_arch = "x86_64"))]
 impl MultibootHeader {
     const fn new() -> Self {
         let magic = 0xE85250D6u32;
@@ -63,7 +64,7 @@ impl MultibootHeader {
 
 #[link_section = ".multiboot2"]
 #[no_mangle]
-#[cfg(target_os = "none")]
+#[cfg(all(target_os = "none", target_arch = "x86_64"))]
 pub static MULTIBOOT2_HEADER: MultibootHeader = MultibootHeader::new();
 
 // Declare test_main as an external symbol when in test mode with kernel_test_mode feature

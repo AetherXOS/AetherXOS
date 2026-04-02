@@ -2,6 +2,7 @@ use anyhow::Result;
 use serde::Serialize;
 use std::fs;
 
+use crate::utils::logging;
 use crate::utils::paths;
 use crate::utils::report;
 
@@ -35,7 +36,7 @@ const PANIC_MARKERS: &[&str] = &[
 ///
 /// Replaces: scripts/crash_recovery_pipeline.py + scripts/crash_artifacts_report.py
 pub fn execute() -> Result<()> {
-    println!("[crash-recovery] Running crash artifact pipeline");
+    logging::info("runtime::crash_recovery", "Running crash artifact pipeline", &[]);
 
     let logs_dir = paths::resolve("artifacts/crash");
     let out_dir = paths::resolve("reports/crash_pipeline");
@@ -43,11 +44,18 @@ pub fn execute() -> Result<()> {
 
     if !logs_dir.exists() {
         let summary = CrashReport {
-            ok: false, logs_processed: 0, panic_counts: vec![], latest_seqs: vec![],
-            total_events: vec![], checks: CrashChecks { panic_count_monotonic: true, latest_seq_monotonic: true },
+            ok: false,
+            logs_processed: 0,
+            panic_counts: vec![],
+            latest_seqs: vec![],
+            total_events: vec![],
+            checks: CrashChecks {
+                panic_count_monotonic: true,
+                latest_seq_monotonic: true,
+            },
         };
         report::write_json_report(&out_dir.join("summary.json"), &summary)?;
-        println!("[crash-recovery] FAIL (no logs directory)");
+        logging::error("runtime::crash_recovery", "FAIL (no logs directory)", &[]);
         return Ok(());
     }
 
@@ -60,11 +68,18 @@ pub fn execute() -> Result<()> {
 
     if logs.is_empty() {
         let summary = CrashReport {
-            ok: false, logs_processed: 0, panic_counts: vec![], latest_seqs: vec![],
-            total_events: vec![], checks: CrashChecks { panic_count_monotonic: true, latest_seq_monotonic: true },
+            ok: false,
+            logs_processed: 0,
+            panic_counts: vec![],
+            latest_seqs: vec![],
+            total_events: vec![],
+            checks: CrashChecks {
+                panic_count_monotonic: true,
+                latest_seq_monotonic: true,
+            },
         };
         report::write_json_report(&out_dir.join("summary.json"), &summary)?;
-        println!("[crash-recovery] FAIL (no .log files)");
+        logging::error("runtime::crash_recovery", "FAIL (no .log files)", &[]);
         return Ok(());
     }
 
@@ -78,13 +93,15 @@ pub fn execute() -> Result<()> {
         let lines: Vec<&str> = text.lines().collect();
 
         // Count panic markers
-        let panic_count = lines.iter()
+        let panic_count = lines
+            .iter()
             .filter(|line| PANIC_MARKERS.iter().any(|m| line.contains(m)))
             .count();
         panic_counts.push(panic_count);
 
         // Extract latest seq from "[SEQ=N]" patterns
-        let max_seq = lines.iter()
+        let max_seq = lines
+            .iter()
             .filter_map(|line| seq_re.captures(line))
             .filter_map(|cap| cap[1].parse::<usize>().ok())
             .max()
@@ -134,6 +151,18 @@ pub fn execute() -> Result<()> {
     }
     fs::write(out_dir.join("summary.md"), md)?;
 
-    println!("[crash-recovery] {} ({} logs processed)", if summary.ok { "PASS" } else { "FAIL" }, summary.logs_processed);
+    if summary.ok {
+        logging::info(
+            "runtime::crash_recovery",
+            "PASS",
+            &[("logs_processed", &summary.logs_processed.to_string())],
+        );
+    } else {
+        logging::error(
+            "runtime::crash_recovery",
+            "FAIL",
+            &[("logs_processed", &summary.logs_processed.to_string())],
+        );
+    }
     Ok(())
 }

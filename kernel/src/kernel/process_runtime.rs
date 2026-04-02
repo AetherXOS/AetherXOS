@@ -4,6 +4,7 @@ use super::{
     MappingRecord, Process, ProcessLifecycleState, ProcessRuntimeContractSnapshot,
     RuntimeLifecycleHooks, PAGE_ALIGN_MASK, PAGE_SIZE_BYTES_U64,
 };
+use crate::kernel::memory::validate_page_aligned_range;
 use core::sync::atomic::Ordering;
 
 fn compute_total_load_plan_pages(
@@ -77,35 +78,27 @@ fn validate_mapping_range(
     idx: usize,
     mapping: &crate::kernel::module_loader::VirtualMappingPlan,
 ) -> Result<usize, &'static str> {
-    if mapping.start >= mapping.end {
-        crate::kernel::debug_trace::record_fault(
-            "process.bind",
-            "mappings_invalid_range",
-            Some(idx as u64),
-        );
-        return Err("invalid mapping range");
-    }
-    if (mapping.start & PAGE_ALIGN_MASK) != 0 || (mapping.end & PAGE_ALIGN_MASK) != 0 {
-        crate::kernel::debug_trace::record_fault(
-            "process.bind",
-            "mappings_unaligned",
-            Some(idx as u64),
-        );
-        return Err("unaligned mapping range");
-    }
-
-    let page_count_u64 = (mapping.end - mapping.start) / PAGE_SIZE_BYTES_U64;
-    let page_count = usize::try_from(page_count_u64).map_err(|_| "page count overflow")?;
-    if page_count == 0 {
-        crate::kernel::debug_trace::record_fault(
-            "process.bind",
-            "mappings_empty",
-            Some(idx as u64),
-        );
-        return Err("empty mapping range");
-    }
-
-    Ok(page_count)
+    validate_page_aligned_range(mapping.start, mapping.end).map_err(|err| {
+        let (event, message) = match err {
+            crate::kernel::memory::paging::ApplyMappingError::InvalidRange => {
+                ("mappings_invalid_range", "invalid mapping range")
+            }
+            crate::kernel::memory::paging::ApplyMappingError::MisalignedRange => {
+                ("mappings_unaligned", "unaligned mapping range")
+            }
+            crate::kernel::memory::paging::ApplyMappingError::PageCountOverflow => {
+                ("mappings_page_count_overflow", "page count overflow")
+            }
+            crate::kernel::memory::paging::ApplyMappingError::OutOfPhysicalMemory => {
+                ("mappings_out_of_physical_memory", "out of physical memory")
+            }
+            crate::kernel::memory::paging::ApplyMappingError::MappingFailed => {
+                ("mappings_apply_failed", "mapping failed")
+            }
+        };
+        crate::kernel::debug_trace::record_fault("process.bind", event, Some(idx as u64));
+        message
+    })
 }
 
 fn publish_first_mapping_preview(

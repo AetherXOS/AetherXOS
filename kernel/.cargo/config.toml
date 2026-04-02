@@ -1,13 +1,15 @@
-[build]
-target = "x86_64-unknown-none"
-
 [target.x86_64-unknown-none]
 rustflags = ["-C", "link-arg=-z", "-C", "link-arg=max-page-size=0x1000"]
 
 [target.aarch64-unknown-none]
 rustflags = ["-C", "link-arg=-z", "-C", "link-arg=max-page-size=0x1000"]
 
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
 [alias]
 xtask = "run --package xtask --target x86_64-unknown-linux-gnu --target-dir target/xtask --"
-kbuild = "build --target x86_64-unknown-none"
-akbuild = "build --target aarch64-unknown-none"
+kcheck = "check -Zbuild-std=core,alloc --target x86_64-unknown-none"
+acheck = "check -Zbuild-std=core,alloc --target aarch64-unknown-none"
+kbuild = "build -Zbuild-std=core,alloc --target x86_64-unknown-none"
+akbuild = "build -Zbuild-std=core,alloc --target aarch64-unknown-none"

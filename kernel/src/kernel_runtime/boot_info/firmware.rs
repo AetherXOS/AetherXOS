@@ -1,11 +1,12 @@
 use super::BootInfo;
 
+#[cfg(target_arch = "x86_64")]
 pub(super) fn collect_rsdp(info: &mut BootInfo) {
-    #[cfg(target_arch = "x86_64")]
-    {
-        info.rsdp_phys = hypercore::hal::x86_64::acpi_rsdp_addr().unwrap_or(0);
-    }
+    info.rsdp_phys = hypercore::hal::x86_64::acpi_rsdp_addr().unwrap_or(0);
 }
+
+#[cfg(not(target_arch = "x86_64"))]
+pub(super) fn collect_rsdp(_info: &mut BootInfo) {}
 
 pub(super) fn collect_dtb(info: &mut BootInfo) {
     #[cfg(target_arch = "x86_64")]

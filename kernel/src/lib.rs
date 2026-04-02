@@ -4,7 +4,6 @@
 #![cfg_attr(target_arch = "x86_64", feature(abi_x86_interrupt))]
 #![warn(unsafe_op_in_unsafe_fn)]
 #![warn(unused_must_use)]
-#![allow(dead_code, unused_imports, unused_mut, unused_variables)]
 #![allow(clippy::all)]
 #![cfg_attr(all(test, target_os = "none"), test_runner(crate::test_runner))]
 #![cfg_attr(all(test, target_os = "none"), reexport_test_harness_main = "test_main")]

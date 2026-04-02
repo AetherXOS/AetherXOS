@@ -1,43 +1,45 @@
 use super::{BootInfo, MemRegion, MAX_USABLE_REGIONS};
 
+#[cfg(target_arch = "x86_64")]
 pub(super) fn collect_hhdm_offset(info: &mut BootInfo) {
-    #[cfg(target_arch = "x86_64")]
-    {
-        info.hhdm_offset = hypercore::hal::x86_64::hhdm_offset().unwrap_or(0);
-    }
+    info.hhdm_offset = hypercore::hal::x86_64::hhdm_offset().unwrap_or(0);
 }
 
+#[cfg(not(target_arch = "x86_64"))]
+pub(super) fn collect_hhdm_offset(_info: &mut BootInfo) {}
+
+#[cfg(target_arch = "x86_64")]
 pub(super) fn collect_memory_map(info: &mut BootInfo) {
-    #[cfg(target_arch = "x86_64")]
-    {
-        use limine::MemoryMapEntryType;
+    use limine::MemoryMapEntryType;
 
-        if let Some(mmap) = hypercore::hal::x86_64::mem_map() {
-            for entry_ptr in mmap.memmap() {
-                let entry_raw = entry_ptr.as_ptr();
-                if entry_raw.is_null() {
-                    continue;
-                }
-                let entry = unsafe { &*entry_raw };
-
-                info.map_entry_count += 1;
-                info.total_map_bytes = info.total_map_bytes.saturating_add(entry.len);
-
-                if entry.typ == MemoryMapEntryType::Usable {
-                    push_usable_region(
-                        info,
-                        MemRegion {
-                            base: entry.base,
-                            len: entry.len,
-                        },
-                    );
-                }
+    if let Some(mmap) = hypercore::hal::x86_64::mem_map() {
+        for entry_ptr in mmap.memmap() {
+            let entry_raw = entry_ptr.as_ptr();
+            if entry_raw.is_null() {
+                continue;
             }
+            let entry = unsafe { &*entry_raw };
 
-            sort_usable_regions(info);
+            info.map_entry_count += 1;
+            info.total_map_bytes = info.total_map_bytes.saturating_add(entry.len);
+
+            if entry.typ == MemoryMapEntryType::Usable {
+                push_usable_region(
+                    info,
+                    MemRegion {
+                        base: entry.base,
+                        len: entry.len,
+                    },
+                );
+            }
         }
+
+        sort_usable_regions(info);
     }
 }
+
+#[cfg(not(target_arch = "x86_64"))]
+pub(super) fn collect_memory_map(_info: &mut BootInfo) {}
 
 fn push_usable_region(info: &mut BootInfo, region: MemRegion) {
     info.total_usable_bytes = info.total_usable_bytes.saturating_add(region.len);

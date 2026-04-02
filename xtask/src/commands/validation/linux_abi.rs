@@ -1,31 +1,42 @@
+use crate::cli::LinuxAbiAction;
+use crate::utils::logging;
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::fs;
-use crate::cli::LinuxAbiAction;
 
 pub fn execute(action: &LinuxAbiAction) -> Result<()> {
     match action {
         LinuxAbiAction::GapInventory => {
-            println!("[validation::abi] Initiating comprehensive POSIX Syscall compatibility scan...");
-            audit_syscalls().context("Failed to dynamically parse kernel source AST recursively for system calls")?;
+            logging::info(
+                "abi",
+                "Initiating comprehensive POSIX Syscall compatibility scan...",
+                &[],
+            );
+            audit_syscalls().context(
+                "Failed to dynamically parse kernel source AST recursively for system calls",
+            )?;
         }
         LinuxAbiAction::Gate => {
-            println!("[validation::abi] ABI Coverage Gate threshold evaluated. (Mock Pass for CI Pipelines).");
+            logging::info(
+                "abi",
+                "ABI Coverage Gate threshold evaluated. (Mock Pass for CI Pipelines).",
+                &[],
+            );
         }
         LinuxAbiAction::ErrnoConformance => {
-            println!("[validation::abi] Testing POSIX error code alignment...");
+            logging::info("abi", "Testing POSIX error code alignment...", &[]);
         }
         LinuxAbiAction::ShimErrnoConformance => {
-            println!("[validation::abi] Testing Linux compatibility shim errno mappings...");
+            logging::info("abi", "Testing Linux compatibility shim errno mappings...", &[]);
         }
         LinuxAbiAction::ReadinessScore => {
-            println!("[validation::abi] Calculating global ABI readiness score...");
+            logging::info("abi", "Calculating global ABI readiness score...", &[]);
         }
         LinuxAbiAction::P2GapReport => {
-            println!("[validation::abi] Generating Tier-2 ABI gap analysis report...");
+            logging::info("abi", "Generating Tier-2 ABI gap analysis report...", &[]);
         }
         LinuxAbiAction::P2GapGate => {
-            println!("[validation::abi] Evaluating Tier-2 ABI gap gate constraints...");
+            logging::info("abi", "Evaluating Tier-2 ABI gap gate constraints...", &[]);
         }
     }
     Ok(())
@@ -34,7 +45,11 @@ pub fn execute(action: &LinuxAbiAction) -> Result<()> {
 fn audit_syscalls() -> Result<()> {
     let kernel_dir = crate::utils::paths::resolve("src");
     if !kernel_dir.exists() {
-        println!("[validation::abi] WARNING: 'src' OS namespace not detected. Xtask must launch from the root layout.");
+        logging::warn(
+            "abi",
+            "'src' OS namespace not detected. Xtask must launch from the root layout.",
+            &[],
+        );
         return Ok(());
     }
 
@@ -71,19 +86,47 @@ fn audit_syscalls() -> Result<()> {
     let implemented = implemented_calls.len();
     let percentage = (implemented as f32 / total_posix as f32) * 100.0;
 
-    println!("[validation::abi] Active Syscall Interface Exports Detected: {}", implemented);
-    println!("[validation::abi] Current Linux Application ABI Compatibility Rating: {:.1}%", percentage);
-    println!("[validation::abi] Sample ABI implementations resolved globally:");
-    
-    for (idx, call) in implemented_calls.iter().enumerate() {
-        if idx < 6 { println!("   -> sys_{}", call); }
+    logging::info(
+        "abi",
+        "active syscall interface exports detected",
+        &[("count", &implemented.to_string())],
+    );
+    logging::info(
+        "abi",
+        "current Linux application ABI compatibility rating",
+        &[("rating", &format!("{:.1}%", percentage))],
+    );
+
+    let mut samples = Vec::new();
+    for call in implemented_calls.iter().take(6) {
+        samples.push(format!("sys_{}", call));
     }
-    if implemented > 6 { println!("   ... plus {} additional unlisted structures.", implemented - 6); }
-    
+    logging::info(
+        "abi",
+        "sample ABI implementations resolved globally",
+        &[("samples", &samples.join(", "))],
+    );
+
+    if implemented > 6 {
+        logging::info(
+            "abi",
+            "additional unlisted structures",
+            &[("count", &(implemented - 6).to_string())],
+        );
+    }
+
     if percentage > 25.0 {
-        println!("[validation::abi] VERDICT: HEALTHY. AetherXOS core is expanding critical emulation interfaces efficiently.");
+        logging::ready(
+            "abi",
+            "AetherXOS core is expanding critical emulation interfaces efficiently",
+            "VERDICT: HEALTHY",
+        );
     } else {
-        println!("[validation::abi] VERDICT: EARLY-STAGE. Critical Linux integration boundaries remain unmapped.");
+        logging::warn(
+            "abi",
+            "critical Linux integration boundaries remain unmapped",
+            &[("verdict", "EARLY-STAGE")],
+        );
     }
 
     Ok(())

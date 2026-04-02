@@ -181,7 +181,6 @@ pub(super) fn virt_platform_status(
     dtb_present: bool,
 ) -> VirtPlatformStatus {
     let hardware_accel = crate::hal::common::virt::hardware_accel_ready(virt);
-    let effective_policy = crate::config::KernelConfig::virtualization_effective_profile();
     let scope_profile = crate::config::KernelConfig::virtualization_policy_scope_profile();
     let memory_isolation_ready = virt.vm_launch_ready && gic.initialized && dtb_present;
     let backend = crate::hal::common::virt::backend_name(virt);

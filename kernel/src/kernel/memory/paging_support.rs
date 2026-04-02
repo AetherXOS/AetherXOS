@@ -1,9 +1,9 @@
 use super::paging::ApplyMappingError;
 
-pub(super) const PAGE_SIZE_BYTES_U64: u64 = 4096;
-pub(super) const PAGE_ALIGN_MASK: u64 = PAGE_SIZE_BYTES_U64 - 1;
+pub(crate) const PAGE_SIZE_BYTES_U64: u64 = 4096;
+pub(crate) const PAGE_ALIGN_MASK: u64 = PAGE_SIZE_BYTES_U64 - 1;
 
-pub(super) fn validate_page_aligned_range(
+pub(crate) fn validate_page_aligned_range(
     start: u64,
     end: u64,
 ) -> Result<usize, ApplyMappingError> {
@@ -18,18 +18,6 @@ pub(super) fn validate_page_aligned_range(
     let page_count =
         usize::try_from(page_count_u64).map_err(|_| ApplyMappingError::PageCountOverflow)?;
     if page_count == 0 {
-        return Err(ApplyMappingError::InvalidRange);
-    }
-    Ok(page_count)
-}
-
-pub(super) fn validate_shm_mapping_inputs(
-    start: u64,
-    end: u64,
-    frame_count: usize,
-) -> Result<usize, ApplyMappingError> {
-    let page_count = validate_page_aligned_range(start, end)?;
-    if page_count > frame_count {
         return Err(ApplyMappingError::InvalidRange);
     }
     Ok(page_count)
@@ -62,11 +50,9 @@ mod tests {
     }
 
     #[test_case]
-    fn validate_shm_mapping_inputs_checks_frame_capacity() {
-        assert_eq!(
-            validate_shm_mapping_inputs(0x1000, 0x3000, 1),
-            Err(ApplyMappingError::InvalidRange)
-        );
-        assert_eq!(validate_shm_mapping_inputs(0x1000, 0x3000, 2), Ok(2));
+    fn validate_page_aligned_range_outputs_expected_frame_count() {
+        let page_count = validate_page_aligned_range(0x1000, 0x3000).unwrap();
+        assert_eq!(page_count, 2);
+        assert!(page_count > 1);
     }
 }

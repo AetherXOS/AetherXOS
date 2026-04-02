@@ -2,6 +2,7 @@
 /// Downloads and provisions Flutter runtime binaries, Dart VM, and graphics libraries
 /// into the initramfs for Flutter app execution capability.
 
+use crate::utils::logging;
 use anyhow::Result;
 use serde_json::json;
 use std::fs;
@@ -35,7 +36,11 @@ const FLUTTER_ESSENTIAL_LIBS: &[&str] = &[
 
 /// Download and prepare Flutter engine seed
 pub fn prepare_flutter_seed(initramfs_root: &Path) -> Result<()> {
-    println!("[flutter-seed] Preparing Flutter engine seed (v{})", FLUTTER_ENGINE_VERSION);
+    logging::info(
+        "flutter-seed",
+        "Preparing Flutter engine seed",
+        &[("version", FLUTTER_ENGINE_VERSION)],
+    );
 
     let bin_dir = initramfs_root.join("usr/bin");
     let lib_dir = initramfs_root.join("usr/lib");
@@ -54,17 +59,25 @@ pub fn prepare_flutter_seed(initramfs_root: &Path) -> Result<()> {
     #[cfg(unix)]
     {
         if provision_flutter_from_host(&bin_dir, &lib_dir, &flutter_dir).is_err() {
-            println!("[flutter-seed] ⚠️ Flutter not available via host system");
+            logging::warn("flutter-seed", "Flutter not available via host system", &[]);
             // Try to download Flutter binaries
             if download_flutter_binaries(&bin_dir, &lib_dir, &flutter_dir).is_err() {
-                println!("[flutter-seed] ⚠️ Flutter binary download failed, app execution support limited");
+                logging::warn(
+                    "flutter-seed",
+                    "Flutter binary download failed, app execution support limited",
+                    &[],
+                );
             }
         }
     }
 
     #[cfg(not(unix))]
     {
-        println!("[flutter-seed] ℹ️ Flutter provisioning skipped on non-Unix build host");
+        logging::info(
+            "flutter-seed",
+            "Flutter provisioning skipped on non-Unix build host",
+            &[],
+        );
     }
 
     // Create Flutter wrapper script for app execution
@@ -72,7 +85,11 @@ pub fn prepare_flutter_seed(initramfs_root: &Path) -> Result<()> {
 
     write_flutter_closure_audit(initramfs_root)?;
 
-    println!("[flutter-seed] Flutter engine seed prepared");
+    logging::ready(
+        "flutter-seed",
+        "Flutter engine seed prepared",
+        &initramfs_root.to_string_lossy(),
+    );
     Ok(())
 }
 
@@ -144,7 +161,7 @@ fn provision_flutter_from_host(bin_dir: &Path, lib_dir: &Path, flutter_dir: &Pat
             if let Ok(flutter_path_str) = String::from_utf8(output.stdout) {
                 let flutter_path = flutter_path_str.trim();
                 if Path::new(flutter_path).exists() {
-                    println!("[flutter-seed] Found Flutter on host: {}", flutter_path);
+                    logging::info("infra::flutter_engine_seed", "Found Flutter on host", &[("path", flutter_path)]);
                     return copy_flutter_with_dependencies(flutter_path, bin_dir, lib_dir, flutter_dir);
                 }
             }
@@ -160,7 +177,7 @@ fn provision_flutter_from_host(bin_dir: &Path, lib_dir: &Path, flutter_dir: &Pat
             if let Ok(dart_path_str) = String::from_utf8(output.stdout) {
                 let dart_path = dart_path_str.trim();
                 if Path::new(dart_path).exists() {
-                    println!("[flutter-seed] Found Dart on host: {}", dart_path);
+                    logging::info("infra::flutter_engine_seed", "Found Dart on host", &[("path", dart_path)]);
                     copy_dart_runtime(dart_path, bin_dir, lib_dir)?;
                 }
             }
@@ -197,7 +214,7 @@ fn copy_flutter_with_dependencies(
     }
     dst.sync_all()?;
     fs::set_permissions(&dest, fs::Permissions::from_mode(0o755))?;
-    println!("[flutter-seed] ✓ Copied flutter executable");
+    logging::info("infra::flutter_engine_seed", "Copied flutter executable", &[]);
 
     // Find and copy Flutter SDK directory
     if let Ok(output) = Command::new("flutter")
@@ -205,7 +222,7 @@ fn copy_flutter_with_dependencies(
         .output()
     {
         if output.status.success() {
-            println!("[flutter-seed] ✓ Flutter version verified");
+            logging::info("infra::flutter_engine_seed", "Flutter version verified", &[]);
         }
     }
 
@@ -221,7 +238,7 @@ fn copy_flutter_with_dependencies(
                 let lib_paths = String::from_utf8_lossy(&lib_output.stdout);
                 for lib_path in lib_paths.lines().take(1) {
                     if let Ok(_) = fs::copy(lib_path, lib_dir.join(lib_name)) {
-                        println!("[flutter-seed] ✓ Copied library: {}", lib_name);
+                        logging::info("infra::flutter_engine_seed", "Copied library", &[("library", lib_name)]);
                         break;
                     }
                 }
@@ -253,7 +270,7 @@ fn copy_dart_runtime(dart_exe: &str, bin_dir: &Path, lib_dir: &Path) -> Result<(
     }
     dst.sync_all()?;
     fs::set_permissions(&dest, fs::Permissions::from_mode(0o755))?;
-    println!("[flutter-seed] ✓ Copied dart runtime");
+    logging::info("infra::flutter_engine_seed", "Copied dart runtime", &[]);
 
     Ok(())
 }
@@ -261,7 +278,7 @@ fn copy_dart_runtime(dart_exe: &str, bin_dir: &Path, lib_dir: &Path) -> Result<(
 /// Try to download Flutter engine binaries
 #[cfg(unix)]
 fn download_flutter_binaries(bin_dir: &Path, lib_dir: &Path, _flutter_dir: &Path) -> Result<()> {
-    println!("[flutter-seed] Attempting to download Flutter {} binaries...", FLUTTER_ENGINE_VERSION);
+    logging::info("infra::flutter_engine_seed", "Attempting to download Flutter binaries", &[("version", FLUTTER_ENGINE_VERSION)]);
 
     // Flutter release URL pattern
     let arch = if cfg!(target_arch = "x86_64") {
@@ -277,7 +294,7 @@ fn download_flutter_binaries(bin_dir: &Path, lib_dir: &Path, _flutter_dir: &Path
         FLUTTER_STABILITY_CHANNEL, arch, FLUTTER_ENGINE_VERSION
     );
 
-    println!("[flutter-seed] Downloading from: {}", flutter_url);
+    logging::info("infra::flutter_engine_seed", "Downloading from", &[("url", &flutter_url)]);
 
     let temp_dir = std::env::temp_dir().join("hypercore-flutter-seed");
     fs::create_dir_all(&temp_dir)?;
@@ -295,7 +312,7 @@ fn download_flutter_binaries(bin_dir: &Path, lib_dir: &Path, _flutter_dir: &Path
         .unwrap_or(false);
 
     if !download_ok {
-        println!("[flutter-seed] ⚠️ Download failed, trying wget...");
+        logging::warn("infra::flutter_engine_seed", "Download failed, trying wget", &[]);
         let wget_ok = Command::new("wget")
             .arg("-qO")
             .arg(&download_path)
@@ -335,7 +352,7 @@ fn download_flutter_binaries(bin_dir: &Path, lib_dir: &Path, _flutter_dir: &Path
                     let dest = bin_dir.join(&name);
                     if let Ok(_) = fs::copy(entry.path(), &dest) {
                         let _ = fs::set_permissions(&dest, fs::Permissions::from_mode(0o755));
-                        println!("[flutter-seed] ✓ Installed: {:?}", name);
+                        logging::info("infra::flutter_engine_seed", "Installed binary", &[("name", &name.to_string_lossy())]);
                     }
                 }
             }
@@ -345,7 +362,7 @@ fn download_flutter_binaries(bin_dir: &Path, lib_dir: &Path, _flutter_dir: &Path
     // Cleanup
     let _ = fs::remove_dir_all(&temp_dir);
 
-    println!("[flutter-seed] Flutter binaries installed");
+    logging::info("infra::flutter_engine_seed", "Flutter binaries installed", &[]);
     Ok(())
 }
 
@@ -383,7 +400,7 @@ exec flutter "$@"
         fs::set_permissions(&wrapper_path, fs::Permissions::from_mode(0o755))?;
     }
 
-    println!("[flutter-seed] ✓ Created Flutter wrapper script");
+    logging::info("infra::flutter_engine_seed", "Created Flutter wrapper script", &[]);
     Ok(())
 }
 
@@ -477,6 +494,6 @@ class _TestPageState extends State<TestPage> {
     fs::create_dir_all(test_app_dir.join("lib"))?;
     fs::write(test_app_dir.join("lib/main.dart"), main_dart)?;
 
-    println!("[flutter-seed] ✓ Created Flutter test application");
+    logging::info("infra::flutter_engine_seed", "Created Flutter test application", &[]);
     Ok(())
 }

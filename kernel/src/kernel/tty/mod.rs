@@ -31,7 +31,7 @@ use crate::interfaces::task::ProcessId;
 use crate::kernel::sync::{IrqSafeMutex, WaitQueue};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use core::sync::atomic::{AtomicBool, Ordering};
 
 /// TTY Device identifier (typically 0-255 for /dev/tty0, /dev/tty1, etc.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -149,11 +149,6 @@ pub struct TtyDevice {
     /// Wait queue for readers blocking on input
     read_wait: WaitQueue,
 
-    /// Output queue position (bytes written)
-    output_pos: AtomicU32,
-
-    /// Job control state (process groups, sessions, suspension state)
-    job_control: IrqSafeMutex<JobControlState>,
 }
 
 impl TtyDevice {
@@ -167,8 +162,6 @@ impl TtyDevice {
             is_open: AtomicBool::new(false),
             input_queue: IrqSafeMutex::new(VecDeque::with_capacity(1024)),
             read_wait: WaitQueue::new(),
-            output_pos: AtomicU32::new(0),
-            job_control: IrqSafeMutex::new(JobControlState::new()),
         }
     }
 

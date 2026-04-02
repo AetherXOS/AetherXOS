@@ -1,13 +1,18 @@
 use anyhow::Result;
 use serde::Serialize;
 
+use crate::utils::logging;
 use crate::utils::{paths, report};
 
 /// Run QEMU soak/stress testing matrix.
 ///
 /// Replaces: scripts/qemu_soak_matrix.py, scripts/soak_stress_chaos.py
 pub fn execute(dry_run: bool) -> Result<()> {
-    println!("[soak] Running native QEMU soak matrix (dry_run={})", dry_run);
+    logging::info(
+        "ops::soak",
+        "Running native QEMU soak matrix",
+        &[("dry_run", &dry_run.to_string())],
+    );
 
     let out_dir = paths::resolve("artifacts/qemu_soak");
     let summary_path = out_dir.join("summary.json");
@@ -24,7 +29,11 @@ pub fn execute(dry_run: bool) -> Result<()> {
             rounds: Vec::new(),
         };
         report::write_json_report(&summary_path, &summary)?;
-        println!("[soak] DRY-RUN summary={}", summary_path.display());
+        logging::info(
+            "ops::soak",
+            "Dry-run complete",
+            &[("summary", &summary_path.display().to_string())],
+        );
         return Ok(());
     }
 
@@ -63,12 +72,15 @@ pub fn execute(dry_run: bool) -> Result<()> {
     };
 
     report::write_json_report(&summary_path, &summary)?;
-    println!(
-        "[soak] rounds={} pass={} fail={} summary={}",
-        summary.total_rounds,
-        summary.passed_rounds,
-        summary.failed_rounds,
-        summary_path.display()
+    logging::ready(
+        "ops::soak",
+        "Soak matrix complete",
+        &[
+            ("rounds", &summary.total_rounds.to_string()),
+            ("passed", &summary.passed_rounds.to_string()),
+            ("failed", &summary.failed_rounds.to_string()),
+            ("summary", &summary_path.display().to_string()),
+        ],
     );
 
     if summary.ok {

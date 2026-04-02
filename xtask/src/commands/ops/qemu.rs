@@ -1,10 +1,9 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
-use crate::utils::paths;
-use crate::utils::process;
+use crate::utils::{context, logging, paths, process};
 
 const PANIC_MARKERS: &[&str] = &[
     "PANIC report:",
@@ -25,12 +24,11 @@ const BOOT_SUCCESS_MARKERS: &[&str] = &[
 
 /// Run an automated QEMU smoke test with timeout and panic detection.
 pub fn smoke_test() -> Result<()> {
-    let outdir = std::env::var("XTASK_OUTDIR").unwrap_or_else(|_| "artifacts".to_string());
     let kernel = paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
     let initramfs = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
     let iso = std::env::var("HYPERCORE_QEMU_SMOKE_ISO")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| paths::resolve(&format!("{}/hypercore.iso", outdir)));
+        .unwrap_or_else(|_| context::out_dir().join("hypercore.iso"));
     let log_path = paths::resolve("artifacts/boot_image/qemu_smoke.log");
     let append = "console=ttyS0 loglevel=7";
     let memory_mb = 512;
@@ -41,10 +39,16 @@ pub fn smoke_test() -> Result<()> {
         .unwrap_or(20);
 
     let qemu_bin = find_qemu()?;
-    println!("[qemu::smoke] Binary: {}", qemu_bin);
-    println!("[qemu::smoke] Kernel: {}", kernel.display());
-    println!("[qemu::smoke] ISO fallback: {}", iso.display());
-    println!("[qemu::smoke] Timeout: {}s", timeout_sec);
+    logging::info(
+        "qemu",
+        "starting smoke test",
+        &[
+            ("binary", &qemu_bin),
+            ("kernel", &kernel.to_string_lossy()),
+            ("iso", &iso.to_string_lossy()),
+            ("timeout_sec", &timeout_sec.to_string()),
+        ],
+    );
 
     let direct_args = vec![
         "-nographic".to_string(),
@@ -70,8 +74,10 @@ pub fn smoke_test() -> Result<()> {
         .contains("Error loading uncompressed kernel without PVH ELF Note");
 
     if pvh_elf_note_error && iso.exists() {
-        println!(
-            "[qemu::smoke] Direct kernel boot rejected by QEMU (PVH note); retrying with ISO"
+        logging::warn(
+            "qemu",
+            "direct kernel boot rejected by QEMU, retrying with ISO",
+            &[],
         );
         let iso_args = vec![
             "-nographic".to_string(),
@@ -100,20 +106,31 @@ pub fn smoke_test() -> Result<()> {
     let boot_marker_seen = BOOT_SUCCESS_MARKERS.iter().any(|m| stream.contains(m));
     let pass = !panic_seen && (final_result.success || boot_marker_seen);
 
-    println!("[qemu::smoke] Mode: {}", final_mode);
-    println!("[qemu::smoke] Duration: {:.1}s", final_result.elapsed.as_secs_f64());
-    println!("[qemu::smoke] Timeout: {}", final_result.timed_out);
-    println!("[qemu::smoke] Panic detected: {}", panic_seen);
-    println!("[qemu::smoke] Boot marker detected: {}", boot_marker_seen);
-    println!("[qemu::smoke] Exit success: {}", final_result.success);
-    println!("[qemu::smoke] Text Log: {}", log_path.display());
+    logging::info(
+        "qemu",
+        "smoke test completed",
+        &[
+            ("mode", final_mode),
+            (
+                "duration_sec",
+                &format!("{:.1}", final_result.elapsed.as_secs_f64()),
+            ),
+            ("timed_out", &final_result.timed_out.to_string()),
+            ("panic_seen", &panic_seen.to_string()),
+            ("boot_marker_seen", &boot_marker_seen.to_string()),
+            ("exit_success", &final_result.success.to_string()),
+            ("log", &log_path.to_string_lossy()),
+        ],
+    );
 
     // Export Enterprise-Grade CI/CD XML structured reports
     let junit_path = paths::resolve("artifacts/qemu_smoke_junit.xml");
-    let failure_tag = if pass { String::new() } else { 
+    let failure_tag = if pass {
+        String::new()
+    } else {
         format!("<failure message=\"Boot assertion failed\"><![CDATA[Panic Seen: {} | Timed Out: {}]]></failure>", panic_seen, final_result.timed_out)
     };
-    
+
     let xml = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <testsuites tests="1" failures="{failures}" errors="0" time="{time:.3}">
@@ -131,9 +148,13 @@ pub fn smoke_test() -> Result<()> {
         stdout = final_result.stdout.replace("]]>", "]]>]]&gt;<![CDATA["),
         stderr = final_result.stderr.replace("]]>", "]]>]]&gt;<![CDATA["),
     );
-    
+
     if std::fs::write(&junit_path, xml).is_ok() {
-        println!("[qemu::smoke] CI/CD JUnit API Report exported: {}", junit_path.display());
+        logging::ready(
+            "qemu",
+            "junit report exported",
+            &junit_path.to_string_lossy(),
+        );
     }
 
     if !pass {
@@ -148,7 +169,7 @@ pub fn smoke_test() -> Result<()> {
         );
     }
 
-    println!("[qemu::smoke] PASS");
+    logging::ready("qemu", "smoke test passed", &log_path.to_string_lossy());
     Ok(())
 }
 
@@ -168,7 +189,8 @@ fn run_qemu_attempt(qemu_bin: &str, args: &[String], timeout_sec: u64) -> Result
         .stderr(std::process::Stdio::piped())
         .spawn()?;
 
-    let (success, timed_out) = match child.wait_timeout(std::time::Duration::from_secs(timeout_sec)) {
+    let (success, timed_out) = match child.wait_timeout(std::time::Duration::from_secs(timeout_sec))
+    {
         Ok(Some(status)) => (status.success(), false),
         Ok(None) | Err(_) => {
             let _ = child.kill();
@@ -176,16 +198,24 @@ fn run_qemu_attempt(qemu_bin: &str, args: &[String], timeout_sec: u64) -> Result
         }
     };
 
-    let stdout = child.stdout.take().map(|mut s| {
-        let mut buf = String::new();
-        std::io::Read::read_to_string(&mut s, &mut buf).ok();
-        buf
-    }).unwrap_or_default();
-    let stderr = child.stderr.take().map(|mut s| {
-        let mut buf = String::new();
-        std::io::Read::read_to_string(&mut s, &mut buf).ok();
-        buf
-    }).unwrap_or_default();
+    let stdout = child
+        .stdout
+        .take()
+        .map(|mut s| {
+            let mut buf = String::new();
+            std::io::Read::read_to_string(&mut s, &mut buf).ok();
+            buf
+        })
+        .unwrap_or_default();
+    let stderr = child
+        .stderr
+        .take()
+        .map(|mut s| {
+            let mut buf = String::new();
+            std::io::Read::read_to_string(&mut s, &mut buf).ok();
+            buf
+        })
+        .unwrap_or_default();
 
     Ok(AttemptResult {
         success,
@@ -215,15 +245,21 @@ pub fn interactive() -> Result<()> {
     let initramfs = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
     let qemu_bin = find_qemu()?;
 
-    println!("[qemu::live] Launching interactive session");
+    logging::info("qemu", "launching interactive session", &[]);
     let status = Command::new(&qemu_bin)
         .args([
-            "-m", "512",
-            "-smp", "2",
-            "-serial", "stdio",
-            "-kernel", &kernel.to_string_lossy(),
-            "-initrd", &initramfs.to_string_lossy(),
-            "-append", "console=ttyS0 loglevel=7",
+            "-m",
+            "512",
+            "-smp",
+            "2",
+            "-serial",
+            "stdio",
+            "-kernel",
+            &kernel.to_string_lossy(),
+            "-initrd",
+            &initramfs.to_string_lossy(),
+            "-append",
+            "console=ttyS0 loglevel=7",
         ])
         .status()?;
 
@@ -240,7 +276,9 @@ fn find_qemu() -> Result<String> {
     }
     // Windows fallback: check Program Files
     let pf = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".to_string());
-    let candidate = PathBuf::from(pf).join("qemu").join("qemu-system-x86_64.exe");
+    let candidate = PathBuf::from(pf)
+        .join("qemu")
+        .join("qemu-system-x86_64.exe");
     if candidate.exists() {
         return Ok(candidate.to_string_lossy().to_string());
     }
@@ -249,11 +287,17 @@ fn find_qemu() -> Result<String> {
 
 /// Extension trait for wait_timeout on child processes.
 trait WaitTimeout {
-    fn wait_timeout(&mut self, duration: std::time::Duration) -> std::io::Result<Option<std::process::ExitStatus>>;
+    fn wait_timeout(
+        &mut self,
+        duration: std::time::Duration,
+    ) -> std::io::Result<Option<std::process::ExitStatus>>;
 }
 
 impl WaitTimeout for std::process::Child {
-    fn wait_timeout(&mut self, duration: std::time::Duration) -> std::io::Result<Option<std::process::ExitStatus>> {
+    fn wait_timeout(
+        &mut self,
+        duration: std::time::Duration,
+    ) -> std::io::Result<Option<std::process::ExitStatus>> {
         let start = Instant::now();
         loop {
             match self.try_wait()? {
@@ -275,22 +319,35 @@ pub fn debug_session() -> Result<()> {
     let initramfs = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
     let qemu_bin = find_qemu()?;
 
-    println!("[qemu::debug] QEMU initialized with paused CPU states.");
-    println!("[qemu::debug] Exposing local debugger port... Run 'target remote :1234' on GDB");
-    
+    logging::info("ops::qemu", "QEMU initialized with paused CPU states", &[]);
+    logging::ready(
+        "ops::qemu",
+        "Exposing local debugger port",
+        &[("gdb_command", "target remote :1234")],
+    );
+
     let status = Command::new(&qemu_bin)
         .args([
-            "-m", "512",
-            "-smp", "2",
-            "-kernel", &kernel.to_string_lossy(),
-            "-initrd", &initramfs.to_string_lossy(),
-            "-append", "console=ttyS0 loglevel=7",
-            "-S", "-s",
+            "-m",
+            "512",
+            "-smp",
+            "2",
+            "-kernel",
+            &kernel.to_string_lossy(),
+            "-initrd",
+            &initramfs.to_string_lossy(),
+            "-append",
+            "console=ttyS0 loglevel=7",
+            "-S",
+            "-s",
         ])
         .status()?;
 
     if !status.success() {
-        bail!("QEMU debug overlay exited with error code: {}", status.code().unwrap_or(-1));
+        bail!(
+            "QEMU debug overlay exited with error code: {}",
+            status.code().unwrap_or(-1)
+        );
     }
     Ok(())
 }

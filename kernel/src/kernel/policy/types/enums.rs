@@ -10,7 +10,7 @@ define_enum!(pub(crate) enum DriftReasonCode : u8 {
 impl DriftReasonCode {
     #[inline(always)]
     pub(crate) const fn as_u8(self) -> u8 {
-        self.to_raw()
+        self.to_u8()
     }
 
     #[inline(always)]

@@ -33,7 +33,14 @@ pub use self::types::{
 use self::types::{DriftReasonCode, DriftThresholdProfile};
 
 pub fn drift_reason_name(reason: u8) -> &'static str {
-    DriftReasonCode::from_u8(reason).map(|r| r.name()).unwrap_or("unknown")
+    DriftReasonCode::from_u8(reason)
+        .map(|r| {
+            let name = r.name();
+            debug_assert_eq!(r.to_raw(), r.as_u8());
+            debug_assert_eq!(DriftReasonCode::from_str(name), Some(r));
+            name
+        })
+        .unwrap_or("unknown")
 }
 
 #[cfg(test)]

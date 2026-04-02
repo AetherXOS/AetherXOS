@@ -12,7 +12,6 @@ pub use selectors::Selectors;
 pub use stacks::*;
 
 pub use crate::kernel::bit_utils::x86_64_arch::{DOUBLE_FAULT_IST_INDEX, PAGE_FAULT_IST_INDEX};
-use crate::kernel::bit_utils::x86_64_arch::{DOUBLE_FAULT_STACK_SIZE, PAGE_FAULT_STACK_SIZE};
 
 static BOOTSTRAP_GDT_READY: AtomicBool = AtomicBool::new(false);
 struct StaticCell<T>(UnsafeCell<MaybeUninit<T>>);

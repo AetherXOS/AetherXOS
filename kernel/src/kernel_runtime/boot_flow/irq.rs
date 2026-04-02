@@ -1,8 +1,9 @@
-use crate::kernel_runtime::interrupts;
 use crate::kernel_runtime::KernelRuntime;
 
 #[cfg(all(feature = "dispatcher", target_arch = "x86_64"))]
 use hypercore::interfaces::Dispatcher;
+#[cfg(all(feature = "dispatcher", target_arch = "x86_64"))]
+use crate::kernel_runtime::interrupts;
 
 impl KernelRuntime {
     pub(super) fn register_runtime_irq_handlers(&self) {

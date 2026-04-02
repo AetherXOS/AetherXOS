@@ -1,8 +1,11 @@
 use super::types::SwitchInfo;
 use hypercore::generated_consts::CORE_ENABLE_SCHEDULER_TRACE;
-use hypercore::interfaces::{Scheduler, SchedulerAction};
+use hypercore::interfaces::Scheduler;
+#[cfg(any(target_arch = "x86_64", test))]
+use hypercore::interfaces::SchedulerAction;
 
 #[inline(always)]
+#[cfg(any(target_arch = "x86_64", test))]
 fn should_emit_timer_scheduler_serial(
     runqueue_len: usize,
     action: &SchedulerAction,
@@ -106,7 +109,7 @@ pub(super) fn prepare_scheduler_switch(
         })
     };
 
-    #[cfg(feature = "ring_protection")]
+    #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
     let (next_kernel_sp, next_tls, next_cr3) = scheduler
         .get_task_mut(next_tid)
         .map(|task| {
@@ -118,8 +121,6 @@ pub(super) fn prepare_scheduler_switch(
             )
         })
         .unwrap_or((0, 0, 0));
-    #[cfg(not(feature = "ring_protection"))]
-    let (next_kernel_sp, next_tls, next_cr3) = (0usize, 0u64, 0u64);
 
     if current_tid.0 == 0 {
         if let Some(task_arc) = scheduler.get_task_mut(next_tid) {
@@ -145,8 +146,11 @@ pub(super) fn prepare_scheduler_switch(
             Some(SwitchInfo {
                 next_sp,
                 current_sp_ptr,
+                #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
                 next_tls,
+                #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
                 next_cr3,
+                #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
                 next_kernel_sp,
             })
         }

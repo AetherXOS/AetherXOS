@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use std::fs;
 
+use crate::utils::logging;
 use crate::utils::paths;
 use crate::utils::report;
 
@@ -30,15 +31,19 @@ struct ArchiveManifest {
 ///
 /// Replaces: scripts/archive_nightly_artifacts.ps1
 pub fn execute(run_id: &Option<String>) -> Result<()> {
-    let id = run_id.clone().unwrap_or_else(|| {
-        chrono::Local::now().format("%Y%m%d_%H%M%S").to_string()
-    });
+    let id = run_id
+        .clone()
+        .unwrap_or_else(|| chrono::Local::now().format("%Y%m%d_%H%M%S").to_string());
 
     let archive_root = paths::resolve("artifacts/nightly_runs");
     let dest = archive_root.join(&id);
     paths::ensure_dir(&dest)?;
 
-    println!("[archive] Archiving nightly artifacts to: {}", dest.display());
+    logging::info(
+        "ops::archive",
+        "Archiving nightly artifacts",
+        &[("destination", &dest.display().to_string())],
+    );
 
     let mut copied = Vec::new();
     let mut missing = Vec::new();
@@ -50,7 +55,7 @@ pub fn execute(run_id: &Option<String>) -> Result<()> {
             let dst = dest.join(&leaf);
             copy_dir_recursive(&src, &dst)?;
             copied.push(source.to_string());
-            println!("[archive]   Copied: {}", source);
+            logging::info("ops::archive", "Copied source", &[("source", source)]);
         } else {
             missing.push(source.to_string());
         }
@@ -64,7 +69,7 @@ pub fn execute(run_id: &Option<String>) -> Result<()> {
     };
     report::write_json_report(&dest.join("manifest.json"), &manifest)?;
 
-    println!("[archive] Archive completed: {}", dest.display());
+    logging::ready("ops::archive", "Archive completed", &dest.display().to_string());
     Ok(())
 }
 

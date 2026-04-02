@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use serde::Serialize;
 use std::fs;
 use std::path::Path;
@@ -98,8 +98,17 @@ fn run_case(layer: &mut Layer, totals: &mut Totals, name: &str, cmd: &str) -> bo
     }
 }
 
-fn run_optional(layer: &mut Layer, totals: &mut Totals, name: &str, check_cmd: &str, cmd: &str, required: bool) {
-    let present = shell_cmd(check_cmd).map(|o| o.status.success()).unwrap_or(false);
+fn run_optional(
+    layer: &mut Layer,
+    totals: &mut Totals,
+    name: &str,
+    check_cmd: &str,
+    cmd: &str,
+    required: bool,
+) {
+    let present = shell_cmd(check_cmd)
+        .map(|o| o.status.success())
+        .unwrap_or(false);
     if !present {
         print!("[TEST] {}", name);
         if required {
@@ -220,7 +229,9 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     let require_desktop_app_stack = opts.require_desktop_app_stack || desktop_smoke;
 
     if desktop_smoke {
-        println!("[test::linux-app-compat] Desktop smoke profile enabled (Wayland/X11 probes required)");
+        println!(
+            "[test::linux-app-compat] Desktop smoke profile enabled (Wayland/X11 probes required)"
+        );
     }
 
     let mut totals = Totals::default();
@@ -239,18 +250,43 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
             "File read/write",
             "echo test>%TEMP%\\hc_test.txt && findstr test %TEMP%\\hc_test.txt >nul",
         );
-        let _ = run_case(&mut host, &mut totals, "Pipe chaining", "echo hello | findstr hello >nul");
+        let _ = run_case(
+            &mut host,
+            &mut totals,
+            "Pipe chaining",
+            "echo hello | findstr hello >nul",
+        );
         skip_case(&mut host, &mut totals, "procfs available");
         if !quick {
             skip_case(&mut host, &mut totals, "Loop execution");
         }
     } else {
         let _ = run_case(&mut host, &mut totals, "Process creation", "exit 0");
-        let _ = run_case(&mut host, &mut totals, "File read/write", "echo test >/tmp/hc_test.txt; cat /tmp/hc_test.txt | grep test");
-        let _ = run_case(&mut host, &mut totals, "Pipe chaining", "echo hello | cat | grep hello");
-        let _ = run_case(&mut host, &mut totals, "procfs available", "ls /proc >/dev/null");
+        let _ = run_case(
+            &mut host,
+            &mut totals,
+            "File read/write",
+            "echo test >/tmp/hc_test.txt; cat /tmp/hc_test.txt | grep test",
+        );
+        let _ = run_case(
+            &mut host,
+            &mut totals,
+            "Pipe chaining",
+            "echo hello | cat | grep hello",
+        );
+        let _ = run_case(
+            &mut host,
+            &mut totals,
+            "procfs available",
+            "ls /proc >/dev/null",
+        );
         if !quick {
-            let _ = run_case(&mut host, &mut totals, "Loop execution", "for i in 1 2 3; do echo $i; done | wc -l | grep '^3$'");
+            let _ = run_case(
+                &mut host,
+                &mut totals,
+                "Loop execution",
+                "for i in 1 2 3; do echo $i; done | wc -l | grep '^3$'",
+            );
         }
     }
 
@@ -260,15 +296,46 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         skip_case(&mut integration, &mut totals, "sed transform");
         skip_case(&mut integration, &mut totals, "tar round-trip");
     } else {
-        let _ = run_case(&mut integration, &mut totals, "awk aggregation", "printf 'a 1\na 2\n' | awk '$1==\"a\" {s+=$2} END{print s}' | grep '^3$'");
-        let _ = run_case(&mut integration, &mut totals, "sed transform", "printf 'linux-compat\n' | sed 's/linux/hyper/' | grep '^hyper-compat$'");
+        let _ = run_case(
+            &mut integration,
+            &mut totals,
+            "awk aggregation",
+            "printf 'a 1\na 2\n' | awk '$1==\"a\" {s+=$2} END{print s}' | grep '^3$'",
+        );
+        let _ = run_case(
+            &mut integration,
+            &mut totals,
+            "sed transform",
+            "printf 'linux-compat\n' | sed 's/linux/hyper/' | grep '^hyper-compat$'",
+        );
         let _ = run_case(&mut integration, &mut totals, "tar round-trip", "mkdir -p /tmp/hc_tar/src; echo payload >/tmp/hc_tar/src/a.txt; tar -cf /tmp/hc_tar/a.tar -C /tmp/hc_tar/src .; mkdir -p /tmp/hc_tar/out; tar -xf /tmp/hc_tar/a.tar -C /tmp/hc_tar/out; cat /tmp/hc_tar/out/a.txt | grep payload");
     }
 
     println!("\nPhase 1c: Runtime Probe");
-    run_optional(&mut compat, &mut totals, "busybox availability", "command -v busybox >/dev/null 2>&1", "busybox --help >/dev/null", require_busybox);
-    run_optional(&mut compat, &mut totals, "busybox applet smoke", "command -v busybox >/dev/null 2>&1", "busybox ls / >/dev/null", require_busybox);
-    run_optional(&mut compat, &mut totals, "glibc detection", "getconf GNU_LIBC_VERSION >/dev/null 2>&1", "getconf GNU_LIBC_VERSION | grep -i glibc", require_glibc);
+    run_optional(
+        &mut compat,
+        &mut totals,
+        "busybox availability",
+        "command -v busybox >/dev/null 2>&1",
+        "busybox --help >/dev/null",
+        require_busybox,
+    );
+    run_optional(
+        &mut compat,
+        &mut totals,
+        "busybox applet smoke",
+        "command -v busybox >/dev/null 2>&1",
+        "busybox ls / >/dev/null",
+        require_busybox,
+    );
+    run_optional(
+        &mut compat,
+        &mut totals,
+        "glibc detection",
+        "getconf GNU_LIBC_VERSION >/dev/null 2>&1",
+        "getconf GNU_LIBC_VERSION | grep -i glibc",
+        require_glibc,
+    );
 
     let root = paths::repo_root();
     let wayland_mod = paths::kernel_src("modules/userspace_graphics/wayland/mod.rs");
@@ -302,29 +369,27 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     let linux_compat_io = paths::kernel_src("modules/linux_compat/fs/io.rs");
     let kernel_tests_mod = paths::kernel_src("kernel/tests/mod.rs");
     let linux_abi_platform = root.join("xtask/src/commands/validation/linux_abi/platform.rs");
-    let linux_abi_desktop_plan = root.join("xtask/src/commands/validation/linux_abi/desktop_plan.rs");
+    let linux_abi_desktop_plan =
+        root.join("xtask/src/commands/validation/linux_abi/desktop_plan.rs");
     let linux_host_e2e_script = root.join("scripts/linux_host_e2e_proof.sh");
     let linux_host_e2e_doc = root.join("docs/LINUX_HOST_E2E_PROOF_PIPELINE.md");
     let gpu_ioctl_inventory = root.join("config/gpu_ioctl_coverage_p0.json");
     let posix_lifecycle = paths::kernel_src("modules/posix/fs/lifecycle_support.rs");
     let cargo_toml = root.join("Cargo.toml");
 
-    let wayland_probe_ok =
-        file_contains(&wayland_mod, "validate_client_handshake_prefix")
+    let wayland_probe_ok = file_contains(&wayland_mod, "validate_client_handshake_prefix")
         && file_contains(&wayland_mod, "validate_registry_advertisement_path")
         && file_contains(&wayland_mod, "validate_registry_bind_prefix")
         && file_contains(&wayland_proto, "parse_wire_header")
         && file_contains(&wayland_proto, "is_complete_frame");
 
-    let x11_probe_ok =
-        file_contains(&x11_mod, "validate_client_setup_request")
+    let x11_probe_ok = file_contains(&x11_mod, "validate_client_setup_request")
         && file_contains(&x11_mod, "validate_server_reply_prefix")
         && file_contains(&x11_mod, "validate_core_opcode_dispatch_prefix")
         && file_contains(&x11_proto, "parse_setup_prefix")
         && file_contains(&x11_proto, "parse_server_packet_prefix");
 
-    let wayland_x11_depth_ok =
-        wayland_probe_ok
+    let wayland_x11_depth_ok = wayland_probe_ok
         && x11_probe_ok
         && file_contains_all(
             &wayland_mod,
@@ -360,9 +425,7 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         );
 
     let system_pkg_managers = ["apt-get", "dnf", "pacman", "apk", "zypper"];
-    let has_any_system_pkg_manager = system_pkg_managers
-        .iter()
-        .any(|pm| command_exists(pm));
+    let has_any_system_pkg_manager = system_pkg_managers.iter().any(|pm| command_exists(pm));
 
     let generated_seed_root = root.join("artifacts/boot_image/generated/initramfs_apt");
     let seeded_apt_available = generated_seed_root.join("usr/bin/apt-get").exists()
@@ -433,15 +496,19 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         .any(|bin| command_exists(bin));
     let has_flutter_runtime = command_exists("flutter");
     let seeded_flutter_runtime_available = generated_seed_root.join("usr/bin/flutter").exists()
-        || generated_seed_root.join("usr/bin/flutter-wrapper.sh").exists()
+        || generated_seed_root
+            .join("usr/bin/flutter-wrapper.sh")
+            .exists()
         || generated_seed_root.join("opt/flutter/bin/flutter").exists()
         || generated_seed_root.join("usr/lib/libflutter.so").exists();
     let desktop_install_capable = has_any_system_pkg_manager && has_min_dev_pkg_stack;
 
-    let fs_stack_ok =
-        file_contains(&posix_lifecycle, "mount_devfs")
+    let fs_stack_ok = file_contains(&posix_lifecycle, "mount_devfs")
         && file_contains(&posix_lifecycle, "mount_ramfs")
-        && file_contains_all(&diskfs_bootstrap, &["probing block devices", "mount -t", "/var/lib/hypercore"])
+        && file_contains_all(
+            &diskfs_bootstrap,
+            &["probing block devices", "mount -t", "/var/lib/hypercore"],
+        )
         && file_contains_all(
             &pivot_root_setup,
             &[
@@ -467,12 +534,22 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         )
         && file_contains_all(
             &mount_table,
-            &["FsType", "Ext4", "Fat32", "Overlay", "Tmpfs", "Procfs", "Sysfs"],
+            &[
+                "FsType", "Ext4", "Fat32", "Overlay", "Tmpfs", "Procfs", "Sysfs",
+            ],
         )
-        && file_contains_all(&disk_fs, &["DiskFsMode", "Fat", "Little", "Ext4", "with_backend"])
+        && file_contains_all(
+            &disk_fs,
+            &["DiskFsMode", "Fat", "Little", "Ext4", "with_backend"],
+        )
         && file_contains_all(
             &writeback,
-            &["JournalTransaction", "journal_write", "journal_commit", "JournalOp"],
+            &[
+                "JournalTransaction",
+                "journal_write",
+                "journal_commit",
+                "JournalOp",
+            ],
         )
         && file_contains_all(
             &writeback_tests,
@@ -481,21 +558,23 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
                 "crash_recovery_soak_chain_handles_multiple_transactions_revoke_and_checkpoint",
             ],
         )
-        && file_contains_all(&vfs_mod, &["pub mod tmpfs", "pub mod procfs", "pub mod sysfs"]);
+        && file_contains_all(
+            &vfs_mod,
+            &["pub mod tmpfs", "pub mod procfs", "pub mod sysfs"],
+        );
 
-    let package_stack_foundation_ok =
-        file_contains_all(
-            &cargo_toml,
-            &[
-                "linux_compat = [",
-                "posix_process",
-                "posix_pipe",
-                "posix_mman",
-                "posix_fs",
-                "posix_net",
-            ],
-        )
-        && (has_any_system_pkg_manager || seeded_system_pkg_manager_any)
+    let package_stack_foundation_ok = file_contains_all(
+        &cargo_toml,
+        &[
+            "linux_compat = [",
+            "posix_process",
+            "posix_pipe",
+            "posix_mman",
+            "posix_fs",
+            "posix_net",
+        ],
+    ) && (has_any_system_pkg_manager
+        || seeded_system_pkg_manager_any)
         && has_min_dev_pkg_stack
         && file_contains_all(&disk_fs, &["pub fn write_all", "pub fn read_all"])
         && file_contains_all(&linux_mount_setup, &["/tmp", "/run", "/dev/shm"])
@@ -527,8 +606,10 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         );
 
     let elf_so_runtime_contract_ok =
-        file_contains_all(&dynamic_linker, &["pub mod so_loader", "dynamic_linker_entry"])
-        && file_contains_all(
+        file_contains_all(
+            &dynamic_linker,
+            &["pub mod so_loader", "dynamic_linker_entry"],
+        ) && file_contains_all(
             &dynamic_linker_entry,
             &[
                 "SharedObjectLoader::with_search_paths",
@@ -536,16 +617,14 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
                 "process_relocations",
                 "resolve_runtime_search_paths",
             ],
-        )
-        && file_contains_all(
+        ) && file_contains_all(
             &dynamic_linker_helpers,
             &[
                 "sanitize_search_paths",
                 "resolve_runtime_search_paths",
                 "starts_with('/')",
             ],
-        )
-        && file_contains_all(
+        ) && file_contains_all(
             &so_loader_load,
             &[
                 "load_needed",
@@ -555,16 +634,14 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
                 "validate_soname",
                 "dt_soname",
             ],
-        )
-        && file_contains_all(
+        ) && file_contains_all(
             &so_loader_mod,
             &[
                 "find_symbol_in_object_versioned",
                 "find_symbol_versioned",
                 "return None;",
             ],
-        )
-        && file_contains_all(&dl_api, &["dlopen", "dlsym", "dlclose"]);
+        ) && file_contains_all(&dl_api, &["dlopen", "dlsym", "dlclose"]);
 
     let package_stack_ok = if require_package_stack {
         package_stack_foundation_ok
@@ -616,23 +693,22 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
 
     let flutter_runtime_available = has_flutter_runtime || seeded_flutter_runtime_available;
 
-    let desktop_app_stack_foundation_ok =
-        wayland_probe_ok
-            && x11_probe_ok
-            && (has_desktop_session_runtime || desktop_install_capable)
-            && (flutter_runtime_available || desktop_install_capable)
-            && file_contains_all(
-                &cargo_toml,
-                &[
-                    "linux_userspace_wayland",
-                    "linux_userspace_x11",
-                    "linux_compat_vfs",
-                    "ipc_dbus",
-                    "network_https",
-                    "posix_thread",
-                    "posix_process",
-                ],
-            );
+    let desktop_app_stack_foundation_ok = wayland_probe_ok
+        && x11_probe_ok
+        && (has_desktop_session_runtime || desktop_install_capable)
+        && (flutter_runtime_available || desktop_install_capable)
+        && file_contains_all(
+            &cargo_toml,
+            &[
+                "linux_userspace_wayland",
+                "linux_userspace_x11",
+                "linux_compat_vfs",
+                "ipc_dbus",
+                "network_https",
+                "posix_thread",
+                "posix_process",
+            ],
+        );
 
     let desktop_app_stack_ok = if require_desktop_app_stack {
         desktop_app_stack_foundation_ok && seeded_flutter_runtime_available
@@ -641,8 +717,7 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     };
 
     let parity_module_count = count_occurrences(&kernel_tests_mod, "_parity;");
-    let syscall_semantic_parity_ok =
-        parity_module_count >= 8
+    let syscall_semantic_parity_ok = parity_module_count >= 8
         && file_contains_all(
             &kernel_tests_mod,
             &[
@@ -665,55 +740,48 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
             ],
         );
 
-    let gpu_ioctl_coverage_ok =
-        file_contains_all(
-            &linux_shim_dispatch,
-            &["linux_nr::IOCTL", "sys_linux_ioctl"],
-        )
-        && file_contains_all(
-            &linux_compat_io,
-            &["pub fn sys_linux_ioctl", "ioctl", "posix::fs::ioctl"],
-        )
-        && file_contains_all(
-            &gpu_mod,
-            &["GpuBackend", "VirtIoGpu", "gpu_stack_snapshot"],
-        )
-        && file_contains_all(
-            &gpu_tests,
-            &[
-                "gpu_desktop_path_readiness_requires_non_none_backend",
-                "gpu_health_detects_stale_heartbeat",
-            ],
-        )
-        && file_contains_all(
-            &gpu_ioctl_inventory,
-            &[
-                "DRM_IOCTL_VERSION",
-                "DRM_IOCTL_MODE_GETRESOURCES",
-                "VIRTGPU",
-            ],
-        );
+    let gpu_ioctl_coverage_ok = file_contains_all(
+        &linux_shim_dispatch,
+        &["linux_nr::IOCTL", "sys_linux_ioctl"],
+    ) && file_contains_all(
+        &linux_compat_io,
+        &["pub fn sys_linux_ioctl", "ioctl", "posix::fs::ioctl"],
+    ) && file_contains_all(
+        &gpu_mod,
+        &["GpuBackend", "VirtIoGpu", "gpu_stack_snapshot"],
+    ) && file_contains_all(
+        &gpu_tests,
+        &[
+            "gpu_desktop_path_readiness_requires_non_none_backend",
+            "gpu_health_detects_stale_heartbeat",
+        ],
+    ) && file_contains_all(
+        &gpu_ioctl_inventory,
+        &[
+            "DRM_IOCTL_VERSION",
+            "DRM_IOCTL_MODE_GETRESOURCES",
+            "VIRTGPU",
+        ],
+    );
 
-    let linux_host_e2e_pipeline_ok =
-        file_contains_all(
-            &linux_host_e2e_script,
-            &[
-                "#!/usr/bin/env bash",
-                "cargo run -p xtask -- build apt-iso",
-                "cargo run -p xtask -- ops qemu smoke",
-                "cargo run -p xtask -- test linux-app-compat --strict --ci",
-                "reports/linux_host_e2e_proof",
-            ],
-        )
-        && file_contains_all(
-            &linux_host_e2e_doc,
-            &[
-                "Linux host only",
-                "qemu smoke",
-                "strict linux-app-compat",
-                "Acceptance Criteria",
-            ],
-        );
+    let linux_host_e2e_pipeline_ok = file_contains_all(
+        &linux_host_e2e_script,
+        &[
+            "#!/usr/bin/env bash",
+            "cargo run -p xtask -- build apt-iso",
+            "cargo run -p xtask -- ops qemu smoke",
+            "cargo run -p xtask -- test linux-app-compat --strict --ci",
+            "reports/linux_host_e2e_proof",
+        ],
+    ) && file_contains_all(
+        &linux_host_e2e_doc,
+        &[
+            "Linux host only",
+            "qemu smoke",
+            "strict linux-app-compat",
+            "Acceptance Criteria",
+        ],
+    );
 
     run_source_probe(
         &mut compat,
@@ -781,7 +849,11 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
 
     let cross_layer_health_surface_ok = file_contains_all(
         &vfs_health,
-        &["VfsHealthSummary", "current_mount_health_summary", "summarize_mount_health"],
+        &[
+            "VfsHealthSummary",
+            "current_mount_health_summary",
+            "summarize_mount_health",
+        ],
     ) && file_contains_all(
         &network_metrics_snapshot,
         &["runtime_health_report", "recommended_runtime_health_action"],
@@ -841,7 +913,11 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     }
 
     print!("[GATE] syscall coverage summary");
-    let _ = crate::commands::validation::syscall_coverage::execute(true, "md", &Some("reports/linux_app_compat_syscall_coverage.md".to_string()));
+    let _ = crate::commands::validation::syscall_coverage::execute(
+        true,
+        "md",
+        &Some("reports/linux_app_compat_syscall_coverage.md".to_string()),
+    );
     let cov_ok = paths::resolve("reports/syscall_coverage_summary.json").exists();
     if cov_ok {
         println!(" OK");
@@ -873,19 +949,36 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
 
     let total = totals.passed + totals.failed + totals.skipped;
     let executed = totals.passed + totals.failed;
-    let pass_rate = if executed == 0 { 100.0 } else { ((totals.passed as f64 / executed as f64) * 1000.0).round() / 10.0 };
+    let pass_rate = if executed == 0 {
+        100.0
+    } else {
+        ((totals.passed as f64 / executed as f64) * 1000.0).round() / 10.0
+    };
 
     let host_rate = rate(&host);
     let integration_rate = rate(&integration);
     let compat_rate = rate(&compat);
     let kernel_rate = rate(&kernel);
-    let qemu_rate = if qemu || strict { rate(&qemu_layer) } else { 100.0 };
-    let overall = ((host_rate * 0.25) + (integration_rate * 0.20) + (compat_rate * 0.10) + (kernel_rate * 0.25) + (qemu_rate * 0.20)).round();
+    let qemu_rate = if qemu || strict {
+        rate(&qemu_layer)
+    } else {
+        100.0
+    };
+    let overall = ((host_rate * 0.25)
+        + (integration_rate * 0.20)
+        + (compat_rate * 0.10)
+        + (kernel_rate * 0.25)
+        + (qemu_rate * 0.20))
+        .round();
 
     let ci_ok = totals.failed == 0;
     let out = Scorecard {
         generated_utc: report::utc_now_iso(),
-        profile: if strict { "strict".to_string() } else { "standard".to_string() },
+        profile: if strict {
+            "strict".to_string()
+        } else {
+            "standard".to_string()
+        },
         ci_enforce: ci,
         totals: TotalsOut {
             passed: totals.passed,
@@ -907,13 +1000,25 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
 
     let reports = paths::resolve("reports");
     paths::ensure_dir(&reports)?;
-    report::write_json_report(&reports.join("linux_app_compat_validation_scorecard.json"), &out)?;
+    report::write_json_report(
+        &reports.join("linux_app_compat_validation_scorecard.json"),
+        &out,
+    )?;
     let mut desktop_probes = serde_json::Map::new();
-    desktop_probes.insert("wayland_probe_ok".to_string(), serde_json::json!(wayland_probe_ok));
+    desktop_probes.insert(
+        "wayland_probe_ok".to_string(),
+        serde_json::json!(wayland_probe_ok),
+    );
     desktop_probes.insert("x11_probe_ok".to_string(), serde_json::json!(x11_probe_ok));
     desktop_probes.insert("fs_stack_ok".to_string(), serde_json::json!(fs_stack_ok));
-    desktop_probes.insert("package_stack_ok".to_string(), serde_json::json!(package_stack_ok));
-    desktop_probes.insert("desktop_app_stack_ok".to_string(), serde_json::json!(desktop_app_stack_ok));
+    desktop_probes.insert(
+        "package_stack_ok".to_string(),
+        serde_json::json!(package_stack_ok),
+    );
+    desktop_probes.insert(
+        "desktop_app_stack_ok".to_string(),
+        serde_json::json!(desktop_app_stack_ok),
+    );
     desktop_probes.insert(
         "runtime_system_package_manager_any".to_string(),
         serde_json::json!(has_any_system_pkg_manager),
@@ -1040,13 +1145,31 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     );
 
     let mut runtime_probe = serde_json::Map::new();
-    runtime_probe.insert("generated_utc".to_string(), serde_json::json!(report::utc_now_iso()));
-    runtime_probe.insert("busybox_required".to_string(), serde_json::json!(require_busybox));
-    runtime_probe.insert("glibc_required".to_string(), serde_json::json!(require_glibc));
-    runtime_probe.insert("desktop_smoke".to_string(), serde_json::json!(desktop_smoke));
-    runtime_probe.insert("wayland_required".to_string(), serde_json::json!(require_wayland));
+    runtime_probe.insert(
+        "generated_utc".to_string(),
+        serde_json::json!(report::utc_now_iso()),
+    );
+    runtime_probe.insert(
+        "busybox_required".to_string(),
+        serde_json::json!(require_busybox),
+    );
+    runtime_probe.insert(
+        "glibc_required".to_string(),
+        serde_json::json!(require_glibc),
+    );
+    runtime_probe.insert(
+        "desktop_smoke".to_string(),
+        serde_json::json!(desktop_smoke),
+    );
+    runtime_probe.insert(
+        "wayland_required".to_string(),
+        serde_json::json!(require_wayland),
+    );
     runtime_probe.insert("x11_required".to_string(), serde_json::json!(require_x11));
-    runtime_probe.insert("fs_stack_required".to_string(), serde_json::json!(require_fs_stack));
+    runtime_probe.insert(
+        "fs_stack_required".to_string(),
+        serde_json::json!(require_fs_stack),
+    );
     runtime_probe.insert(
         "package_stack_required".to_string(),
         serde_json::json!(require_package_stack),

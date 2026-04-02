@@ -62,11 +62,6 @@ impl Gic {
     }
 
     #[inline(always)]
-    unsafe fn read_dist(&self, offset: usize) -> u32 {
-        unsafe { self.dist_block.reg::<u32>(offset).read() }
-    }
-
-    #[inline(always)]
     unsafe fn write_cpu(&self, offset: usize, val: u32) {
         unsafe {
             self.cpu_block.reg::<u32>(offset).write(val);

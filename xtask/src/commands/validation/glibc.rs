@@ -5,7 +5,7 @@
 // Remaining blockers: remap_file_pages (deprecated), clone namespaces, statx extended attrs.
 
 use crate::cli::GlibcAction;
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -409,10 +409,20 @@ fn get_glibc_inventory() -> Vec<SyscallDef> {
 
 pub fn execute(action: &GlibcAction) -> Result<()> {
     match action {
-        GlibcAction::Audit { format, out, verbose } => {
+        GlibcAction::Audit {
+            format,
+            out,
+            verbose,
+        } => {
             execute_audit(format, out, *verbose)?;
         }
-        GlibcAction::ClosureGate { quick, strict, family, format, out } => {
+        GlibcAction::ClosureGate {
+            quick,
+            strict,
+            family,
+            format,
+            out,
+        } => {
             execute_closure_gate(*quick, *strict, family.as_deref(), format, out)?;
         }
         GlibcAction::Scorecard { format, out } => {
@@ -453,14 +463,23 @@ fn execute_audit(format: &str, out: &Option<String>, verbose: bool) -> Result<()
     Ok(())
 }
 
-fn execute_closure_gate(quick: bool, strict: bool, family: Option<&str>, format: &str, out: &Option<String>) -> Result<()> {
+fn execute_closure_gate(
+    quick: bool,
+    strict: bool,
+    family: Option<&str>,
+    format: &str,
+    out: &Option<String>,
+) -> Result<()> {
     // Determine which syscall families to test
     let families_to_test: Vec<&str> = if let Some(fam) = family {
         let valid_families = ["file_io", "process", "memory", "signals", "threading"];
         if valid_families.contains(&fam) {
             vec![fam]
         } else {
-            bail!("Unknown family '{}'. Valid families: file_io, process, memory, signals, threading", fam);
+            bail!(
+                "Unknown family '{}'. Valid families: file_io, process, memory, signals, threading",
+                fam
+            );
         }
     } else if quick {
         vec!["file_io", "process", "memory"]
@@ -494,7 +513,10 @@ fn execute_closure_gate(quick: bool, strict: bool, family: Option<&str>, format:
 
     if strict && results.iter().any(|r| r.failed > 0) {
         let total_failed: usize = results.iter().map(|r| r.failed).sum();
-        bail!("Closure gate failed in strict mode: {} tests failed", total_failed);
+        bail!(
+            "Closure gate failed in strict mode: {} tests failed",
+            total_failed
+        );
     }
 
     Ok(())
@@ -574,10 +596,7 @@ struct GlibcScorecard {
 
 fn test_family(family: &str, strict: bool) -> Result<(usize, usize, Vec<String>)> {
     let inventory = get_glibc_inventory();
-    let syscalls: Vec<_> = inventory
-        .iter()
-        .filter(|d| d.family == family)
-        .collect();
+    let syscalls: Vec<_> = inventory.iter().filter(|d| d.family == family).collect();
 
     let mut passed = 0;
     let mut failed = 0;
@@ -621,12 +640,18 @@ fn generate_markdown(inventory: &[GlibcSyscall], _verbose: bool) -> Result<Strin
 
     let mut by_family: HashMap<&str, Vec<_>> = HashMap::new();
     for item in inventory {
-        by_family.entry(item.family.as_str()).or_insert_with(Vec::new).push(item);
+        by_family
+            .entry(item.family.as_str())
+            .or_insert_with(Vec::new)
+            .push(item);
     }
 
     for family in &["file_io", "process", "memory", "signals", "threading"] {
         if let Some(syscalls) = by_family.get(*family) {
-            md.push_str(&format!("## {}\n\n", family.replace('_', " ").to_uppercase()));
+            md.push_str(&format!(
+                "## {}\n\n",
+                family.replace('_', " ").to_uppercase()
+            ));
             md.push_str("| Syscall | Status | Location | Issues | Tests |\n");
             md.push_str("|---------|--------|----------|--------|-------|\n");
 
@@ -647,9 +672,18 @@ fn generate_markdown(inventory: &[GlibcSyscall], _verbose: bool) -> Result<Strin
     }
 
     let total = inventory.len();
-    let full = inventory.iter().filter(|s| s.status == SyscallStatus::Full).count();
-    let partial = inventory.iter().filter(|s| s.status == SyscallStatus::Partial).count();
-    let stub = inventory.iter().filter(|s| s.status == SyscallStatus::Stub).count();
+    let full = inventory
+        .iter()
+        .filter(|s| s.status == SyscallStatus::Full)
+        .count();
+    let partial = inventory
+        .iter()
+        .filter(|s| s.status == SyscallStatus::Partial)
+        .count();
+    let stub = inventory
+        .iter()
+        .filter(|s| s.status == SyscallStatus::Stub)
+        .count();
 
     md.push_str(&format!(
         "\n## Summary\n\n- **Total:** {} syscalls\n- **Full:** {} ({:.1}%)\n- **Partial:** {} ({:.1}%)\n- **Stub:** {} ({:.1}%)\n",
@@ -690,7 +724,10 @@ fn generate_closure_markdown(results: &[ClosureTestResult]) -> Result<String> {
 
         md.push_str(&format!(
             "## {}\n- **Passed:** {}\n- **Failed:** {}\n- **Rate:** {}%\n",
-            result.family.replace('_', " "), result.passed, result.failed, pass_rate
+            result.family.replace('_', " "),
+            result.passed,
+            result.failed,
+            pass_rate
         ));
 
         if !result.blockers.is_empty() {

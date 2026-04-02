@@ -8,7 +8,7 @@ use crate::hal::common::mmio::MmioBlock;
 #[path = "apic_support.rs"]
 mod apic_support;
 use apic_support::{
-    broadcast_excluding_self_icr, calibrated_ticks_or_default, enable_spurious_vector, lapic_base,
+    broadcast_excluding_self_icr, calibrated_ticks_or_default, enable_spurious_vector,
     get_lapic_block, periodic_timer_vector, x2apic_broadcast_ipi_command,
     x2apic_ipi_command, MASKED_ONE_SHOT_TIMER, TIMER_DIVIDE_BY_16,
 };

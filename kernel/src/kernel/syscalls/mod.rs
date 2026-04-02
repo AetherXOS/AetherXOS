@@ -55,8 +55,6 @@ pub(crate) use crate::kernel::syscalls::syscalls_user::{
 use alloc::collections::BTreeMap;
 use lazy_static::lazy_static;
 
-#[cfg(not(target_arch = "x86_64"))]
-const LINUX_O_TRUNC: usize = 0o1000;
 #[cfg(not(feature = "linux_compat"))]
 #[allow(dead_code)]
 const LINUX_O_APPEND: usize = 0o2000;
