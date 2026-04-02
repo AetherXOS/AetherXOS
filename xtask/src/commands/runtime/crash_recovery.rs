@@ -44,8 +44,15 @@ pub fn execute() -> Result<()> {
 
     if !logs_dir.exists() {
         let summary = CrashReport {
-            ok: false, logs_processed: 0, panic_counts: vec![], latest_seqs: vec![],
-            total_events: vec![], checks: CrashChecks { panic_count_monotonic: true, latest_seq_monotonic: true },
+            ok: false,
+            logs_processed: 0,
+            panic_counts: vec![],
+            latest_seqs: vec![],
+            total_events: vec![],
+            checks: CrashChecks {
+                panic_count_monotonic: true,
+                latest_seq_monotonic: true,
+            },
         };
         report::write_json_report(&out_dir.join("summary.json"), &summary)?;
         println!("[crash-recovery] FAIL (no logs directory)");
@@ -61,8 +68,15 @@ pub fn execute() -> Result<()> {
 
     if logs.is_empty() {
         let summary = CrashReport {
-            ok: false, logs_processed: 0, panic_counts: vec![], latest_seqs: vec![],
-            total_events: vec![], checks: CrashChecks { panic_count_monotonic: true, latest_seq_monotonic: true },
+            ok: false,
+            logs_processed: 0,
+            panic_counts: vec![],
+            latest_seqs: vec![],
+            total_events: vec![],
+            checks: CrashChecks {
+                panic_count_monotonic: true,
+                latest_seq_monotonic: true,
+            },
         };
         report::write_json_report(&out_dir.join("summary.json"), &summary)?;
         println!("[crash-recovery] FAIL (no .log files)");
@@ -79,13 +93,15 @@ pub fn execute() -> Result<()> {
         let lines: Vec<&str> = text.lines().collect();
 
         // Count panic markers
-        let panic_count = lines.iter()
+        let panic_count = lines
+            .iter()
             .filter(|line| PANIC_MARKERS.iter().any(|m| line.contains(m)))
             .count();
         panic_counts.push(panic_count);
 
         // Extract latest seq from "[SEQ=N]" patterns
-        let max_seq = lines.iter()
+        let max_seq = lines
+            .iter()
             .filter_map(|line| seq_re.captures(line))
             .filter_map(|cap| cap[1].parse::<usize>().ok())
             .max()
@@ -135,6 +151,10 @@ pub fn execute() -> Result<()> {
     }
     fs::write(out_dir.join("summary.md"), md)?;
 
-    println!("[crash-recovery] {} ({} logs processed)", if summary.ok { "PASS" } else { "FAIL" }, summary.logs_processed);
+    println!(
+        "[crash-recovery] {} ({} logs processed)",
+        if summary.ok { "PASS" } else { "FAIL" },
+        summary.logs_processed
+    );
     Ok(())
 }

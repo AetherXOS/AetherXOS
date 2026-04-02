@@ -1,7 +1,6 @@
 use anyhow::{Result, bail};
 use serde::Serialize;
 
-
 // ---------------------------------------------------------------------------
 // Core Pressure Snapshot decoder
 // Replaces: scripts/core_pressure_report.py
@@ -10,11 +9,18 @@ use serde::Serialize;
 const CORE_PRESSURE_WORDS: usize = 18;
 
 const CORE_CLASS: &[(u64, &str)] = &[
-    (0, "Nominal"), (1, "Elevated"), (2, "High"), (3, "Critical"),
+    (0, "Nominal"),
+    (1, "Elevated"),
+    (2, "High"),
+    (3, "Critical"),
 ];
 
 fn class_label(raw: u64) -> &'static str {
-    CORE_CLASS.iter().find(|(v, _)| *v == raw).map(|(_, l)| *l).unwrap_or("Unknown")
+    CORE_CLASS
+        .iter()
+        .find(|(v, _)| *v == raw)
+        .map(|(_, l)| *l)
+        .unwrap_or("Unknown")
 }
 
 #[derive(Serialize)]
@@ -53,10 +59,16 @@ struct LotteryReplay {
 /// Decode and report core pressure snapshot from raw syscall words.
 ///
 /// Usage: cargo run -p xtask -- core-pressure --words "2,8,10,4,1250,0,12,0,1024,40,20,3,2,5,8,0,1,1"
-pub fn execute(words_str: &str, lottery_words_str: &Option<String>, format: &str, out: &Option<String>) -> Result<()> {
+pub fn execute(
+    words_str: &str,
+    lottery_words_str: &Option<String>,
+    format: &str,
+    out: &Option<String>,
+) -> Result<()> {
     println!("[core-pressure] Decoding core pressure snapshot");
 
-    let words: Vec<u64> = words_str.split(',')
+    let words: Vec<u64> = words_str
+        .split(',')
         .map(|s| {
             let s = s.trim();
             if s.starts_with("0x") || s.starts_with("0X") {
@@ -68,7 +80,11 @@ pub fn execute(words_str: &str, lottery_words_str: &Option<String>, format: &str
         .collect();
 
     if words.len() < CORE_PRESSURE_WORDS {
-        bail!("GET_CORE_PRESSURE_SNAPSHOT requires at least {} words, got {}", CORE_PRESSURE_WORDS, words.len());
+        bail!(
+            "GET_CORE_PRESSURE_SNAPSHOT requires at least {} words, got {}",
+            CORE_PRESSURE_WORDS,
+            words.len()
+        );
     }
 
     let snapshot = CorePressureSnapshot {
@@ -95,14 +111,17 @@ pub fn execute(words_str: &str, lottery_words_str: &Option<String>, format: &str
     };
 
     let replay = lottery_words_str.as_ref().map(|s| {
-        let w: Vec<u64> = s.split(',').map(|t| {
-            let t = t.trim();
-            if t.starts_with("0x") || t.starts_with("0X") {
-                u64::from_str_radix(&t[2..], 16).unwrap_or(0)
-            } else {
-                t.parse::<u64>().unwrap_or(0)
-            }
-        }).collect();
+        let w: Vec<u64> = s
+            .split(',')
+            .map(|t| {
+                let t = t.trim();
+                if t.starts_with("0x") || t.starts_with("0X") {
+                    u64::from_str_radix(&t[2..], 16).unwrap_or(0)
+                } else {
+                    t.parse::<u64>().unwrap_or(0)
+                }
+            })
+            .collect();
         LotteryReplay {
             seq: *w.first().unwrap_or(&0),
             task_id: *w.get(1).unwrap_or(&0),
@@ -120,12 +139,24 @@ pub fn execute(words_str: &str, lottery_words_str: &Option<String>, format: &str
         serde_json::to_string_pretty(&payload)?
     } else {
         let mut md = String::from("# Core Pressure Snapshot Report\n\n## Core Pressure\n\n");
-        md.push_str(&format!("- schema_version: `{}`\n", snapshot.schema_version));
+        md.push_str(&format!(
+            "- schema_version: `{}`\n",
+            snapshot.schema_version
+        ));
         md.push_str(&format!("- online_cpus: `{}`\n", snapshot.online_cpus));
-        md.push_str(&format!("- runqueue_total: `{}`\n", snapshot.runqueue_total));
+        md.push_str(&format!(
+            "- runqueue_total: `{}`\n",
+            snapshot.runqueue_total
+        ));
         md.push_str(&format!("- runqueue_max: `{}`\n", snapshot.runqueue_max));
-        md.push_str(&format!("- core_pressure_class: `{}`\n", snapshot.core_pressure_class));
-        md.push_str(&format!("- scheduler_pressure_class: `{}`\n", snapshot.scheduler_pressure_class));
+        md.push_str(&format!(
+            "- core_pressure_class: `{}`\n",
+            snapshot.core_pressure_class
+        ));
+        md.push_str(&format!(
+            "- scheduler_pressure_class: `{}`\n",
+            snapshot.scheduler_pressure_class
+        ));
         if let Some(ref r) = replay {
             md.push_str("\n## Lottery Replay\n\n");
             md.push_str(&format!("- seq: `{}`\n", r.seq));

@@ -1,4 +1,4 @@
-use super::{BootInfo, MemRegion, MAX_USABLE_REGIONS};
+use super::{BootInfo, MAX_USABLE_REGIONS, MemRegion};
 
 pub(super) fn collect_hhdm_offset(info: &mut BootInfo) {
     #[cfg(target_arch = "x86_64")]

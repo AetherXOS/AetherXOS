@@ -1,6 +1,6 @@
-use rocket::form::FromForm;
-use rocket::serde::json::{json, Value};
 use rocket::State;
+use rocket::form::FromForm;
+use rocket::serde::json::{Value, json};
 
 use crate::auth::RequireViewer;
 use crate::models::JobStatus;
@@ -66,20 +66,26 @@ pub fn list_jobs(state: &State<AppState>, _role: RequireViewer, q: Option<JobsQu
     let limit = query.limit.unwrap_or(50).clamp(1, 500);
     let end = (offset + limit).min(total);
 
-    let jobs: Vec<Value> = filtered[offset..end].iter().map(|j| j.summary_value()).collect();
-    ok("jobs", json!({
-        "jobs": jobs,
-        "total": total,
-        "offset": offset,
-        "limit": limit,
-        "returned": jobs.len(),
-        "order": order,
-        "filters": {
-            "status": query.status,
-            "action": query.action,
-            "source": query.source,
-        }
-    }))
+    let jobs: Vec<Value> = filtered[offset..end]
+        .iter()
+        .map(|j| j.summary_value())
+        .collect();
+    ok(
+        "jobs",
+        json!({
+            "jobs": jobs,
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "returned": jobs.len(),
+            "order": order,
+            "filters": {
+                "status": query.status,
+                "action": query.action,
+                "source": query.source,
+            }
+        }),
+    )
 }
 
 #[rocket::get("/jobs/stats")]
@@ -111,16 +117,19 @@ pub fn jobs_stats(state: &State<AppState>, _role: RequireViewer) -> Value {
         .filter(|j| j.status == JobStatus::Cancelled)
         .count();
 
-    ok("jobs_stats", json!({
-        "total": inner.jobs.len(),
-        "queue_depth": inner.queue_count(),
-        "running_count": inner.running_count(),
-        "by_status": {
-            "queued": queued,
-            "running": running,
-            "done": done,
-            "failed": failed,
-            "cancelled": cancelled,
-        }
-    }))
+    ok(
+        "jobs_stats",
+        json!({
+            "total": inner.jobs.len(),
+            "queue_depth": inner.queue_count(),
+            "running_count": inner.running_count(),
+            "by_status": {
+                "queued": queued,
+                "running": running,
+                "done": done,
+                "failed": failed,
+                "cancelled": cancelled,
+            }
+        }),
+    )
 }

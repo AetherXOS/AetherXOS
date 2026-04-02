@@ -9,9 +9,9 @@ pub(crate) use loopback::KernelLoopbackNic;
 
 #[cfg(all(feature = "drivers", feature = "networking"))]
 pub(crate) use config::{
-    network_slo_log_interval_multiplier, network_slo_sample_interval,
     NETWORK_DRIVER_QUARANTINE_COOLDOWN_SAMPLES, NETWORK_DRIVER_QUARANTINE_REBIND_FAILURES,
     NETWORK_IO_FAILOVER_STREAK_THRESHOLD, NETWORK_IO_REBIND_STREAK_THRESHOLD,
+    network_slo_log_interval_multiplier, network_slo_sample_interval,
 };
 #[cfg(all(feature = "drivers", feature = "networking"))]
 pub(crate) use counters::{

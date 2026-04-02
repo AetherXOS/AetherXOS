@@ -16,7 +16,10 @@ fn plugin_registry_contract() {
     let list = plugins_json["plugins"].as_array().expect("plugins array");
     if let Some(first) = list.first() {
         let name = first["name"].as_str().expect("plugin name");
-        let detail = client.get(format!("/plugins/{}", name)).header(token).dispatch();
+        let detail = client
+            .get(format!("/plugins/{}", name))
+            .header(token)
+            .dispatch();
         assert_eq!(detail.status(), Status::Ok);
         let detail_json: serde_json::Value = detail.into_json().expect("detail json");
         assert_eq!(detail_json["ok"], true);

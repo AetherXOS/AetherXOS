@@ -23,10 +23,18 @@ pub fn openssl_mok_args(key_path: &str, cert_path: &str) -> Vec<String> {
 }
 
 pub fn sbsign_args(key_path: &str, cert_path: &str, kernel_path: &str) -> Vec<String> {
-    ["--key", key_path, "--cert", cert_path, "--output", kernel_path, kernel_path]
-        .into_iter()
-        .map(|part| part.to_string())
-        .collect()
+    [
+        "--key",
+        key_path,
+        "--cert",
+        cert_path,
+        "--output",
+        kernel_path,
+        kernel_path,
+    ]
+    .into_iter()
+    .map(|part| part.to_string())
+    .collect()
 }
 
 #[cfg(test)]

@@ -1,8 +1,8 @@
 //! All configuration type definitions parsed from Cargo.toml.
 //! Each subsystem struct includes field-level documentation.
 
-use serde::de::{self, Deserializer};
 use serde::Deserialize;
+use serde::de::{self, Deserializer};
 
 // ── Top-level Config ──────────────────────────────────────────────────────────
 

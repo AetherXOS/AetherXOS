@@ -1,11 +1,11 @@
-use chrono::Utc;
-use rocket::serde::json::{json, Json, Value};
-use rocket::State;
-use serde::Deserialize;
 use crate::auth::RequireAdmin;
 use crate::auth::RequireViewer;
 use crate::resp::{err_detail, ok};
 use crate::state::AppState;
+use chrono::Utc;
+use rocket::State;
+use rocket::serde::json::{Json, Value, json};
+use serde::Deserialize;
 
 /// GET /auth/status
 #[rocket::get("/auth/status")]
@@ -15,7 +15,13 @@ pub fn auth_status(state: &State<AppState>, _role: RequireViewer) -> Value {
         .iter()
         .map(|r| {
             let tok = inner.tokens.tokens.get(*r).cloned().unwrap_or_default();
-            let updated = inner.tokens.updated.get(*r).and_then(|d| d.as_ref()).map(|d| d.to_rfc3339()).unwrap_or_default();
+            let updated = inner
+                .tokens
+                .updated
+                .get(*r)
+                .and_then(|d| d.as_ref())
+                .map(|d| d.to_rfc3339())
+                .unwrap_or_default();
             json!({
                 "role": r,
                 "token_set": !tok.is_empty(),
@@ -24,10 +30,13 @@ pub fn auth_status(state: &State<AppState>, _role: RequireViewer) -> Value {
         })
         .collect();
 
-    ok("auth_status", json!({
-        "auth_mode": if inner.unsafe_no_auth { "unsafe" } else { "strict" },
-        "roles": roles,
-    }))
+    ok(
+        "auth_status",
+        json!({
+            "auth_mode": if inner.unsafe_no_auth { "unsafe" } else { "strict" },
+            "roles": roles,
+        }),
+    )
 }
 
 #[derive(Deserialize)]
@@ -80,7 +89,13 @@ pub fn auth_rotate(
         .iter()
         .map(|r| {
             let tok = inner.tokens.tokens.get(*r).cloned().unwrap_or_default();
-            let updated = inner.tokens.updated.get(*r).and_then(|d| d.as_ref()).map(|d| d.to_rfc3339()).unwrap_or_default();
+            let updated = inner
+                .tokens
+                .updated
+                .get(*r)
+                .and_then(|d| d.as_ref())
+                .map(|d| d.to_rfc3339())
+                .unwrap_or_default();
             json!({
                 "role": r,
                 "token_set": !tok.is_empty(),
@@ -89,13 +104,16 @@ pub fn auth_rotate(
         })
         .collect();
 
-    ok("auth_rotated", json!({
-        "rotated": rotated,
-        "auth": {
-            "auth_mode": if inner.unsafe_no_auth { "unsafe" } else { "strict" },
-            "roles": auth_roles,
-        },
-    }))
+    ok(
+        "auth_rotated",
+        json!({
+            "rotated": rotated,
+            "auth": {
+                "auth_mode": if inner.unsafe_no_auth { "unsafe" } else { "strict" },
+                "roles": auth_roles,
+            },
+        }),
+    )
 }
 
 fn generate_token() -> String {

@@ -69,7 +69,11 @@ pub fn execute(run_id: &Option<String>) -> Result<()> {
     };
     report::write_json_report(&dest.join("manifest.json"), &manifest)?;
 
-    logging::ready("ops::archive", "Archive completed", &dest.display().to_string());
+    logging::ready(
+        "ops::archive",
+        "Archive completed",
+        &dest.display().to_string(),
+    );
     Ok(())
 }
 

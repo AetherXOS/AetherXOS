@@ -216,4 +216,3 @@ pub fn load_agent_config(path: Option<&str>) -> AgentConfig {
         }
     }
 }
-

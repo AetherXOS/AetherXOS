@@ -34,7 +34,10 @@ struct CoverageSummary {
 ///
 /// Replaces: scripts/syscall_coverage_report.py
 pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result<()> {
-    println!("[syscall-coverage] Generating report (linux_compat={}, format={})", linux_compat, format);
+    println!(
+        "[syscall-coverage] Generating report (linux_compat={}, format={})",
+        linux_compat, format
+    );
 
     let root = paths::repo_root();
 
@@ -45,13 +48,13 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
     ];
 
     let mut mappings: HashMap<String, String> = HashMap::new();
-    let map_re = regex::Regex::new(
-        r"linux_nr::([A-Z0-9_]+)\s*=>\s*Some\((.*?)\),"
-    ).unwrap();
+    let map_re = regex::Regex::new(r"linux_nr::([A-Z0-9_]+)\s*=>\s*Some\((.*?)\),").unwrap();
     let fn_re = regex::Regex::new(r"\b(sys_linux_[a-zA-Z0-9_]+)\b").unwrap();
 
     for dir in &dispatch_dirs {
-        if !dir.exists() { continue; }
+        if !dir.exists() {
+            continue;
+        }
         for entry in walkdir::WalkDir::new(dir)
             .into_iter()
             .filter_map(|e| e.ok())
@@ -64,7 +67,13 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
                 if let Some(fn_match) = fn_re.find(expr) {
                     mappings.insert(nr, fn_match.as_str().to_string());
                 } else {
-                    mappings.insert(nr, format!("<expr>{}", expr.split_whitespace().collect::<Vec<_>>().join(" ")));
+                    mappings.insert(
+                        nr,
+                        format!(
+                            "<expr>{}",
+                            expr.split_whitespace().collect::<Vec<_>>().join(" ")
+                        ),
+                    );
                 }
             }
         }
@@ -80,16 +89,21 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
     let mut handler_bodies: HashMap<String, (String, String)> = HashMap::new(); // name -> (file, body)
 
     for dir in &handler_dirs {
-        if !dir.exists() { continue; }
+        if !dir.exists() {
+            continue;
+        }
         for entry in walkdir::WalkDir::new(dir)
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|e| e.path().extension().map(|x| x == "rs").unwrap_or(false))
         {
             let text = fs::read_to_string(entry.path()).unwrap_or_default();
-            let rel = entry.path().strip_prefix(&root)
+            let rel = entry
+                .path()
+                .strip_prefix(&root)
                 .unwrap_or(entry.path())
-                .to_string_lossy().replace('\\', "/");
+                .to_string_lossy()
+                .replace('\\', "/");
 
             for m in fn_def_re.find_iter(&text) {
                 let fn_name_match = fn_def_re.captures(&text[m.start()..]).unwrap();
@@ -106,7 +120,11 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
         let (status, file, reason) = if let Some(expr_raw) = handler.strip_prefix("<expr>") {
             let expr = expr_raw.to_lowercase();
             if expr.contains("linux_nosys()") || expr.contains("enosys") {
-                ("no".into(), "-".into(), "direct expression returns ENOSYS".into())
+                (
+                    "no".into(),
+                    "-".into(),
+                    "direct expression returns ENOSYS".into(),
+                )
             } else {
                 ("implemented".into(), "-".into(), "direct expression".into())
             }
@@ -115,14 +133,30 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
             if body_lc.contains("linux_nosys()") {
                 ("no".into(), file.clone(), "contains linux_nosys()".into())
             } else if body_lc.contains("eopnotsupp") || body_lc.contains("enosys") {
-                ("partial".into(), file.clone(), "returns EOPNOTSUPP/ENOSYS path".into())
+                (
+                    "partial".into(),
+                    file.clone(),
+                    "returns EOPNOTSUPP/ENOSYS path".into(),
+                )
             } else if body_lc.contains("todo") || body_lc.contains("stub") {
-                ("partial".into(), file.clone(), "contains TODO/stub markers".into())
+                (
+                    "partial".into(),
+                    file.clone(),
+                    "contains TODO/stub markers".into(),
+                )
             } else {
-                ("implemented".into(), file.clone(), "no unsupported markers".into())
+                (
+                    "implemented".into(),
+                    file.clone(),
+                    "no unsupported markers".into(),
+                )
             }
         } else {
-            ("external".into(), "-".into(), "handler definition not found".into())
+            (
+                "external".into(),
+                "-".into(),
+                "handler definition not found".into(),
+            )
         };
 
         rows.push(SyscallRow {
@@ -141,9 +175,20 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
     let partial = rows.iter().filter(|r| r.status == "partial").count();
     let no = rows.iter().filter(|r| r.status == "no").count();
     let external = rows.iter().filter(|r| r.status == "external").count();
-    let implemented_pct = if total > 0 { 100.0 * implemented as f64 / total as f64 } else { 0.0 };
+    let implemented_pct = if total > 0 {
+        100.0 * implemented as f64 / total as f64
+    } else {
+        0.0
+    };
 
-    let summary = CoverageSummary { total, implemented, partial, no, external, implemented_pct };
+    let summary = CoverageSummary {
+        total,
+        implemented,
+        partial,
+        no,
+        external,
+        implemented_pct,
+    };
 
     // Render output
     let rendered = if format == "json" {
@@ -153,12 +198,29 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
         md.push_str("# Linux Syscall Coverage Report\n\n");
         md.push_str(&format!("Total mapped syscalls: **{}**\n\n", total));
         md.push_str("| Status | Count | Percent |\n|---|---:|---:|\n");
-        for (label, count) in &[("implemented", implemented), ("partial", partial), ("no", no), ("external", external)] {
-            md.push_str(&format!("| {} | {} | {:.1}% |\n", label, count, if total > 0 { 100.0 * *count as f64 / total as f64 } else { 0.0 }));
+        for (label, count) in &[
+            ("implemented", implemented),
+            ("partial", partial),
+            ("no", no),
+            ("external", external),
+        ] {
+            md.push_str(&format!(
+                "| {} | {} | {:.1}% |\n",
+                label,
+                count,
+                if total > 0 {
+                    100.0 * *count as f64 / total as f64
+                } else {
+                    0.0
+                }
+            ));
         }
         md.push_str("\n| Linux NR | Handler | Status | File | Reason |\n|---|---|---|---|---|\n");
         for r in &rows {
-            md.push_str(&format!("| {} | `{}` | {} | `{}` | {} |\n", r.linux_nr, r.handler, r.status, r.file, r.reason));
+            md.push_str(&format!(
+                "| {} | `{}` | {} | `{}` | {} |\n",
+                r.linux_nr, r.handler, r.status, r.file, r.reason
+            ));
         }
         md
     };
@@ -177,8 +239,10 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
     let summary_path = constants::paths::syscall_coverage_summary();
     report::write_json_report(&summary_path, &summary)?;
 
-    println!("[syscall-coverage] Total: {} | Implemented: {} ({:.1}%) | Partial: {} | No: {} | External: {}",
-        total, implemented, implemented_pct, partial, no, external);
+    println!(
+        "[syscall-coverage] Total: {} | Implemented: {} ({:.1}%) | Partial: {} | No: {} | External: {}",
+        total, implemented, implemented_pct, partial, no, external
+    );
     Ok(())
 }
 

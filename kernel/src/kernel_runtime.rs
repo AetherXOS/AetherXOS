@@ -1,7 +1,7 @@
 extern crate alloc;
 
 // ── Architecture imports ──────────────────────────────────────────────────────
-use aethercore::hal::{Hal, HAL};
+use aethercore::hal::{HAL, Hal};
 
 // ── IRQ dispatcher (x86_64 only) ─────────────────────────────────────────────
 #[cfg(all(feature = "dispatcher", target_arch = "x86_64"))]

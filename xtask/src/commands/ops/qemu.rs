@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use crate::builders::qemu::{iso_boot_args, kernel_boot_args, smoke_timeout_sec};
 use crate::constants;
-use crate::utils::paths;
+use crate::utils::context;
 use crate::utils::process;
 use crate::utils::report;
 use crate::utils::report::JunitSingleCaseReport;
@@ -41,19 +41,20 @@ struct QemuSmokeSummary {
 
 /// Run an automated QEMU smoke test with timeout and panic detection.
 pub fn smoke_test() -> Result<()> {
-    let outdir = std::env::var("XTASK_OUTDIR").unwrap_or_else(|_| constants::paths::ARTIFACTS_DIR.to_string());
+    let outdir = context::out_dir();
     let kernel = constants::paths::boot_image_stage_kernel();
     let initramfs = constants::paths::boot_image_stage_initramfs();
     let iso = std::env::var("AETHERCORE_QEMU_SMOKE_ISO")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| paths::resolve(&format!("{}/aethercore.iso", outdir)));
+        .unwrap_or_else(|_| outdir.join("aethercore.iso"));
     let log_path = constants::paths::qemu_smoke_log();
     let append = constants::defaults::run::KERNEL_APPEND;
     let memory_mb = constants::defaults::run::MEMORY_MB;
     let cores = constants::defaults::run::SMP_CORES;
     let timeout_sec = smoke_timeout_sec();
 
-    let qemu_bin = find_qemu()?;
+    let qemu_bin = process::find_qemu_system_x86_64()
+        .ok_or_else(|| anyhow::anyhow!("qemu-system-x86_64 not found in PATH or Program Files"))?;
     println!("[qemu::smoke] Binary: {}", qemu_bin);
     println!("[qemu::smoke] Kernel: {}", kernel.display());
     println!("[qemu::smoke] ISO fallback: {}", iso.display());
@@ -78,9 +79,7 @@ pub fn smoke_test() -> Result<()> {
         .contains("Error loading uncompressed kernel without PVH ELF Note");
 
     if pvh_elf_note_error && iso.exists() {
-        println!(
-            "[qemu::smoke] Direct kernel boot rejected by QEMU (PVH note); retrying with ISO"
-        );
+        println!("[qemu::smoke] Direct kernel boot rejected by QEMU (PVH note); retrying with ISO");
         let iso_args = iso_boot_args(memory_mb, cores, &iso.to_string_lossy(), true);
         let iso_result = run_qemu_attempt(&qemu_bin, &iso_args, timeout_sec)?;
         combined_log.push_str("\n\n");
@@ -98,7 +97,10 @@ pub fn smoke_test() -> Result<()> {
     let pass = !panic_seen && (final_result.success || boot_marker_seen);
 
     println!("[qemu::smoke] Mode: {}", final_mode);
-    println!("[qemu::smoke] Duration: {:.1}s", final_result.elapsed.as_secs_f64());
+    println!(
+        "[qemu::smoke] Duration: {:.1}s",
+        final_result.elapsed.as_secs_f64()
+    );
     println!("[qemu::smoke] Timeout: {}", final_result.timed_out);
     println!("[qemu::smoke] Panic detected: {}", panic_seen);
     println!("[qemu::smoke] Boot marker detected: {}", boot_marker_seen);
@@ -107,7 +109,10 @@ pub fn smoke_test() -> Result<()> {
 
     // Export Enterprise-Grade CI/CD report set (JUnit + JSON summary)
     let junit_path = constants::paths::qemu_smoke_junit();
-    let failure_message = format!("Panic Seen: {} | Timed Out: {}", panic_seen, final_result.timed_out);
+    let failure_message = format!(
+        "Panic Seen: {} | Timed Out: {}",
+        panic_seen, final_result.timed_out
+    );
     let junit = JunitSingleCaseReport {
         suite_name: "QemuSmokeTest",
         case_name: "Aether_X_OS_Limine_Boot",
@@ -164,7 +169,11 @@ fn run_qemu_attempt(qemu_bin: &str, args: &[String], timeout_sec: u64) -> Result
         .stderr(std::process::Stdio::piped())
         .spawn()?;
 
-    let (success, timed_out) = match child.wait_timeout(std::time::Duration::from_secs(timeout_sec)) {
+    let (success, timed_out) = match process::wait_child_with_timeout(
+        &mut child,
+        std::time::Duration::from_secs(timeout_sec),
+        std::time::Duration::from_millis(constants::defaults::run::WAIT_POLL_INTERVAL_MS),
+    ) {
         Ok(Some(status)) => (status.success(), false),
         Ok(None) | Err(_) => {
             let _ = child.kill();
@@ -172,16 +181,8 @@ fn run_qemu_attempt(qemu_bin: &str, args: &[String], timeout_sec: u64) -> Result
         }
     };
 
-    let stdout = child.stdout.take().map(|mut s| {
-        let mut buf = String::new();
-        std::io::Read::read_to_string(&mut s, &mut buf).ok();
-        buf
-    }).unwrap_or_default();
-    let stderr = child.stderr.take().map(|mut s| {
-        let mut buf = String::new();
-        std::io::Read::read_to_string(&mut s, &mut buf).ok();
-        buf
-    }).unwrap_or_default();
+    let stdout = process::read_optional_pipe_to_string(child.stdout.take());
+    let stderr = process::read_optional_pipe_to_string(child.stderr.take());
 
     Ok(AttemptResult {
         success,
@@ -209,7 +210,8 @@ fn format_attempt_log(mode: &str, args: &[String], result: &AttemptResult) -> St
 pub fn interactive() -> Result<()> {
     let kernel = constants::paths::boot_image_stage_kernel();
     let initramfs = constants::paths::boot_image_stage_initramfs();
-    let qemu_bin = find_qemu()?;
+    let qemu_bin = process::find_qemu_system_x86_64()
+        .ok_or_else(|| anyhow::anyhow!("qemu-system-x86_64 not found in PATH or Program Files"))?;
 
     println!("[qemu::live] Launching interactive session");
     let mut args = kernel_boot_args(
@@ -222,9 +224,7 @@ pub fn interactive() -> Result<()> {
     );
     args.splice(4..4, ["-serial".to_string(), "stdio".to_string()]);
 
-    let status = Command::new(&qemu_bin)
-        .args(args)
-        .status()?;
+    let status = Command::new(&qemu_bin).args(args).status()?;
 
     if !status.success() {
         bail!("QEMU exited with code: {}", status.code().unwrap_or(-1));
@@ -232,49 +232,12 @@ pub fn interactive() -> Result<()> {
     Ok(())
 }
 
-/// Locate the qemu-system-x86_64 binary on the system.
-fn find_qemu() -> Result<String> {
-    if let Some(binary) = process::first_available_binary(&[constants::tools::QEMU_X86_64, constants::tools::QEMU_X86_64_EXE]) {
-        return Ok(binary.to_string());
-    }
-    // Windows fallback: check Program Files
-    let pf = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".to_string());
-    let candidate = PathBuf::from(pf).join("qemu").join("qemu-system-x86_64.exe");
-    if candidate.exists() {
-        return Ok(candidate.to_string_lossy().to_string());
-    }
-    bail!("qemu-system-x86_64 not found in PATH or Program Files")
-}
-
-/// Extension trait for wait_timeout on child processes.
-trait WaitTimeout {
-    fn wait_timeout(&mut self, duration: std::time::Duration) -> std::io::Result<Option<std::process::ExitStatus>>;
-}
-
-impl WaitTimeout for std::process::Child {
-    fn wait_timeout(&mut self, duration: std::time::Duration) -> std::io::Result<Option<std::process::ExitStatus>> {
-        let start = Instant::now();
-        loop {
-            match self.try_wait()? {
-                Some(status) => return Ok(Some(status)),
-                None => {
-                    if start.elapsed() >= duration {
-                        return Ok(None);
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(
-                        constants::defaults::run::WAIT_POLL_INTERVAL_MS,
-                    ));
-                }
-            }
-        }
-    }
-}
-
 /// Launches QEMU paused (-S -s) to await a GDB localhost:1234 attachment.
 pub fn debug_session() -> Result<()> {
     let kernel = constants::paths::boot_image_stage_kernel();
     let initramfs = constants::paths::boot_image_stage_initramfs();
-    let qemu_bin = find_qemu()?;
+    let qemu_bin = process::find_qemu_system_x86_64()
+        .ok_or_else(|| anyhow::anyhow!("qemu-system-x86_64 not found in PATH or Program Files"))?;
 
     println!("[qemu::debug] QEMU initialized with paused CPU states.");
     println!("[qemu::debug] Exposing local debugger port... Run 'target remote :1234' on GDB");
@@ -287,13 +250,13 @@ pub fn debug_session() -> Result<()> {
         false,
     );
     args.extend(["-S".to_string(), "-s".to_string()]);
-    let status = Command::new(&qemu_bin)
-        .args(args)
-        .status()?;
+    let status = Command::new(&qemu_bin).args(args).status()?;
 
     if !status.success() {
-        bail!("QEMU debug overlay exited with error code: {}", status.code().unwrap_or(-1));
+        bail!(
+            "QEMU debug overlay exited with error code: {}",
+            status.code().unwrap_or(-1)
+        );
     }
     Ok(())
 }
-

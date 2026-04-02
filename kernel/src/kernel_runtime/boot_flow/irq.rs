@@ -1,5 +1,5 @@
-use crate::kernel_runtime::interrupts;
 use crate::kernel_runtime::KernelRuntime;
+use crate::kernel_runtime::interrupts;
 
 #[cfg(all(feature = "dispatcher", target_arch = "x86_64"))]
 use aethercore::interfaces::Dispatcher;

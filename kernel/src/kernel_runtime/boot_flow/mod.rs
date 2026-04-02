@@ -23,7 +23,7 @@ fn finalize_runtime_interrupt_window(runtime: KernelRuntime) {
 
 #[inline(always)]
 fn finalize_runtime_interrupt_enablement() {
-    use aethercore::kernel::startup::{mark_stage, StartupStage};
+    use aethercore::kernel::startup::{StartupStage, mark_stage};
 
     #[cfg(target_arch = "x86_64")]
     mark_stage(StartupStage::IdtReady);
@@ -41,7 +41,7 @@ fn finalize_runtime_interrupt_enablement() {
 
 impl KernelRuntime {
     pub(super) fn run_runtime_activation(&self) {
-        use aethercore::kernel::startup::{mark_stage, StartupStage};
+        use aethercore::kernel::startup::{StartupStage, mark_stage};
 
         aethercore::hal::serial::write_raw("[EARLY SERIAL] runtime activation begin\n");
         self.register_runtime_irq_handlers();

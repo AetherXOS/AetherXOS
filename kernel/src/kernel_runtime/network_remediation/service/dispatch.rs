@@ -1,9 +1,9 @@
 use super::super::failover::try_network_failover_for_io_health;
 use super::super::quarantine::{is_driver_quarantined, quarantine_driver};
 use super::rebind::{rebind_e1000_driver, rebind_virtio_driver};
-use super::state::{e1000_state, virtio_state, DriverIoHealthContext, DriverIoHealthState};
+use super::state::{DriverIoHealthContext, DriverIoHealthState, e1000_state, virtio_state};
 use crate::kernel_runtime::network_policy_helpers::{
-    decide_network_io_health_action, NetworkIoHealthDecisionContext,
+    NetworkIoHealthDecisionContext, decide_network_io_health_action,
 };
 use crate::kernel_runtime::networking::NETWORK_DRIVER_QUARANTINE_REBIND_FAILURES;
 

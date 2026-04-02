@@ -1,5 +1,5 @@
 use super::{
-    BootInfo, BootModule, MemRegion, MAX_BOOT_MODULES, MAX_KERNEL_CMDLINE_BYTES, MAX_USABLE_REGIONS,
+    BootInfo, BootModule, MAX_BOOT_MODULES, MAX_KERNEL_CMDLINE_BYTES, MAX_USABLE_REGIONS, MemRegion,
 };
 use spin::Once;
 

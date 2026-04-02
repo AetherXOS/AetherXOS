@@ -1,12 +1,12 @@
-use chrono::Utc;
-use rocket::serde::json::{json, Json, Value};
-use rocket::State;
-use serde::Deserialize;
-use uuid::Uuid;
 use crate::auth::{RequireOperator, RequireViewer};
 use crate::models::Confirmation;
 use crate::resp::{err_detail, ok};
 use crate::state::AppState;
+use chrono::Utc;
+use rocket::State;
+use rocket::serde::json::{Json, Value, json};
+use serde::Deserialize;
+use uuid::Uuid;
 
 const CONFIRM_TTL_SEC: i64 = 120;
 
@@ -16,16 +16,20 @@ const CONFIRM_TTL_SEC: i64 = 120;
 pub fn confirm_list(state: &State<AppState>, _role: RequireViewer) -> Value {
     let now = Utc::now();
     let inner = state.read();
-    let confs: Vec<Value> = inner.confirmations.values()
+    let confs: Vec<Value> = inner
+        .confirmations
+        .values()
         .filter(|c| c.expires_utc > now)
-        .map(|c| json!({
-            "id": c.id,
-            "action": c.action,
-            "priority": c.priority,
-            "issued_utc": c.issued_utc.to_rfc3339(),
-            "expires_utc": c.expires_utc.to_rfc3339(),
-            "role": c.role,
-        }))
+        .map(|c| {
+            json!({
+                "id": c.id,
+                "action": c.action,
+                "priority": c.priority,
+                "issued_utc": c.issued_utc.to_rfc3339(),
+                "expires_utc": c.expires_utc.to_rfc3339(),
+                "role": c.role,
+            })
+        })
         .collect();
     ok("confirm_list", json!({ "confirmations": confs }))
 }
@@ -50,16 +54,24 @@ pub fn confirm_request(
     {
         let inner = state.read();
         if inner.action_by_id(&action_id).is_none() {
-            return err_detail("unknown_action", "Action not found.", "not_found", json!({ "action": action_id }));
+            return err_detail(
+                "unknown_action",
+                "Action not found.",
+                "not_found",
+                json!({ "action": action_id }),
+            );
         }
         // Only HIGH risk actions actually need confirmation; others get a stub
         let action = inner.action_by_id(&action_id).unwrap();
         if action.risk != "HIGH" {
-            return ok("confirm_not_required", json!({
-                "confirmation_id": null,
-                "action": action_id,
-                "note": "This action does not require a confirmation token.",
-            }));
+            return ok(
+                "confirm_not_required",
+                json!({
+                    "confirmation_id": null,
+                    "action": action_id,
+                    "note": "This action does not require a confirmation token.",
+                }),
+            );
         }
     }
 
@@ -78,27 +90,36 @@ pub fn confirm_request(
     {
         let mut inner = state.write();
         // Prune expired
-        let expired: Vec<String> = inner.confirmations.values()
+        let expired: Vec<String> = inner
+            .confirmations
+            .values()
             .filter(|c| c.expires_utc <= now)
             .map(|c| c.id.clone())
             .collect();
-        for id in expired { inner.confirmations.remove(&id); }
+        for id in expired {
+            inner.confirmations.remove(&id);
+        }
         inner.confirmations.insert(cid.clone(), conf);
     }
 
-    ok("confirm_issued", json!({
-        "confirmation_id": cid,
-        "action": action_id,
-        "priority": priority,
-        "expires_utc": expires.to_rfc3339(),
-        "ttl_sec": CONFIRM_TTL_SEC,
-    }))
+    ok(
+        "confirm_issued",
+        json!({
+            "confirmation_id": cid,
+            "action": action_id,
+            "priority": priority,
+            "expires_utc": expires.to_rfc3339(),
+            "ttl_sec": CONFIRM_TTL_SEC,
+        }),
+    )
 }
 
 // ── POST /confirm/revoke ──────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
-pub struct ConfirmRevokePayload { pub id: String }
+pub struct ConfirmRevokePayload {
+    pub id: String,
+}
 
 #[rocket::post("/confirm/revoke", data = "<body>")]
 pub fn confirm_revoke(
@@ -110,6 +131,11 @@ pub fn confirm_revoke(
     if inner.confirmations.remove(&body.id).is_some() {
         ok("confirm_revoked", json!({ "id": body.id }))
     } else {
-        err_detail("not_found", "Confirmation not found or already expired.", "not_found", json!({ "id": body.id }))
+        err_detail(
+            "not_found",
+            "Confirmation not found or already expired.",
+            "not_found",
+            json!({ "id": body.id }),
+        )
     }
 }

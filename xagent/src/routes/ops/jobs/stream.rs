@@ -1,6 +1,6 @@
-use rocket::response::stream::{Event, EventStream};
-use rocket::serde::json::{json, Value};
 use rocket::State;
+use rocket::response::stream::{Event, EventStream};
+use rocket::serde::json::{Value, json};
 
 use crate::auth::RequireViewer;
 use crate::models::JobStatus;

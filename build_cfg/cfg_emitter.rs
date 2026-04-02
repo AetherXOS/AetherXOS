@@ -3,15 +3,31 @@
 use super::config_types::Config;
 
 pub fn emit_check_cfgs() {
-    println!("cargo:rustc-check-cfg=cfg(param_scheduler, values(\"RoundRobin\", \"CFS\", \"EDF\", \"FIFO\", \"Cooperative\", \"Lottery\", \"WeightedRoundRobin\", \"LIFO\", \"MLFQ\", \"Idle\", \"MuQSS\", \"EEVDF\", \"RealTimeHard\", \"RealTimeSoft\", \"Batch\", \"UserSpace\"))");
-    println!("cargo:rustc-check-cfg=cfg(param_allocator, values(\"Bump\", \"LinkedListAllocator\", \"Slab\", \"Buddy\", \"PoolAllocator\"))");
-    println!("cargo:rustc-check-cfg=cfg(param_dispatcher, values(\"DirectForwarding\", \"Buffered\", \"Vectored\", \"Managed\"))");
-    println!("cargo:rustc-check-cfg=cfg(param_ipc, values(\"ZeroCopy\", \"MessagePassing\", \"SignalOnly\", \"Pipes\", \"RingBuffer\", \"Futex\"))");
-    println!("cargo:rustc-check-cfg=cfg(param_security_monitor, values(\"NullMonitor\", \"AccessControlList\", \"ObjectCapability\", \"SeL4_Style\"))");
+    println!(
+        "cargo:rustc-check-cfg=cfg(param_scheduler, values(\"RoundRobin\", \"CFS\", \"EDF\", \"FIFO\", \"Cooperative\", \"Lottery\", \"WeightedRoundRobin\", \"LIFO\", \"MLFQ\", \"Idle\", \"MuQSS\", \"EEVDF\", \"RealTimeHard\", \"RealTimeSoft\", \"Batch\", \"UserSpace\"))"
+    );
+    println!(
+        "cargo:rustc-check-cfg=cfg(param_allocator, values(\"Bump\", \"LinkedListAllocator\", \"Slab\", \"Buddy\", \"PoolAllocator\"))"
+    );
+    println!(
+        "cargo:rustc-check-cfg=cfg(param_dispatcher, values(\"DirectForwarding\", \"Buffered\", \"Vectored\", \"Managed\"))"
+    );
+    println!(
+        "cargo:rustc-check-cfg=cfg(param_ipc, values(\"ZeroCopy\", \"MessagePassing\", \"SignalOnly\", \"Pipes\", \"RingBuffer\", \"Futex\"))"
+    );
+    println!(
+        "cargo:rustc-check-cfg=cfg(param_security_monitor, values(\"NullMonitor\", \"AccessControlList\", \"ObjectCapability\", \"SeL4_Style\"))"
+    );
     println!("cargo:rustc-check-cfg=cfg(param_ring_level, values(\"Ring0\", \"Ring3\"))");
-    println!("cargo:rustc-check-cfg=cfg(param_log_level, values(\"Error\", \"Warn\", \"Info\", \"Debug\", \"Trace\"))");
-    println!("cargo:rustc-check-cfg=cfg(param_boundary_mode, values(\"Strict\", \"Balanced\", \"Compat\"))");
-    println!("cargo:rustc-check-cfg=cfg(feature, values(\"paging\", \"guardian_pages\", \"smap_smep\", \"nx_bit\", \"telemetry\", \"security_null\", \"security_acl\", \"security_capabilities\", \"security_sel4\"))");
+    println!(
+        "cargo:rustc-check-cfg=cfg(param_log_level, values(\"Error\", \"Warn\", \"Info\", \"Debug\", \"Trace\"))"
+    );
+    println!(
+        "cargo:rustc-check-cfg=cfg(param_boundary_mode, values(\"Strict\", \"Balanced\", \"Compat\"))"
+    );
+    println!(
+        "cargo:rustc-check-cfg=cfg(feature, values(\"paging\", \"guardian_pages\", \"smap_smep\", \"nx_bit\", \"telemetry\", \"security_null\", \"security_acl\", \"security_capabilities\", \"security_sel4\"))"
+    );
 }
 
 pub fn emit_compile_cfgs(config: &Config) {

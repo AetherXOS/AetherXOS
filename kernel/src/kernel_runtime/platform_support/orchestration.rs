@@ -5,10 +5,10 @@ use super::log_aarch64_exception_runtime;
 #[cfg(feature = "vfs")]
 use super::log_vfs_runtime_sections;
 use super::{
-    log_boundary_policy, log_core_runtime_limits, log_hal_wait_policy, log_library_surfaces,
-    log_runtime_policy_summary, log_runtime_sections, log_virtualization_platform_lifecycle,
-    log_virtualization_runtime_profile, log_watchdog_policy, should_log_library_inventory,
-    PlatformTelemetryConfig,
+    PlatformTelemetryConfig, log_boundary_policy, log_core_runtime_limits, log_hal_wait_policy,
+    log_library_surfaces, log_runtime_policy_summary, log_runtime_sections,
+    log_virtualization_platform_lifecycle, log_virtualization_runtime_profile, log_watchdog_policy,
+    should_log_library_inventory,
 };
 
 pub(crate) fn run_platform_runtime_orchestration(telemetry: PlatformTelemetryConfig) {

@@ -2,7 +2,7 @@ use crate::kernel_runtime::KernelRuntime;
 
 impl KernelRuntime {
     pub(super) fn init_pci_and_driver_runtime(&self) {
-        use aethercore::kernel::startup::{mark_stage, StartupStage};
+        use aethercore::kernel::startup::{StartupStage, mark_stage};
 
         let devices = self.enumerate_pci();
         mark_stage(StartupStage::PciEnumerated);

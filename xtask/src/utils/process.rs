@@ -1,7 +1,7 @@
-use anyhow::{bail, Context, Result};
+use crate::utils::logging;
+use anyhow::{Context, Result, bail};
 use std::path::Path;
 use std::process::Command;
-use crate::utils::logging;
 
 pub struct CommandOptions<'a> {
     pub cwd: Option<&'a Path>,
@@ -93,7 +93,10 @@ fn run_with_borrowed_args(
                 rendered
             )
         } else {
-            format!("command_spawn_failed: program={} args={}", program, rendered)
+            format!(
+                "command_spawn_failed: program={} args={}",
+                program, rendered
+            )
         }
     })
 }
@@ -115,17 +118,17 @@ fn run_with_owned_args(
         cmd.envs(kv.iter().copied());
     }
 
-    cmd.status()
-        .with_context(|| format!("command_spawn_failed: program={} args={}", program, rendered))
+    cmd.status().with_context(|| {
+        format!(
+            "command_spawn_failed: program={} args={}",
+            program, rendered
+        )
+    })
 }
 
 /// Return the platform-appropriate npm executable name.
 pub fn npm_bin() -> &'static str {
-    if cfg!(windows) {
-        "npm.cmd"
-    } else {
-        "npm"
-    }
+    if cfg!(windows) { "npm.cmd" } else { "npm" }
 }
 
 /// Run an arbitrary command, only checking for success.
@@ -215,15 +218,64 @@ pub fn first_available_binary<'a>(binaries: &'a [&'a str]) -> Option<&'a str> {
     binaries.iter().copied().find(|binary| which(binary))
 }
 
+pub fn find_qemu_system_x86_64() -> Option<String> {
+    if let Some(binary) = first_available_binary(&["qemu-system-x86_64", "qemu-system-x86_64.exe"])
+    {
+        return Some(binary.to_string());
+    }
+
+    let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".to_string());
+    let candidate = std::path::PathBuf::from(program_files)
+        .join("qemu")
+        .join("qemu-system-x86_64.exe");
+    if candidate.exists() {
+        return Some(candidate.to_string_lossy().to_string());
+    }
+
+    None
+}
+
+pub fn find_qemu_img() -> Option<&'static str> {
+    first_available_binary(&["qemu-img", "qemu-img.exe"])
+}
+
+#[cfg(unix)]
+pub fn run_first_success(candidates: &[(&str, &[&str])]) -> bool {
+    candidates
+        .iter()
+        .any(|(program, args)| run_best_effort(program, args))
+}
+
+pub fn wait_child_with_timeout(
+    child: &mut std::process::Child,
+    duration: std::time::Duration,
+    poll_interval: std::time::Duration,
+) -> std::io::Result<Option<std::process::ExitStatus>> {
+    let start = std::time::Instant::now();
+    loop {
+        match child.try_wait()? {
+            Some(status) => return Ok(Some(status)),
+            None => {
+                if start.elapsed() >= duration {
+                    return Ok(None);
+                }
+                std::thread::sleep(poll_interval);
+            }
+        }
+    }
+}
+
+pub fn read_optional_pipe_to_string<R: std::io::Read>(pipe: Option<R>) -> String {
+    let mut buf = String::new();
+    if let Some(mut reader) = pipe {
+        let _ = std::io::Read::read_to_string(&mut reader, &mut buf);
+    }
+    buf
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{
-        CommandOptions,
-        first_available_binary,
-        npm_bin,
-        run_checked,
-        run_checked_in_dir,
-    };
+    use super::{CommandOptions, first_available_binary, npm_bin, run_checked, run_checked_in_dir};
     use std::path::Path;
 
     fn nonzero_exit_command() -> (&'static str, Vec<&'static str>) {
@@ -266,8 +318,8 @@ mod tests {
     #[test]
     fn run_checked_returns_command_failed_for_nonzero_exit() {
         let (program, args) = nonzero_exit_command();
-        let err = run_checked(program, &args)
-            .expect_err("non-zero exit command must produce an error");
+        let err =
+            run_checked(program, &args).expect_err("non-zero exit command must produce an error");
         let msg = err.to_string();
         assert_eq!(msg, nonzero_exit_snapshot_message());
     }

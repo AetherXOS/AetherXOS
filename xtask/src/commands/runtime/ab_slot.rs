@@ -4,8 +4,8 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::Path;
 
-use crate::constants;
 use crate::cli::AbSlotAction;
+use crate::constants;
 use crate::utils::paths;
 use crate::utils::report;
 
@@ -62,14 +62,17 @@ struct HistoryEntry {
 fn default_state() -> SlotState {
     let mut slots = std::collections::HashMap::new();
     for name in &["A", "B"] {
-        slots.insert(name.to_string(), SlotMeta {
-            generation: 0,
-            version: None,
-            updated_at_utc: None,
-            artifacts: std::collections::HashMap::new(),
-            boot_failures: 0,
-            boot_successes: 0,
-        });
+        slots.insert(
+            name.to_string(),
+            SlotMeta {
+                generation: 0,
+                version: None,
+                updated_at_utc: None,
+                artifacts: std::collections::HashMap::new(),
+                boot_failures: 0,
+                boot_successes: 0,
+            },
+        );
     }
 
     SlotState {
@@ -78,7 +81,9 @@ fn default_state() -> SlotState {
         previous_slot: None,
         pending_slot: None,
         status: "healthy".to_string(),
-        policy: SlotPolicy { max_consecutive_failures: constants::defaults::ab_slot::MAX_CONSECUTIVE_FAILURES },
+        policy: SlotPolicy {
+            max_consecutive_failures: constants::defaults::ab_slot::MAX_CONSECUTIVE_FAILURES,
+        },
         slots,
         history: Vec::new(),
     }
@@ -149,31 +154,59 @@ fn stage(slot: &str) -> Result<()> {
     let initramfs_src = constants::paths::boot_image_stage_initramfs();
     let limine_src = constants::paths::boot_image_stage_limine();
 
-    if !kernel_src.exists() { bail!("Kernel not found: {}. Run `cargo run -p xtask -- build full` first", kernel_src.display()); }
-    if !initramfs_src.exists() { bail!("Initramfs not found: {}", initramfs_src.display()); }
+    if !kernel_src.exists() {
+        bail!(
+            "Kernel not found: {}. Run `cargo run -p xtask -- build full` first",
+            kernel_src.display()
+        );
+    }
+    if !initramfs_src.exists() {
+        bail!("Initramfs not found: {}", initramfs_src.display());
+    }
 
     fs::copy(&kernel_src, slot_boot.join("aethercore.elf"))?;
-    if initramfs_src.exists() { fs::copy(&initramfs_src, slot_boot.join("initramfs.cpio.gz"))?; }
-    if limine_src.exists() { fs::copy(&limine_src, slot_boot.join("limine.conf"))?; }
+    if initramfs_src.exists() {
+        fs::copy(&initramfs_src, slot_boot.join("initramfs.cpio.gz"))?;
+    }
+    if limine_src.exists() {
+        fs::copy(&limine_src, slot_boot.join("limine.conf"))?;
+    }
 
     // Update state
     let (generation, _version) = {
-        let meta = state.slots.entry(slot.to_string()).or_insert_with(|| SlotMeta {
-            generation: 0, version: None, updated_at_utc: None,
-            artifacts: std::collections::HashMap::new(), boot_failures: 0, boot_successes: 0,
-        });
+        let meta = state
+            .slots
+            .entry(slot.to_string())
+            .or_insert_with(|| SlotMeta {
+                generation: 0,
+                version: None,
+                updated_at_utc: None,
+                artifacts: std::collections::HashMap::new(),
+                boot_failures: 0,
+                boot_successes: 0,
+            });
         meta.generation += 1;
         meta.updated_at_utc = Some(report::utc_now_iso());
-        meta.artifacts.insert("kernel_sha256".into(), sha256_file(&slot_boot.join("aethercore.elf"))?);
+        meta.artifacts.insert(
+            "kernel_sha256".into(),
+            sha256_file(&slot_boot.join("aethercore.elf"))?,
+        );
         (meta.generation, meta.version.clone())
     };
 
-    append_history(&mut state, "stage", serde_json::json!({
-        "slot": slot, "generation": generation,
-    }));
+    append_history(
+        &mut state,
+        "stage",
+        serde_json::json!({
+            "slot": slot, "generation": generation,
+        }),
+    );
     save_state(&state)?;
 
-    println!("[ab-slot::stage] Slot {} staged (generation {})", slot, generation);
+    println!(
+        "[ab-slot::stage] Slot {} staged (generation {})",
+        slot, generation
+    );
     Ok(())
 }
 
@@ -189,9 +222,13 @@ fn nightly_flip() -> Result<()> {
     state.pending_slot = Some(next.to_string());
     state.status = "pending_validation".to_string();
 
-    append_history(&mut state, "nightly_flip", serde_json::json!({
-        "from": current, "to": next,
-    }));
+    append_history(
+        &mut state,
+        "nightly_flip",
+        serde_json::json!({
+            "from": current, "to": next,
+        }),
+    );
     save_state(&state)?;
 
     println!("[ab-slot::nightly-flip] Flipped: {} -> {}", current, next);
@@ -217,13 +254,23 @@ fn recovery_gate() -> Result<()> {
 
     let (successful, chaos) = match rounds {
         Some(r) => {
-            let s = r.iter().filter(|v| {
-                v.get("expected_success").and_then(|v| v.as_bool()).unwrap_or(false)
-                && v.get("ok").and_then(|v| v.as_bool()).unwrap_or(false)
-            }).count();
-            let c = r.iter().filter(|v| {
-                !v.get("expected_success").and_then(|v| v.as_bool()).unwrap_or(true)
-            }).count();
+            let s = r
+                .iter()
+                .filter(|v| {
+                    v.get("expected_success")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                        && v.get("ok").and_then(|v| v.as_bool()).unwrap_or(false)
+                })
+                .count();
+            let c = r
+                .iter()
+                .filter(|v| {
+                    !v.get("expected_success")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(true)
+                })
+                .count();
             (s, c)
         }
         None => (0, 0),

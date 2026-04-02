@@ -19,11 +19,17 @@ fn nightly_tier_commands_remain_explicit_and_gated() {
     );
     assert_eq!(tier.named("nextest").gate, None);
     assert_eq!(tier.named("clippy").gate, None);
-    assert_eq!(tier.named("syzkaller").gate, Some("AETHERCORE_RUN_SYZKALLER"));
+    assert_eq!(
+        tier.named("syzkaller").gate,
+        Some("AETHERCORE_RUN_SYZKALLER")
+    );
     assert_eq!(tier.named("tlaplus").gate, Some("AETHERCORE_RUN_TLAPLUS"));
     assert_eq!(tier.named("kani").gate, Some("AETHERCORE_RUN_KANI"));
     assert_eq!(tier.named("isabelle").gate, Some("AETHERCORE_RUN_ISABELLE"));
-    assert_eq!(tier.named("flamegraph").gate, Some("AETHERCORE_RUN_FLAMEGRAPH"));
+    assert_eq!(
+        tier.named("flamegraph").gate,
+        Some("AETHERCORE_RUN_FLAMEGRAPH")
+    );
 }
 
 #[test]

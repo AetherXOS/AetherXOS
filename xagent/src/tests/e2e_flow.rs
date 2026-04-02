@@ -36,7 +36,8 @@ fn end_to_end_run_to_stream_contract() {
         .get("/events?action=doctor&limit=20")
         .header(token)
         .dispatch();
-    let global_events_json: serde_json::Value = global_events.into_json().expect("global events json");
+    let global_events_json: serde_json::Value =
+        global_events.into_json().expect("global events json");
     assert_eq!(global_events_json["ok"], true);
     assert!(global_events_json["returned"].as_u64().unwrap_or(0) >= 1);
 }

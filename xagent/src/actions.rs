@@ -1,9 +1,9 @@
-use std::process::Stdio;
-use chrono::Utc;
-use serde_json::json;
-use uuid::Uuid;
 use crate::models::{AgentEvent, IdempotencyRecord, Job, JobStatus, RecentEntry};
 use crate::state::AppState;
+use chrono::Utc;
+use serde_json::json;
+use std::process::Stdio;
+use uuid::Uuid;
 
 const PRIORITY_ORDER: &[&str] = &["high", "normal", "low"];
 
@@ -99,19 +99,30 @@ pub fn enqueue_job_idempotent(
     Some((job_id, false))
 }
 
-pub fn retry_job(state: &AppState, original_job_id: &str, source: &str) -> Result<String, &'static str> {
+pub fn retry_job(
+    state: &AppState,
+    original_job_id: &str,
+    source: &str,
+) -> Result<String, &'static str> {
     let (action, priority, retry_count) = {
         let inner = state.read();
         let job = inner.jobs.get(original_job_id).ok_or("not_found")?;
         let retry_count = inner
             .jobs
             .values()
-            .filter(|candidate| candidate.source.contains(original_job_id) && candidate.action == job.action)
+            .filter(|candidate| {
+                candidate.source.contains(original_job_id) && candidate.action == job.action
+            })
             .count();
         (job.action.clone(), job.priority.clone(), retry_count)
     };
 
-    let source = format!("{}:retry-of:{}:attempt:{}", source, original_job_id, retry_count + 1);
+    let source = format!(
+        "{}:retry-of:{}:attempt:{}",
+        source,
+        original_job_id,
+        retry_count + 1
+    );
     enqueue_job(state, &action, &priority, &source).ok_or("enqueue_failed")
 }
 
@@ -194,7 +205,11 @@ async fn run_job(state: AppState, job_id: String, cmd: String, args: Vec<String>
     let (exit_code, output, err) = execute_pwsh(&pwsh_args).await;
 
     let finished = Utc::now();
-    let status = if exit_code == Some(0) { JobStatus::Done } else { JobStatus::Failed };
+    let status = if exit_code == Some(0) {
+        JobStatus::Done
+    } else {
+        JobStatus::Failed
+    };
 
     let recent = {
         let mut inner = state.write();
@@ -205,7 +220,12 @@ async fn run_job(state: AppState, job_id: String, cmd: String, args: Vec<String>
             job.exit_code = exit_code;
             job.output = output.clone();
             job.error = err.clone();
-            event_payload = Some((job.action.clone(), job.source.clone(), job.status.as_str().to_string(), job.error.clone()));
+            event_payload = Some((
+                job.action.clone(),
+                job.source.clone(),
+                job.status.as_str().to_string(),
+                job.error.clone(),
+            ));
         }
         if let Some((action, source, final_status, error)) = event_payload {
             inner.push_event(AgentEvent {
@@ -283,13 +303,11 @@ async fn execute_pwsh(args: &[String]) -> (Option<i32>, Vec<String>, Option<Stri
 
 fn locate_scripts_root() -> String {
     // Try common locations: cwd/scripts, cwd/../scripts
-    let candidates = [
-        "scripts",
-        "../scripts",
-        "../../scripts",
-    ];
+    let candidates = ["scripts", "../scripts", "../../scripts"];
     for c in candidates {
-        if std::path::Path::new(c).join("aethercore.ps1").exists() || std::path::Path::new(c).join("hypercore.ps1").exists() {
+        if std::path::Path::new(c).join("aethercore.ps1").exists()
+            || std::path::Path::new(c).join("hypercore.ps1").exists()
+        {
             return c.to_string();
         }
     }

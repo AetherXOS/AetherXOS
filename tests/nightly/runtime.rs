@@ -32,9 +32,11 @@ fn linux_compat_blocker_matrix_stays_ordered_and_actionable() {
     assert!(!balanced_codes.contains(&"no_library_surface_exposed_for_compat"));
 
     let details = KernelConfig::linux_compat_blocker_details();
-    assert!(details
-        .windows(2)
-        .all(|pair| pair[0].severity <= pair[1].severity));
+    assert!(
+        details
+            .windows(2)
+            .all(|pair| pair[0].severity <= pair[1].severity)
+    );
 
     KernelConfig::reset_runtime_overrides();
 }

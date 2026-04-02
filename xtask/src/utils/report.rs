@@ -25,8 +25,7 @@ fn ensure_parent(path: &Path) -> Result<()> {
 #[allow(dead_code)]
 pub fn write_json_report<T: Serialize>(path: &Path, data: &T) -> Result<()> {
     ensure_parent(path)?;
-    let json = serde_json::to_string_pretty(data)
-        .context("Failed to serialize report to JSON")?;
+    let json = serde_json::to_string_pretty(data).context("Failed to serialize report to JSON")?;
     std::fs::write(path, json)
         .with_context(|| format!("Failed to write report: {}", path.display()))?;
     println!("[report] Written: {}", path.display());
@@ -43,10 +42,7 @@ pub fn write_text_report(path: &Path, content: &str) -> Result<()> {
 }
 
 #[allow(dead_code)]
-pub fn write_junit_single_case(
-    path: &Path,
-    report: &JunitSingleCaseReport<'_>,
-) -> Result<()> {
+pub fn write_junit_single_case(path: &Path, report: &JunitSingleCaseReport<'_>) -> Result<()> {
     ensure_parent(path)?;
     let failures = if report.passed { 0 } else { 1 };
     let failure_tag = if report.passed {
@@ -93,7 +89,9 @@ pub fn utc_now_iso() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{write_json_report, write_junit_single_case, write_text_report, JunitSingleCaseReport};
+    use super::{
+        JunitSingleCaseReport, write_json_report, write_junit_single_case, write_text_report,
+    };
     use serde::Serialize;
     use std::fs;
     use std::path::PathBuf;

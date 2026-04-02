@@ -14,7 +14,7 @@ impl BootPrelude {
 }
 
 pub(crate) fn initialize_boot_prelude() -> BootPrelude {
-    use aethercore::kernel::startup::{mark_stage, StartupStage};
+    use aethercore::kernel::startup::{StartupStage, mark_stage};
 
     use aethercore::hal::Hal;
     Hal::serial_write_raw("[EARLY SERIAL] prelude init begin\n");
@@ -47,26 +47,16 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
     use aethercore::hal::Hal;
     Hal::serial_write_raw("[EARLY SERIAL] prelude finalize begin\n");
 
-    Hal::serial_write_raw(
-        "[EARLY SERIAL] prelude finalize boot_info get begin\n",
-    );
+    Hal::serial_write_raw("[EARLY SERIAL] prelude finalize boot_info get begin\n");
     let bi = boot_info::get();
-    Hal::serial_write_raw(
-        "[EARLY SERIAL] prelude finalize boot_info get returned\n",
-    );
-    Hal::serial_write_raw(
-        "[EARLY SERIAL] prelude finalize boot summary begin\n",
-    );
+    Hal::serial_write_raw("[EARLY SERIAL] prelude finalize boot_info get returned\n");
+    Hal::serial_write_raw("[EARLY SERIAL] prelude finalize boot summary begin\n");
     aethercore::klog_info!("Boot: {}", bi);
-    Hal::serial_write_raw(
-        "[EARLY SERIAL] prelude finalize boot summary returned\n",
-    );
+    Hal::serial_write_raw("[EARLY SERIAL] prelude finalize boot summary returned\n");
 
     let kernel_cmdline = bi.kernel_cmdline_str();
     if prelude.has_cmdline {
-        Hal::serial_write_raw(
-            "[EARLY SERIAL] prelude finalize overrides begin\n",
-        );
+        Hal::serial_write_raw("[EARLY SERIAL] prelude finalize overrides begin\n");
         match aethercore::config::KernelConfig::apply_kernel_cmdline_overrides(kernel_cmdline) {
             Ok(applied) if applied != 0 => {
                 aethercore::klog_info!(
@@ -86,15 +76,11 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
                 );
             }
         }
-        Hal::serial_write_raw(
-            "[EARLY SERIAL] prelude finalize overrides returned\n",
-        );
+        Hal::serial_write_raw("[EARLY SERIAL] prelude finalize overrides returned\n");
     }
 
     if prelude.has_framebuffer {
-        Hal::serial_write_raw(
-            "[EARLY SERIAL] prelude finalize framebuffer begin\n",
-        );
+        Hal::serial_write_raw("[EARLY SERIAL] prelude finalize framebuffer begin\n");
         if let Some(fb) = bi.framebuffer {
             aethercore::klog_info!(
                 "Framebuffer: {}x{} bpp={} pitch={} phys={:#x}",
@@ -105,9 +91,7 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
                 fb.phys_addr
             );
         }
-        Hal::serial_write_raw(
-            "[EARLY SERIAL] prelude finalize framebuffer returned\n",
-        );
+        Hal::serial_write_raw("[EARLY SERIAL] prelude finalize framebuffer returned\n");
     }
 
     Hal::serial_write_raw("[EARLY SERIAL] prelude finalize returned\n");

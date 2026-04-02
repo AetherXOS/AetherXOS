@@ -216,7 +216,9 @@ fn service_linked_probe_for_iteration(state: LinkedProbeMainLoopState) {
             service_open_linked_probe_for_iteration();
         }
         LinkedProbeMainLoopAction::Closed => {
-            aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe enabled state loaded\n");
+            aethercore::hal::serial::write_raw(
+                "[EARLY SERIAL] linked probe enabled state loaded\n",
+            );
             aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service gate closed\n");
         }
         LinkedProbeMainLoopAction::Skip => {}

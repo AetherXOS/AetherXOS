@@ -6,9 +6,9 @@ pub(super) fn apply_arch_switch_state(
 ) {
     #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
     {
-        use core::sync::atomic::Ordering;
         use aethercore::generated_consts::CORE_ENABLE_TLS_SYSCALLS;
         use aethercore::interfaces::cpu::CpuRegisters;
+        use core::sync::atomic::Ordering;
 
         cpu.kernel_stack_top
             .store(switch_info.next_kernel_sp, Ordering::Relaxed);

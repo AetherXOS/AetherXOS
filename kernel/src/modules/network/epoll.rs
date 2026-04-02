@@ -435,13 +435,13 @@ where
         }
     }
 
-    if let Some(ref mut r) = readfds {
+    if let Some(r) = readfds {
         *r = r_result;
     }
-    if let Some(ref mut w) = writefds {
+    if let Some(w) = writefds {
         *w = w_result;
     }
-    if let Some(ref mut e) = exceptfds {
+    if let Some(e) = exceptfds {
         *e = e_result;
     }
 

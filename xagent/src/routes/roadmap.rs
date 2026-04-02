@@ -1,8 +1,8 @@
-use chrono::Utc;
-use rocket::serde::json::{json, Json, Value};
-use serde::Deserialize;
 use crate::auth::{RequireAdmin, RequireOperator, RequireViewer};
 use crate::resp::{err, ok};
+use chrono::Utc;
+use rocket::serde::json::{Json, Value, json};
+use serde::Deserialize;
 
 // ── GET /roadmap/status ───────────────────────────────────────────────────────
 
@@ -36,17 +36,20 @@ pub fn roadmap_master_update(_role: RequireAdmin, body: Json<MasterUpdatePayload
     }
     // Since this is a read-only mirror of on-disk reports, return a success stub.
     // Real persistence would patch the ROADMAP files on disk.
-    ok("roadmap_master_updated", json!({
-        "update": {
-            "ok": true,
-            "item_id": body.item_id,
-            "done": body.done,
-            "owner": body.owner,
-            "eta_utc": body.eta_utc,
-            "updated_utc": Utc::now().to_rfc3339(),
-        },
-        "master": build_master_backlog(),
-    }))
+    ok(
+        "roadmap_master_updated",
+        json!({
+            "update": {
+                "ok": true,
+                "item_id": body.item_id,
+                "done": body.done,
+                "owner": body.owner,
+                "eta_utc": body.eta_utc,
+                "updated_utc": Utc::now().to_rfc3339(),
+            },
+            "master": build_master_backlog(),
+        }),
+    )
 }
 
 // ── POST /roadmap/batch/record ────────────────────────────────────────────────
@@ -63,18 +66,21 @@ pub struct BatchRecordPayload {
 
 #[rocket::post("/roadmap/batch/record", data = "<body>")]
 pub fn roadmap_batch_record(_role: RequireOperator, body: Json<BatchRecordPayload>) -> Value {
-    ok("roadmap_batch_recorded", json!({
-        "batch": {
-            "ok": true,
-            "phase": body.phase,
-            "action_count": body.actions.as_ref().map(|a| a.len()).unwrap_or(0),
-            "ok_count": body.ok.unwrap_or(0),
-            "fail_count": body.fail.unwrap_or(0),
-            "started_utc": body.started_utc,
-            "duration_ms": body.duration_ms.unwrap_or(0),
-            "recorded_utc": Utc::now().to_rfc3339(),
-        },
-    }))
+    ok(
+        "roadmap_batch_recorded",
+        json!({
+            "batch": {
+                "ok": true,
+                "phase": body.phase,
+                "action_count": body.actions.as_ref().map(|a| a.len()).unwrap_or(0),
+                "ok_count": body.ok.unwrap_or(0),
+                "fail_count": body.fail.unwrap_or(0),
+                "started_utc": body.started_utc,
+                "duration_ms": body.duration_ms.unwrap_or(0),
+                "recorded_utc": Utc::now().to_rfc3339(),
+            },
+        }),
+    )
 }
 
 // ── Private builders (mirroring the PS1 Get-RoadmapStatusPayload) ─────────────

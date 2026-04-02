@@ -6,9 +6,9 @@ pub mod posix;
 pub mod tier;
 
 use crate::cli::TestAction;
-use anyhow::{bail, Result};
 use crate::constants;
 use crate::constants::npm;
+use anyhow::{Result, bail};
 
 /// Entry point for `cargo run -p xtask -- test <action>`.
 pub fn execute(action: &TestAction) -> Result<()> {
@@ -80,7 +80,11 @@ fn agent_contract() -> Result<()> {
     let dashboard_dir = constants::paths::dashboard_dir();
 
     // Build and workflow tests act as the agent contract baseline.
-    crate::utils::process::run_checked_in_dir(crate::utils::process::npm_bin(), &[npm::ARG_RUN, npm::SCRIPT_BUILD], &dashboard_dir)?;
+    crate::utils::process::run_checked_in_dir(
+        crate::utils::process::npm_bin(),
+        &[npm::ARG_RUN, npm::SCRIPT_BUILD],
+        &dashboard_dir,
+    )?;
     let workflow = crate::utils::process::run_status_in_dir(
         crate::utils::process::npm_bin(),
         &[npm::ARG_RUN, npm::SCRIPT_WORKFLOW_TEST],

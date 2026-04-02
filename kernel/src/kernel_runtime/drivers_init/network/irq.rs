@@ -1,5 +1,5 @@
-use crate::kernel_runtime::interrupts::{e1000_irq_handler, virtio_irq_handler};
 use crate::kernel_runtime::KernelRuntime;
+use crate::kernel_runtime::interrupts::{e1000_irq_handler, virtio_irq_handler};
 
 pub(super) fn register_network_irq_handler(
     runtime: &KernelRuntime,

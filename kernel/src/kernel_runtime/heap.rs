@@ -9,8 +9,8 @@
 //! Falls back to a 32 MiB static heap (enough for kernel boot) until a proper
 //! DTB / UEFI memory map parser hands us a dynamic range.
 
-use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use aethercore::interfaces::memory::HeapAllocator;
+use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 const BYTES_PER_MIB: usize = 1024 * 1024;
 static PENDING_HEAP_PHYS_ADDR: AtomicUsize = AtomicUsize::new(0);
@@ -21,7 +21,9 @@ static PENDING_COMPACTION_BASE: AtomicUsize = AtomicUsize::new(0);
 static PENDING_COMPACTION_PAGES: AtomicUsize = AtomicUsize::new(0);
 static PENDING_HEAP_FINALIZE: AtomicBool = AtomicBool::new(false);
 
-pub(super) fn init_heap(allocator: &aethercore::modules::allocators::selector::ActiveHeapAllocator) {
+pub(super) fn init_heap(
+    allocator: &aethercore::modules::allocators::selector::ActiveHeapAllocator,
+) {
     use aethercore::generated_consts::MEM_HEAP_SIZE_MB;
 
     #[cfg(target_arch = "x86_64")]

@@ -1,8 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::env;
 
+use crate::constants::{cargo as cargo_consts, test as test_consts, tools};
 use crate::utils::{cargo, process};
-use crate::constants::{cargo as cargo_consts, test as test_consts};
 
 const CLIPPY_LINT_ARGS: &[&str] = &[
     "-A",
@@ -59,7 +59,10 @@ pub fn run_all(ci: bool) -> Result<()> {
 
 fn tier_specs(tier: &str, ci: bool, host: &str) -> Result<Vec<CommandSpec>> {
     if !test_consts::is_valid_tier(tier) {
-        bail!("unknown tier: {tier}. Supported: {:?}", test_consts::all_tiers());
+        bail!(
+            "unknown tier: {tier}. Supported: {:?}",
+            test_consts::all_tiers()
+        );
     }
     match tier {
         test_consts::TIER_FAST => Ok(fast_specs(ci, host)),
@@ -212,7 +215,7 @@ fn nextest_spec(test_name: &'static str, ci: bool, host: &str) -> CommandSpec {
         program: crate::constants::tools::CARGO,
         args,
         gate: None,
-        availability: ToolAvailability::None,
+        availability: ToolAvailability::CargoSubcommand("nextest"),
     }
 }
 
@@ -245,9 +248,9 @@ fn rustfmt_spec() -> CommandSpec {
         program: "cargo",
         args: vec![
             "fmt".into(),
-            "--manifest-path".into(),
-            "Cargo.toml".into(),
-            "--all".into(),
+            "-p".into(),
+            "xtask".into(),
+            "--".into(),
             "--check".into(),
         ],
         gate: None,
@@ -353,8 +356,10 @@ fn run_gated_or_required(spec: &CommandSpec) -> Result<()> {
 }
 
 fn cargo_subcommand_available(subcommand: &str) -> bool {
-    std::process::Command::new("cargo")
+    std::process::Command::new(tools::CARGO)
         .args([subcommand, "--help"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .status()
         .map(|status| status.success())
         .unwrap_or(false)
@@ -379,18 +384,24 @@ mod tests {
         assert_eq!(kasan.program, "cargo");
         assert_eq!(kmsan.program, "cargo");
         assert_eq!(ubsan.program, "cargo");
-        assert!(kasan
-            .args
-            .windows(2)
-            .any(|pair| pair == ["--target", "x86_64-unknown-linux-gnu"]));
-        assert!(kmsan
-            .args
-            .windows(2)
-            .any(|pair| pair == ["--target", "x86_64-unknown-linux-gnu"]));
-        assert!(ubsan
-            .args
-            .windows(2)
-            .any(|pair| pair == ["--target", "x86_64-unknown-linux-gnu"]));
+        assert!(
+            kasan
+                .args
+                .windows(2)
+                .any(|pair| pair == ["--target", "x86_64-unknown-linux-gnu"])
+        );
+        assert!(
+            kmsan
+                .args
+                .windows(2)
+                .any(|pair| pair == ["--target", "x86_64-unknown-linux-gnu"])
+        );
+        assert!(
+            ubsan
+                .args
+                .windows(2)
+                .any(|pair| pair == ["--target", "x86_64-unknown-linux-gnu"])
+        );
     }
 
     #[test]
@@ -400,10 +411,11 @@ mod tests {
 
         assert!(!dev.args.windows(2).any(|pair| pair == ["--profile", "ci"]));
         assert!(ci.args.windows(2).any(|pair| pair == ["--profile", "ci"]));
-        assert!(ci
-            .args
-            .windows(2)
-            .any(|pair| pair == ["--target", "aarch64-unknown-linux-gnu"]));
+        assert!(
+            ci.args
+                .windows(2)
+                .any(|pair| pair == ["--target", "aarch64-unknown-linux-gnu"])
+        );
     }
 
     #[test]

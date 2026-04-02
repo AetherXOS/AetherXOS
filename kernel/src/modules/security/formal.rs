@@ -1,5 +1,4 @@
 use alloc::collections::BTreeMap;
-use core::sync::atomic::Ordering;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use aethercore_common::{counter_inc, declare_counter_u64, telemetry};

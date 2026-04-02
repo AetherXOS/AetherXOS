@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 // ── Risk level ───────────────────────────────────────────────────────────────
@@ -42,19 +42,136 @@ pub struct Action {
 /// Returns the canonical action catalog (mirrors PowerShell $actions array).
 pub fn default_actions() -> Vec<Action> {
     vec![
-        Action { id: "doctor".into(), title: "Check Dependencies".into(), desc: "Readiness + version checks".into(), cmd: "doctor".into(), args: vec!["-WriteDoctorReport".into()], risk: "INFO".into(), category: "diagnostics".into(), impact: "Read-only host/tool checks.".into() },
-        Action { id: "doctor_fix".into(), title: "Install/Fix Dependencies".into(), desc: "Auto install missing tools".into(), cmd: "doctor-fix".into(), args: vec!["-AutoApprove".into()], risk: "HIGH".into(), category: "install".into(), impact: "Installs/changes host dependencies.".into() },
-        Action { id: "install_deno".into(), title: "Install Deno Runtime".into(), desc: "Install or repair Deno runtime on host".into(), cmd: "install-deno".into(), args: vec![], risk: "MED".into(), category: "install".into(), impact: "Installs Deno runtime via package manager.".into() },
-        Action { id: "build_iso".into(), title: "Build ISO".into(), desc: "Compile kernel and generate ISO".into(), cmd: "build-iso".into(), args: vec![], risk: "HIGH".into(), category: "build".into(), impact: "Writes boot artifacts and ISO outputs.".into() },
-        Action { id: "qemu_smoke".into(), title: "QEMU Smoke".into(), desc: "Automated boot smoke test".into(), cmd: "qemu-smoke".into(), args: vec![], risk: "HIGH".into(), category: "test".into(), impact: "Runs emulator smoke tests and writes reports.".into() },
-        Action { id: "qemu_live".into(), title: "QEMU Live".into(), desc: "Open interactive QEMU boot window".into(), cmd: "qemu-live".into(), args: vec![], risk: "MED".into(), category: "test".into(), impact: "Starts interactive emulator window.".into() },
-        Action { id: "dashboard_build".into(), title: "Build Dashboard UI".into(), desc: "Generate telemetry + build Svelte UI".into(), cmd: "os-smoke-dashboard".into(), args: vec![], risk: "MED".into(), category: "dashboard".into(), impact: "Rebuilds reports and dashboard assets.".into() },
-        Action { id: "dashboard_tests".into(), title: "Dashboard Tests".into(), desc: "Run unit + e2e tests".into(), cmd: "dashboard-ui-test".into(), args: vec![], risk: "MED".into(), category: "test".into(), impact: "Executes dashboard unit tests.".into() },
-        Action { id: "dashboard_e2e".into(), title: "Dashboard E2E".into(), desc: "Run browser end-to-end tests".into(), cmd: "dashboard-ui-e2e".into(), args: vec![], risk: "MED".into(), category: "test".into(), impact: "Executes browser E2E automation.".into() },
-        Action { id: "quality_gate".into(), title: "Tooling Quality Gate".into(), desc: "Run full gate checks".into(), cmd: "tooling-quality-gate".into(), args: vec![], risk: "HIGH".into(), category: "gate".into(), impact: "Runs full quality gate and acceptance checks.".into() },
-        Action { id: "open_report".into(), title: "Open Report".into(), desc: "Open modern dashboard report".into(), cmd: "open-report".into(), args: vec!["-ReportTarget".into(), "ui".into()], risk: "INFO".into(), category: "dashboard".into(), impact: "Opens local report UI in browser.".into() },
-        Action { id: "crash_diagnostics".into(), title: "Crash Diagnostics Bundle".into(), desc: "Collect diagnostics artifact bundle".into(), cmd: "collect-diagnostics".into(), args: vec![], risk: "MED".into(), category: "recovery".into(), impact: "Collects diagnostics zip and metadata for triage.".into() },
-        Action { id: "crash_triage".into(), title: "Crash Triage".into(), desc: "Generate triage report from recent failures".into(), cmd: "triage".into(), args: vec![], risk: "MED".into(), category: "recovery".into(), impact: "Builds actionable failure triage report.".into() },
+        Action {
+            id: "doctor".into(),
+            title: "Check Dependencies".into(),
+            desc: "Readiness + version checks".into(),
+            cmd: "doctor".into(),
+            args: vec!["-WriteDoctorReport".into()],
+            risk: "INFO".into(),
+            category: "diagnostics".into(),
+            impact: "Read-only host/tool checks.".into(),
+        },
+        Action {
+            id: "doctor_fix".into(),
+            title: "Install/Fix Dependencies".into(),
+            desc: "Auto install missing tools".into(),
+            cmd: "doctor-fix".into(),
+            args: vec!["-AutoApprove".into()],
+            risk: "HIGH".into(),
+            category: "install".into(),
+            impact: "Installs/changes host dependencies.".into(),
+        },
+        Action {
+            id: "install_deno".into(),
+            title: "Install Deno Runtime".into(),
+            desc: "Install or repair Deno runtime on host".into(),
+            cmd: "install-deno".into(),
+            args: vec![],
+            risk: "MED".into(),
+            category: "install".into(),
+            impact: "Installs Deno runtime via package manager.".into(),
+        },
+        Action {
+            id: "build_iso".into(),
+            title: "Build ISO".into(),
+            desc: "Compile kernel and generate ISO".into(),
+            cmd: "build-iso".into(),
+            args: vec![],
+            risk: "HIGH".into(),
+            category: "build".into(),
+            impact: "Writes boot artifacts and ISO outputs.".into(),
+        },
+        Action {
+            id: "qemu_smoke".into(),
+            title: "QEMU Smoke".into(),
+            desc: "Automated boot smoke test".into(),
+            cmd: "qemu-smoke".into(),
+            args: vec![],
+            risk: "HIGH".into(),
+            category: "test".into(),
+            impact: "Runs emulator smoke tests and writes reports.".into(),
+        },
+        Action {
+            id: "qemu_live".into(),
+            title: "QEMU Live".into(),
+            desc: "Open interactive QEMU boot window".into(),
+            cmd: "qemu-live".into(),
+            args: vec![],
+            risk: "MED".into(),
+            category: "test".into(),
+            impact: "Starts interactive emulator window.".into(),
+        },
+        Action {
+            id: "dashboard_build".into(),
+            title: "Build Dashboard UI".into(),
+            desc: "Generate telemetry + build Svelte UI".into(),
+            cmd: "os-smoke-dashboard".into(),
+            args: vec![],
+            risk: "MED".into(),
+            category: "dashboard".into(),
+            impact: "Rebuilds reports and dashboard assets.".into(),
+        },
+        Action {
+            id: "dashboard_tests".into(),
+            title: "Dashboard Tests".into(),
+            desc: "Run unit + e2e tests".into(),
+            cmd: "dashboard-ui-test".into(),
+            args: vec![],
+            risk: "MED".into(),
+            category: "test".into(),
+            impact: "Executes dashboard unit tests.".into(),
+        },
+        Action {
+            id: "dashboard_e2e".into(),
+            title: "Dashboard E2E".into(),
+            desc: "Run browser end-to-end tests".into(),
+            cmd: "dashboard-ui-e2e".into(),
+            args: vec![],
+            risk: "MED".into(),
+            category: "test".into(),
+            impact: "Executes browser E2E automation.".into(),
+        },
+        Action {
+            id: "quality_gate".into(),
+            title: "Tooling Quality Gate".into(),
+            desc: "Run full gate checks".into(),
+            cmd: "tooling-quality-gate".into(),
+            args: vec![],
+            risk: "HIGH".into(),
+            category: "gate".into(),
+            impact: "Runs full quality gate and acceptance checks.".into(),
+        },
+        Action {
+            id: "open_report".into(),
+            title: "Open Report".into(),
+            desc: "Open modern dashboard report".into(),
+            cmd: "open-report".into(),
+            args: vec!["-ReportTarget".into(), "ui".into()],
+            risk: "INFO".into(),
+            category: "dashboard".into(),
+            impact: "Opens local report UI in browser.".into(),
+        },
+        Action {
+            id: "crash_diagnostics".into(),
+            title: "Crash Diagnostics Bundle".into(),
+            desc: "Collect diagnostics artifact bundle".into(),
+            cmd: "collect-diagnostics".into(),
+            args: vec![],
+            risk: "MED".into(),
+            category: "recovery".into(),
+            impact: "Collects diagnostics zip and metadata for triage.".into(),
+        },
+        Action {
+            id: "crash_triage".into(),
+            title: "Crash Triage".into(),
+            desc: "Generate triage report from recent failures".into(),
+            cmd: "triage".into(),
+            args: vec![],
+            risk: "MED".into(),
+            category: "recovery".into(),
+            impact: "Builds actionable failure triage report.".into(),
+        },
     ]
 }
 
@@ -98,7 +215,11 @@ pub struct Job {
 }
 
 impl Job {
-    pub fn new(action: impl Into<String>, priority: impl Into<String>, source: impl Into<String>) -> Self {
+    pub fn new(
+        action: impl Into<String>,
+        priority: impl Into<String>,
+        source: impl Into<String>,
+    ) -> Self {
         Job {
             id: Uuid::new_v4().to_string(),
             action: action.into(),

@@ -220,7 +220,12 @@ pub fn run() -> Result<()> {
     // Generator markdown
     let mut md = format!(
         "# P0/P1/P2 Tier Status\n\n- generated_utc: `{}`\n- overall_ok: `{}`\n- overall_completion_pct: {:.1}%\n- required_passed: {}/{}\n- blockers: {}\n\n",
-        report.generated_utc, overall_ok, report.overall_completion_pct, report.required_passed, report.required_total, blockers.len()
+        report.generated_utc,
+        overall_ok,
+        report.overall_completion_pct,
+        report.required_passed,
+        report.required_total,
+        blockers.len()
     );
 
     for tier_name in &["p0", "p1", "p2"] {

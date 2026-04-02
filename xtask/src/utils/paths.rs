@@ -45,6 +45,15 @@ pub fn ensure_dir(dir: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Resolve a fixture under xtask test fixtures.
+#[cfg(test)]
+pub fn xtask_test_fixture(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join(name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -64,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_path_resolution_mechanics() {
-        let relative = resolve(crate::constants::paths::ARTIFACTS_BOOT_IMAGE);
+        let relative = resolve(crate::constants::paths::BOOT_IMAGE_ROOT);
         assert!(
             relative.is_absolute(),
             "Relative raw strings should be transformed into absolute workspace locators."

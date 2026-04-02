@@ -1,47 +1,63 @@
-use chrono::Utc;
-use rocket::serde::json::{json, Value};
 use crate::auth::RequireViewer;
 use crate::resp::{err, ok};
+use chrono::Utc;
+use rocket::serde::json::{Value, json};
 
 /// GET /crash/summary
 #[rocket::get("/crash/summary")]
 pub fn crash_summary(_role: RequireViewer) -> Value {
     // Read crash artifacts directory if it exists
     let crash_count = count_crash_artifacts();
-    ok("crash_summary", json!({
-        "crash_count": crash_count,
-        "artifacts_dir": "artifacts/crash",
-        "as_of_utc": Utc::now().to_rfc3339(),
-    }))
+    ok(
+        "crash_summary",
+        json!({
+            "crash_count": crash_count,
+            "artifacts_dir": "artifacts/crash",
+            "as_of_utc": Utc::now().to_rfc3339(),
+        }),
+    )
 }
 
 /// GET /plugins/health
 #[rocket::get("/plugins/health")]
 pub fn plugins_health(_role: RequireViewer) -> Value {
     let plugins = scan_plugins();
-    ok("plugins_health", json!({
-        "plugins": plugins,
-        "as_of_utc": Utc::now().to_rfc3339(),
-    }))
+    ok(
+        "plugins_health",
+        json!({
+            "plugins": plugins,
+            "as_of_utc": Utc::now().to_rfc3339(),
+        }),
+    )
 }
 
 #[rocket::get("/plugins")]
 pub fn plugins_list(_role: RequireViewer) -> Value {
     let plugins = scan_plugins();
-    ok("plugins", json!({ "plugins": plugins, "total": plugins.len() }))
+    ok(
+        "plugins",
+        json!({ "plugins": plugins, "total": plugins.len() }),
+    )
 }
 
 #[rocket::get("/plugins/<name>")]
 pub fn plugin_detail(name: String, _role: RequireViewer) -> Value {
     let plugins = scan_plugins();
-    match plugins.into_iter().find(|plugin| plugin.get("name").and_then(|value| value.as_str()) == Some(name.as_str())) {
+    match plugins
+        .into_iter()
+        .find(|plugin| plugin.get("name").and_then(|value| value.as_str()) == Some(name.as_str()))
+    {
         Some(plugin) => ok("plugin", json!({ "plugin": plugin })),
         None => err("not_found", "Plugin not found.", "not_found"),
     }
 }
 
 fn count_crash_artifacts() -> usize {
-    let candidates = ["artifacts/crash", "../artifacts/crash", "../../artifacts/crash"];
+    let candidates = [
+        "artifacts/crash",
+        "../artifacts/crash",
+        "../../artifacts/crash",
+    ];
     for dir in &candidates {
         if let Ok(entries) = std::fs::read_dir(dir) {
             return entries.filter_map(|e| e.ok()).count();
@@ -51,7 +67,11 @@ fn count_crash_artifacts() -> usize {
 }
 
 fn scan_plugins() -> Vec<Value> {
-    let candidates = ["config/plugins", "../config/plugins", "../../config/plugins"];
+    let candidates = [
+        "config/plugins",
+        "../config/plugins",
+        "../../config/plugins",
+    ];
     for dir in &candidates {
         if let Ok(entries) = std::fs::read_dir(dir) {
             let discovered = entries

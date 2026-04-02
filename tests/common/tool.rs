@@ -220,15 +220,15 @@ fn read_invocations(path: &Path) -> Vec<Vec<String>> {
 fn link_system_tool(sys_dir: &Path, name: &str) {
     #[cfg(unix)]
     {
-    let source = Path::new("/usr/bin").join(name);
-    let target = sys_dir.join(name);
-    symlink(&source, &target).unwrap_or_else(|err| {
-        panic!(
-            "failed to link {} -> {}: {err}",
-            target.display(),
-            source.display()
-        )
-    });
+        let source = Path::new("/usr/bin").join(name);
+        let target = sys_dir.join(name);
+        symlink(&source, &target).unwrap_or_else(|err| {
+            panic!(
+                "failed to link {} -> {}: {err}",
+                target.display(),
+                source.display()
+            )
+        });
     }
 
     #[cfg(not(unix))]
@@ -236,10 +236,7 @@ fn link_system_tool(sys_dir: &Path, name: &str) {
         let target = sys_dir.join(name);
         write_executable(
             &target,
-            format!(
-                "#!/usr/bin/env bash\nset -euo pipefail\n{} \"$@\"\n",
-                name
-            ),
+            format!("#!/usr/bin/env bash\nset -euo pipefail\n{} \"$@\"\n", name),
         );
     }
 }

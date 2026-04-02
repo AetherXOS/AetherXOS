@@ -78,12 +78,7 @@ fn xtask_tier_runner_is_the_single_ci_entrypoint() {
     fs::file("xtask/src/commands/validation/test/tier.rs");
     fs::ordered(
         "xtask/src/cli.rs",
-        &[
-            "pub enum TestAction",
-            "Tier {",
-            "tier: String",
-            "ci: bool",
-        ],
+        &["pub enum TestAction", "Tier {", "tier: String", "ci: bool"],
     );
     fs::ordered(
         "xtask/src/commands/validation/test/mod.rs",
@@ -122,10 +117,19 @@ fn reusable_workflows_drive_tier_commands() {
         ".github/workflows/tier-reusable.yml",
         "cargo run -p xtask --target-dir target/xtask -- test tier ${{ inputs.tier }} --ci",
     );
-    fs::text(".github/workflows/x64-integration.yml", "cron: '0 16 * * *'");
-    fs::text(".github/workflows/arm64-integration.yml", "cron: '0 16 * * *'");
+    fs::text(
+        ".github/workflows/x64-integration.yml",
+        "cron: '0 16 * * *'",
+    );
+    fs::text(
+        ".github/workflows/arm64-integration.yml",
+        "cron: '0 16 * * *'",
+    );
     fs::text(".github/workflows/x64-nightly.yml", "cron: '0 16 * * 6,0'");
-    fs::text(".github/workflows/arm64-nightly.yml", "cron: '0 16 * * 6,0'");
+    fs::text(
+        ".github/workflows/arm64-nightly.yml",
+        "cron: '0 16 * * 6,0'",
+    );
     assert!(ctx::path(".github/workflows/linux-host-e2e.yml").exists());
 }
 

@@ -18,11 +18,7 @@ impl Fairing for CorsFairing {
     async fn on_response<'r>(&self, req: &'r Request<'_>, resp: &mut Response<'r>) {
         use crate::state::AppState;
 
-        let origin = req
-            .headers()
-            .get_one("Origin")
-            .unwrap_or("")
-            .to_string();
+        let origin = req.headers().get_one("Origin").unwrap_or("").to_string();
 
         let allowed = req
             .rocket()

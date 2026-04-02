@@ -9,8 +9,10 @@ pub use aethercore_common::TargetArch;
 #[derive(Parser, Debug)]
 #[command(name = "xtask")]
 #[command(about = "Aether X OS Task Runner - Unified High-Performance Operations")]
-#[command(long_about = "Replaces all legacy scripts with a single, modular, type-safe Rust binary. \
-    Every OS workflow is dynamically accessible via subcommands.")]
+#[command(
+    long_about = "Replaces all legacy scripts with a single, modular, type-safe Rust binary. \
+    Every OS workflow is dynamically accessible via subcommands."
+)]
 pub struct Cli {
     /// Global output directory for generated artifacts and images.
     #[arg(long, global = true, default_value = "artifacts")]
@@ -216,18 +218,30 @@ pub enum TestAction {
     },
     /// Linux app compatibility layered validator (strict/quick/qemu)
     LinuxAppCompat {
-        #[arg(long)] desktop_smoke: bool,
-        #[arg(long)] quick: bool,
-        #[arg(long)] qemu: bool,
-        #[arg(long)] strict: bool,
-        #[arg(long)] ci: bool,
-        #[arg(long)] require_busybox: bool,
-        #[arg(long)] require_glibc: bool,
-        #[arg(long)] require_wayland: bool,
-        #[arg(long)] require_x11: bool,
-        #[arg(long)] require_fs_stack: bool,
-        #[arg(long)] require_package_stack: bool,
-        #[arg(long)] require_desktop_app_stack: bool,
+        #[arg(long)]
+        desktop_smoke: bool,
+        #[arg(long)]
+        quick: bool,
+        #[arg(long)]
+        qemu: bool,
+        #[arg(long)]
+        strict: bool,
+        #[arg(long)]
+        ci: bool,
+        #[arg(long)]
+        require_busybox: bool,
+        #[arg(long)]
+        require_glibc: bool,
+        #[arg(long)]
+        require_wayland: bool,
+        #[arg(long)]
+        require_x11: bool,
+        #[arg(long)]
+        require_fs_stack: bool,
+        #[arg(long)]
+        require_package_stack: bool,
+        #[arg(long)]
+        require_desktop_app_stack: bool,
     },
     /// Audit kernel source for refactoring candidate areas
     KernelRefactorAudit {
@@ -274,24 +288,30 @@ pub enum LinuxAbiAction {
 #[derive(Subcommand, Debug)]
 pub enum SecurebootAction {
     Sign {
-        #[arg(long)] dry_run: bool,
-        #[arg(long)] strict_verify: bool,
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long)]
+        strict_verify: bool,
     },
     SbatValidate {
-        #[arg(long)] strict: bool,
+        #[arg(long)]
+        strict: bool,
     },
     PcrReport,
     MokPlan,
     OvmfMatrix {
-        #[arg(long)] dry_run: bool,
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 
 #[derive(Subcommand, Debug)]
 pub enum ReleaseAction {
     Preflight {
-        #[arg(long)] skip_host_tests: bool,
-        #[arg(long)] skip_boot_artifacts: bool,
+        #[arg(long)]
+        skip_host_tests: bool,
+        #[arg(long)]
+        skip_boot_artifacts: bool,
     },
     CandidateGate,
     P0Gate,
@@ -312,19 +332,29 @@ pub enum AbSlotAction {
 #[derive(Subcommand, Debug)]
 pub enum GlibcAction {
     Audit {
-        #[arg(long, default_value_t = crate::constants::defaults::glibc::FORMAT_MD.to_string())] format: String,
-        #[arg(long)] out: Option<String>,
-        #[arg(long)] verbose: bool,
+        #[arg(long, default_value_t = crate::constants::defaults::glibc::FORMAT_MD.to_string())]
+        format: String,
+        #[arg(long)]
+        out: Option<String>,
+        #[arg(long)]
+        verbose: bool,
     },
     ClosureGate {
-        #[arg(long)] quick: bool,
-        #[arg(long)] strict: bool,
-        #[arg(long)] family: Option<String>,
-        #[arg(long, default_value_t = crate::constants::defaults::glibc::FORMAT_MD.to_string())] format: String,
-        #[arg(long)] out: Option<String>,
+        #[arg(long)]
+        quick: bool,
+        #[arg(long)]
+        strict: bool,
+        #[arg(long)]
+        family: Option<String>,
+        #[arg(long, default_value_t = crate::constants::defaults::glibc::FORMAT_MD.to_string())]
+        format: String,
+        #[arg(long)]
+        out: Option<String>,
     },
     Scorecard {
-        #[arg(long, default_value_t = crate::constants::defaults::glibc::FORMAT_JSON.to_string())] format: String,
-        #[arg(long)] out: Option<String>,
+        #[arg(long, default_value_t = crate::constants::defaults::glibc::FORMAT_JSON.to_string())]
+        format: String,
+        #[arg(long)]
+        out: Option<String>,
     },
 }

@@ -1,24 +1,31 @@
-use rocket::serde::json::Value;
-use rocket::State;
-use crate::state::AppState;
 use crate::resp::ok;
+use crate::state::AppState;
+use rocket::State;
+use rocket::serde::json::Value;
 
 /// GET /catalog
 #[rocket::get("/catalog")]
 pub fn catalog(state: &State<AppState>) -> Value {
     let inner = state.read();
-    let actions: Vec<Value> = inner.actions.iter().map(|a| {
-        rocket::serde::json::json!({
-            "id": a.id,
-            "title": a.title,
-            "desc": a.desc,
-            "risk": a.risk,
-            "category": a.category,
-            "impact": a.impact,
+    let actions: Vec<Value> = inner
+        .actions
+        .iter()
+        .map(|a| {
+            rocket::serde::json::json!({
+                "id": a.id,
+                "title": a.title,
+                "desc": a.desc,
+                "risk": a.risk,
+                "category": a.category,
+                "impact": a.impact,
+            })
         })
-    }).collect();
+        .collect();
 
-    ok("catalog", rocket::serde::json::json!({ "actions": actions }))
+    ok(
+        "catalog",
+        rocket::serde::json::json!({ "actions": actions }),
+    )
 }
 
 /// GET /catalog/<id>

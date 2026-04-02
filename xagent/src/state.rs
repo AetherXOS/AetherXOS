@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use chrono::{DateTime, Utc};
 use crate::config::AgentConfig;
 use crate::models::{
-    Action, AgentEvent, Confirmation, Host, IdempotencyRecord, Job, JobStatus, PolicyTrace, RecentEntry, RolePolicy,
-    ScheduledTask, default_actions, default_role_policies,
+    Action, AgentEvent, Confirmation, Host, IdempotencyRecord, Job, JobStatus, PolicyTrace,
+    RecentEntry, RolePolicy, ScheduledTask, default_actions, default_role_policies,
 };
+use chrono::{DateTime, Utc};
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 const MAX_RECENT: usize = 200;
 const MAX_POLICY_TRACES: usize = 500;
@@ -147,7 +147,11 @@ impl Inner {
                 name: h.name.clone().unwrap_or_else(|| h.id.clone()),
                 url: h.url.clone(),
                 enabled: h.enabled,
-                role_hint: if h.role_hint.is_empty() { "operator".into() } else { h.role_hint.clone() },
+                role_hint: if h.role_hint.is_empty() {
+                    "operator".into()
+                } else {
+                    h.role_hint.clone()
+                },
                 token: h.token.clone(),
                 last_seen_utc: None,
                 reachable: None,
@@ -182,7 +186,10 @@ impl Inner {
     // ── Job helpers ───────────────────────────────────────────────────────────
 
     pub fn running_count(&self) -> usize {
-        self.jobs.values().filter(|j| j.status == JobStatus::Running).count()
+        self.jobs
+            .values()
+            .filter(|j| j.status == JobStatus::Running)
+            .count()
     }
 
     pub fn queue_count(&self) -> usize {
@@ -254,7 +261,11 @@ impl Inner {
             return Err("denied_action".into());
         }
         if let Some(action) = self.action_by_id(action_id) {
-            if policy.denied_categories.iter().any(|c| c == &action.category) {
+            if policy
+                .denied_categories
+                .iter()
+                .any(|c| c == &action.category)
+            {
                 return Err("denied_category".into());
             }
             let action_risk = crate::models::Risk::from_str(&action.risk);
@@ -279,7 +290,9 @@ pub fn prune_idempotency_registry(state: &AppState, ttl_hours: i64) -> usize {
     let threshold = Utc::now() - chrono::Duration::hours(ttl_hours.max(1));
     let mut inner = state.write();
     let before = inner.idempotency.len();
-    inner.idempotency.retain(|_, record| record.created_utc > threshold);
+    inner
+        .idempotency
+        .retain(|_, record| record.created_utc > threshold);
     before.saturating_sub(inner.idempotency.len())
 }
 
@@ -289,7 +302,11 @@ fn persist_event_jsonl(audit_dir: &str, event: &AgentEvent) {
         return;
     }
     let file_path = dir.join("events.jsonl");
-    let mut file = match std::fs::OpenOptions::new().create(true).append(true).open(&file_path) {
+    let mut file = match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&file_path)
+    {
         Ok(file) => file,
         Err(_) => return,
     };
@@ -305,7 +322,14 @@ fn load_recent_events(path: &str) -> Vec<AgentEvent> {
         Err(_) => return Vec::new(),
     };
     let mut out = Vec::new();
-    for line in content.lines().rev().take(MAX_EVENTS_BOOTSTRAP).collect::<Vec<_>>().into_iter().rev() {
+    for line in content
+        .lines()
+        .rev()
+        .take(MAX_EVENTS_BOOTSTRAP)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+    {
         if let Ok(event) = serde_json::from_str::<AgentEvent>(line) {
             out.push(event);
         }
@@ -362,7 +386,12 @@ pub fn tick_scheduler(state: &AppState) -> Vec<String> {
             if inner.action_by_id(&s.action).is_none() {
                 continue;
             }
-            (s.action.clone(), s.priority.clone(), s.source.clone(), s.interval_sec)
+            (
+                s.action.clone(),
+                s.priority.clone(),
+                s.source.clone(),
+                s.interval_sec,
+            )
         };
 
         // Enqueue job

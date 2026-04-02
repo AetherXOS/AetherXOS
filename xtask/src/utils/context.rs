@@ -1,7 +1,9 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::OnceLock;
+
+use crate::constants::tools;
 
 #[derive(Debug)]
 pub struct AppContext {
@@ -56,8 +58,8 @@ pub fn host_target() -> Result<&'static str> {
         .ok_or_else(|| anyhow::anyhow!("xtask context not initialized"))
 }
 
-fn detect_host_triple() -> Result<String> {
-    let output = Command::new("rustc")
+pub(crate) fn detect_host_triple_from_rustc() -> Result<String> {
+    let output = Command::new(tools::RUSTC)
         .args(["-vV"])
         .output()
         .context("Failed to run rustc -vV")?;
@@ -77,4 +79,8 @@ fn detect_host_triple() -> Result<String> {
     }
 
     bail!("Could not detect host triple from rustc output")
+}
+
+fn detect_host_triple() -> Result<String> {
+    detect_host_triple_from_rustc()
 }

@@ -1,6 +1,6 @@
-use aethercore::kernel::launch::{spawn_bootstrap_from_image, LaunchError};
+use aethercore::kernel::launch::{LaunchError, spawn_bootstrap_from_image};
 use aethercore::kernel::module_loader::{
-    build_load_plan, inspect_elf_image, snapshot_module_image, ModuleLoadError,
+    ModuleLoadError, build_load_plan, inspect_elf_image, snapshot_module_image,
 };
 
 use crate::common::elf::minimal_loadable_image;

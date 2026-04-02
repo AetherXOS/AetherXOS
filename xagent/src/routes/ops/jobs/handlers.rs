@@ -1,5 +1,5 @@
-use rocket::serde::json::{json, Json, Value};
 use rocket::State;
+use rocket::serde::json::{Json, Value, json};
 use serde::Deserialize;
 
 use crate::actions::{dispatch_queue, retry_job};
@@ -68,7 +68,10 @@ pub fn retry_existing_job(
     match retry_job(state, &body.id, "api:job-retry") {
         Ok(job_id) => {
             dispatch_queue(state);
-            ok("job_retried", json!({ "original_id": body.id, "id": job_id }))
+            ok(
+                "job_retried",
+                json!({ "original_id": body.id, "id": job_id }),
+            )
         }
         Err("not_found") => err("not_found", "Job not found.", "not_found"),
         Err(_) => err("retry_failed", "Job could not be retried.", "conflict"),
@@ -84,8 +87,10 @@ pub fn prune_jobs(state: &State<AppState>, _role: RequireOperator, hours: Option
         .jobs
         .iter()
         .filter(|(_, job)| {
-            matches!(job.status, JobStatus::Done | JobStatus::Failed | JobStatus::Cancelled)
-                && job.finished_utc.map(|ts| ts < threshold).unwrap_or(false)
+            matches!(
+                job.status,
+                JobStatus::Done | JobStatus::Failed | JobStatus::Cancelled
+            ) && job.finished_utc.map(|ts| ts < threshold).unwrap_or(false)
         })
         .map(|(id, _)| id.clone())
         .collect();
@@ -93,10 +98,13 @@ pub fn prune_jobs(state: &State<AppState>, _role: RequireOperator, hours: Option
         inner.jobs.remove(id);
         inner.queue.retain(|queued_id| queued_id != id);
     }
-    ok("jobs_pruned", json!({
-        "removed": removable.len(),
-        "before": before,
-        "after": inner.jobs.len(),
-        "hours": hours.unwrap_or(24).max(1),
-    }))
+    ok(
+        "jobs_pruned",
+        json!({
+            "removed": removable.len(),
+            "before": before,
+            "after": inner.jobs.len(),
+            "hours": hours.unwrap_or(24).max(1),
+        }),
+    )
 }

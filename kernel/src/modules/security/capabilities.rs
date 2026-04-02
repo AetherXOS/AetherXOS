@@ -7,7 +7,7 @@ use alloc::collections::BTreeMap;
 use core::sync::atomic::{AtomicU64, Ordering};
 use spin::Mutex;
 
-use aethercore_common::{counter_inc, counter_load, declare_counter_u64, const_assert};
+use aethercore_common::{counter_inc, declare_counter_u64, const_assert};
 use aethercore_common::telemetry;
 
 // ─── Telemetry Counters ─────────────────────────────────────────────

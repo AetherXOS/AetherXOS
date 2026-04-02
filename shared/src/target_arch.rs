@@ -76,8 +76,14 @@ mod tests {
 
     #[test]
     fn parses_known_arches() {
-        assert_eq!(TargetArch::from_str("x86_64").ok(), Some(TargetArch::X86_64));
-        assert_eq!(TargetArch::from_str("aarch64").ok(), Some(TargetArch::Aarch64));
+        assert_eq!(
+            TargetArch::from_str("x86_64").ok(),
+            Some(TargetArch::X86_64)
+        );
+        assert_eq!(
+            TargetArch::from_str("aarch64").ok(),
+            Some(TargetArch::Aarch64)
+        );
     }
 
     #[test]

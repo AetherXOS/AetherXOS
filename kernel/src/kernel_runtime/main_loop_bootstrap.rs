@@ -71,7 +71,12 @@ fn invoke_linked_probe_spawn(
 ) -> Result<(usize, usize), aethercore::kernel::launch::LaunchError> {
     aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn attempt\n");
     aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn call begin\n");
-    aethercore::kernel::debug_trace::record_optional("linked.probe", "linux_compat_ok", None, false);
+    aethercore::kernel::debug_trace::record_optional(
+        "linked.probe",
+        "linux_compat_ok",
+        None,
+        false,
+    );
     aethercore::kernel::debug_trace::record_optional("linked.probe", "spawn_try", None, false);
     aethercore::kernel::debug_trace::record_optional("linked.probe", "spawn_attempt", None, false);
     aethercore::kernel::debug_trace::record_optional("linked.probe", "spawn_call", None, false);
@@ -237,8 +242,18 @@ fn enter_linked_probe_service() -> PreparedLinkedProbeServiceDecision {
 #[inline(always)]
 fn prepare_linked_probe_service_entry() {
     aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service entered\n");
-    aethercore::kernel::debug_trace::record_optional("linked.probe", "service_entered", None, false);
-    aethercore::kernel::debug_trace::record_optional("linked.probe", "cmdline_gate_ok", None, false);
+    aethercore::kernel::debug_trace::record_optional(
+        "linked.probe",
+        "service_entered",
+        None,
+        false,
+    );
+    aethercore::kernel::debug_trace::record_optional(
+        "linked.probe",
+        "cmdline_gate_ok",
+        None,
+        false,
+    );
 }
 
 #[cfg(feature = "process_abstraction")]
@@ -341,7 +356,10 @@ pub(super) fn try_mount_initrd_once() {
             match aethercore::kernel::vfs_control::mount_ramfs(b"/") {
                 Ok(_) => aethercore::klog_info!("[INITRD] Base ramfs mounted at /"),
                 Err(e) => {
-                    aethercore::klog_warn!("[INITRD] Mount fallback failed: {:?} — diskless mode", e)
+                    aethercore::klog_warn!(
+                        "[INITRD] Mount fallback failed: {:?} — diskless mode",
+                        e
+                    )
                 }
             }
         } else {
@@ -471,14 +489,11 @@ pub(super) fn service_linked_probe_once() {
 
 #[cfg(all(test, feature = "process_abstraction"))]
 mod tests {
-    use core::sync::atomic::Ordering;
     use crate::kernel_runtime::main_loop::{
-        LINKED_PROBE_ENABLED,
-        LINKED_PROBE_PID,
-        LINKED_PROBE_SPAWNED,
-        LINKED_PROBE_VERIFIED,
+        LINKED_PROBE_ENABLED, LINKED_PROBE_PID, LINKED_PROBE_SPAWNED, LINKED_PROBE_VERIFIED,
         LINUX_COMPAT_INITED,
     };
+    use core::sync::atomic::Ordering;
 
     #[test_case]
     fn linked_probe_can_spawn_only_when_compat_ready_and_not_spawned() {

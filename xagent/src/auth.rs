@@ -1,8 +1,8 @@
+use crate::state::AppState;
 use rocket::{
     http::Status,
     request::{FromRequest, Outcome, Request},
 };
-use crate::state::AppState;
 
 /// Rocket request guard: resolves the caller's role from the `X-AetherCore-Token` header.
 /// Always succeeds — returns "anonymous" when no valid token is presented.
@@ -38,7 +38,10 @@ impl<'r> FromRequest<'r> for OptionalIdempotencyKey {
     type Error = std::convert::Infallible;
 
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let key = req.headers().get_one("X-Idempotency-Key").map(|value| value.to_string());
+        let key = req
+            .headers()
+            .get_one("X-Idempotency-Key")
+            .map(|value| value.to_string());
         Outcome::Success(OptionalIdempotencyKey(key))
     }
 }

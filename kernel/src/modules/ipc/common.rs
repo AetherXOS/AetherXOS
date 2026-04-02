@@ -55,6 +55,7 @@ pub fn bounded_push_bytes(
 }
 
 #[inline(always)]
+#[allow(dead_code)]
 pub fn wake_one_task(wait_queue: &crate::kernel::sync::WaitQueue) {
     if let Some(tid) = wait_queue.wake_one() {
         crate::kernel::task::wake_task(tid);

@@ -1,5 +1,5 @@
 use chrono::Utc;
-use rocket::serde::json::{json, Value};
+use rocket::serde::json::{Value, json};
 
 /// Helper — successful JSON response.
 pub fn ok(message: impl Into<String>, data: Value) -> Value {
@@ -18,11 +18,7 @@ pub fn ok(message: impl Into<String>, data: Value) -> Value {
 }
 
 /// Helper — error JSON response.
-pub fn err(
-    code: impl Into<String>,
-    message: impl Into<String>,
-    error: impl Into<String>,
-) -> Value {
+pub fn err(code: impl Into<String>, message: impl Into<String>, error: impl Into<String>) -> Value {
     json!({
         "ok": false,
         "code": code.into(),

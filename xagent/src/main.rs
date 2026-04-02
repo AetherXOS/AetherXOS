@@ -12,8 +12,8 @@ mod routes;
 mod state;
 
 use clap::Parser;
-use rocket::fairing::AdHoc;
 use rocket::Config;
+use rocket::fairing::AdHoc;
 use std::net::IpAddr;
 use std::str::FromStr;
 
@@ -21,7 +21,10 @@ use cors::CorsFairing;
 use state::AppState;
 
 #[derive(Parser, Debug)]
-#[command(name = "aethercore-agent", about = "AetherCore OS dashboard agent (Rocket)")]
+#[command(
+    name = "aethercore-agent",
+    about = "AetherCore OS dashboard agent (Rocket)"
+)]
 struct Args {
     /// Port to listen on (overrides config)
     #[arg(short, long)]
@@ -68,7 +71,10 @@ async fn main() -> Result<(), rocket::Error> {
     Ok(())
 }
 
-pub(crate) fn build_rocket(cfg: config::AgentConfig, address: &str) -> rocket::Rocket<rocket::Build> {
+pub(crate) fn build_rocket(
+    cfg: config::AgentConfig,
+    address: &str,
+) -> rocket::Rocket<rocket::Build> {
     let port = cfg.port;
     let app_state = AppState::new(&cfg);
 
@@ -83,7 +89,10 @@ pub(crate) fn build_rocket(cfg: config::AgentConfig, address: &str) -> rocket::R
         .attach(CorsFairing)
         .attach(AdHoc::on_liftoff("Agent background workers", |rocket| {
             Box::pin(async move {
-                let bg_state = rocket.state::<AppState>().expect("app state on liftoff").clone();
+                let bg_state = rocket
+                    .state::<AppState>()
+                    .expect("app state on liftoff")
+                    .clone();
                 tokio::spawn(async move {
                     let mut interval = tokio::time::interval(std::time::Duration::from_secs(10));
                     loop {
@@ -98,7 +107,10 @@ pub(crate) fn build_rocket(cfg: config::AgentConfig, address: &str) -> rocket::R
                         }
                         let pruned_idempotency = state::prune_idempotency_registry(&bg_state, 24);
                         if pruned_idempotency > 0 {
-                            tracing::debug!(pruned = pruned_idempotency, "pruned idempotency registry");
+                            tracing::debug!(
+                                pruned = pruned_idempotency,
+                                "pruned idempotency registry"
+                            );
                         }
                         actions::dispatch_queue(&bg_state);
                     }
@@ -191,4 +203,3 @@ pub(crate) fn build_rocket(cfg: config::AgentConfig, address: &str) -> rocket::R
 
 #[cfg(test)]
 mod tests;
-

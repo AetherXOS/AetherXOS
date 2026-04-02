@@ -48,7 +48,7 @@ pub fn run_gate() -> Result<()> {
     }
     steps.push(run_cmd(
         &host_check_default,
-        "cargo check (lib, posix_deep_tests)"
+        "cargo check (lib, posix_deep_tests)",
     ));
 
     let mut host_check_feature_bundle = vec![
@@ -64,7 +64,7 @@ pub fn run_gate() -> Result<()> {
     }
     steps.push(run_cmd(
         &host_check_feature_bundle,
-        "cargo check (lib, deep POSIX feature bundle)"
+        "cargo check (lib, deep POSIX feature bundle)",
     ));
 
     let deep_test_count = discover_deep_tests()?;
@@ -106,7 +106,11 @@ pub fn run_gate() -> Result<()> {
     }
     fs::write(out_dir.join("summary.md"), md)?;
 
-    println!("[test::posix] {} ({} deep tests)", if ok_all { "PASS" } else { "FAIL" }, deep_test_count);
+    println!(
+        "[test::posix] {} ({} deep tests)",
+        if ok_all { "PASS" } else { "FAIL" },
+        deep_test_count
+    );
     if !ok_all {
         bail!("POSIX conformance gate failed.");
     }
@@ -140,8 +144,12 @@ fn run_cmd(args: &[String], name: &str) -> StepResult {
             }
         }
         Err(e) => StepResult {
-            name: name.to_string(), ok: false, return_code: 1, duration_sec,
-            stdout_tail: String::new(), stderr_tail: format!("Error: {}", e),
+            name: name.to_string(),
+            ok: false,
+            return_code: 1,
+            duration_sec,
+            stdout_tail: String::new(),
+            stderr_tail: format!("Error: {}", e),
         },
     }
 }
@@ -154,7 +162,9 @@ fn tail_lines(text: &str, n: usize) -> String {
 
 fn discover_deep_tests() -> Result<usize> {
     let deep_dir = paths::kernel_src("modules/posix/tests_deep");
-    if !deep_dir.exists() { return Ok(0); }
+    if !deep_dir.exists() {
+        return Ok(0);
+    }
 
     let mut count = 0;
     let re = regex::Regex::new(r"^\s*#\[\s*(test|test_case)\s*\]\s*$")?;
@@ -166,7 +176,9 @@ fn discover_deep_tests() -> Result<usize> {
     {
         let text = fs::read_to_string(entry.path())?;
         for line in text.lines() {
-            if re.is_match(line) { count += 1; }
+            if re.is_match(line) {
+                count += 1;
+            }
         }
     }
     Ok(count)

@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
+use rocket::State;
 use rocket::form::FromForm;
 use rocket::response::stream::{Event, EventStream};
-use rocket::serde::json::{json, Value};
-use rocket::State;
+use rocket::serde::json::{Value, json};
 
 use crate::auth::RequireViewer;
 use crate::dto::events::{EventActionCountDto, EventDto, EventsListDto, EventsStatsDto};
@@ -39,7 +39,11 @@ pub struct EventsStatsQuery {
 }
 
 #[rocket::get("/events?<q..>")]
-pub fn global_events(state: &State<AppState>, _role: RequireViewer, q: Option<EventsQuery>) -> Value {
+pub fn global_events(
+    state: &State<AppState>,
+    _role: RequireViewer,
+    q: Option<EventsQuery>,
+) -> Value {
     let query = q.unwrap_or(EventsQuery {
         kind: None,
         action: None,
@@ -70,7 +74,9 @@ pub fn global_events(state: &State<AppState>, _role: RequireViewer, q: Option<Ev
         .iter()
         .enumerate()
         .filter(|(_, event)| from_ts.map(|ts| event.ts_utc >= ts).unwrap_or(true))
-        .filter(|(_, event)| event.matches_filters(kind_filter.as_deref(), action_filter.as_deref()))
+        .filter(|(_, event)| {
+            event.matches_filters(kind_filter.as_deref(), action_filter.as_deref())
+        })
         .map(|(idx, _)| idx)
         .collect();
 
@@ -118,7 +124,11 @@ pub fn global_events(state: &State<AppState>, _role: RequireViewer, q: Option<Ev
 }
 
 #[rocket::get("/events/stats?<q..>")]
-pub fn events_stats(state: &State<AppState>, _role: RequireViewer, q: Option<EventsStatsQuery>) -> Value {
+pub fn events_stats(
+    state: &State<AppState>,
+    _role: RequireViewer,
+    q: Option<EventsStatsQuery>,
+) -> Value {
     let query = q.unwrap_or(EventsStatsQuery {
         kind: None,
         since_minutes: None,
@@ -207,7 +217,9 @@ pub fn global_events_stream(
         replay_limit: None,
     });
 
-    let parsed_from_ts = parse_optional_rfc3339_utc(query.from_ts.as_deref()).ok().flatten();
+    let parsed_from_ts = parse_optional_rfc3339_utc(query.from_ts.as_deref())
+        .ok()
+        .flatten();
     let kind_filter = query.kind.map(|v| v.to_lowercase());
     let action_filter = query.action.map(|v| v.to_lowercase());
     let from_id = query.from_id;

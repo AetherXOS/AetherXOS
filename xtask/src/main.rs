@@ -1,5 +1,5 @@
-mod cli;
 mod builders;
+mod cli;
 mod commands;
 mod config;
 mod constants;
@@ -10,13 +10,13 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use cli::{Cli, Commands};
 use std::env;
-use utils::logging;
+use utils::{context as app_context, logging};
 
 fn main() -> Result<()> {
     let version = env!("CARGO_PKG_VERSION");
     let cpu_model = get_cpu_model();
     let rustc_version = get_rustc_version();
-    
+
     let about = format!("Aether X OS xtask/{} {}", version, rustc_version);
     let system = format!("{} {} ({})", env::consts::OS, env::consts::ARCH, cpu_model);
     let target = format!("Aether X OS-Generic (Release: {})", !cfg!(debug_assertions));
@@ -24,13 +24,15 @@ fn main() -> Result<()> {
     logging::print_header(&about, &system, &target);
 
     let args = Cli::parse();
-    
-    utils::paths::ensure_dir(&args.outdir)
-        .with_context(|| format!("Failed to initialize artifacts directory: {}", args.outdir.display()))?;
 
-    unsafe {
-        env::set_var("XTASK_OUTDIR", args.outdir.to_str().unwrap_or(crate::constants::paths::ARTIFACTS_DIR));
-    }
+    utils::paths::ensure_dir(&args.outdir).with_context(|| {
+        format!(
+            "Failed to initialize artifacts directory: {}",
+            args.outdir.display()
+        )
+    })?;
+
+    app_context::init(args.outdir.clone()).context("Failed to initialize xtask runtime context")?;
 
     match args.command {
         Commands::Build { ref action } => {
@@ -60,11 +62,18 @@ fn main() -> Result<()> {
         Commands::AbSlot { ref action } => {
             commands::runtime::ab_slot::execute(action).context("A/B slot operation failure")?;
         }
-        Commands::CorePressure { ref words, ref lottery_words, ref format, ref out } => {
-            commands::runtime::core_pressure::execute(words, lottery_words, format, out).context("Core pressure report failure")?;
+        Commands::CorePressure {
+            ref words,
+            ref lottery_words,
+            ref format,
+            ref out,
+        } => {
+            commands::runtime::core_pressure::execute(words, lottery_words, format, out)
+                .context("Core pressure report failure")?;
         }
         Commands::CrashRecovery => {
-            commands::runtime::crash_recovery::execute().context("Crash recovery pipeline failure")?;
+            commands::runtime::crash_recovery::execute()
+                .context("Crash recovery pipeline failure")?;
         }
         Commands::Glibc { ref action } => {
             commands::validation::glibc::execute(action).context("Glibc audit failure")?;
@@ -84,10 +93,14 @@ fn get_cpu_model() -> String {
             }
         }
     }
-    
+
     #[cfg(target_os = "macos")]
     {
-        if let Ok(output) = std::process::Command::new("sysctl").arg("-n").arg("machdep.cpu.brand_string").output() {
+        if let Ok(output) = std::process::Command::new("sysctl")
+            .arg("-n")
+            .arg("machdep.cpu.brand_string")
+            .output()
+        {
             return String::from_utf8_lossy(&output.stdout).trim().to_string();
         }
     }

@@ -1,7 +1,7 @@
 use super::platform_support::{
-    attach_pci_to_iommu_domain, enumerate_pci, init_acpi_discovery, init_iommu_discovery,
-    init_smp_runtime, init_virtualization_bootstrap, log_dtb_discovery,
-    run_platform_runtime_orchestration, PciAttachTelemetryConfig, PlatformTelemetryConfig,
+    PciAttachTelemetryConfig, PlatformTelemetryConfig, attach_pci_to_iommu_domain, enumerate_pci,
+    init_acpi_discovery, init_iommu_discovery, init_smp_runtime, init_virtualization_bootstrap,
+    log_dtb_discovery, run_platform_runtime_orchestration,
 };
 use crate::kernel_runtime::KernelRuntime;
 use aethercore::generated_consts::{

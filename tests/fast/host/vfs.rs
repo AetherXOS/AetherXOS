@@ -1,12 +1,11 @@
 use std::sync::{
-    atomic::{AtomicU64, Ordering},
     Arc, Mutex, OnceLock,
+    atomic::{AtomicU64, Ordering},
 };
 
 use aethercore::modules::vfs::{
-    journal,
+    GLOBAL_INODE_CACHE, Inode, JournalEntry, journal,
     writeback::{self, WritebackSink},
-    Inode, JournalEntry, GLOBAL_INODE_CACHE,
 };
 use serial_test::serial;
 

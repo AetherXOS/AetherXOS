@@ -1,5 +1,5 @@
 use aethercore::modules::drivers::{
-    ActiveNetworkDriver, DriverLifecycle, NetworkQueueClearStats, VirtIoNet, E1000,
+    ActiveNetworkDriver, DriverLifecycle, E1000, NetworkQueueClearStats, VirtIoNet,
 };
 
 pub(super) fn rebind_virtio_driver(runtime_driver: &mut VirtIoNet) -> bool {

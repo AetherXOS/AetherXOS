@@ -80,7 +80,8 @@ pub mod paths {
     pub const BOOT_IMAGE_STAGE: &str = "artifacts/boot_image/stage";
     pub const BOOT_IMAGE_STAGE_BOOT: &str = "artifacts/boot_image/stage/boot";
     pub const BOOT_IMAGE_STAGE_KERNEL: &str = "artifacts/boot_image/stage/boot/aethercore.elf";
-    pub const BOOT_IMAGE_STAGE_INITRAMFS: &str = "artifacts/boot_image/stage/boot/initramfs.cpio.gz";
+    pub const BOOT_IMAGE_STAGE_INITRAMFS: &str =
+        "artifacts/boot_image/stage/boot/initramfs.cpio.gz";
     pub const BOOT_IMAGE_STAGE_LIMINE: &str = "artifacts/boot_image/stage/boot/limine.conf";
     pub const BOOT_AB_ROOT: &str = "artifacts/boot_ab";
     pub const BOOT_AB_STATE: &str = "artifacts/boot_ab/state.json";
@@ -259,7 +260,8 @@ pub mod defaults {
         pub const ARCH: aethercore_common::TargetArch = aethercore_common::TargetArch::X86_64;
         pub const BOOTLOADER: &str = "limine";
         pub const FORMAT: &str = "iso";
-        pub const USERSPACE_TARGET: &str = aethercore_common::TargetArch::X86_64.to_bare_metal_triple();
+        pub const USERSPACE_TARGET: &str =
+            aethercore_common::TargetArch::X86_64.to_bare_metal_triple();
     }
 
     pub mod run {
@@ -295,11 +297,7 @@ pub mod defaults {
         pub const RELEASE: &str = "release";
 
         pub fn name(is_release: bool) -> &'static str {
-            if is_release {
-                RELEASE
-            } else {
-                DEBUG
-            }
+            if is_release { RELEASE } else { DEBUG }
         }
     }
 }

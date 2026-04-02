@@ -1,6 +1,7 @@
-use std::time::SystemTime;
 use chrono::{DateTime, Utc};
 use serde_json::{Map, Value, json};
+use std::borrow::Cow;
+use std::time::SystemTime;
 
 pub const RESET: &str = "\x1b[0m";
 #[allow(dead_code)]
@@ -19,9 +20,18 @@ pub const BG_MAGENTA: &str = "\x1b[45m";
 pub const BG_BRIGHT_BLACK: &str = "\x1b[100m";
 
 pub fn print_header(about: &str, system: &str, target: &str) {
-    println!(" {}{} {:12} {} {}", BG_CYAN, FG_BLACK, "ABOUT", RESET, about);
-    println!(" {}{} {:12} {} {}", BG_CYAN, FG_BLACK, "SYSTEM", RESET, system);
-    println!(" {}{} {:12} {} {}", BG_CYAN, FG_BLACK, "TARGET", RESET, target);
+    println!(
+        " {}{} {:12} {} {}",
+        BG_CYAN, FG_BLACK, "ABOUT", RESET, about
+    );
+    println!(
+        " {}{} {:12} {} {}",
+        BG_CYAN, FG_BLACK, "SYSTEM", RESET, system
+    );
+    println!(
+        " {}{} {:12} {} {}",
+        BG_CYAN, FG_BLACK, "TARGET", RESET, target
+    );
     println!();
 }
 
@@ -61,10 +71,10 @@ pub fn log(level: &str, module: &str, message: &str, kv: &[(&str, &str)]) {
 
     let (bg_color, fg_color) = match level {
         "ERROR" => (BG_RED, FG_WHITE),
-        "WARN"  => (BG_YELLOW, FG_BLACK),
-        "EXEC"  => (BG_MAGENTA, FG_WHITE),
+        "WARN" => (BG_YELLOW, FG_BLACK),
+        "EXEC" => (BG_MAGENTA, FG_WHITE),
         "READY" => (BG_GREEN, FG_BLACK),
-        _       => (BG_BLUE, FG_WHITE),
+        _ => (BG_BLUE, FG_WHITE),
     };
 
     print!("{}[{}]{} ", DIM, ts, RESET);
@@ -82,6 +92,10 @@ pub fn info(module: &str, message: &str, kv: &[(&str, &str)]) {
     log("INFO", module, message, kv);
 }
 
+pub fn warn(module: &str, message: &str, kv: &[(&str, &str)]) {
+    log("WARN", module, message, kv);
+}
+
 #[allow(dead_code)]
 pub fn event(module: &str, event: &str, status: &str, kv: &[(&str, &str)]) {
     let mut fields = Vec::with_capacity(kv.len() + 2);
@@ -96,10 +110,68 @@ pub fn exec(module: &str, command: &str) {
 }
 
 #[allow(dead_code)]
-pub fn error(module: &str, message: &str) {
-    log("ERROR", module, message, &[]);
+pub fn error(module: &str, message: &str, kv: &[(&str, &str)]) {
+    log("ERROR", module, message, kv);
 }
 
-pub fn ready(module: &str, message: &str, path: &str) {
-    log("READY", module, message, &[("path", path)]);
+pub trait ReadyDetails {
+    fn into_pairs(self) -> Vec<(Cow<'static, str>, String)>;
+}
+
+impl ReadyDetails for &str {
+    fn into_pairs(self) -> Vec<(Cow<'static, str>, String)> {
+        vec![(Cow::Borrowed("path"), self.to_string())]
+    }
+}
+
+impl ReadyDetails for String {
+    fn into_pairs(self) -> Vec<(Cow<'static, str>, String)> {
+        vec![(Cow::Borrowed("path"), self)]
+    }
+}
+
+impl ReadyDetails for &String {
+    fn into_pairs(self) -> Vec<(Cow<'static, str>, String)> {
+        vec![(Cow::Borrowed("path"), self.clone())]
+    }
+}
+
+impl ReadyDetails for Cow<'_, str> {
+    fn into_pairs(self) -> Vec<(Cow<'static, str>, String)> {
+        vec![(Cow::Borrowed("path"), self.into_owned())]
+    }
+}
+
+impl ReadyDetails for &Cow<'_, str> {
+    fn into_pairs(self) -> Vec<(Cow<'static, str>, String)> {
+        vec![(Cow::Borrowed("path"), self.to_string())]
+    }
+}
+
+impl<const N: usize> ReadyDetails for &[(&str, &str); N] {
+    fn into_pairs(self) -> Vec<(Cow<'static, str>, String)> {
+        self.iter()
+            .map(|(key, value)| (Cow::Owned((*key).to_string()), (*value).to_string()))
+            .collect()
+    }
+}
+
+impl<const N: usize> ReadyDetails for &[(&str, &String); N] {
+    fn into_pairs(self) -> Vec<(Cow<'static, str>, String)> {
+        self.iter()
+            .map(|(key, value)| (Cow::Owned((*key).to_string()), (*value).clone()))
+            .collect()
+    }
+}
+
+pub fn ready<D>(module: &str, message: &str, details: D)
+where
+    D: ReadyDetails,
+{
+    let pairs = details.into_pairs();
+    let kv: Vec<(&str, &str)> = pairs
+        .iter()
+        .map(|(key, value)| (key.as_ref(), value.as_str()))
+        .collect();
+    log("READY", module, message, &kv);
 }

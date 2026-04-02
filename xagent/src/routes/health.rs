@@ -1,9 +1,9 @@
-use chrono::Utc;
-use rocket::serde::json::Value;
-use rocket::State;
 use crate::auth::ResolvedRole;
 use crate::resp::ok;
 use crate::state::AppState;
+use chrono::Utc;
+use rocket::State;
+use rocket::serde::json::Value;
 
 /// GET /health
 #[rocket::get("/health")]
@@ -54,11 +54,7 @@ pub fn status(state: &State<AppState>, role: ResolvedRole) -> Value {
         .actions
         .iter()
         .map(|a| {
-            let runs = inner
-                .jobs
-                .values()
-                .filter(|j| j.action == a.id)
-                .count();
+            let runs = inner.jobs.values().filter(|j| j.action == a.id).count();
             rocket::serde::json::json!({
                 "id": a.id,
                 "title": a.title,
@@ -92,11 +88,23 @@ pub fn metrics(state: &State<AppState>, role: ResolvedRole) -> Value {
     use crate::models::JobStatus;
     let inner = state.read();
 
-    let done = inner.jobs.values().filter(|j| j.status == JobStatus::Done).count();
-    let failed = inner.jobs.values().filter(|j| j.status == JobStatus::Failed).count();
+    let done = inner
+        .jobs
+        .values()
+        .filter(|j| j.status == JobStatus::Done)
+        .count();
+    let failed = inner
+        .jobs
+        .values()
+        .filter(|j| j.status == JobStatus::Failed)
+        .count();
     let running = inner.running_count();
     let queued = inner.queue_count();
-    let cancelled = inner.jobs.values().filter(|j| j.status == JobStatus::Cancelled).count();
+    let cancelled = inner
+        .jobs
+        .values()
+        .filter(|j| j.status == JobStatus::Cancelled)
+        .count();
 
     ok(
         "metrics",
@@ -141,25 +149,29 @@ pub fn queue(state: &State<AppState>, role: ResolvedRole) -> Value {
         .queue
         .iter()
         .filter_map(|id| inner.jobs.get(id))
-        .map(|job| rocket::serde::json::json!({
-            "id": job.id,
-            "action": job.action,
-            "priority": job.priority,
-            "queued_utc": job.queued_utc.to_rfc3339(),
-            "source": job.source,
-        }))
+        .map(|job| {
+            rocket::serde::json::json!({
+                "id": job.id,
+                "action": job.action,
+                "priority": job.priority,
+                "queued_utc": job.queued_utc.to_rfc3339(),
+                "source": job.source,
+            })
+        })
         .collect();
     let running: Vec<Value> = inner
         .jobs
         .values()
         .filter(|job| job.status == crate::models::JobStatus::Running)
-        .map(|job| rocket::serde::json::json!({
-            "id": job.id,
-            "action": job.action,
-            "priority": job.priority,
-            "started_utc": job.started_utc.map(|d| d.to_rfc3339()),
-            "source": job.source,
-        }))
+        .map(|job| {
+            rocket::serde::json::json!({
+                "id": job.id,
+                "action": job.action,
+                "priority": job.priority,
+                "started_utc": job.started_utc.map(|d| d.to_rfc3339()),
+                "source": job.source,
+            })
+        })
         .collect();
     ok(
         "queue",

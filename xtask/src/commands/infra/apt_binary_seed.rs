@@ -14,11 +14,6 @@ use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
 use std::process::Command;
 
-#[cfg(unix)]
-fn run_first_success(candidates: &[(&str, &[&str])]) -> bool {
-    candidates.iter().any(|(program, args)| process::run_best_effort(program, args))
-}
-
 /// Download and prepare APT binary seed
 pub fn prepare_apt_seed(initramfs_root: &Path) -> Result<()> {
     logging::info("apt-seed", "Preparing APT binary seed", &[]);
@@ -228,7 +223,7 @@ fn try_download_apt(url: &str, bin_dir: &Path) -> Result<()> {
     let download_path = temp_dir.join(file_name);
 
     // Try curl first, then wget
-    let download_success = run_first_success(&[
+    let download_success = process::run_first_success(&[
         ("curl", &["-fsSL", url, "-o", download_path.to_str().unwrap_or("")]),
         ("wget", &["-qO", download_path.to_str().unwrap_or(""), url]),
     ]);
@@ -240,7 +235,7 @@ fn try_download_apt(url: &str, bin_dir: &Path) -> Result<()> {
     // Handle single binary file
     if file_name.ends_with(".tar.gz") || file_name.ends_with(".tgz") {
         // Try to extract gzipped tar archive using tar command
-        if !run_first_success(&[("tar", &["-xzf", download_path.to_str().unwrap_or(""), "-C", temp_dir.to_str().unwrap_or("")])]) {
+        if !process::run_first_success(&[("tar", &["-xzf", download_path.to_str().unwrap_or(""), "-C", temp_dir.to_str().unwrap_or("")])]) {
             return Err(anyhow::anyhow!("Failed to extract .tar.gz"));
         }
 

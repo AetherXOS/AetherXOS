@@ -6,7 +6,7 @@ pub(super) struct RuntimeBootContext {
 
 impl RuntimeBootContext {
     pub(super) fn start() -> Self {
-        use aethercore::kernel::startup::{mark_stage, StartupStage};
+        use aethercore::kernel::startup::{StartupStage, mark_stage};
 
         boot_sequence::write_stage_serial_marker("[EARLY SERIAL] runtime boot start");
         boot_sequence::write_stage_serial_marker("[EARLY SERIAL] runtime boot mark_stage begin");
@@ -19,14 +19,14 @@ impl RuntimeBootContext {
     }
 
     pub(super) fn after_heap_init(&self) {
-        use aethercore::kernel::startup::{mark_stage, StartupStage};
+        use aethercore::kernel::startup::{StartupStage, mark_stage};
 
         boot_sequence::write_stage_serial_marker("[EARLY SERIAL] runtime boot heap init complete");
         mark_stage(StartupStage::HeapInit);
     }
 
     pub(super) fn after_hal_early_init(&self) {
-        use aethercore::kernel::startup::{mark_stage, StartupStage};
+        use aethercore::kernel::startup::{StartupStage, mark_stage};
 
         boot_sequence::write_stage_serial_marker("[EARLY SERIAL] prelude finalize deferred");
         let _ = self.prelude.linked_probe_boot();
@@ -42,7 +42,7 @@ impl RuntimeBootContext {
     }
 
     pub(super) fn after_platform_services(&self) {
-        use aethercore::kernel::startup::{mark_stage, StartupStage};
+        use aethercore::kernel::startup::{StartupStage, mark_stage};
 
         boot_sequence::write_stage_serial_marker("[EARLY SERIAL] prelude finalize begin");
         boot_sequence::finalize_boot_prelude(&self.prelude);
@@ -62,7 +62,7 @@ impl RuntimeBootContext {
 
 #[inline(always)]
 fn prepare_runtime_main_loop_handoff() {
-    use aethercore::kernel::startup::{mark_stage, StartupStage};
+    use aethercore::kernel::startup::{StartupStage, mark_stage};
 
     boot_sequence::log_boot_diagnostics();
     boot_sequence::write_stage_serial_marker("[EARLY SERIAL] runtime boot entering main loop");

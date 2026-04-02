@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::fs;
 use std::path::Path;
 
@@ -10,7 +10,11 @@ use crate::utils::process;
 ///
 /// Replaces: scripts/build_boot_image_platform.py::build_iso()
 pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
-    logging::info("iso", &format!("Assembling bootable ISO: {}", out_iso.display()), &[]);
+    logging::info(
+        "iso",
+        &format!("Assembling bootable ISO: {}", out_iso.display()),
+        &[],
+    );
 
     // Locate xorriso
     let xorriso = find_xorriso()?;
@@ -103,7 +107,11 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
         ],
     )?;
 
-    logging::ready("iso", "ISO assembled successfully", &out_iso.to_string_lossy());
+    logging::ready(
+        "iso",
+        "ISO assembled successfully",
+        &out_iso.to_string_lossy(),
+    );
     Ok(())
 }
 

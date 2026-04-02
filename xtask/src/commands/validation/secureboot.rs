@@ -1,13 +1,13 @@
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
 
-use crate::constants;
 use crate::cli::SecurebootAction;
+use crate::constants;
 use crate::utils::paths;
 use crate::utils::process;
 use crate::utils::report;
@@ -168,7 +168,11 @@ fn sign(dry_run: bool, strict_verify: bool) -> Result<()> {
                         .with_context(|| format!("failed to execute sbsign for {}", file_name))?;
                     let signed = status.success();
                     if !signed {
-                        failures.push(format!("sbsign failed for {} (rc={})", file_name, status.code().unwrap_or(-1)));
+                        failures.push(format!(
+                            "sbsign failed for {} (rc={})",
+                            file_name,
+                            status.code().unwrap_or(-1)
+                        ));
                         error_codes.push("SIGN_SBSIGN_EXEC_FAILED".to_string());
                     }
                     let (verified, verify_detail) = if signed {
@@ -177,7 +181,10 @@ fn sign(dry_run: bool, strict_verify: bool) -> Result<()> {
                         (false, "not signed".to_string())
                     };
                     if signed && !verified {
-                        failures.push(format!("sbsign verification failed for {}: {}", file_name, verify_detail));
+                        failures.push(format!(
+                            "sbsign verification failed for {}: {}",
+                            file_name, verify_detail
+                        ));
                         error_codes.push("SIGN_SBSIGN_VERIFY_FAILED".to_string());
                     }
                     rows.push(SignRow {
@@ -215,8 +222,7 @@ fn sign(dry_run: bool, strict_verify: bool) -> Result<()> {
                         .arg(&dst)
                         .args(["-c", cert_name]);
                     if let Some(nss) = nss_dir {
-                        cmd.args(["-n"])
-                            .arg(nss);
+                        cmd.args(["-n"]).arg(nss);
                     }
 
                     let status = cmd
@@ -237,7 +243,10 @@ fn sign(dry_run: bool, strict_verify: bool) -> Result<()> {
                         (false, "not signed".to_string())
                     };
                     if signed && !verified {
-                        failures.push(format!("pesign verification failed for {}: {}", file_name, verify_detail));
+                        failures.push(format!(
+                            "pesign verification failed for {}: {}",
+                            file_name, verify_detail
+                        ));
                         error_codes.push("SIGN_PESIGN_VERIFY_FAILED".to_string());
                     }
                     rows.push(SignRow {
@@ -297,7 +306,10 @@ fn sign(dry_run: bool, strict_verify: bool) -> Result<()> {
     };
 
     report::write_json_report(&report_path, &summary)?;
-    println!("[secureboot::sign] {}", if summary.ok { "PASS" } else { "FAIL" });
+    println!(
+        "[secureboot::sign] {}",
+        if summary.ok { "PASS" } else { "FAIL" }
+    );
     if summary.ok {
         Ok(())
     } else {
@@ -319,7 +331,10 @@ fn resolve_sbsign_material() -> Option<(PathBuf, PathBuf)> {
 
     let candidates = [
         (paths::resolve("keys/db.key"), paths::resolve("keys/db.crt")),
-        (paths::resolve("keys/MOK.key"), paths::resolve("keys/MOK.crt")),
+        (
+            paths::resolve("keys/MOK.key"),
+            paths::resolve("keys/MOK.crt"),
+        ),
     ];
 
     candidates
@@ -349,12 +364,10 @@ fn resolve_pesign_profile() -> Option<(String, Option<PathBuf>)> {
 fn verify_signed_artifact(path: &Path, signing_tool: &str, strict_verify: bool) -> (bool, String) {
     if signing_tool == "sbsign" {
         if process::which("sbverify") {
-            match Command::new("sbverify")
-                .args(["--list"])
-                .arg(path)
-                .status()
-            {
-                Ok(status) if status.success() => (true, "signature verified with sbverify".to_string()),
+            match Command::new("sbverify").args(["--list"]).arg(path).status() {
+                Ok(status) if status.success() => {
+                    (true, "signature verified with sbverify".to_string())
+                }
                 Ok(status) => (
                     false,
                     format!("sbverify failed rc={}", status.code().unwrap_or(-1)),
@@ -378,9 +391,10 @@ fn verify_signed_artifact(path: &Path, signing_tool: &str, strict_verify: bool) 
                 .arg(path)
                 .status()
             {
-                Ok(status) if status.success() => {
-                    (true, "signature verified with pesign --show-signature".to_string())
-                }
+                Ok(status) if status.success() => (
+                    true,
+                    "signature verified with pesign --show-signature".to_string(),
+                ),
                 Ok(status) => (
                     false,
                     format!("pesign verify failed rc={}", status.code().unwrap_or(-1)),
@@ -394,7 +408,10 @@ fn verify_signed_artifact(path: &Path, signing_tool: &str, strict_verify: bool) 
                     "pesign not found for verification and strict_verify=true".to_string(),
                 )
             } else {
-                (true, "pesign not found for verification; skipped".to_string())
+                (
+                    true,
+                    "pesign not found for verification; skipped".to_string(),
+                )
             }
         }
     } else {
@@ -427,7 +444,10 @@ struct SbatRow {
 }
 
 fn sbat_validate(strict: bool) -> Result<()> {
-    println!("[secureboot::sbat] Validating SBAT metadata (strict={})", strict);
+    println!(
+        "[secureboot::sbat] Validating SBAT metadata (strict={})",
+        strict
+    );
 
     let efi_dir = constants::paths::boot_image_iso_root().join("EFI/BOOT");
     let report_path = constants::paths::secureboot_sbat_report();
@@ -442,12 +462,21 @@ fn sbat_validate(strict: bool) -> Result<()> {
         if !path.exists() {
             failures.push(format!("missing required EFI: {}", name));
             error_codes.push("SBAT_REQUIRED_EFI_MISSING".to_string());
-            rows.push(SbatRow { file: name.to_string(), exists: false, has_sbat: false });
+            rows.push(SbatRow {
+                file: name.to_string(),
+                exists: false,
+                has_sbat: false,
+            });
             continue;
         }
         let data = fs::read(&path)?;
-        let has_sbat = data.windows(5).any(|w| w == b"sbat,") || data.windows(5).any(|w| w == b".sbat");
-        rows.push(SbatRow { file: name.to_string(), exists: true, has_sbat });
+        let has_sbat =
+            data.windows(5).any(|w| w == b"sbat,") || data.windows(5).any(|w| w == b".sbat");
+        rows.push(SbatRow {
+            file: name.to_string(),
+            exists: true,
+            has_sbat,
+        });
         if !has_sbat {
             failures.push(format!("sbat marker missing: {}", name));
             error_codes.push("SBAT_MARKER_MISSING".to_string());
@@ -455,7 +484,13 @@ fn sbat_validate(strict: bool) -> Result<()> {
     }
 
     let ok = failures.is_empty();
-    let status = if ok { "PASS" } else if strict { "FAIL" } else { "WARN" };
+    let status = if ok {
+        "PASS"
+    } else if strict {
+        "FAIL"
+    } else {
+        "WARN"
+    };
 
     error_codes.sort();
     error_codes.dedup();
@@ -474,7 +509,10 @@ fn sbat_validate(strict: bool) -> Result<()> {
     report::write_json_report(&report_path, &summary)?;
     println!("[secureboot::sbat] {}", status);
     if strict && !ok {
-        bail!("secureboot sbat validation failed; see {}", report_path.display());
+        bail!(
+            "secureboot sbat validation failed; see {}",
+            report_path.display()
+        );
     }
     Ok(())
 }
@@ -558,7 +596,10 @@ fn mok_plan() -> Result<()> {
     md.push_str("- `mokutil --test-key <cert>`\n");
 
     report::write_text_report(&out_dir.join("mok_plan.md"), &md)?;
-    println!("[secureboot::mok] Plan written: {}", out_dir.join("mok_plan.md").display());
+    println!(
+        "[secureboot::mok] Plan written: {}",
+        out_dir.join("mok_plan.md").display()
+    );
     Ok(())
 }
 
@@ -568,7 +609,10 @@ fn mok_plan() -> Result<()> {
 // ---------------------------------------------------------------------------
 
 fn ovmf_matrix(dry_run: bool) -> Result<()> {
-    println!("[secureboot::ovmf] Running OVMF Secure Boot matrix (dry_run={})", dry_run);
+    println!(
+        "[secureboot::ovmf] Running OVMF Secure Boot matrix (dry_run={})",
+        dry_run
+    );
     let out_dir = constants::paths::secureboot_ovmf_matrix_dir();
     paths::ensure_dir(&out_dir)?;
     let summary_path = out_dir.join("summary.json");
@@ -576,7 +620,10 @@ fn ovmf_matrix(dry_run: bool) -> Result<()> {
     if dry_run {
         let summary = ovmf_dry_run_summary(report::utc_now_iso());
         report::write_json_report(&summary_path, &summary)?;
-        println!("[secureboot::ovmf] DRY-RUN summary={}", summary_path.display());
+        println!(
+            "[secureboot::ovmf] DRY-RUN summary={}",
+            summary_path.display()
+        );
         return Ok(());
     }
 
@@ -599,28 +646,19 @@ fn ovmf_matrix(dry_run: bool) -> Result<()> {
     let mut rows = Vec::new();
     if failures.is_empty() {
         rows.push(run_ovmf_case(
-            &qemu,
-            &iso,
-            &ovmf_code,
-            &ovmf_vars,
-            false,
-            &out_dir,
-            25,
+            &qemu, &iso, &ovmf_code, &ovmf_vars, false, &out_dir, 25,
         )?);
         rows.push(run_ovmf_case(
-            &qemu,
-            &iso,
-            &ovmf_code,
-            &ovmf_vars,
-            true,
-            &out_dir,
-            25,
+            &qemu, &iso, &ovmf_code, &ovmf_vars, true, &out_dir, 25,
         )?);
     }
 
     for row in &rows {
         if !row.ok {
-            failures.push(format!("{}: rc={} timeout={}", row.name, row.rc, row.timeout));
+            failures.push(format!(
+                "{}: rc={} timeout={}",
+                row.name, row.rc, row.timeout
+            ));
         }
     }
 
@@ -684,11 +722,19 @@ fn run_ovmf_case(
     out_dir: &Path,
     timeout_sec: u64,
 ) -> Result<OvmfCaseResult> {
-    let case_name = if secure_boot { "secure_on" } else { "secure_off" };
+    let case_name = if secure_boot {
+        "secure_on"
+    } else {
+        "secure_off"
+    };
     let vars_copy = out_dir.join(format!("OVMF_VARS_{}.fd", case_name));
     let log_path = out_dir.join(format!("{}.log", case_name));
-    fs::copy(ovmf_vars_template, &vars_copy)
-        .with_context(|| format!("Failed to copy OVMF vars template to {}", vars_copy.display()))?;
+    fs::copy(ovmf_vars_template, &vars_copy).with_context(|| {
+        format!(
+            "Failed to copy OVMF vars template to {}",
+            vars_copy.display()
+        )
+    })?;
 
     let mut child = Command::new(qemu)
         .args([
@@ -698,7 +744,10 @@ fn run_ovmf_case(
             "-smp",
             "2",
             "-drive",
-            &format!("if=pflash,format=raw,readonly=on,file={}", ovmf_code.display()),
+            &format!(
+                "if=pflash,format=raw,readonly=on,file={}",
+                ovmf_code.display()
+            ),
             "-drive",
             &format!("if=pflash,format=raw,file={}", vars_copy.display()),
             "-cdrom",
@@ -712,17 +761,22 @@ fn run_ovmf_case(
         .with_context(|| format!("Failed to launch QEMU case {}", case_name))?;
 
     let start = Instant::now();
-    let (rc, timeout, output) = match child.wait_timeout(std::time::Duration::from_secs(timeout_sec)) {
-        Ok(Some(status)) => {
-            let out = child.stdout.take().map(read_pipe_to_string).unwrap_or_default();
-            (status.code().unwrap_or(-1), false, out)
-        }
-        Ok(None) | Err(_) => {
-            let _ = child.kill();
-            let out = child.stdout.take().map(read_pipe_to_string).unwrap_or_default();
-            (-1, true, out)
-        }
-    };
+    let (rc, timeout, output) =
+        match process::wait_child_with_timeout(
+            &mut child,
+            std::time::Duration::from_secs(timeout_sec),
+            std::time::Duration::from_millis(100),
+        ) {
+            Ok(Some(status)) => {
+                let out = process::read_optional_pipe_to_string(child.stdout.take());
+                (status.code().unwrap_or(-1), false, out)
+            }
+            Ok(None) | Err(_) => {
+                let _ = child.kill();
+                let out = process::read_optional_pipe_to_string(child.stdout.take());
+                (-1, true, out)
+            }
+        };
     let duration_sec = start.elapsed().as_secs_f64();
 
     report::write_text_report(&log_path, &output)
@@ -741,67 +795,22 @@ fn run_ovmf_case(
 }
 
 fn find_qemu() -> Result<String> {
-    if crate::utils::process::which("qemu-system-x86_64") {
-        return Ok("qemu-system-x86_64".to_string());
-    }
-
-    let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".to_string());
-    let candidate = PathBuf::from(program_files)
-        .join("qemu")
-        .join("qemu-system-x86_64.exe");
-    if candidate.exists() {
-        return Ok(candidate.display().to_string());
-    }
-
-    bail!("qemu-system-x86_64 not found in PATH or Program Files")
-}
-
-fn read_pipe_to_string(mut pipe: std::process::ChildStdout) -> String {
-    let mut buf = String::new();
-    let _ = std::io::Read::read_to_string(&mut pipe, &mut buf);
-    buf
-}
-
-trait WaitTimeout {
-    fn wait_timeout(&mut self, duration: std::time::Duration) -> std::io::Result<Option<std::process::ExitStatus>>;
-}
-
-impl WaitTimeout for std::process::Child {
-    fn wait_timeout(&mut self, duration: std::time::Duration) -> std::io::Result<Option<std::process::ExitStatus>> {
-        let start = Instant::now();
-        loop {
-            match self.try_wait()? {
-                Some(status) => return Ok(Some(status)),
-                None => {
-                    if start.elapsed() >= duration {
-                        return Ok(None);
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                }
-            }
-        }
-    }
+    process::find_qemu_system_x86_64()
+        .ok_or_else(|| anyhow::anyhow!("qemu-system-x86_64 not found in PATH or Program Files"))
 }
 
 #[cfg(test)]
 mod tests {
     use super::ovmf_dry_run_summary;
+    use crate::utils::paths;
     use std::fs;
-    use std::path::PathBuf;
-
-    fn fixture_path(name: &str) -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("fixtures")
-            .join(name)
-    }
 
     #[test]
     fn ovmf_dry_run_summary_matches_fixture() {
         let summary = ovmf_dry_run_summary("2026-04-02T00:00:00Z".to_string());
-        let json = serde_json::to_string_pretty(&summary)
-            .expect("ovmf dry-run summary must serialize");
-        let expected = fs::read_to_string(fixture_path("secureboot_ovmf_dry_run_summary.json"))
+        let json =
+            serde_json::to_string_pretty(&summary).expect("ovmf dry-run summary must serialize");
+        let expected = fs::read_to_string(paths::xtask_test_fixture("secureboot_ovmf_dry_run_summary.json"))
             .expect("fixture must be readable");
         let expected = expected.replace("\r\n", "\n");
         assert_eq!(json, expected.trim_end());

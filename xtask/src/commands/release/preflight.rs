@@ -1,35 +1,24 @@
 use anyhow::Result;
 
 use crate::cli::ReleaseAction;
-use crate::constants;
-use crate::utils::{cargo, process};
 use crate::commands::infra;
 use crate::commands::ops;
 use crate::commands::validation;
+use crate::constants;
+use crate::utils::{cargo, process};
 
 pub fn execute(action: &ReleaseAction) -> Result<()> {
     match action {
-        ReleaseAction::Preflight { skip_host_tests, skip_boot_artifacts } => {
-            preflight(*skip_host_tests, *skip_boot_artifacts)
-        }
-        ReleaseAction::CandidateGate => {
-            candidate_gate()
-        }
-        ReleaseAction::P0Gate => {
-            p0_gate()
-        }
-        ReleaseAction::P0Acceptance => {
-            p0_acceptance()
-        }
-        ReleaseAction::P1Nightly => {
-            p1_nightly()
-        }
-        ReleaseAction::P1Acceptance => {
-            p1_acceptance()
-        }
-        ReleaseAction::P0P1Nightly => {
-            p0_p1_nightly()
-        }
+        ReleaseAction::Preflight {
+            skip_host_tests,
+            skip_boot_artifacts,
+        } => preflight(*skip_host_tests, *skip_boot_artifacts),
+        ReleaseAction::CandidateGate => candidate_gate(),
+        ReleaseAction::P0Gate => p0_gate(),
+        ReleaseAction::P0Acceptance => p0_acceptance(),
+        ReleaseAction::P1Nightly => p1_nightly(),
+        ReleaseAction::P1Acceptance => p1_acceptance(),
+        ReleaseAction::P0P1Nightly => p0_p1_nightly(),
     }
 }
 
@@ -67,17 +56,17 @@ fn preflight(skip_host_tests: bool, skip_boot_artifacts: bool) -> Result<()> {
 
     println!("[release::preflight] Step 6: Linux syscall coverage gate (default)");
     validation::syscall_coverage::execute(
-        false, 
-        constants::defaults::glibc::FORMAT_MD, 
-        &Some("reports/syscall_coverage.md".to_string())
+        false,
+        constants::defaults::glibc::FORMAT_MD,
+        &Some("reports/syscall_coverage.md".to_string()),
     )?;
 
     println!("[release::preflight] Step 7: linux_compat profile compile + syscall gate");
     cargo::cargo(&["check", "--features", "linux_compat,posix_deep_tests"])?;
     validation::syscall_coverage::execute(
-        true, 
-        constants::defaults::glibc::FORMAT_MD, 
-        &Some("reports/syscall_coverage_linux_compat.md".to_string())
+        true,
+        constants::defaults::glibc::FORMAT_MD,
+        &Some("reports/syscall_coverage_linux_compat.md".to_string()),
     )?;
 
     println!("[release::preflight] Step 8: POSIX deep tests compile gate");

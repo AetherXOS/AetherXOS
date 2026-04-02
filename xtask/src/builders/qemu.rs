@@ -58,7 +58,14 @@ mod tests {
 
     #[test]
     fn kernel_boot_args_contains_expected_segments() {
-        let args = kernel_boot_args(512, 2, "kernel.elf", "initramfs.cpio", "console=ttyS0", true);
+        let args = kernel_boot_args(
+            512,
+            2,
+            "kernel.elf",
+            "initramfs.cpio",
+            "console=ttyS0",
+            true,
+        );
         assert_eq!(args.first().map(|s| s.as_str()), Some("-nographic"));
         assert!(args.windows(2).any(|w| w == ["-m", "512"]));
         assert!(args.windows(2).any(|w| w == ["-smp", "2"]));

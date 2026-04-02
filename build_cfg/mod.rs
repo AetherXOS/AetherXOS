@@ -8,8 +8,8 @@ mod config_loader;
 mod config_types;
 mod emitter;
 mod feature_graph;
-mod runtime_codegen;
 mod linked_probe_codegen;
+mod runtime_codegen;
 mod validators;
 
 use std::fs;

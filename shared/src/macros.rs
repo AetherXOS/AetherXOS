@@ -223,7 +223,9 @@ macro_rules! impl_enum_u8_option_conversions {
     ($name:ident { $($variant:ident),* $(,)? }) => {
         impl $name {
             #[inline(always)]
-            pub const fn to_u8(self) -> u8 { self as u8 }
+            pub const fn to_u8(self) -> u8 {
+                self as u8
+            }
         }
     };
 }

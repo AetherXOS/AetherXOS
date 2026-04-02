@@ -1,10 +1,10 @@
-use rocket::serde::json::{json, Json, Value};
-use rocket::State;
-use serde::Deserialize;
 use crate::auth::{RequireAdmin, RequireViewer};
 use crate::models::Host;
 use crate::resp::{err, err_detail, ok};
 use crate::state::AppState;
+use rocket::State;
+use rocket::serde::json::{Json, Value, json};
+use serde::Deserialize;
 
 // ── GET /hosts ────────────────────────────────────────────────────────────────
 
@@ -37,9 +37,17 @@ pub struct HeartbeatPayload {
 }
 
 #[rocket::post("/hosts/register", data = "<body>")]
-pub fn hosts_register(state: &State<AppState>, _role: RequireAdmin, body: Json<HostPayload>) -> Value {
+pub fn hosts_register(
+    state: &State<AppState>,
+    _role: RequireAdmin,
+    body: Json<HostPayload>,
+) -> Value {
     if body.id.is_empty() || body.url.is_empty() {
-        return err("invalid_payload", "id and url are required.", "invalid_payload");
+        return err(
+            "invalid_payload",
+            "id and url are required.",
+            "invalid_payload",
+        );
     }
     if body.id == "local" {
         return err("reserved_id", "'local' is a reserved host id.", "conflict");
@@ -60,7 +68,12 @@ pub fn hosts_register(state: &State<AppState>, _role: RequireAdmin, body: Json<H
     let mut inner = state.write();
     // Prevent duplicate
     if inner.hosts.iter().any(|h| h.id == host.id) {
-        return err_detail("already_exists", "Host ID already registered.", "conflict", json!({ "id": host.id }));
+        return err_detail(
+            "already_exists",
+            "Host ID already registered.",
+            "conflict",
+            json!({ "id": host.id }),
+        );
     }
     inner.hosts.push(host.clone());
     ok("host_registered", json!({ "host": host_to_json(&host) }))
@@ -69,24 +82,49 @@ pub fn hosts_register(state: &State<AppState>, _role: RequireAdmin, body: Json<H
 // ── POST /hosts/update ────────────────────────────────────────────────────────
 
 #[rocket::post("/hosts/update", data = "<body>")]
-pub fn hosts_update(state: &State<AppState>, _role: RequireAdmin, body: Json<HostPayload>) -> Value {
+pub fn hosts_update(
+    state: &State<AppState>,
+    _role: RequireAdmin,
+    body: Json<HostPayload>,
+) -> Value {
     if body.id.is_empty() {
         return err("invalid_payload", "id is required.", "invalid_payload");
     }
     if body.id == "local" {
-        return err("reserved_id", "'local' host cannot be modified.", "conflict");
+        return err(
+            "reserved_id",
+            "'local' host cannot be modified.",
+            "conflict",
+        );
     }
 
     let mut inner = state.write();
     match inner.hosts.iter_mut().find(|h| h.id == body.id) {
-        None => err_detail("not_found", "Host not found.", "not_found", json!({ "id": body.id })),
+        None => err_detail(
+            "not_found",
+            "Host not found.",
+            "not_found",
+            json!({ "id": body.id }),
+        ),
         Some(h) => {
-            if !body.url.is_empty() { h.url = body.url.clone(); }
-            if let Some(n) = &body.name { h.name = n.clone(); }
-            if let Some(e) = body.enabled { h.enabled = e; }
-            if let Some(r) = &body.role_hint { h.role_hint = r.clone(); }
-            if let Some(t) = &body.token { h.token = t.clone(); }
-            if let Some(caps) = &body.capabilities { h.capabilities = caps.clone(); }
+            if !body.url.is_empty() {
+                h.url = body.url.clone();
+            }
+            if let Some(n) = &body.name {
+                h.name = n.clone();
+            }
+            if let Some(e) = body.enabled {
+                h.enabled = e;
+            }
+            if let Some(r) = &body.role_hint {
+                h.role_hint = r.clone();
+            }
+            if let Some(t) = &body.token {
+                h.token = t.clone();
+            }
+            if let Some(caps) = &body.capabilities {
+                h.capabilities = caps.clone();
+            }
             ok("host_updated", json!({ "host": host_to_json(h) }))
         }
     }
@@ -95,10 +133,16 @@ pub fn hosts_update(state: &State<AppState>, _role: RequireAdmin, body: Json<Hos
 // ── POST /hosts/remove ────────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
-pub struct RemovePayload { pub id: String }
+pub struct RemovePayload {
+    pub id: String,
+}
 
 #[rocket::post("/hosts/remove", data = "<body>")]
-pub fn hosts_remove(state: &State<AppState>, _role: RequireAdmin, body: Json<RemovePayload>) -> Value {
+pub fn hosts_remove(
+    state: &State<AppState>,
+    _role: RequireAdmin,
+    body: Json<RemovePayload>,
+) -> Value {
     if body.id == "local" {
         return err("reserved_id", "'local' host cannot be removed.", "conflict");
     }
@@ -108,7 +152,12 @@ pub fn hosts_remove(state: &State<AppState>, _role: RequireAdmin, body: Json<Rem
     if inner.hosts.len() < before {
         ok("host_removed", json!({ "id": body.id }))
     } else {
-        err_detail("not_found", "Host not found.", "not_found", json!({ "id": body.id }))
+        err_detail(
+            "not_found",
+            "Host not found.",
+            "not_found",
+            json!({ "id": body.id }),
+        )
     }
 }
 
@@ -117,21 +166,31 @@ pub fn hosts_remove(state: &State<AppState>, _role: RequireAdmin, body: Json<Rem
 #[rocket::get("/status/hosts")]
 pub fn status_hosts(state: &State<AppState>, _role: RequireViewer) -> Value {
     let inner = state.read();
-    let hosts: Vec<Value> = inner.hosts.iter().map(|h| json!({
-        "id": h.id,
-        "name": h.name,
-        "url": h.url,
-        "enabled": h.enabled,
-        "role_hint": h.role_hint,
-        "reachable": h.reachable,
-        "last_seen_utc": h.last_seen_utc.map(|d| d.to_rfc3339()),
-        "capabilities": h.capabilities,
-    })).collect();
+    let hosts: Vec<Value> = inner
+        .hosts
+        .iter()
+        .map(|h| {
+            json!({
+                "id": h.id,
+                "name": h.name,
+                "url": h.url,
+                "enabled": h.enabled,
+                "role_hint": h.role_hint,
+                "reachable": h.reachable,
+                "last_seen_utc": h.last_seen_utc.map(|d| d.to_rfc3339()),
+                "capabilities": h.capabilities,
+            })
+        })
+        .collect();
     ok("status_hosts", json!({ "hosts": hosts }))
 }
 
 #[rocket::post("/hosts/heartbeat", data = "<body>")]
-pub fn hosts_heartbeat(state: &State<AppState>, _role: RequireAdmin, body: Json<HeartbeatPayload>) -> Value {
+pub fn hosts_heartbeat(
+    state: &State<AppState>,
+    _role: RequireAdmin,
+    body: Json<HeartbeatPayload>,
+) -> Value {
     let mut inner = state.write();
     match inner.hosts.iter_mut().find(|host| host.id == body.id) {
         Some(host) => {
@@ -144,7 +203,12 @@ pub fn hosts_heartbeat(state: &State<AppState>, _role: RequireAdmin, body: Json<
             }
             ok("host_heartbeat", json!({ "host": host_to_json(host) }))
         }
-        None => err_detail("not_found", "Host not found.", "not_found", json!({ "id": body.id })),
+        None => err_detail(
+            "not_found",
+            "Host not found.",
+            "not_found",
+            json!({ "id": body.id }),
+        ),
     }
 }
 

@@ -11,10 +11,11 @@ fn formal_assets_and_plans_stay_registered() {
     fs::text("formal/kani/src/lib.rs", "#[kani::proof]");
 
     assert_eq!(tier.named("tlaplus").program, "tlc");
-    assert!(tier
-        .named("tlaplus")
-        .args
-        .contains(&"formal/tla/KernelConfigOverrides.tla"));
+    assert!(
+        tier.named("tlaplus")
+            .args
+            .contains(&"formal/tla/KernelConfigOverrides.tla")
+    );
     fs::file("formal/tla/KernelConfigOverrides.tla");
     fs::file("formal/tla/KernelConfigOverrides.cfg");
     fs::text("formal/tla/KernelConfigOverrides.tla", "HistoryInvariant");

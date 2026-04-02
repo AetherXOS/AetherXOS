@@ -30,7 +30,10 @@ fn jobs_filter_and_validation_contract() {
         );
     }
 
-    let jobs = client.get("/jobs?status=done&limit=10").header(token.clone()).dispatch();
+    let jobs = client
+        .get("/jobs?status=done&limit=10")
+        .header(token.clone())
+        .dispatch();
     assert_eq!(jobs.status(), Status::Ok);
     let jobs_json: serde_json::Value = jobs.into_json().expect("jobs json");
     assert_eq!(jobs_json["total"], 1);

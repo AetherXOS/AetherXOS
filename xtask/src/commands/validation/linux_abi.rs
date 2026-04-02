@@ -27,7 +27,11 @@ pub fn execute(action: &LinuxAbiAction) -> Result<()> {
             logging::info("abi", "Testing POSIX error code alignment...", &[]);
         }
         LinuxAbiAction::ShimErrnoConformance => {
-            logging::info("abi", "Testing Linux compatibility shim errno mappings...", &[]);
+            logging::info(
+                "abi",
+                "Testing Linux compatibility shim errno mappings...",
+                &[],
+            );
         }
         LinuxAbiAction::ReadinessScore => {
             logging::info("abi", "Calculating global ABI readiness score...", &[]);
@@ -43,11 +47,11 @@ pub fn execute(action: &LinuxAbiAction) -> Result<()> {
 }
 
 fn audit_syscalls() -> Result<()> {
-    let kernel_dir = crate::utils::paths::resolve("src");
+    let kernel_dir = crate::utils::paths::kernel_src("");
     if !kernel_dir.exists() {
         logging::warn(
             "abi",
-            "'src' OS namespace not detected. Xtask must launch from the root layout.",
+            "'kernel/src' OS namespace not detected. Xtask must launch from the repository root.",
             &[],
         );
         return Ok(());

@@ -5,8 +5,8 @@ mod types;
 use aethercore::hal::HAL;
 
 pub(crate) fn timer_tick_handler(_irq: u8) {
-    use core::sync::atomic::Ordering;
     use aethercore::interfaces::task::TaskId;
+    use core::sync::atomic::Ordering;
 
     aethercore::kernel::debug_trace::record_optional("timer.tick", "handler_entered", None, false);
 

@@ -5,7 +5,7 @@
 // Remaining blockers: remap_file_pages (deprecated), clone namespaces, statx extended attrs.
 
 use crate::cli::GlibcAction;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;

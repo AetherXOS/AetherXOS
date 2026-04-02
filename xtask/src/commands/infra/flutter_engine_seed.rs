@@ -13,11 +13,6 @@ use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
 use std::process::Command;
 
-#[cfg(unix)]
-fn run_first_success(candidates: &[(&str, &[&str])]) -> bool {
-    candidates.iter().any(|(program, args)| process::run_best_effort(program, args))
-}
-
 const FLUTTER_ENGINE_VERSION: &str = "3.24.0";
 const FLUTTER_STABILITY_CHANNEL: &str = "stable";
 
@@ -294,7 +289,7 @@ fn download_flutter_binaries(bin_dir: &Path, lib_dir: &Path, _flutter_dir: &Path
     let download_path = temp_dir.join("flutter.tar.xz");
 
     // Try curl first
-    let download_ok = run_first_success(&[
+    let download_ok = process::run_first_success(&[
         ("curl", &["-fsSL", &flutter_url, "-o", download_path.to_str().unwrap_or("")]),
         ("wget", &["-qO", download_path.to_str().unwrap_or(""), &flutter_url]),
     ]);
@@ -305,7 +300,7 @@ fn download_flutter_binaries(bin_dir: &Path, lib_dir: &Path, _flutter_dir: &Path
     }
 
     // Extract tar.xz archive
-    if !run_first_success(&[("tar", &["-xJf", download_path.to_str().unwrap_or(""), "-C", temp_dir.to_str().unwrap_or("")])]) {
+    if !process::run_first_success(&[("tar", &["-xJf", download_path.to_str().unwrap_or(""), "-C", temp_dir.to_str().unwrap_or("")])]) {
         let _ = fs::remove_dir_all(&temp_dir);
         return Err(anyhow::anyhow!("Failed to extract Flutter archive"));
     }

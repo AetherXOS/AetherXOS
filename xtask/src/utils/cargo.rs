@@ -1,6 +1,6 @@
 use crate::constants::{cargo as cargo_consts, tools};
 use crate::utils::{context, logging};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::process::Command;
 
 /// Run `cargo` with the given arguments and bail on failure.
@@ -47,18 +47,6 @@ pub fn cargo_check_features(
 pub fn detect_host_triple() -> Result<String> {
     match context::host_target() {
         Ok(host) => Ok(host.to_string()),
-        Err(_) => {
-            let output = Command::new(tools::RUSTC)
-                .args(["-vV"])
-                .output()
-                .context("Failed to run rustc -vV")?;
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for line in stdout.lines() {
-                if let Some(triple) = line.strip_prefix("host: ") {
-                    return Ok(triple.trim().to_string());
-                }
-            }
-            bail!("Could not detect host triple from rustc output")
-        }
+        Err(_) => context::detect_host_triple_from_rustc(),
     }
 }

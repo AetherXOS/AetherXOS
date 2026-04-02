@@ -7,10 +7,13 @@
 #![allow(dead_code, unused_imports, unused_mut, unused_variables)]
 #![allow(clippy::all)]
 #![cfg_attr(all(test, target_os = "none"), test_runner(crate::test_runner))]
-#![cfg_attr(all(test, target_os = "none"), reexport_test_harness_main = "test_main")]
+#![cfg_attr(
+    all(test, target_os = "none"),
+    reexport_test_harness_main = "test_main"
+)]
 
-extern crate alloc;
-extern crate aethercore; // Use the library
+extern crate aethercore;
+extern crate alloc; // Use the library
 #[cfg(target_os = "none")]
 mod kernel_runtime;
 
@@ -31,24 +34,27 @@ pub static ALLOCATOR: ActiveHeapAllocator = ActiveHeapAllocator::new();
 #[repr(C, align(8))]
 pub struct MultibootHeader {
     // Multiboot2 header
-    magic: u32,              // 0xE85250D6 (magic number)
-    architecture: u32,       // 0 = i386, 4 = x86_64
-    header_length: u32,      // 12 bytes (header + architecture + reserved) before tags
-    checksum: u32,           // -(magic + architecture + header_length)
-    
+    magic: u32,         // 0xE85250D6 (magic number)
+    architecture: u32,  // 0 = i386, 4 = x86_64
+    header_length: u32, // 12 bytes (header + architecture + reserved) before tags
+    checksum: u32,      // -(magic + architecture + header_length)
+
     // End tag (required)
-    end_tag_type: u16,       // 0 = end tag
-    end_tag_flags: u16,      // 0
-    end_tag_size: u32,       // 8 bytes
+    end_tag_type: u16,  // 0 = end tag
+    end_tag_flags: u16, // 0
+    end_tag_size: u32,  // 8 bytes
 }
 
 impl MultibootHeader {
     const fn new() -> Self {
         let magic = 0xE85250D6u32;
-        let architecture = 0u32;  // i386
+        let architecture = 0u32; // i386
         let header_length = 12u32; // Through checksum field
-        let checksum = (0u32).wrapping_sub(magic).wrapping_sub(architecture).wrapping_sub(header_length);
-        
+        let checksum = (0u32)
+            .wrapping_sub(magic)
+            .wrapping_sub(architecture)
+            .wrapping_sub(header_length);
+
         MultibootHeader {
             magic,
             architecture,

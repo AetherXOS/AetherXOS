@@ -55,7 +55,10 @@ fn prune_events_and_host_heartbeat_contract() {
     assert_eq!(heartbeat_json["ok"], true);
     assert_eq!(heartbeat_json["host"]["reachable"], true);
 
-    let events = client.get("/events?limit=20").header(token.clone()).dispatch();
+    let events = client
+        .get("/events?limit=20")
+        .header(token.clone())
+        .dispatch();
     let events_json: serde_json::Value = events.into_json().expect("events json");
     assert_eq!(events_json["ok"], true);
     assert!(events_json["events"].is_array());
@@ -68,7 +71,10 @@ fn prune_events_and_host_heartbeat_contract() {
     let sse_body = stream.into_string().expect("events sse");
     assert!(sse_body.contains("data:") || sse_body.contains("heartbeat"));
 
-    let prune = client.delete("/jobs/prune?hours=24").header(token).dispatch();
+    let prune = client
+        .delete("/jobs/prune?hours=24")
+        .header(token)
+        .dispatch();
     let prune_json: serde_json::Value = prune.into_json().expect("prune json");
     assert_eq!(prune_json["ok"], true);
     assert_eq!(prune_json["removed"], 1);
@@ -108,7 +114,8 @@ fn events_filter_and_stats_contract() {
         .header(admin_header())
         .dispatch();
     assert_eq!(filtered_time.status(), Status::Ok);
-    let filtered_time_json: serde_json::Value = filtered_time.into_json().expect("time filtered json");
+    let filtered_time_json: serde_json::Value =
+        filtered_time.into_json().expect("time filtered json");
     assert_eq!(filtered_time_json["returned"], 1);
 
     let invalid_ts = client
@@ -138,7 +145,10 @@ fn events_stream_replay_limit_contract() {
     assert_eq!(stream.status(), Status::Ok);
     let body = stream.into_string().expect("stream body");
     let data_count = body.matches("data:").count();
-    assert!(data_count <= 1, "expected <=1 data frames, got body: {body}");
+    assert!(
+        data_count <= 1,
+        "expected <=1 data frames, got body: {body}"
+    );
 }
 
 #[test]
@@ -196,7 +206,8 @@ fn events_cursor_pagination_contract() {
         .header(token)
         .dispatch();
     assert_eq!(invalid_cursor.status(), Status::Ok);
-    let invalid_cursor_json: serde_json::Value = invalid_cursor.into_json().expect("invalid cursor json");
+    let invalid_cursor_json: serde_json::Value =
+        invalid_cursor.into_json().expect("invalid cursor json");
     assert_eq!(invalid_cursor_json["ok"], false);
     assert_eq!(invalid_cursor_json["code"], "invalid_cursor");
 }

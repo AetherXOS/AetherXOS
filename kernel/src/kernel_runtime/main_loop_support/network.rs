@@ -4,8 +4,8 @@ pub(crate) fn service_network_runtime() {
         maybe_auto_switch_network_driver_on_slo, service_registered_network_driver_io,
     };
     use crate::kernel_runtime::networking::{
-        network_slo_log_interval_multiplier, network_slo_sample_interval,
         NETWORK_AUTO_POLICY_SWITCH_COUNT, NETWORK_SLO_LAST_LOG_SAMPLE, NETWORK_SLO_SAMPLE_COUNTER,
+        network_slo_log_interval_multiplier, network_slo_sample_interval,
     };
     use core::sync::atomic::Ordering;
 
