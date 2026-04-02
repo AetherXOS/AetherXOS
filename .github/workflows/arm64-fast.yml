@@ -11,6 +11,8 @@ on:
       - 'Cargo.toml'
       - 'rust-toolchain.toml'
       - 'kernel/src/**'
+      - 'shared/**'
+      - 'host_tools/**'
       - 'tests/**'
       - 'xtask/**'
   push:
@@ -25,6 +27,8 @@ on:
       - 'Cargo.toml'
       - 'rust-toolchain.toml'
       - 'kernel/src/**'
+      - 'shared/**'
+      - 'host_tools/**'
       - 'tests/**'
       - 'xtask/**'
   workflow_dispatch:

@@ -4,18 +4,19 @@ use crate::interfaces::security::{
 use crate::interfaces::SecurityMonitor;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
-use core::sync::atomic::{AtomicU64, Ordering};
+use core::sync::atomic::Ordering;
 use spin::Mutex;
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 
 use crate::interfaces::task::TaskId;
 
 // ─── Telemetry Counters ─────────────────────────────────────────────
-static ACL_GRANT_CALLS: AtomicU64 = AtomicU64::new(0);
-static ACL_REVOKE_CALLS: AtomicU64 = AtomicU64::new(0);
-static ACL_CHECK_CALLS: AtomicU64 = AtomicU64::new(0);
-static ACL_CHECK_HITS: AtomicU64 = AtomicU64::new(0);
-static ACL_DENY_CALLS: AtomicU64 = AtomicU64::new(0);
-static ACL_FULL_CHECK_CALLS: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(ACL_GRANT_CALLS);
+declare_counter_u64!(ACL_REVOKE_CALLS);
+declare_counter_u64!(ACL_CHECK_CALLS);
+declare_counter_u64!(ACL_CHECK_HITS);
+declare_counter_u64!(ACL_DENY_CALLS);
+declare_counter_u64!(ACL_FULL_CHECK_CALLS);
 
 #[derive(Debug, Clone, Copy)]
 pub struct AclStats {
@@ -29,12 +30,23 @@ pub struct AclStats {
 
 pub fn stats() -> AclStats {
     AclStats {
-        grant_calls: ACL_GRANT_CALLS.load(Ordering::Relaxed),
-        revoke_calls: ACL_REVOKE_CALLS.load(Ordering::Relaxed),
-        check_calls: ACL_CHECK_CALLS.load(Ordering::Relaxed),
-        check_hits: ACL_CHECK_HITS.load(Ordering::Relaxed),
-        deny_calls: ACL_DENY_CALLS.load(Ordering::Relaxed),
-        full_check_calls: ACL_FULL_CHECK_CALLS.load(Ordering::Relaxed),
+        grant_calls: telemetry::snapshot_u64(&ACL_GRANT_CALLS),
+        revoke_calls: telemetry::snapshot_u64(&ACL_REVOKE_CALLS),
+        check_calls: telemetry::snapshot_u64(&ACL_CHECK_CALLS),
+        check_hits: telemetry::snapshot_u64(&ACL_CHECK_HITS),
+        deny_calls: telemetry::snapshot_u64(&ACL_DENY_CALLS),
+        full_check_calls: telemetry::snapshot_u64(&ACL_FULL_CHECK_CALLS),
+    }
+}
+
+pub fn take_stats() -> AclStats {
+    AclStats {
+        grant_calls: telemetry::take_u64(&ACL_GRANT_CALLS),
+        revoke_calls: telemetry::take_u64(&ACL_REVOKE_CALLS),
+        check_calls: telemetry::take_u64(&ACL_CHECK_CALLS),
+        check_hits: telemetry::take_u64(&ACL_CHECK_HITS),
+        deny_calls: telemetry::take_u64(&ACL_DENY_CALLS),
+        full_check_calls: telemetry::take_u64(&ACL_FULL_CHECK_CALLS),
     }
 }
 
@@ -140,7 +152,7 @@ impl AccessControlList {
 
     /// Grant granular permission.
     pub fn grant_permission(&self, resource_id: u64, task_id: TaskId, perms: AclPermissions) {
-        ACL_GRANT_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(ACL_GRANT_CALLS);
         let key = AclKey {
             resource: resource_id,
             task: task_id,
@@ -150,7 +162,7 @@ impl AccessControlList {
 
     /// Revoke granular permission.
     pub fn revoke_permission(&self, resource_id: u64, task_id: TaskId) -> bool {
-        ACL_REVOKE_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(ACL_REVOKE_CALLS);
         let key = AclKey {
             resource: resource_id,
             task: task_id,
@@ -160,7 +172,7 @@ impl AccessControlList {
 
     /// Legacy grant (blanket access).
     pub fn grant_access(&self, resource_id: u64, task_id: TaskId) {
-        ACL_GRANT_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(ACL_GRANT_CALLS);
         let mut legacy = self.legacy.lock();
         let allowed = legacy.entry(resource_id).or_insert(Vec::new());
         if !allowed.contains(&task_id) {
@@ -170,7 +182,7 @@ impl AccessControlList {
 
     /// Legacy revoke.
     pub fn revoke_access(&self, resource_id: u64, task_id: TaskId) -> bool {
-        ACL_REVOKE_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(ACL_REVOKE_CALLS);
         let mut legacy = self.legacy.lock();
         let Some(allowed) = legacy.get_mut(&resource_id) else {
             return false;
@@ -189,7 +201,7 @@ impl AccessControlList {
 
 impl SecurityMonitor for AccessControlList {
     fn check_access(&self, resource_id: u64) -> bool {
-        ACL_CHECK_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(ACL_CHECK_CALLS);
 
         let current_tid = unsafe {
             crate::kernel::cpu_local::CpuLocal::try_get()
@@ -207,7 +219,7 @@ impl SecurityMonitor for AccessControlList {
         };
         if let Some(perms) = self.entries.lock().get(&key) {
             if perms.read || perms.write || perms.execute || perms.admin {
-                ACL_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+                counter_inc!(ACL_CHECK_HITS);
                 return true;
             }
         }
@@ -216,11 +228,11 @@ impl SecurityMonitor for AccessControlList {
         if let Some(allowed) = self.legacy.lock().get(&resource_id) {
             let ok = allowed.contains(&tid) || allowed.contains(&TaskId(0));
             if ok {
-                ACL_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+                counter_inc!(ACL_CHECK_HITS);
             }
             return ok;
         }
-        ACL_DENY_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(ACL_DENY_CALLS);
         false
     }
 
@@ -231,11 +243,11 @@ impl SecurityMonitor for AccessControlList {
         _resource_kind: ResourceKind,
         action: SecurityAction,
     ) -> SecurityVerdict {
-        ACL_FULL_CHECK_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(ACL_FULL_CHECK_CALLS);
 
         // Root bypass
         if ctx.is_root() || ctx.privileged {
-            ACL_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+            counter_inc!(ACL_CHECK_HITS);
             return if ctx.audit_enabled {
                 SecurityVerdict::AuditAllow
             } else {
@@ -245,7 +257,7 @@ impl SecurityMonitor for AccessControlList {
 
         // DAC override capability
         if ctx.has_capability(cap_flags::CAP_DAC_OVERRIDE) {
-            ACL_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+            counter_inc!(ACL_CHECK_HITS);
             return SecurityVerdict::AuditAllow;
         }
 
@@ -255,7 +267,7 @@ impl SecurityMonitor for AccessControlList {
         };
         if let Some(perms) = self.entries.lock().get(&key) {
             if perms.permits(action) {
-                ACL_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+                counter_inc!(ACL_CHECK_HITS);
                 return SecurityVerdict::Allow;
             }
         }
@@ -268,7 +280,7 @@ impl SecurityMonitor for AccessControlList {
             }
         }
 
-        ACL_DENY_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(ACL_DENY_CALLS);
         if ctx.audit_enabled {
             SecurityVerdict::AuditDeny
         } else {

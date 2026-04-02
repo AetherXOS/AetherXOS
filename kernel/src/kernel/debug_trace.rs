@@ -9,7 +9,7 @@ const TRACE_FLAG_IS_DUMP: u8 = 2;
 const TRACE_FLAG_WARN: u8 = 4;
 const TRACE_FLAG_FAULT: u8 = 8;
 
-crate::define_enum!(pub enum TraceCategory : u8 {
+define_enum!(pub enum TraceCategory : u8 {
     Core = 0            => "core",
     Launch = 1          => "launch",
     Loader = 2          => "loader",

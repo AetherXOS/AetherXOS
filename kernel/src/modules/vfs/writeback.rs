@@ -13,6 +13,7 @@
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use aethercore_common::units::PAGE_SIZE_4K;
 use core::sync::atomic::{AtomicU64, Ordering};
 use spin::Mutex;
 
@@ -31,7 +32,7 @@ const DIRTY_PAGE_PRESSURE_FLUSH_BATCH: usize = DIRTY_PAGE_HIGH_WATERMARK - DIRTY
 const WRITEBACK_BUDGET_PER_PASS: usize = 256;
 /// Page size (must match cache.rs).
 #[allow(dead_code)]
-const PAGE_SIZE: usize = 4096;
+const PAGE_SIZE: usize = PAGE_SIZE_4K;
 
 // ── Writeback Sink Trait ─────────────────────────────────────────────────────
 
@@ -304,7 +305,7 @@ impl WritebackManager {
         let inos: Vec<u64> = self
             .ino_to_mount
             .iter()
-            .filter(|(_, &mid)| mid == mount_id)
+            .filter(|&(_, &mid)| mid == mount_id)
             .map(|(&ino, _)| ino)
             .collect();
 

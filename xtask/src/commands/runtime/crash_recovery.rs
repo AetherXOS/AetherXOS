@@ -2,6 +2,7 @@ use anyhow::Result;
 use serde::Serialize;
 use std::fs;
 
+use crate::constants;
 use crate::utils::paths;
 use crate::utils::report;
 
@@ -37,8 +38,8 @@ const PANIC_MARKERS: &[&str] = &[
 pub fn execute() -> Result<()> {
     println!("[crash-recovery] Running crash artifact pipeline");
 
-    let logs_dir = paths::resolve("artifacts/crash");
-    let out_dir = paths::resolve("reports/crash_pipeline");
+    let logs_dir = constants::paths::crash_logs_dir();
+    let out_dir = constants::paths::crash_reports_dir();
     paths::ensure_dir(&out_dir)?;
 
     if !logs_dir.exists() {

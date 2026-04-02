@@ -1,15 +1,15 @@
 [package]
-name = "hypercore-fuzz"
-version = "0.1.0"
+name = "aethercore-fuzz"
+version = "0.0.1"
 publish = false
-edition = "2021"
+edition = "2024"
 
 [package.metadata]
 cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-hypercore = { path = ".." }
+aethercore = { path = "..", package = "aether-x-os" }
 
 [[bin]]
 name = "kernel_config_bytes"

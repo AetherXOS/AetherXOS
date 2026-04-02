@@ -1,22 +1,24 @@
 use crate::interfaces::task::TaskId;
 use crate::interfaces::IpcChannel;
+use crate::modules::ipc::common::bounded_push_bytes;
+use crate::modules::ipc::common::IPC_PAGE_SIZE_BYTES;
 use alloc::collections::BTreeMap;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
-use core::sync::atomic::{AtomicU64, Ordering};
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 use spin::Mutex;
 
 const DEFAULT_CHANNEL_ID: TaskId = TaskId(0);
 const MAX_CHANNEL_DEPTH: usize = 128;
-const MAX_MESSAGE_SIZE: usize = 4096;
+const MAX_MESSAGE_SIZE: usize = IPC_PAGE_SIZE_BYTES;
 
-static IPC_MSG_CHANNEL_CREATE_CALLS: AtomicU64 = AtomicU64::new(0);
-static IPC_MSG_SEND_CALLS: AtomicU64 = AtomicU64::new(0);
-static IPC_MSG_SEND_DROPS_OVERSIZE: AtomicU64 = AtomicU64::new(0);
-static IPC_MSG_SEND_DROPS_BACKPRESSURE: AtomicU64 = AtomicU64::new(0);
-static IPC_MSG_RECV_CALLS: AtomicU64 = AtomicU64::new(0);
-static IPC_MSG_RECV_HITS: AtomicU64 = AtomicU64::new(0);
-static IPC_MSG_RECV_TRUNCATED: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(IPC_MSG_CHANNEL_CREATE_CALLS);
+declare_counter_u64!(IPC_MSG_SEND_CALLS);
+declare_counter_u64!(IPC_MSG_SEND_DROPS_OVERSIZE);
+declare_counter_u64!(IPC_MSG_SEND_DROPS_BACKPRESSURE);
+declare_counter_u64!(IPC_MSG_RECV_CALLS);
+declare_counter_u64!(IPC_MSG_RECV_HITS);
+declare_counter_u64!(IPC_MSG_RECV_TRUNCATED);
 
 #[derive(Debug, Clone, Copy)]
 pub struct MessagePassingStats {
@@ -31,13 +33,25 @@ pub struct MessagePassingStats {
 
 pub fn stats() -> MessagePassingStats {
     MessagePassingStats {
-        channel_create_calls: IPC_MSG_CHANNEL_CREATE_CALLS.load(Ordering::Relaxed),
-        send_calls: IPC_MSG_SEND_CALLS.load(Ordering::Relaxed),
-        send_drops_oversize: IPC_MSG_SEND_DROPS_OVERSIZE.load(Ordering::Relaxed),
-        send_drops_backpressure: IPC_MSG_SEND_DROPS_BACKPRESSURE.load(Ordering::Relaxed),
-        receive_calls: IPC_MSG_RECV_CALLS.load(Ordering::Relaxed),
-        receive_hits: IPC_MSG_RECV_HITS.load(Ordering::Relaxed),
-        receive_truncated: IPC_MSG_RECV_TRUNCATED.load(Ordering::Relaxed),
+        channel_create_calls: telemetry::snapshot_u64(&IPC_MSG_CHANNEL_CREATE_CALLS),
+        send_calls: telemetry::snapshot_u64(&IPC_MSG_SEND_CALLS),
+        send_drops_oversize: telemetry::snapshot_u64(&IPC_MSG_SEND_DROPS_OVERSIZE),
+        send_drops_backpressure: telemetry::snapshot_u64(&IPC_MSG_SEND_DROPS_BACKPRESSURE),
+        receive_calls: telemetry::snapshot_u64(&IPC_MSG_RECV_CALLS),
+        receive_hits: telemetry::snapshot_u64(&IPC_MSG_RECV_HITS),
+        receive_truncated: telemetry::snapshot_u64(&IPC_MSG_RECV_TRUNCATED),
+    }
+}
+
+pub fn take_stats() -> MessagePassingStats {
+    MessagePassingStats {
+        channel_create_calls: telemetry::take_u64(&IPC_MSG_CHANNEL_CREATE_CALLS),
+        send_calls: telemetry::take_u64(&IPC_MSG_SEND_CALLS),
+        send_drops_oversize: telemetry::take_u64(&IPC_MSG_SEND_DROPS_OVERSIZE),
+        send_drops_backpressure: telemetry::take_u64(&IPC_MSG_SEND_DROPS_BACKPRESSURE),
+        receive_calls: telemetry::take_u64(&IPC_MSG_RECV_CALLS),
+        receive_hits: telemetry::take_u64(&IPC_MSG_RECV_HITS),
+        receive_truncated: telemetry::take_u64(&IPC_MSG_RECV_TRUNCATED),
     }
 }
 
@@ -58,7 +72,7 @@ impl MessagePassing {
 
     // Create a new channel (e.g. at task creation)
     pub fn create_channel(&self, channel_id: TaskId) {
-        IPC_MSG_CHANNEL_CREATE_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(IPC_MSG_CHANNEL_CREATE_CALLS);
         self.channels
             .lock()
             .entry(channel_id)
@@ -66,31 +80,30 @@ impl MessagePassing {
     }
 
     pub fn send_to(&self, channel_id: TaskId, msg: &[u8]) {
-        IPC_MSG_SEND_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(IPC_MSG_SEND_CALLS);
         if msg.len() > MAX_MESSAGE_SIZE {
-            IPC_MSG_SEND_DROPS_OVERSIZE.fetch_add(1, Ordering::Relaxed);
+            counter_inc!(IPC_MSG_SEND_DROPS_OVERSIZE);
             return;
         }
 
         let mut locked = self.channels.lock();
         let queue = locked.entry(channel_id).or_insert_with(VecDeque::new);
-        if queue.len() >= MAX_CHANNEL_DEPTH {
-            IPC_MSG_SEND_DROPS_BACKPRESSURE.fetch_add(1, Ordering::Relaxed);
+        if !bounded_push_bytes(queue, msg, MAX_CHANNEL_DEPTH) {
+            counter_inc!(IPC_MSG_SEND_DROPS_BACKPRESSURE);
             return;
         }
-        queue.push_back(msg.to_vec());
     }
 
     pub fn receive_from(&self, channel_id: TaskId, buffer: &mut [u8]) -> Option<usize> {
-        IPC_MSG_RECV_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(IPC_MSG_RECV_CALLS);
         let mut locked = self.channels.lock();
         let queue = locked.get_mut(&channel_id)?;
         let msg = queue.pop_front()?;
         let count = core::cmp::min(msg.len(), buffer.len());
         buffer[..count].copy_from_slice(&msg[..count]);
-        IPC_MSG_RECV_HITS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(IPC_MSG_RECV_HITS);
         if count < msg.len() {
-            IPC_MSG_RECV_TRUNCATED.fetch_add(1, Ordering::Relaxed);
+            counter_inc!(IPC_MSG_RECV_TRUNCATED);
         }
         Some(count)
     }

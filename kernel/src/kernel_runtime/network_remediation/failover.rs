@@ -7,43 +7,43 @@ use crate::kernel_runtime::networking::{
     VIRTIO_REBIND_FAILURE_STREAK,
 };
 
-fn runtime_driver_available(driver: hypercore::modules::drivers::ActiveNetworkDriver) -> bool {
+fn runtime_driver_available(driver: aethercore::modules::drivers::ActiveNetworkDriver) -> bool {
     if is_driver_quarantined(driver) {
         return false;
     }
     match driver {
-        hypercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
-            hypercore::modules::drivers::has_virtio_runtime_driver()
+        aethercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
+            aethercore::modules::drivers::has_virtio_runtime_driver()
         }
-        hypercore::modules::drivers::ActiveNetworkDriver::E1000 => {
-            hypercore::modules::drivers::has_e1000_runtime_driver()
+        aethercore::modules::drivers::ActiveNetworkDriver::E1000 => {
+            aethercore::modules::drivers::has_e1000_runtime_driver()
         }
-        hypercore::modules::drivers::ActiveNetworkDriver::None => false,
+        aethercore::modules::drivers::ActiveNetworkDriver::None => false,
     }
 }
 
 fn resolve_runtime_failover_target(
-    current: hypercore::modules::drivers::ActiveNetworkDriver,
-) -> hypercore::modules::drivers::ActiveNetworkDriver {
+    current: aethercore::modules::drivers::ActiveNetworkDriver,
+) -> aethercore::modules::drivers::ActiveNetworkDriver {
     select_network_failover_target(
         current,
-        runtime_driver_available(hypercore::modules::drivers::ActiveNetworkDriver::VirtIo),
-        runtime_driver_available(hypercore::modules::drivers::ActiveNetworkDriver::E1000),
+        runtime_driver_available(aethercore::modules::drivers::ActiveNetworkDriver::VirtIo),
+        runtime_driver_available(aethercore::modules::drivers::ActiveNetworkDriver::E1000),
     )
 }
 
 pub(super) fn try_network_failover_for_io_health(
-    current: hypercore::modules::drivers::ActiveNetworkDriver,
+    current: aethercore::modules::drivers::ActiveNetworkDriver,
     reason: &'static str,
 ) -> bool {
     let target = resolve_runtime_failover_target(current);
-    if target == hypercore::modules::drivers::ActiveNetworkDriver::None {
+    if target == aethercore::modules::drivers::ActiveNetworkDriver::None {
         return false;
     }
 
     let switched = activate_runtime_network_driver(target, reason);
     if switched {
-        hypercore::klog_warn!(
+        aethercore::klog_warn!(
             "Network IO remediation: action=failover reason={} from={:?} to={:?}",
             reason,
             current,
@@ -54,10 +54,10 @@ pub(super) fn try_network_failover_for_io_health(
 }
 
 pub(super) fn activate_runtime_network_driver(
-    target: hypercore::modules::drivers::ActiveNetworkDriver,
+    target: aethercore::modules::drivers::ActiveNetworkDriver,
     reason: &'static str,
 ) -> bool {
-    let current = hypercore::modules::drivers::active_network_driver();
+    let current = aethercore::modules::drivers::active_network_driver();
     if target == current {
         return true;
     }
@@ -65,29 +65,29 @@ pub(super) fn activate_runtime_network_driver(
         return false;
     }
 
-    hypercore::modules::drivers::network::set_driver_io_owned(false);
-    let cleared = hypercore::modules::drivers::clear_network_driver_queues(current);
+    aethercore::modules::drivers::network::set_driver_io_owned(false);
+    let cleared = aethercore::modules::drivers::clear_network_driver_queues(current);
     match target {
-        hypercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
-            hypercore::modules::drivers::register_virtio_network_dataplane();
+        aethercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
+            aethercore::modules::drivers::register_virtio_network_dataplane();
         }
-        hypercore::modules::drivers::ActiveNetworkDriver::E1000 => {
-            hypercore::modules::drivers::register_e1000_network_dataplane();
+        aethercore::modules::drivers::ActiveNetworkDriver::E1000 => {
+            aethercore::modules::drivers::register_e1000_network_dataplane();
         }
-        hypercore::modules::drivers::ActiveNetworkDriver::None => {
-            hypercore::modules::drivers::clear_active_network_driver();
+        aethercore::modules::drivers::ActiveNetworkDriver::None => {
+            aethercore::modules::drivers::clear_active_network_driver();
         }
     }
-    hypercore::modules::drivers::set_network_driver_policy(preferred_policy_for_driver(target));
-    hypercore::modules::drivers::note_policy_switch(target);
-    hypercore::modules::drivers::network::set_driver_io_owned(
-        target != hypercore::modules::drivers::ActiveNetworkDriver::None,
+    aethercore::modules::drivers::set_network_driver_policy(preferred_policy_for_driver(target));
+    aethercore::modules::drivers::note_policy_switch(target);
+    aethercore::modules::drivers::network::set_driver_io_owned(
+        target != aethercore::modules::drivers::ActiveNetworkDriver::None,
     );
     VIRTIO_IO_ERROR_STREAK.store(0, core::sync::atomic::Ordering::Relaxed);
     E1000_IO_ERROR_STREAK.store(0, core::sync::atomic::Ordering::Relaxed);
     VIRTIO_REBIND_FAILURE_STREAK.store(0, core::sync::atomic::Ordering::Relaxed);
     E1000_REBIND_FAILURE_STREAK.store(0, core::sync::atomic::Ordering::Relaxed);
-    hypercore::klog_warn!(
+    aethercore::klog_warn!(
         "Network driver activation: reason={} from={:?} to={:?} cleared(vrx={},vtx={},erx={},etx={})",
         reason,
         current,

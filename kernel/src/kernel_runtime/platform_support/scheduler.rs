@@ -1,7 +1,7 @@
 #[cfg(param_scheduler = "EDF")]
 pub(crate) fn log_scheduler_runtime() {
-    let edf = hypercore::modules::schedulers::edf::runtime_stats();
-    hypercore::klog_info!(
+    let edf = aethercore::modules::schedulers::edf::runtime_stats();
+    aethercore::klog_info!(
         "EDF runtime: ticks={} misses={} resched={} window_resets={} throttles={}",
         edf.ticks,
         edf.deadline_misses,
@@ -13,8 +13,8 @@ pub(crate) fn log_scheduler_runtime() {
 
 #[cfg(param_scheduler = "Lottery")]
 pub(crate) fn log_scheduler_runtime() {
-    let lot = hypercore::modules::schedulers::lottery::runtime_stats();
-    hypercore::klog_info!(
+    let lot = aethercore::modules::schedulers::lottery::runtime_stats();
+    aethercore::klog_info!(
         "Lottery runtime: add={} remove={} picks={} empty={} fallback_first={} replay_seq={} replay_overwrites={}",
         lot.add_calls,
         lot.remove_calls,

@@ -13,7 +13,7 @@ fn include_bytes_path(path: &Path) -> String {
 }
 
 pub fn generate() {
-    let rel_path = "boot/initramfs/usr/lib/hypercore/probe-linked.elf";
+    let rel_path = "boot/initramfs/usr/lib/aethercore/probe-linked.elf";
     println!("cargo:rerun-if-changed={rel_path}");
 
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");

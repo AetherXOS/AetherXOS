@@ -192,7 +192,7 @@ pub(super) fn get_process_name(pid: usize) -> Result<alloc::string::String, Posi
     #[cfg(not(feature = "process_abstraction"))]
     {
         let _ = pid;
-        Ok(alloc::string::String::from("hypercore"))
+        Ok(alloc::string::String::from("aethercore"))
     }
 }
 

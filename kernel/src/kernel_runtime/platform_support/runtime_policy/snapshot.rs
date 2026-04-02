@@ -1,6 +1,6 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct RuntimePolicyLogSnapshot {
-    pub(crate) active_preset: hypercore::kernel::policy::CoreRuntimePolicyPreset,
+    pub(crate) active_preset: aethercore::kernel::policy::CoreRuntimePolicyPreset,
     pub(crate) set_calls: u64,
     pub(crate) apply_calls: u64,
     pub(crate) drift_samples: u64,
@@ -20,7 +20,7 @@ pub(crate) struct RuntimePolicyLogSnapshot {
 }
 
 pub(crate) fn current_runtime_policy_log_snapshot() -> RuntimePolicyLogSnapshot {
-    let snapshot = hypercore::kernel::policy::runtime_policy_snapshot();
+    let snapshot = aethercore::kernel::policy::runtime_policy_snapshot();
     RuntimePolicyLogSnapshot {
         active_preset: snapshot.active_preset,
         set_calls: snapshot.set_calls,
@@ -33,7 +33,7 @@ pub(crate) fn current_runtime_policy_log_snapshot() -> RuntimePolicyLogSnapshot 
         drift_reapply_cooldown_ticks: snapshot.drift_reapply_cooldown_ticks,
         last_reapply_tick: snapshot.last_reapply_tick,
         last_reason_code: snapshot.last_drift_reason,
-        last_reason_name: hypercore::kernel::policy::drift_reason_name(snapshot.last_drift_reason),
+        last_reason_name: aethercore::kernel::policy::drift_reason_name(snapshot.last_drift_reason),
         last_driver_wait_timeout_delta: snapshot.last_driver_wait_timeout_delta,
         virtualization_execution_profile: snapshot.virtualization_execution_profile,
         virtualization_governor_profile: snapshot.virtualization_governor_profile,

@@ -1,7 +1,7 @@
 //! Mount policy ingestion and runtime actions.
 //!
 //! This module provides a small, safe scaffold to ingest mount-policy telemetry
-//! (for example: `/run/hypercore/telemetry/mount_policy_events`) and apply
+//! (for example: `/run/aethercore/telemetry/mount_policy_events`) and apply
 //! conservative runtime actions via `KernelConfig` (e.g. prefer unbuffered IO).
 //!
 //! The implementation here is intentionally lightweight: on host builds
@@ -13,7 +13,7 @@
 #![allow(dead_code)]
 
 // Telemetry and Event Constants
-const TELEMETRY_PATH: &str = "/run/hypercore/telemetry/mount_policy_events";
+const TELEMETRY_PATH: &str = "/run/aethercore/telemetry/mount_policy_events";
 const EVENT_TMPFS_FALLBACK: &str = "event=tmpfs_fallback";
 const EVENT_DISKFS_MOUNTED: &str = "event=diskfs_mounted";
 const EVENT_DISKFS_MODE_SET: &str = "event=diskfs_mode_set";

@@ -20,7 +20,7 @@ pub fn sys_linux_uname(ptr: UserPtr<u8>) -> usize {
     #[cfg(feature = "posix_process")]
     let nodename_str = crate::modules::posix::process::get_hostname();
     #[cfg(not(feature = "posix_process"))]
-    let nodename_str = alloc::string::String::from("hypercore");
+    let nodename_str = alloc::string::String::from("aethercore");
 
     let mut nodename = nodename_str.into_bytes();
     nodename.push(0);

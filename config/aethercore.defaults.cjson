@@ -23,8 +23,8 @@
     "qemu_default_out_dir": "artifacts/qemu_soak",
     "doctor_report_path": "reports/tooling/doctor_report.json",
     "health_report_path": "reports/tooling/health_report.json",
-    "telemetry_jsonl_path": "reports/tooling/hypercore_telemetry.jsonl",
-    "tasks_path": "config/hypercore.tasks.cjson",
+    "telemetry_jsonl_path": "reports/tooling/aethercore_telemetry.jsonl",
+    "tasks_path": "config/aethercore.tasks.cjson",
     "plugin_dir": "config/plugins"
   },
   "tooling": {
@@ -34,11 +34,11 @@
   "agent": {
     "port": 7401,
     "auth_mode": "strict",
-    "auth_token": "hypercore-local-dev-token",
+    "auth_token": "aethercore-local-dev-token",
     "tokens": {
       "viewer": "viewer-local-token",
       "operator": "operator-local-token",
-      "admin": "hypercore-local-dev-token"
+      "admin": "aethercore-local-dev-token"
     },
     "allowed_origins": [
       "http://127.0.0.1",
@@ -87,7 +87,7 @@
         "url": "http://127.0.0.1:7401",
         "enabled": true,
         "role_hint": "admin",
-        "token": "hypercore-local-dev-token"
+        "token": "aethercore-local-dev-token"
       }
     ]
   },

@@ -1,10 +1,10 @@
 use crate::interfaces::IpcChannel;
-use core::sync::atomic::{AtomicU64, Ordering};
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 use spin::Mutex;
 
-static SIGNAL_SEND_CALLS: AtomicU64 = AtomicU64::new(0);
-static SIGNAL_RECEIVE_CALLS: AtomicU64 = AtomicU64::new(0);
-static SIGNAL_RECEIVE_HITS: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(SIGNAL_SEND_CALLS);
+declare_counter_u64!(SIGNAL_RECEIVE_CALLS);
+declare_counter_u64!(SIGNAL_RECEIVE_HITS);
 
 #[derive(Debug, Clone, Copy)]
 pub struct SignalOnlyStats {
@@ -15,9 +15,17 @@ pub struct SignalOnlyStats {
 
 pub fn stats() -> SignalOnlyStats {
     SignalOnlyStats {
-        send_calls: SIGNAL_SEND_CALLS.load(Ordering::Relaxed),
-        receive_calls: SIGNAL_RECEIVE_CALLS.load(Ordering::Relaxed),
-        receive_hits: SIGNAL_RECEIVE_HITS.load(Ordering::Relaxed),
+        send_calls: telemetry::snapshot_u64(&SIGNAL_SEND_CALLS),
+        receive_calls: telemetry::snapshot_u64(&SIGNAL_RECEIVE_CALLS),
+        receive_hits: telemetry::snapshot_u64(&SIGNAL_RECEIVE_HITS),
+    }
+}
+
+pub fn take_stats() -> SignalOnlyStats {
+    SignalOnlyStats {
+        send_calls: telemetry::take_u64(&SIGNAL_SEND_CALLS),
+        receive_calls: telemetry::take_u64(&SIGNAL_RECEIVE_CALLS),
+        receive_hits: telemetry::take_u64(&SIGNAL_RECEIVE_HITS),
     }
 }
 
@@ -39,18 +47,18 @@ impl SignalOnly {
 
 impl IpcChannel for SignalOnly {
     fn send(&self, _msg: &[u8]) {
-        SIGNAL_SEND_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(SIGNAL_SEND_CALLS);
         // Ignore payload, just set a bit
         let mut lock = self.signals.lock();
         *lock |= 1;
     }
 
     fn receive(&self, _buffer: &mut [u8]) -> Option<usize> {
-        SIGNAL_RECEIVE_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(SIGNAL_RECEIVE_CALLS);
         let mut lock = self.signals.lock();
         if *lock & 1 != 0 {
             *lock &= !1; // Clear bit
-            SIGNAL_RECEIVE_HITS.fetch_add(1, Ordering::Relaxed);
+            counter_inc!(SIGNAL_RECEIVE_HITS);
             Some(0)
         } else {
             None

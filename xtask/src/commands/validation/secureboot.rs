@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
 
+use crate::constants;
 use crate::cli::SecurebootAction;
 use crate::utils::paths;
 use crate::utils::process;
@@ -60,9 +61,9 @@ fn sign(dry_run: bool, strict_verify: bool) -> Result<()> {
         dry_run, strict_verify
     );
 
-    let efi_dir = paths::resolve("artifacts/boot_image/iso_root/EFI/BOOT");
-    let out_dir = paths::resolve("artifacts/secureboot/signed");
-    let report_path = paths::resolve("reports/secureboot/sign_report.json");
+    let efi_dir = constants::paths::boot_image_iso_root().join("EFI/BOOT");
+    let out_dir = constants::paths::secureboot_signed_dir();
+    let report_path = constants::paths::secureboot_sign_report();
 
     paths::ensure_dir(&out_dir)?;
 
@@ -119,14 +120,14 @@ fn sign(dry_run: bool, strict_verify: bool) -> Result<()> {
     };
     if !dry_run && tool == "sbsign" && sbsign_material.is_none() {
         failures.push(
-            "sbsign selected but key/cert not found; set HYPERCORE_SB_KEY and HYPERCORE_SB_CERT"
+            "sbsign selected but key/cert not found; set AETHERCORE_SB_KEY and AETHERCORE_SB_CERT"
                 .to_string(),
         );
         error_codes.push("SIGN_SBSIGN_MATERIAL_MISSING".to_string());
     }
     if !dry_run && tool == "pesign" && pesign_profile.is_none() {
         failures.push(
-            "pesign selected but cert profile missing; set HYPERCORE_PESIGN_CERT and optional HYPERCORE_PESIGN_NSS_DIR"
+            "pesign selected but cert profile missing; set AETHERCORE_PESIGN_CERT and optional AETHERCORE_PESIGN_NSS_DIR"
                 .to_string(),
         );
         error_codes.push("SIGN_PESIGN_PROFILE_MISSING".to_string());
@@ -306,8 +307,8 @@ fn sign(dry_run: bool, strict_verify: bool) -> Result<()> {
 
 fn resolve_sbsign_material() -> Option<(PathBuf, PathBuf)> {
     if let (Ok(key), Ok(cert)) = (
-        std::env::var("HYPERCORE_SB_KEY"),
-        std::env::var("HYPERCORE_SB_CERT"),
+        std::env::var("AETHERCORE_SB_KEY"),
+        std::env::var("AETHERCORE_SB_CERT"),
     ) {
         let key_path = PathBuf::from(key);
         let cert_path = PathBuf::from(cert);
@@ -327,12 +328,12 @@ fn resolve_sbsign_material() -> Option<(PathBuf, PathBuf)> {
 }
 
 fn resolve_pesign_profile() -> Option<(String, Option<PathBuf>)> {
-    let cert_name = std::env::var("HYPERCORE_PESIGN_CERT").ok()?;
+    let cert_name = std::env::var("AETHERCORE_PESIGN_CERT").ok()?;
     if cert_name.trim().is_empty() {
         return None;
     }
 
-    let nss_dir = std::env::var("HYPERCORE_PESIGN_NSS_DIR")
+    let nss_dir = std::env::var("AETHERCORE_PESIGN_NSS_DIR")
         .ok()
         .and_then(|v| {
             if v.trim().is_empty() {
@@ -428,8 +429,8 @@ struct SbatRow {
 fn sbat_validate(strict: bool) -> Result<()> {
     println!("[secureboot::sbat] Validating SBAT metadata (strict={})", strict);
 
-    let efi_dir = paths::resolve("artifacts/boot_image/iso_root/EFI/BOOT");
-    let report_path = paths::resolve("reports/secureboot/sbat_report.json");
+    let efi_dir = constants::paths::boot_image_iso_root().join("EFI/BOOT");
+    let report_path = constants::paths::secureboot_sbat_report();
     let required = ["shimx64.efi", "grubx64.efi"];
 
     let mut rows = Vec::new();
@@ -497,7 +498,7 @@ fn pcr_report() -> Result<()> {
     println!("[secureboot::pcr] Generating TPM PCR / event-log summary");
 
     let event_log = paths::resolve("artifacts/tpm/eventlog.bin");
-    let report_path = paths::resolve("reports/secureboot/pcr_report.json");
+    let report_path = constants::paths::secureboot_pcr_report();
 
     let exists = event_log.exists();
     let (size, hash) = if exists {
@@ -532,7 +533,7 @@ fn mok_plan() -> Result<()> {
     println!("[secureboot::mok] Generating MOK enrollment plan");
 
     let cert = paths::resolve("keys/MOK.cer");
-    let out_dir = paths::resolve("reports/secureboot");
+    let out_dir = constants::paths::secureboot_root();
     paths::ensure_dir(&out_dir)?;
 
     let steps = [
@@ -556,7 +557,7 @@ fn mok_plan() -> Result<()> {
     md.push_str("- `mokutil --list-enrolled`\n");
     md.push_str("- `mokutil --test-key <cert>`\n");
 
-    fs::write(out_dir.join("mok_plan.md"), &md)?;
+    report::write_text_report(&out_dir.join("mok_plan.md"), &md)?;
     println!("[secureboot::mok] Plan written: {}", out_dir.join("mok_plan.md").display());
     Ok(())
 }
@@ -568,27 +569,21 @@ fn mok_plan() -> Result<()> {
 
 fn ovmf_matrix(dry_run: bool) -> Result<()> {
     println!("[secureboot::ovmf] Running OVMF Secure Boot matrix (dry_run={})", dry_run);
-    let out_dir = paths::resolve("reports/secureboot/ovmf_matrix");
+    let out_dir = constants::paths::secureboot_ovmf_matrix_dir();
     paths::ensure_dir(&out_dir)?;
     let summary_path = out_dir.join("summary.json");
 
     if dry_run {
-        let summary = OvmfSummary {
-            generated_utc: report::utc_now_iso(),
-            ok: true,
-            dry_run: true,
-            rows: Vec::new(),
-            failures: Vec::new(),
-        };
+        let summary = ovmf_dry_run_summary(report::utc_now_iso());
         report::write_json_report(&summary_path, &summary)?;
         println!("[secureboot::ovmf] DRY-RUN summary={}", summary_path.display());
         return Ok(());
     }
 
     let qemu = find_qemu()?;
-    let iso = paths::resolve("artifacts/boot_image/hypercore.iso");
-    let ovmf_code = paths::resolve("artifacts/ovmf/OVMF_CODE.fd");
-    let ovmf_vars = paths::resolve("artifacts/ovmf/OVMF_VARS.fd");
+    let iso = paths::resolve("artifacts/boot_image/aethercore.iso");
+    let ovmf_code = constants::paths::ovmf_dir().join("OVMF_CODE.fd");
+    let ovmf_vars = constants::paths::ovmf_dir().join("OVMF_VARS.fd");
 
     let mut failures = Vec::new();
     if !iso.exists() {
@@ -670,6 +665,16 @@ struct OvmfCaseResult {
     log_path: String,
 }
 
+fn ovmf_dry_run_summary(generated_utc: String) -> OvmfSummary {
+    OvmfSummary {
+        generated_utc,
+        ok: true,
+        dry_run: true,
+        rows: Vec::new(),
+        failures: Vec::new(),
+    }
+}
+
 fn run_ovmf_case(
     qemu: &str,
     iso: &Path,
@@ -720,7 +725,7 @@ fn run_ovmf_case(
     };
     let duration_sec = start.elapsed().as_secs_f64();
 
-    fs::write(&log_path, output)
+    report::write_text_report(&log_path, &output)
         .with_context(|| format!("Failed writing OVMF case log {}", log_path.display()))?;
     let ok = rc == 0 && !timeout;
 
@@ -775,5 +780,30 @@ impl WaitTimeout for std::process::Child {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ovmf_dry_run_summary;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join(name)
+    }
+
+    #[test]
+    fn ovmf_dry_run_summary_matches_fixture() {
+        let summary = ovmf_dry_run_summary("2026-04-02T00:00:00Z".to_string());
+        let json = serde_json::to_string_pretty(&summary)
+            .expect("ovmf dry-run summary must serialize");
+        let expected = fs::read_to_string(fixture_path("secureboot_ovmf_dry_run_summary.json"))
+            .expect("fixture must be readable");
+        let expected = expected.replace("\r\n", "\n");
+        assert_eq!(json, expected.trim_end());
     }
 }

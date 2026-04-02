@@ -95,11 +95,11 @@ fn xtask_tier_runner_is_the_single_ci_entrypoint() {
     fs::ordered(
         "xtask/src/commands/validation/test/tier.rs",
         &[
-            "const TEST_FEATURES: &str = \"kernel_test_mode,vfs,drivers\";",
             "pub fn run(tier: &str, ci: bool) -> Result<()> {",
-            "\"fast\" => run_fast(ci)",
-            "\"integration\" => run_integration(ci)",
-            "\"nightly\" => run_nightly(ci)",
+            "fn tier_specs(tier: &str, ci: bool, host: &str) -> Result<Vec<CommandSpec>> {",
+            "test_consts::TIER_FAST => Ok(fast_specs(ci, host))",
+            "test_consts::TIER_INTEGRATION => Ok(integration_specs(ci, host))",
+            "test_consts::TIER_NIGHTLY => Ok(nightly_specs(ci, host))",
         ],
     );
 }
@@ -174,7 +174,7 @@ fn assert_tier_contract(tier: &TierPlan, expected_labels: &[&str]) {
         );
 
         if let Some(gate) = command.gate {
-            assert!(gate.starts_with("HYPERCORE_"), "invalid gate name: {gate}");
+            assert!(gate.starts_with("AETHERCORE_"), "invalid gate name: {gate}");
         }
 
         match command.availability {

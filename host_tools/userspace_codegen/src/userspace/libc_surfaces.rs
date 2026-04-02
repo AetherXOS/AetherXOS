@@ -1,6 +1,6 @@
 pub fn planned_symbols() -> Vec<&'static str> {
     vec![
-        "__errno_location","hypercore_errno_value","getauxval","sysconf","secure_getenv","getentropy",
+        "__errno_location","aethercore_errno_value","getauxval","sysconf","secure_getenv","getentropy",
         "getpagesize","daemon","environ","setenv","unsetenv","putenv","clearenv","open","open64",
         "creat","creat64","close","read","write","pread","pread64","pwrite","pwrite64","readv",
         "writev","ioctl","lseek","lseek64","fcntl","dup","dup2","dup3","pipe","pipe2","close_range",
@@ -33,9 +33,9 @@ pub fn planned_symbols() -> Vec<&'static str> {
         "arch_prctl","set_tid_address","futex","membarrier","rseq","abort","__assert_fail",
         "__stack_chk_fail","__libc_current_sigrtmin","__libc_current_sigrtmax","__dso_handle","__progname",
         "__progname_full","program_invocation_name","program_invocation_short_name","__libc_enable_secure",
-        "__stack_chk_guard","hypercore_runtime_fini_present","hypercore_runtime_fini_hook_count",
-        "hypercore_runtime_fini_attempt_count","hypercore_runtime_fini_completed_count",
-        "hypercore_runtime_fini_deferred_count","hypercore_run_runtime_fini",
+        "__stack_chk_guard","aethercore_runtime_fini_present","aethercore_runtime_fini_hook_count",
+        "aethercore_runtime_fini_attempt_count","aethercore_runtime_fini_completed_count",
+        "aethercore_runtime_fini_deferred_count","aethercore_run_runtime_fini",
     ]
 }
 

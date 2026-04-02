@@ -91,7 +91,7 @@ mod tests {
     fn readonly_sysctl_write_is_rejected() {
         let harness = IntegrationHarness::new();
 
-        let res = harness.sysctl_write_readonly_key("kernel.ostype", "HyperCore");
+        let res = harness.sysctl_write_readonly_key("kernel.ostype", "AetherCore");
         assert!(res.is_err(), "writes to read-only sysctl key must be rejected");
     }
 }

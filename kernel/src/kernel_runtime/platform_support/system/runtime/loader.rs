@@ -1,6 +1,6 @@
 pub(crate) fn log_module_loader_runtime() {
-    let loader = hypercore::kernel::module_loader::stats();
-    hypercore::klog_info!(
+    let loader = aethercore::kernel::module_loader::stats();
+    aethercore::klog_info!(
         "Module loader: preflight={}/{} fp={:#x} parse={}/{} plan={}/{} map={}/{} bootstrap={}/{} segmat={}/{} segbytes={}",
         loader.preflight_success,
         loader.preflight_attempts,
@@ -20,8 +20,8 @@ pub(crate) fn log_module_loader_runtime() {
 }
 
 pub(crate) fn log_launch_pipeline() {
-    let launch = hypercore::kernel::launch::stats();
-    hypercore::klog_info!(
+    let launch = aethercore::kernel::launch::stats();
+    aethercore::klog_info!(
         "Launch pipeline: spawn={}/{} failures={} enqueue_failures={} validation_failures={} terminate={}/{} terminate_failures={} terminate_by_task={}/{} terminate_by_task_failures={} claim={}/{} claim_failures={} ack={}/{} ack_failures={} consume={}/{} consume_failures={} execute={}/{} execute_failures={} stale_scans={} stale_recycled={} stale_claim_timeout={} stale_ready_timeout={} processes={} last_tid={}",
         launch.spawn_success,
         launch.spawn_attempts,

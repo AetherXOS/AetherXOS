@@ -1,11 +1,14 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-/// The central automation tool for the AetherXOS pipeline.
+pub use crate::types::{Bootloader, ImageFormat};
+pub use aethercore_common::TargetArch;
+
+/// The central automation tool for the Aether X OS pipeline.
 /// Designed to streamline development, testing, image creation, and validation operations.
 #[derive(Parser, Debug)]
 #[command(name = "xtask")]
-#[command(about = "AetherXOS Task Runner - Unified High-Performance Operations")]
+#[command(about = "Aether X OS Task Runner - Unified High-Performance Operations")]
 #[command(long_about = "Replaces all legacy scripts with a single, modular, type-safe Rust binary. \
     Every OS workflow is dynamically accessible via subcommands.")]
 pub struct Cli {
@@ -16,32 +19,6 @@ pub struct Cli {
     /// Selected operational mode or isolated subsystem category.
     #[command(subcommand)]
     pub command: Commands,
-}
-
-/// Identifies the bootloader integration protocol to inject into the storage medium.
-#[derive(Clone, Debug, ValueEnum, Default)]
-pub enum Bootloader {
-    /// Limine Advanced Boot Protocol
-    #[default]
-    Limine,
-    /// Multiboot2 Specification Standard
-    Multiboot2,
-    /// Legacy GRUB Payload Standard
-    Grub,
-    /// Kernel executed identically to a standard EFI binary, sans external bootloader.
-    Direct,
-}
-
-/// Identifies the desired final package storage format for the assembled operating system.
-#[derive(Clone, Debug, ValueEnum, Default)]
-pub enum ImageFormat {
-    /// Bootable CD/DVD ISO9660 image (ISOHybrid capable).
-    #[default]
-    Iso,
-    /// Raw dd-flashable disk image, ideal for USB drives and physical SD cards.
-    Img, 
-    /// Virtual Hard Disk target wrapper natively utilized by Hyper-V and VirtualBox.
-    Vhd, 
 }
 
 /// Organizational hierarchies representing independent Xtask subsystems.
@@ -128,15 +105,15 @@ pub enum BuildAction {
     /// Integrates OS elements (Kernel + RootFS) into an immediately bootable payload target
     Full {
         /// Explicit Host/Guest compiler target architecture (e.g., x86_64, aarch64)
-        #[arg(long, default_value = "x86_64")]
-        arch: String,
+        #[arg(long, default_value_t = TargetArch::X86_64)]
+        arch: TargetArch,
 
         /// Assigned boot target application protocol for OS handoff
-        #[arg(long, default_value = "limine")]
+        #[arg(long, default_value_t = Bootloader::Limine)]
         bootloader: Bootloader,
 
         /// Format boundary wrapper generated for virtualization or raw deployment
-        #[arg(long, default_value = "iso")]
+        #[arg(long, default_value_t = ImageFormat::Iso)]
         format: ImageFormat,
 
         /// Toggle LLVM/Rust optimization profiles flag
@@ -146,17 +123,17 @@ pub enum BuildAction {
 
     /// Aggregates existing pre-built objects strictly for Image wrapper creation
     Image {
-        #[arg(long, default_value = "limine")]
+        #[arg(long, default_value_t = Bootloader::Limine)]
         bootloader: Bootloader,
 
-        #[arg(long, default_value = "iso")]
+        #[arg(long, default_value_t = ImageFormat::Iso)]
         format: ImageFormat,
     },
 
     /// Instructs the compiler to strictly compile the Kernel ELF void of external wrappers
     Kernel {
-        #[arg(long, default_value = "x86_64")]
-        arch: String,
+        #[arg(long, default_value_t = TargetArch::X86_64)]
+        arch: TargetArch,
 
         #[arg(long)]
         release: bool,
@@ -183,27 +160,27 @@ pub enum BuildAction {
 pub enum RunAction {
     /// Execute robust QEMU pipeline targeting automated timeout evaluation loops
     Smoke {
-        #[arg(long, default_value = "limine")]
+        #[arg(long, default_value_t = Bootloader::Limine)]
         bootloader: Bootloader,
     },
     /// Provide graphical interactive emulator access allowing user UI validations
     Live {
-        #[arg(long, default_value = "uefi")]
-        firmware: String, // Accepts 'bios' or 'uefi' overrides
+        #[arg(long, default_value_t = crate::constants::defaults::run::FIRMWARE.to_string())]
+        firmware: String,
     },
     /// Immediately stream compiled artifacts via block operations natively to an assigned storage drive
     BareMetalDeploy {
         #[arg(long)]
-        device: String, // Explicit target mountpoint e.g., /dev/sdb or \\.\PhysicalDrive1
+        device: String,
     },
     /// Launches QEMU in suspended execution mode and spawns a connected GDB instance automatically
     Debug {
-        #[arg(long, default_value = "uefi")]
+        #[arg(long, default_value_t = crate::constants::defaults::run::FIRMWARE.to_string())]
         firmware: String,
     },
     /// Launches an ephemeral local network server facilitating PXE network booting for physical testing
     PxeServer {
-        #[arg(long, default_value = "69")]
+        #[arg(long, default_value_t = crate::constants::defaults::run::PXE_PORT)]
         port: u16,
     },
 }
@@ -254,9 +231,9 @@ pub enum TestAction {
     },
     /// Audit kernel source for refactoring candidate areas
     KernelRefactorAudit {
-        #[arg(long, default_value = "500")]
+        #[arg(long, default_value_t = crate::constants::defaults::audit::MAX_LINES)]
         max_lines: usize,
-        #[arg(long, default_value = "3")]
+        #[arg(long, default_value_t = crate::constants::defaults::audit::MAGIC_REPEAT_THRESHOLD)]
         magic_repeat_threshold: usize,
     },
 }
@@ -335,7 +312,7 @@ pub enum AbSlotAction {
 #[derive(Subcommand, Debug)]
 pub enum GlibcAction {
     Audit {
-        #[arg(long, default_value = "md")] format: String,
+        #[arg(long, default_value_t = crate::constants::defaults::glibc::FORMAT_MD.to_string())] format: String,
         #[arg(long)] out: Option<String>,
         #[arg(long)] verbose: bool,
     },
@@ -343,11 +320,11 @@ pub enum GlibcAction {
         #[arg(long)] quick: bool,
         #[arg(long)] strict: bool,
         #[arg(long)] family: Option<String>,
-        #[arg(long, default_value = "md")] format: String,
+        #[arg(long, default_value_t = crate::constants::defaults::glibc::FORMAT_MD.to_string())] format: String,
         #[arg(long)] out: Option<String>,
     },
     Scorecard {
-        #[arg(long, default_value = "json")] format: String,
+        #[arg(long, default_value_t = crate::constants::defaults::glibc::FORMAT_JSON.to_string())] format: String,
         #[arg(long)] out: Option<String>,
     },
 }

@@ -1,7 +1,7 @@
 #[cfg(feature = "dispatcher")]
 pub(crate) fn log_dispatcher_vectored_runtime() {
-    let disp = hypercore::modules::dispatcher::vectored::stats();
-    hypercore::klog_info!(
+    let disp = aethercore::modules::dispatcher::vectored::stats();
+    aethercore::klog_info!(
         "Dispatcher(vectored): register={} dispatch={} handled={} default={} invocations={} max_fanout={} storm_hints={} throttled={} window_resets={}",
         disp.register_calls,
         disp.dispatch_calls,
@@ -17,8 +17,8 @@ pub(crate) fn log_dispatcher_vectored_runtime() {
 
 #[cfg(feature = "dispatcher")]
 pub(crate) fn log_dispatcher_upcall_runtime() {
-    let up = hypercore::modules::dispatcher::upcall::stats();
-    hypercore::klog_info!(
+    let up = aethercore::modules::dispatcher::upcall::stats();
+    aethercore::klog_info!(
         "Dispatcher(upcall): register={} overwrites={} unregister={}/{} resolve={}/{} delivered={} enqueued={} queue_drops={} consume={}/{} virq={}/{} pending_processes={} pending_deliveries={}",
         up.register_calls,
         up.register_overwrites,

@@ -1,9 +1,11 @@
+use alloc::collections::VecDeque;
+use alloc::vec::Vec;
 use core::sync::atomic::Ordering;
+use aethercore_common::units::PAGE_SIZE_4K;
 
 use crate::interfaces::task::TaskId;
 
-#[cfg(feature = "ipc_shared_memory")]
-pub const IPC_PAGE_SIZE_BYTES: usize = 4096;
+pub const IPC_PAGE_SIZE_BYTES: usize = PAGE_SIZE_4K;
 
 #[cfg(any(feature = "ipc_ring_buffer", feature = "ipc_zero_copy"))]
 pub use crate::generated_consts::IPC_RING_BUFFER_SIZE_BYTES;
@@ -37,4 +39,29 @@ pub fn current_task_id_or_kernel() -> TaskId {
             .map(|cpu| TaskId(cpu.current_task.load(Ordering::Relaxed)))
             .unwrap_or(TaskId(0))
     }
+}
+
+#[inline(always)]
+pub fn bounded_push_bytes(
+    queue: &mut VecDeque<Vec<u8>>,
+    payload: &[u8],
+    queue_limit: usize,
+) -> bool {
+    if queue.len() >= queue_limit {
+        return false;
+    }
+    queue.push_back(payload.to_vec());
+    true
+}
+
+#[inline(always)]
+pub fn wake_one_task(wait_queue: &crate::kernel::sync::WaitQueue) {
+    if let Some(tid) = wait_queue.wake_one() {
+        crate::kernel::task::wake_task(tid);
+    }
+}
+
+#[inline(always)]
+pub fn suspend_on(wait_queue: &crate::kernel::sync::WaitQueue) {
+    crate::kernel::task::suspend_current_task(wait_queue);
 }

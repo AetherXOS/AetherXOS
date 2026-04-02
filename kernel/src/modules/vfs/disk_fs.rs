@@ -1,10 +1,11 @@
 use alloc::boxed::Box;
-use alloc::vec::Vec;
 use alloc::string::ToString;
+use alloc::vec::Vec;
 
 use crate::interfaces::TaskId;
 use crate::modules::vfs::backends::{self, FsBackendKind};
 use crate::modules::vfs::disk_fs_support::validate_diskfs_path;
+use crate::modules::vfs::error_context::{map_error, require_some};
 use crate::modules::vfs::File;
 
 #[path = "disk_fs/filesystem_impl.rs"]
@@ -12,6 +13,57 @@ mod filesystem_impl;
 
 const ROOT_TASK_ID: TaskId = TaskId(0);
 const ERR_MOUNT_UNAVAILABLE: &str = "mount unavailable";
+const MOUNT_PATH_BUFFER_BYTES: usize = 512;
+const IO_READ_CHUNK_BYTES: usize = 4096;
+#[cfg(all(feature = "vfs_ext4", feature = "drivers"))]
+const EXT4_PROBE_IMAGE_BYTES: usize = 1024 * 1024;
+#[cfg(all(feature = "vfs_ext4", feature = "drivers"))]
+const EXT4_PROBE_BLOCKS: u64 = 2048;
+
+#[cfg(feature = "drivers")]
+const SUPPORTED_STORAGE_KINDS: [crate::modules::drivers::BlockDriverKind; 3] = [
+    crate::modules::drivers::BlockDriverKind::Nvme,
+    crate::modules::drivers::BlockDriverKind::Ahci,
+    crate::modules::drivers::BlockDriverKind::VirtIoBlock,
+];
+
+#[cfg(feature = "drivers")]
+#[inline(always)]
+fn has_supported_storage_device(manager: &mut crate::modules::drivers::StorageManager) -> bool {
+    for kind in SUPPORTED_STORAGE_KINDS {
+        if manager.first_by_kind(kind).is_some() {
+            return true;
+        }
+    }
+    false
+}
+
+#[cfg(feature = "drivers")]
+#[inline(always)]
+fn with_storage_manager<T>(
+    offline_error: &'static str,
+    f: impl FnOnce(&mut crate::modules::drivers::StorageManager) -> T,
+) -> Result<T, &'static str> {
+    let mut guard = crate::modules::drivers::StorageManager::global().lock();
+    let manager = guard.as_mut().ok_or(offline_error)?;
+    Ok(f(manager))
+}
+
+#[cfg(all(feature = "vfs_ext4", feature = "drivers"))]
+#[inline(always)]
+fn try_load_ext4_probe_image(
+    manager: &mut crate::modules::drivers::StorageManager,
+) -> Option<Vec<u8>> {
+    for kind in SUPPORTED_STORAGE_KINDS {
+        if let Some(dev) = manager.first_by_kind(kind) {
+            let mut buf = alloc::vec![0u8; EXT4_PROBE_IMAGE_BYTES];
+            if dev.read_blocks(0, EXT4_PROBE_BLOCKS, &mut buf).is_ok() {
+                return Some(buf);
+            }
+        }
+    }
+    None
+}
 
 #[inline(always)]
 fn default_io_policy() -> crate::modules::vfs::types::IoPolicy {
@@ -100,7 +152,7 @@ impl DiskFsLibrary {
             return None;
         }
         let mount_id = self.mount_id?;
-        let mut mount_buf = [0u8; 512];
+        let mut mount_buf = [0u8; MOUNT_PATH_BUFFER_BYTES];
         let mount_len = crate::kernel::vfs_control::mount_path_by_id(mount_id, &mut mount_buf)?;
         let mount_root = core::str::from_utf8(&mount_buf[..mount_len]).ok()?;
         Some(join_mount_and_relative_path(mount_root, path))
@@ -139,8 +191,10 @@ impl DiskFsLibrary {
 
     pub fn mount_ramfs_at(path: &str) -> Result<Self, &'static str> {
         let path = validate_diskfs_path(path)?;
-        let mount_id =
-            crate::kernel::vfs_control::mount_ramfs(path.as_bytes()).map_err(|_| "mount failed")?;
+        let mount_id = map_error(
+            crate::kernel::vfs_control::mount_ramfs(path.as_bytes()),
+            "mount failed",
+        )?;
         Ok(Self {
             mount_id: Some(mount_id),
             backend: FsBackendKind::RamFs,
@@ -153,8 +207,10 @@ impl DiskFsLibrary {
 
     pub fn attach_existing(path: &str) -> Result<Self, &'static str> {
         let path = validate_diskfs_path(path)?;
-        let mount_id = crate::kernel::vfs_control::mount_id_by_path(path.as_bytes())
-            .ok_or("mount not found")?;
+        let mount_id = require_some(
+            crate::kernel::vfs_control::mount_id_by_path(path.as_bytes()),
+            "mount not found",
+        )?;
         Ok(Self {
             mount_id: Some(mount_id),
             backend: FsBackendKind::RamFs,
@@ -192,7 +248,7 @@ impl DiskFsLibrary {
         let tid = Self::current_task_id();
         let mut file = crate::modules::vfs::FileSystem::open(self, path, tid)?;
         let mut out = alloc::vec::Vec::new();
-        let mut buf = [0u8; 4096];
+        let mut buf = [0u8; IO_READ_CHUNK_BYTES];
         loop {
             match file.read(&mut buf) {
                 Ok(0) => break,
@@ -241,27 +297,14 @@ impl DiskFsLibrary {
             FsBackendKind::FatFs => {
                 #[cfg(feature = "drivers")]
                 {
-                    let mut guard = crate::modules::drivers::StorageManager::global().lock();
-                    if let Some(manager) = guard.as_mut() {
-                        let mut device_found = false;
-                        for kind in [
-                            crate::modules::drivers::BlockDriverKind::Nvme,
-                            crate::modules::drivers::BlockDriverKind::Ahci,
-                            crate::modules::drivers::BlockDriverKind::VirtIoBlock,
-                        ] {
-                            if let Some(_dev) = manager.first_by_kind(kind) {
-                                device_found = true;
-                                // Initialize device and setup FAT bridge here
-                                break;
-                            }
-                        }
-                        if device_found {
-                            Err("fatfs bridge detected block device but DiskFs mount wiring is not enabled in this path")
-                        } else {
-                            Err("fatfs mount failed: no compatible block device found")
-                        }
+                    let device_found = with_storage_manager(
+                        "fatfs mount failed: Storage Manager offline",
+                        |manager| has_supported_storage_device(manager),
+                    )?;
+                    if device_found {
+                        Err("fatfs bridge detected block device but DiskFs mount wiring is not enabled in this path")
                     } else {
-                        Err("fatfs mount failed: Storage Manager offline")
+                        Err("fatfs mount failed: no compatible block device found")
                     }
                 }
                 #[cfg(not(feature = "drivers"))]
@@ -272,27 +315,14 @@ impl DiskFsLibrary {
             FsBackendKind::LittleFs => {
                 #[cfg(feature = "drivers")]
                 {
-                    let mut guard = crate::modules::drivers::StorageManager::global().lock();
-                    if let Some(manager) = guard.as_mut() {
-                        let mut device_found = false;
-                        for kind in [
-                            crate::modules::drivers::BlockDriverKind::Nvme,
-                            crate::modules::drivers::BlockDriverKind::Ahci,
-                            crate::modules::drivers::BlockDriverKind::VirtIoBlock,
-                        ] {
-                            if let Some(_dev) = manager.first_by_kind(kind) {
-                                device_found = true;
-                                // Initialize device and set up littlefs translation layer
-                                break;
-                            }
-                        }
-                        if device_found {
-                            Err("littlefs block device found but core mapping is pending complete HAL")
-                        } else {
-                            Err("littlefs mount failed: no compatible block device found")
-                        }
+                    let device_found = with_storage_manager(
+                        "littlefs mount failed: Storage Manager offline",
+                        |manager| has_supported_storage_device(manager),
+                    )?;
+                    if device_found {
+                        Err("littlefs block device found but core mapping is pending complete HAL")
                     } else {
-                        Err("littlefs mount failed: Storage Manager offline")
+                        Err("littlefs mount failed: no compatible block device found")
                     }
                 }
                 #[cfg(not(feature = "drivers"))]
@@ -305,33 +335,15 @@ impl DiskFsLibrary {
                 {
                     #[cfg(feature = "drivers")]
                     {
-                        let mut guard = crate::modules::drivers::StorageManager::global().lock();
-                        if let Some(manager) = guard.as_mut() {
-                            let mut loaded_image: Option<alloc::vec::Vec<u8>> = None;
+                        let loaded_image = with_storage_manager(
+                            "ext4 mount failed: Storage Manager offline",
+                            try_load_ext4_probe_image,
+                        )?;
 
-                            // Try to find a block device
-                            for kind in [
-                                crate::modules::drivers::BlockDriverKind::Nvme,
-                                crate::modules::drivers::BlockDriverKind::Ahci,
-                                crate::modules::drivers::BlockDriverKind::VirtIoBlock,
-                            ] {
-                                if let Some(dev) = manager.first_by_kind(kind) {
-                                    // For demonstration of HAL integration: Read 1MB from the block device
-                                    let mut buf = alloc::vec![0u8; 1024 * 1024];
-                                    if let Ok(_) = dev.read_blocks(0, 2048, &mut buf) {
-                                        loaded_image = Some(buf);
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if let Some(image) = loaded_image {
-                                Self::from_ext4_image(image)
-                            } else {
-                                Err("ext4 mount failed: unable to read from block device")
-                            }
+                        if let Some(image) = loaded_image {
+                            Self::from_ext4_image(image)
                         } else {
-                            Err("ext4 mount failed: Storage Manager offline")
+                            Err("ext4 mount failed: unable to read from block device")
                         }
                     }
                     #[cfg(not(feature = "drivers"))]
@@ -350,8 +362,10 @@ impl DiskFsLibrary {
 
     #[cfg(feature = "vfs_ext4")]
     pub fn from_ext4_image(image: Vec<u8>) -> Result<Self, &'static str> {
-        let ext4 = crate::modules::vfs::library_backends::Ext4Library::load_from_bytes(image)
-            .map_err(|_| "ext4 load failed")?;
+        let ext4 = map_error(
+            crate::modules::vfs::library_backends::Ext4Library::load_from_bytes(image),
+            "ext4 load failed",
+        )?;
         Ok(Self {
             mount_id: None,
             backend: FsBackendKind::Ext4,
@@ -454,7 +468,7 @@ impl DiskFsLibrary {
 
     pub fn unmount(self) -> Result<(), &'static str> {
         if let Some(mount_id) = self.mount_id {
-            crate::kernel::vfs_control::unmount(mount_id).map_err(|_| "unmount failed")
+            map_error(crate::kernel::vfs_control::unmount(mount_id), "unmount failed")
         } else {
             Ok(())
         }

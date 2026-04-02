@@ -1,7 +1,7 @@
 pub(super) fn log_storage_probe_report(
-    probe_report: &hypercore::modules::drivers::StorageProbeReport,
+    probe_report: &aethercore::modules::drivers::StorageProbeReport,
 ) {
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Storage probe report: steps={} found={} init_ok={} init_fail={}",
         probe_report.probe_steps,
         probe_report.probed_drivers,
@@ -12,9 +12,9 @@ pub(super) fn log_storage_probe_report(
 
 pub(super) fn log_storage_driver_stats(
     device_count: usize,
-    block_stats: &hypercore::modules::drivers::block::BlockDriverStats,
+    block_stats: &aethercore::modules::drivers::block::BlockDriverStats,
 ) {
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Storage drivers: devices={} probe={}/{} init={}/{} io={}/{}",
         device_count,
         block_stats.probe_success,
@@ -27,9 +27,9 @@ pub(super) fn log_storage_driver_stats(
 }
 
 pub(super) fn log_storage_lifecycle(
-    lifecycle: &hypercore::modules::drivers::StorageLifecycleSummary,
+    lifecycle: &aethercore::modules::drivers::StorageLifecycleSummary,
 ) {
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Storage lifecycle: total={} healthy={} degraded={} failed={}",
         lifecycle.total,
         lifecycle.healthy,
@@ -39,8 +39,8 @@ pub(super) fn log_storage_lifecycle(
 }
 
 pub(super) fn log_driver_wait_policy() {
-    let waits = hypercore::modules::drivers::wait_policy_snapshot();
-    hypercore::klog_info!(
+    let waits = aethercore::modules::drivers::wait_policy_snapshot();
+    aethercore::klog_info!(
         "Driver wait policy: {} {} {} {} {} {} {}",
         wait_policy_segment(&waits.nvme_disable_ready),
         wait_policy_segment(&waits.nvme_controller_ready),
@@ -53,7 +53,7 @@ pub(super) fn log_driver_wait_policy() {
 }
 
 fn wait_policy_segment(
-    wait: &hypercore::modules::drivers::DriverWaitPolicySnapshotEntry,
+    wait: &aethercore::modules::drivers::DriverWaitPolicySnapshotEntry,
 ) -> String {
     format!(
         "{}::{} max_spins={} fallback={:?} timeouts={}",

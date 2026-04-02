@@ -1,4 +1,4 @@
-//! Loads config from Cargo.toml [package.metadata.hypercore.config].
+//! Loads config from Cargo.toml [package.metadata.aethercore.config].
 
 use super::config_types::*;
 use std::fs;
@@ -14,11 +14,11 @@ pub fn load_config_from_manifest() -> Config {
     manifest
         .package
         .metadata
-        .hypercore
+        .aethercore
         .config
         .unwrap_or_else(|| {
             panic!(
-                "Missing [package.metadata.hypercore.config] in Cargo.toml. \
+                "Missing [package.metadata.aethercore.config] in Cargo.toml. \
                  Move kernel config there to continue."
             )
         })

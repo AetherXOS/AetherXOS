@@ -7,17 +7,17 @@ use crate::kernel_runtime::KernelRuntime;
 
 pub(super) fn probe_and_init_primary_driver(
     runtime: &KernelRuntime,
-    devices: &[hypercore::hal::pci::PciDevice],
+    devices: &[aethercore::hal::pci::PciDevice],
     telemetry_drivers: bool,
-) -> hypercore::modules::drivers::NetworkDriverPolicy {
-    use hypercore::modules::drivers::probe_network_driver_with_policy;
+) -> aethercore::modules::drivers::NetworkDriverPolicy {
+    use aethercore::modules::drivers::probe_network_driver_with_policy;
 
     if telemetry_drivers {
         log_network_probe_plan();
         log_network_driver_policy();
     }
 
-    let policy = hypercore::modules::drivers::network_driver_policy();
+    let policy = aethercore::modules::drivers::network_driver_policy();
     if let Some(mut driver) = probe_network_driver_with_policy(devices, policy) {
         log_probe_discovery(&driver);
         if driver.init_driver().is_ok() {
@@ -32,7 +32,7 @@ pub(super) fn probe_and_init_primary_driver(
             log_driver_init_failure(&driver);
         }
     } else if telemetry_drivers {
-        hypercore::klog_warn!("No supported network driver found by probe catalog");
+        aethercore::klog_warn!("No supported network driver found by probe catalog");
     }
 
     policy

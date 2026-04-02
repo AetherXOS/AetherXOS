@@ -1,16 +1,16 @@
 #![cfg_attr(target_os = "none", no_std)]
 #![cfg_attr(target_os = "none", no_main)]
-#![cfg_attr(target_os = "none", feature(custom_test_frameworks))]
+#![cfg_attr(all(test, target_os = "none"), feature(custom_test_frameworks))]
 #![cfg_attr(target_os = "none", feature(abi_x86_interrupt))]
 #![warn(unsafe_op_in_unsafe_fn)]
 #![warn(unused_must_use)]
 #![allow(dead_code, unused_imports, unused_mut, unused_variables)]
 #![allow(clippy::all)]
-#![cfg_attr(target_os = "none", test_runner(crate::test_runner))]
-#![cfg_attr(target_os = "none", reexport_test_harness_main = "test_main")]
+#![cfg_attr(all(test, target_os = "none"), test_runner(crate::test_runner))]
+#![cfg_attr(all(test, target_os = "none"), reexport_test_harness_main = "test_main")]
 
 extern crate alloc;
-extern crate hypercore; // Use the library
+extern crate aethercore; // Use the library
 #[cfg(target_os = "none")]
 mod kernel_runtime;
 
@@ -18,7 +18,7 @@ mod kernel_runtime;
 use core::panic::PanicInfo;
 
 // Global Allocator Definition
-use hypercore::modules::allocators::selector::ActiveHeapAllocator;
+use aethercore::modules::allocators::selector::ActiveHeapAllocator;
 
 #[global_allocator]
 #[cfg(target_os = "none")]
@@ -61,8 +61,8 @@ impl MultibootHeader {
     }
 }
 
-#[link_section = ".multiboot2"]
-#[no_mangle]
+#[unsafe(link_section = ".multiboot2")]
+#[unsafe(no_mangle)]
 #[cfg(target_os = "none")]
 pub static MULTIBOOT2_HEADER: MultibootHeader = MultibootHeader::new();
 
@@ -73,7 +73,7 @@ extern "Rust" {
 }
 
 // 3. The Kernel Entry Point
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[cfg(target_os = "none")]
 pub extern "C" fn _start() -> ! {
     #[cfg(all(test, feature = "kernel_test_mode"))]
@@ -100,7 +100,7 @@ fn main() {}
 #[panic_handler]
 #[cfg(target_os = "none")]
 fn panic(info: &PanicInfo) -> ! {
-    hypercore::kernel::panic_report(info, "panic");
+    aethercore::kernel::panic_report(info, "panic");
 }
 
 // Test Runner

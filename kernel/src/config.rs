@@ -3,6 +3,7 @@
 
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
+use aethercore_common::TargetArch;
 use crate::generated_consts::*;
 
 mod control_plane;
@@ -49,6 +50,12 @@ pub use profiles::{
 };
 
 pub struct KernelConfig;
+
+#[cfg(target_arch = "x86_64")]
+pub const TARGET_ARCH_ENUM: TargetArch = TargetArch::X86_64;
+
+#[cfg(target_arch = "aarch64")]
+pub const TARGET_ARCH_ENUM: TargetArch = TargetArch::Aarch64;
 
 static WATCHDOG_HARD_STALL_NS_OVERRIDE: AtomicU64 = AtomicU64::new(0);
 static RT_FORCE_RESCHEDULE_MIN_TICKS_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
@@ -260,7 +267,12 @@ impl KernelConfig {
 
     /// Get the targeted CPU architecture.
     pub fn arch() -> &'static str {
-        TARGET_ARCH
+        TARGET_ARCH_ENUM.as_str()
+    }
+
+    /// Get the targeted CPU architecture as a shared enum.
+    pub fn target_arch() -> TargetArch {
+        TARGET_ARCH_ENUM
     }
 
     pub fn is_smp_enabled() -> bool {
@@ -433,7 +445,7 @@ impl KernelConfig {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 #[path = "config/tests.rs"]
 mod tests;
 

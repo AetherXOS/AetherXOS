@@ -1,7 +1,7 @@
 #[cfg(feature = "allocators")]
 pub(crate) fn log_slab_runtime() {
-    let slab = hypercore::modules::allocators::slab::runtime_stats();
-    hypercore::klog_info!(
+    let slab = aethercore::modules::allocators::slab::runtime_stats();
+    aethercore::klog_info!(
         "Slab runtime: alloc_calls={} fast={} refill={} steal={} fallback={} refill_failures={} reclaim={}/{} swept={} pressure_passes={} reclaim_lat(avg/p95/p99/max)={}/{}/{}/{} qd(last/avg/p95/p99/max)={}/{}/{}/{}/{} seg_active={} seg_peak={} seg_track_failures={} profile={} scan_budget={}",
         slab.alloc_calls,
         slab.alloc_fast_hits,
@@ -32,8 +32,8 @@ pub(crate) fn log_slab_runtime() {
 
 #[cfg(feature = "allocators")]
 pub(crate) fn log_allocator_diagnostics() {
-    let jla = hypercore::modules::allocators::jemalloc_lite_stats();
-    hypercore::klog_info!(
+    let jla = aethercore::modules::allocators::jemalloc_lite_stats();
+    aethercore::klog_info!(
         "Allocator diagnostics: jemalloc_lite_alloc_attempts={}",
         jla.alloc_attempts
     );

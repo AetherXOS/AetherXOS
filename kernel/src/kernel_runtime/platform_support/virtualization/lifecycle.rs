@@ -2,7 +2,7 @@ use super::super::system::current_virtualization_log_snapshot;
 
 pub(crate) fn log_virtualization_platform_lifecycle() {
     let virt = current_virtualization_log_snapshot();
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Virtualization lifecycle: backend={} summary={} progress={}‰ detect={} prepare={} capability={} feature={} launch={} resume={} trap={} step={} runtime_mode={} strategy={} budget={} dispatch={} preemption={} sched_lane={} dispatch_window={} exec_profile={} exec_scope={} governor_profile={} governor_scope={} governor={} latency_bias={} energy_bias={} aux={} class={} blocked_by={:?} policy_limited_by={:?} policy_scope={} entry_scope={} resume_scope={} trap_scope={} nested_scope={} time_scope={} passthrough_scope={} entry_mode={} resume_mode={} trap_mode={} nested_mode={} time_mode={} passthrough_mode={}",
         virt.backend,
         virt.lifecycle_summary,

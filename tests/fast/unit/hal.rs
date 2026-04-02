@@ -1,7 +1,7 @@
-use hypercore::hal::common::cpu_features::{
+use aethercore::hal::common::cpu_features::{
     field_at_least_u64, field_present_u64, field_u64, has_bit_u32,
 };
-use hypercore::hal::common::timer::{clamp_ticks, ns_to_ticks, ticks_to_ns};
+use aethercore::hal::common::timer::{clamp_ticks, ns_to_ticks, ticks_to_ns};
 
 #[test]
 fn cpu_feature_helpers_decode_expected_bitfields() {

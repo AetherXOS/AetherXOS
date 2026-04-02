@@ -6,7 +6,7 @@ fn flamegraph_plan_targets_scheduler_host_suite() {
     let cmd = tier.named("flamegraph");
 
     assert_eq!(cmd.program, "cargo");
-    assert_eq!(cmd.gate, Some("HYPERCORE_RUN_FLAMEGRAPH"));
+    assert_eq!(cmd.gate, Some("AETHERCORE_RUN_FLAMEGRAPH"));
     assert!(cmd
         .args
         .contains(&"host_tools/scheduler_host_tests/Cargo.toml"));

@@ -9,16 +9,16 @@ impl KernelLoopbackNic {
 }
 
 #[cfg(feature = "networking")]
-impl hypercore::modules::network::NetworkInterface for KernelLoopbackNic {
-    fn send(&mut self, packet: hypercore::modules::network::Packet) -> Result<(), &'static str> {
-        hypercore::modules::network::ingest_raw_ethernet_frame(packet.data)
+impl aethercore::modules::network::NetworkInterface for KernelLoopbackNic {
+    fn send(&mut self, packet: aethercore::modules::network::Packet) -> Result<(), &'static str> {
+        aethercore::modules::network::ingest_raw_ethernet_frame(packet.data)
     }
 
-    fn receive(&mut self) -> Result<Option<hypercore::modules::network::Packet>, &'static str> {
+    fn receive(&mut self) -> Result<Option<aethercore::modules::network::Packet>, &'static str> {
         Ok(None)
     }
 
-    fn mac(&self) -> hypercore::modules::network::MacAddress {
-        hypercore::modules::network::MacAddress::Ethernet([0x02, 0x00, 0x00, 0x00, 0x00, 0x01])
+    fn mac(&self) -> aethercore::modules::network::MacAddress {
+        aethercore::modules::network::MacAddress::Ethernet([0x02, 0x00, 0x00, 0x00, 0x00, 0x01])
     }
 }

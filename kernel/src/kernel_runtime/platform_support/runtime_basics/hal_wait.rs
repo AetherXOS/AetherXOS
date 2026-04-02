@@ -1,6 +1,6 @@
 pub(crate) fn log_hal_wait_policy() {
-    let waits = hypercore::hal::wait::snapshot();
-    hypercore::klog_info!(
+    let waits = aethercore::hal::wait::snapshot();
+    aethercore::klog_info!(
         "HAL wait policy: serial={}::{} max_spins={} fallback={:?} timeouts={} smp_boot={}::{} max_spins={} fallback={:?} timeouts={} tlb={}::{} max_spins={} fallback={:?} timeouts={} iommu={}::{} max_spins={} fallback={:?} timeouts={}",
         waits.serial_tx.component,
         waits.serial_tx.operation,

@@ -3,6 +3,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 
+use crate::constants;
 use crate::utils::paths;
 use crate::utils::report;
 
@@ -51,7 +52,7 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
 
     for dir in &dispatch_dirs {
         if !dir.exists() { continue; }
-        for entry in walkdir::WalkDir::new(&dir)
+        for entry in walkdir::WalkDir::new(dir)
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|e| e.path().extension().map(|x| x == "rs").unwrap_or(false))
@@ -80,7 +81,7 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
 
     for dir in &handler_dirs {
         if !dir.exists() { continue; }
-        for entry in walkdir::WalkDir::new(&dir)
+        for entry in walkdir::WalkDir::new(dir)
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|e| e.path().extension().map(|x| x == "rs").unwrap_or(false))
@@ -166,14 +167,14 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
     if let Some(out_path) = out {
         let p = paths::resolve(out_path);
         paths::ensure_dir(p.parent().unwrap())?;
-        fs::write(&p, &rendered)?;
+        report::write_text_report(&p, &rendered)?;
         println!("[syscall-coverage] Report written: {}", p.display());
     } else {
         println!("{}", rendered);
     }
 
     // Always write summary JSON
-    let summary_path = paths::resolve("reports/syscall_coverage_summary.json");
+    let summary_path = constants::paths::syscall_coverage_summary();
     report::write_json_report(&summary_path, &summary)?;
 
     println!("[syscall-coverage] Total: {} | Implemented: {} ({:.1}%) | Partial: {} | No: {} | External: {}",

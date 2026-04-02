@@ -1,10 +1,10 @@
 pub(crate) fn init_smp_runtime(enabled: bool) {
     if enabled {
-        hypercore::hal::HAL::init_smp();
+        aethercore::hal::HAL::init_smp();
         #[cfg(target_arch = "aarch64")]
         {
-            let st = hypercore::hal::aarch64::smp::boot_stats();
-            hypercore::klog_info!(
+            let st = aethercore::hal::aarch64::smp::boot_stats();
+            aethercore::klog_info!(
                 "SMP boot stats: hvc={}/{} smc={}/{} failures={} timeouts={} aps_ready={}",
                 st.hvc_success,
                 st.hvc_attempts,
@@ -15,8 +15,8 @@ pub(crate) fn init_smp_runtime(enabled: bool) {
                 st.aps_ready
             );
         }
-        hypercore::klog_info!("SMP initialization enabled");
+        aethercore::klog_info!("SMP initialization enabled");
     } else {
-        hypercore::klog_warn!("SMP initialization disabled by config");
+        aethercore::klog_warn!("SMP initialization disabled by config");
     }
 }

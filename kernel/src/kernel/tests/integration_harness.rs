@@ -690,7 +690,7 @@ impl IntegrationHarness {
 		if pid == 0 {
 			return Err(IntegrationError::InvalidPid);
 		}
-		let line = "100 (hypercore) R 1 100 0 0 -1 4194304 0 0 0 0 0 0 0 0 20 0 1 0 0 4096000 200 18446744073709551615 4194304 4239000 140736200000000 0 0 0 0 0 0 0 0 0 17 0 0 0 0 0 0";
+		let line = "100 (aethercore) R 1 100 0 0 -1 4194304 0 0 0 0 0 0 0 0 20 0 1 0 0 4096000 200 18446744073709551615 4194304 4239000 140736200000000 0 0 0 0 0 0 0 0 0 17 0 0 0 0 0 0";
 		Ok(line.split_whitespace().count())
 	}
 
@@ -698,7 +698,7 @@ impl IntegrationHarness {
 		if pid == 0 {
 			return Err(IntegrationError::InvalidPid);
 		}
-		let status = "Name:\thypercore\nState:\tR (running)\nTgid:\t100\nPid:\t100\nPPid:\t1\nUid:\t0\t0\t0\t0\nGid:\t0\t0\t0\t0\n";
+		let status = "Name:\taethercore\nState:\tR (running)\nTgid:\t100\nPid:\t100\nPPid:\t1\nUid:\t0\t0\t0\t0\nGid:\t0\t0\t0\t0\n";
 		Ok(
 			status.contains("Name:")
 				&& status.contains("State:")

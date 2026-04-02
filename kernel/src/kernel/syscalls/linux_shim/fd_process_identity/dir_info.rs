@@ -186,8 +186,8 @@ pub(crate) fn sys_linux_uname(buf: usize) -> usize {
             let len = core::cmp::min(value.len(), UTSNAME_FIELD_LEN - 1);
             dst[offset..offset + len].copy_from_slice(&value[..len]);
         };
-        copy_field(dst, UTSNAME_SYSNAME_OFFSET, b"HyperCore");
-        copy_field(dst, UTSNAME_NODENAME_OFFSET, b"hypercore");
+        copy_field(dst, UTSNAME_SYSNAME_OFFSET, b"AetherCore");
+        copy_field(dst, UTSNAME_NODENAME_OFFSET, b"aethercore");
         copy_field(dst, UTSNAME_RELEASE_OFFSET, b"0.2.0");
         copy_field(dst, UTSNAME_VERSION_OFFSET, b"#1 SMP");
         #[cfg(target_arch = "x86_64")]

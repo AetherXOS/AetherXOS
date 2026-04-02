@@ -1,30 +1,30 @@
-use hypercore::interfaces::{KernelTask, Scheduler, SchedulerAction, TaskId};
-use hypercore::kernel::launch::{
+use aethercore::interfaces::{KernelTask, Scheduler, SchedulerAction, TaskId};
+use aethercore::kernel::launch::{
     clone_process_from_registered_image, launch_registry_snapshot, process_boot_image,
     process_count, spawn_bootstrap_from_aligned_static_image, spawn_bootstrap_from_image,
     spawn_bootstrap_from_static_image,
     LaunchError, LaunchRegistrySnapshotEntry,
 };
-use hypercore::kernel::module_loader::{
+use aethercore::kernel::module_loader::{
     build_load_plan, build_process_bootstrap_task, build_process_bootstrap_task_from_snapshot,
     build_virtual_mapping_plan, inspect_elf_image, preflight_module_image,
     prepare_process_image_entry_from_snapshot,
     prepare_process_image, prepare_process_image_entry, snapshot_module_image,
 };
-use hypercore::kernel::module_loader::ModuleLoadPlan;
-use hypercore::kernel::module_loader::LoadSegmentPlan;
-use hypercore::kernel::module_loader::ModuleLoadError;
-use hypercore::kernel::process::{Process, ProcessLifecycleState};
-use hypercore::kernel::sync::IrqSafeMutex;
-use hypercore::kernel::task::{
+use aethercore::kernel::module_loader::ModuleLoadPlan;
+use aethercore::kernel::module_loader::LoadSegmentPlan;
+use aethercore::kernel::module_loader::ModuleLoadError;
+use aethercore::kernel::process::{Process, ProcessLifecycleState};
+use aethercore::kernel::sync::IrqSafeMutex;
+use aethercore::kernel::task::{
     get_task, register_task_arc, task_context_snapshot, task_ids_snapshot, task_registry_snapshot,
     unregister_task,
 };
-use hypercore::kernel::debug_trace::{
+use aethercore::kernel::debug_trace::{
     latest_record, recent_records_for_category, recent_records_vec_copy,
     record_with_metadata, TraceCategory, TraceSeverity, TraceRecord,
 };
-use hypercore::modules::schedulers::{
+use aethercore::modules::schedulers::{
     cfs::CFS, cooperative::Cooperative, edf::EDF, fifo::FIFO, lifo::LIFO, lottery::Lottery,
     mlfq::MLFQ, round_robin::RoundRobin, weighted_round_robin::WeightedRoundRobin,
 };
@@ -36,7 +36,7 @@ extern "C" fn host_test_entry() -> ! {
 }
 
 static PROBE_LINKED_ELF: &[u8] =
-    include_bytes!("../../../boot/initramfs/usr/lib/hypercore/probe-linked.elf");
+    include_bytes!("../../../boot/initramfs/usr/lib/aethercore/probe-linked.elf");
 static TRACE_TEST_GUARD: Mutex<()> = Mutex::new(());
 static TASK_REGISTRY_TEST_GUARD: Mutex<()> = Mutex::new(());
 static TRACE_SCOPE_COUNTER: AtomicUsize = AtomicUsize::new(1);
@@ -560,7 +560,7 @@ fn task_registry_snapshot_tracks_registered_arc_task() {
     assert!(ids[..written].contains(&tid));
 
     let snapshot = task_context_snapshot(tid).expect("task snapshot");
-    assert_eq!(snapshot.0, hypercore::interfaces::TaskState::Ready);
+    assert_eq!(snapshot.0, aethercore::interfaces::TaskState::Ready);
     assert_eq!(snapshot.1, None);
     assert_eq!(snapshot.2, 0);
     assert_ne!(snapshot.3, 0);
@@ -576,7 +576,7 @@ fn task_registry_snapshot_tracks_registered_entry_shape() {
     let task = Arc::new(IrqSafeMutex::new(make_task(tid.0, 10)));
     register_task_arc(task.clone());
 
-    let mut entries = [hypercore::kernel::task::TaskRegistrySnapshotEntry::default(); 8];
+    let mut entries = [aethercore::kernel::task::TaskRegistrySnapshotEntry::default(); 8];
     let written = task_registry_snapshot(&mut entries);
     assert!(written >= 1);
     let found = entries[..written]
@@ -597,7 +597,7 @@ fn register_task_arc_is_repeatably_stable_for_fresh_ids() {
         let task = Arc::new(IrqSafeMutex::new(make_task(tid.0, 10)));
         register_task_arc(task);
 
-        let mut entries = [hypercore::kernel::task::TaskRegistrySnapshotEntry::default(); 32];
+        let mut entries = [aethercore::kernel::task::TaskRegistrySnapshotEntry::default(); 32];
         let written = task_registry_snapshot(&mut entries);
         let found = entries[..written]
             .iter()
@@ -659,7 +659,7 @@ fn cfs_add_task_is_repeatably_stable_for_registered_bootstrap_tasks() {
         let scheduled = scheduler.get_task_mut(tid).expect("scheduler task");
         let scheduled = scheduled.lock();
         assert_eq!(scheduled.id, tid);
-        assert_eq!(scheduled.state, hypercore::interfaces::TaskState::Ready);
+        assert_eq!(scheduled.state, aethercore::interfaces::TaskState::Ready);
 
         unregister_task(tid);
         assert!(get_task(tid).is_none());
@@ -671,7 +671,7 @@ fn launch_registry_snapshot_defaults_to_empty_when_registry_is_empty() {
     let mut entries = [LaunchRegistrySnapshotEntry::default(); 4];
     let written = launch_registry_snapshot(&mut entries);
     assert_eq!(written, 0);
-    assert_eq!(entries[0].process_id, hypercore::interfaces::ProcessId(0));
+    assert_eq!(entries[0].process_id, aethercore::interfaces::ProcessId(0));
     assert_eq!(entries[0].task_id, TaskId(0));
     assert_eq!(entries[0].stage, 0);
 }
@@ -1152,7 +1152,7 @@ fn bind_prepared_image_snapshot_repeatedly_preserves_empty_tls_contract() {
     let process = make_process(b"probe");
 
     for _ in 0..6 {
-        hypercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
+        aethercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
             .expect("bind prepared snapshot");
         let (tls, mem_size, align) = process.tls_state_snapshot();
         assert!(tls.is_empty());
@@ -1198,7 +1198,7 @@ fn bind_prepared_image_snapshot_clears_seeded_tls_bytes_and_republishes_header()
         .bind_tls_template(&[9u8, 8, 7, 6], &seeded)
         .expect("seed tls");
 
-    hypercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
+    aethercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
         .expect("bind prepared snapshot");
 
     let (tls, mem_size, align) = process.tls_state_snapshot();
@@ -1245,7 +1245,7 @@ fn bind_prepared_image_snapshot_repeatedly_clears_seeded_tls_state() {
             .bind_tls_template(&[1u8, 2, 3, 4], &seeded)
             .expect("seed tls");
 
-        hypercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
+        aethercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
             .expect("bind prepared snapshot");
 
         let (tls, mem_size, align) = process.tls_state_snapshot();
@@ -1299,7 +1299,7 @@ fn bind_prepared_image_snapshot_recovers_from_combined_dirty_mapping_and_tls_sta
             .bind_tls_template(&[7u8, 6, 5, 4], &seeded)
             .expect("seed tls");
 
-        hypercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
+        aethercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
             .expect("bind prepared snapshot");
 
         let runtime = process.runtime_contract_snapshot();
@@ -1310,7 +1310,7 @@ fn bind_prepared_image_snapshot_recovers_from_combined_dirty_mapping_and_tls_sta
         assert_eq!(regions, snapshot.mappings.len());
         assert_eq!(pages, snapshot.mappings.iter().fold(0usize, |acc, mapping| {
             acc + (((mapping.end - mapping.start)
-                / hypercore::interfaces::memory::PAGE_SIZE_4K as u64) as usize)
+                / aethercore::interfaces::memory::PAGE_SIZE_4K as u64) as usize)
         }));
         assert!(tls.is_empty());
         assert_eq!(mem_size, snapshot.load_plan.tls_mem_size);
@@ -1435,7 +1435,7 @@ fn repeated_invalid_owned_spawns_leave_launch_registry_empty() {
 fn launch_clone_rejects_unknown_process_id_without_mutating_registry() {
     let before = process_count();
     assert_eq!(
-        clone_process_from_registered_image(hypercore::interfaces::task::ProcessId(usize::MAX), 0, 0, 0, 0),
+        clone_process_from_registered_image(aethercore::interfaces::task::ProcessId(usize::MAX), 0, 0, 0, 0),
         Err(LaunchError::InvalidSpawnRequest)
     );
     assert_eq!(process_count(), before);
@@ -1535,7 +1535,7 @@ fn single_pass_snapshot_binding_matches_prepare_process_image_state() {
     let snapshot = snapshot_module_image(image).expect("snapshot");
     let process = make_process(b"probe");
 
-    hypercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
+    aethercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
         .expect("bind prepared snapshot");
 
     let runtime = process.runtime_contract_snapshot();
@@ -1560,7 +1560,7 @@ fn single_pass_snapshot_binding_repeatedly_preserves_runtime_contract_shape() {
     let process = make_process(b"probe");
 
     for generation in 1..=8u64 {
-        hypercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
+        aethercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
             .expect("bind prepared snapshot");
 
         let runtime = process.runtime_contract_snapshot();
@@ -1586,14 +1586,14 @@ fn single_pass_snapshot_binding_repeatedly_overwrites_mapping_counts_without_acc
     let process = make_process(b"probe");
 
     for _ in 0..8 {
-        hypercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
+        aethercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
             .expect("bind prepared snapshot");
 
         let (regions, pages) = process.mapping_state();
         assert_eq!(regions, snapshot.mappings.len());
         assert_eq!(pages, snapshot.mappings.iter().fold(0usize, |acc, mapping| {
             acc + (((mapping.end - mapping.start)
-                / hypercore::interfaces::memory::PAGE_SIZE_4K as u64) as usize)
+                / aethercore::interfaces::memory::PAGE_SIZE_4K as u64) as usize)
         }));
     }
 }
@@ -1610,14 +1610,14 @@ fn single_pass_snapshot_binding_overwrites_dirty_mapping_state_consistently() {
     process.mapped_regions.store(777, core::sync::atomic::Ordering::Relaxed);
     process.mapped_pages.store(999, core::sync::atomic::Ordering::Relaxed);
 
-    hypercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
+    aethercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
         .expect("bind prepared snapshot");
 
     let (regions, pages) = process.mapping_state();
     assert_eq!(regions, snapshot.mappings.len());
     assert_eq!(pages, snapshot.mappings.iter().fold(0usize, |acc, mapping| {
         acc + (((mapping.end - mapping.start)
-            / hypercore::interfaces::memory::PAGE_SIZE_4K as u64) as usize)
+            / aethercore::interfaces::memory::PAGE_SIZE_4K as u64) as usize)
     }));
 }
 
@@ -1638,13 +1638,13 @@ fn single_pass_snapshot_binding_overwrites_extreme_mapping_state_consistently() 
         .store(usize::MAX / 8, core::sync::atomic::Ordering::Relaxed);
 
     for _ in 0..4 {
-        hypercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
+        aethercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
             .expect("bind prepared snapshot");
         let (regions, pages) = process.mapping_state();
         assert_eq!(regions, snapshot.mappings.len());
         assert_eq!(pages, snapshot.mappings.iter().fold(0usize, |acc, mapping| {
             acc + (((mapping.end - mapping.start)
-                / hypercore::interfaces::memory::PAGE_SIZE_4K as u64) as usize)
+                / aethercore::interfaces::memory::PAGE_SIZE_4K as u64) as usize)
         }));
     }
 }
@@ -1666,13 +1666,13 @@ fn single_pass_snapshot_binding_recovers_after_manual_mapping_counter_churn() {
             .mapped_pages
             .store(i * 31 + 9, core::sync::atomic::Ordering::Relaxed);
 
-        hypercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
+        aethercore::kernel::process::bind_prepared_image_snapshot(&process, image, &snapshot)
             .expect("bind prepared snapshot");
         let (regions, pages) = process.mapping_state();
         assert_eq!(regions, snapshot.mappings.len());
         assert_eq!(pages, snapshot.mappings.iter().fold(0usize, |acc, mapping| {
             acc + (((mapping.end - mapping.start)
-                / hypercore::interfaces::memory::PAGE_SIZE_4K as u64) as usize)
+                / aethercore::interfaces::memory::PAGE_SIZE_4K as u64) as usize)
         }));
     }
 }
@@ -1731,13 +1731,13 @@ fn bind_virtual_mappings_updates_region_and_page_counts() {
     let process = make_process(b"probe");
     process
         .bind_virtual_mappings(&[
-            hypercore::kernel::module_loader::VirtualMappingPlan {
+            aethercore::kernel::module_loader::VirtualMappingPlan {
                 start: 0x400000,
                 end: 0x402000,
                 file_bytes: 0x1800,
                 zero_fill_bytes: 0x800,
             },
-            hypercore::kernel::module_loader::VirtualMappingPlan {
+            aethercore::kernel::module_loader::VirtualMappingPlan {
                 start: 0x500000,
                 end: 0x501000,
                 file_bytes: 0x400,
@@ -1756,13 +1756,13 @@ fn bind_virtual_mappings_overwrites_previous_counts_with_new_layout() {
     let process = make_process(b"probe");
     process
         .bind_virtual_mappings(&[
-            hypercore::kernel::module_loader::VirtualMappingPlan {
+            aethercore::kernel::module_loader::VirtualMappingPlan {
                 start: 0x400000,
                 end: 0x402000,
                 file_bytes: 0x1800,
                 zero_fill_bytes: 0x800,
             },
-            hypercore::kernel::module_loader::VirtualMappingPlan {
+            aethercore::kernel::module_loader::VirtualMappingPlan {
                 start: 0x500000,
                 end: 0x501000,
                 file_bytes: 0x400,
@@ -1771,7 +1771,7 @@ fn bind_virtual_mappings_overwrites_previous_counts_with_new_layout() {
         ])
         .expect("first bind");
     process
-        .bind_virtual_mappings(&[hypercore::kernel::module_loader::VirtualMappingPlan {
+        .bind_virtual_mappings(&[aethercore::kernel::module_loader::VirtualMappingPlan {
             start: 0x700000,
             end: 0x704000,
             file_bytes: 0x1000,
@@ -1788,7 +1788,7 @@ fn bind_virtual_mappings_overwrites_previous_counts_with_new_layout() {
 fn bind_virtual_mappings_rejects_unaligned_ranges() {
     let process = make_process(b"probe");
     let err = process
-        .bind_virtual_mappings(&[hypercore::kernel::module_loader::VirtualMappingPlan {
+        .bind_virtual_mappings(&[aethercore::kernel::module_loader::VirtualMappingPlan {
             start: 0x400001,
             end: 0x402000,
             file_bytes: 0x1000,
@@ -1802,7 +1802,7 @@ fn bind_virtual_mappings_rejects_unaligned_ranges() {
 fn bind_virtual_mappings_rejects_empty_ranges() {
     let process = make_process(b"probe");
     let err = process
-        .bind_virtual_mappings(&[hypercore::kernel::module_loader::VirtualMappingPlan {
+        .bind_virtual_mappings(&[aethercore::kernel::module_loader::VirtualMappingPlan {
             start: 0x400000,
             end: 0x400000,
             file_bytes: 0,
@@ -1816,13 +1816,13 @@ fn bind_virtual_mappings_rejects_empty_ranges() {
 fn bind_virtual_mappings_is_repeatably_stable_for_same_layout() {
     let layouts = [
         (
-            hypercore::kernel::module_loader::VirtualMappingPlan {
+            aethercore::kernel::module_loader::VirtualMappingPlan {
                 start: 0x400000,
                 end: 0x402000,
                 file_bytes: 0x1800,
                 zero_fill_bytes: 0x800,
             },
-            hypercore::kernel::module_loader::VirtualMappingPlan {
+            aethercore::kernel::module_loader::VirtualMappingPlan {
                 start: 0x500000,
                 end: 0x501000,
                 file_bytes: 0x400,
@@ -1830,13 +1830,13 @@ fn bind_virtual_mappings_is_repeatably_stable_for_same_layout() {
             },
         ),
         (
-            hypercore::kernel::module_loader::VirtualMappingPlan {
+            aethercore::kernel::module_loader::VirtualMappingPlan {
                 start: 0x600000,
                 end: 0x603000,
                 file_bytes: 0x1000,
                 zero_fill_bytes: 0x2000,
             },
-            hypercore::kernel::module_loader::VirtualMappingPlan {
+            aethercore::kernel::module_loader::VirtualMappingPlan {
                 start: 0x700000,
                 end: 0x701000,
                 file_bytes: 0x1000,
@@ -1878,7 +1878,7 @@ fn create_bootstrap_task_from_probe_image_binds_process_and_thread_state() {
 
     assert_bootstrap_task_contract(&process, &task, TaskId(501));
     let task = task.lock();
-    assert_eq!(task.state, hypercore::interfaces::TaskState::Ready);
+    assert_eq!(task.state, aethercore::interfaces::TaskState::Ready);
 }
 
 #[test]

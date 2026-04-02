@@ -1,6 +1,6 @@
 // glibc syscall completeness audit, closure testing, and tracking
 //
-// This module provides comprehensive tracking of HyperCore's glibc compatibility progress.
+// This module provides comprehensive tracking of AetherCore's glibc compatibility progress.
 // Currently at 47/50 critical syscalls fully implemented (94% coverage).
 // Remaining blockers: remap_file_pages (deprecated), clone namespaces, statx extended attrs.
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "[hyper_init] early userspace bootstrap"
+echo "[aether_init] early userspace bootstrap"
 
 export PATH="${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"
 export HOME="${HOME:-/}"
@@ -73,157 +73,157 @@ if [ -r /proc/sys/hypercore/abi/startup_stack_layout ]; then
 fi
 
 if [ -n "${HYPERCORE_EXEC_PATH}" ]; then
-  echo "[hyper_init] exec path: ${HYPERCORE_EXEC_PATH}"
+  echo "[aether_init] exec path: ${HYPERCORE_EXEC_PATH}"
 fi
 if [ -n "${HYPERCORE_INIT_HOOKS}" ]; then
-  echo "[hyper_init] init hooks: ${HYPERCORE_INIT_HOOKS} fini hooks: ${HYPERCORE_FINI_HOOKS:-0}"
+  echo "[aether_init] init hooks: ${HYPERCORE_INIT_HOOKS} fini hooks: ${HYPERCORE_FINI_HOOKS:-0}"
 fi
 if [ -n "${HYPERCORE_SECURITY_PROFILE}" ]; then
-  echo "[hyper_init] security profile: ${HYPERCORE_SECURITY_PROFILE}"
+  echo "[aether_init] security profile: ${HYPERCORE_SECURITY_PROFILE}"
 fi
 if [ -n "${HYPERCORE_SYSCALL_PLATFORM}" ]; then
-  echo "[hyper_init] syscall platform: ${HYPERCORE_SYSCALL_PLATFORM}"
+  echo "[aether_init] syscall platform: ${HYPERCORE_SYSCALL_PLATFORM}"
 fi
 if [ -n "${HYPERCORE_SYSCALL_ABI_VERSION}" ]; then
-  echo "[hyper_init] syscall abi: ${HYPERCORE_SYSCALL_ABI_VERSION}"
+  echo "[aether_init] syscall abi: ${HYPERCORE_SYSCALL_ABI_VERSION}"
 fi
 if [ -n "${HYPERCORE_RUNTIME_VDSO}" ]; then
-  echo "[hyper_init] runtime: vdso=${HYPERCORE_RUNTIME_VDSO} tls=${HYPERCORE_RUNTIME_TLS:-0} signal_abi=${HYPERCORE_RUNTIME_SIGNAL_ABI:-0}"
+  echo "[aether_init] runtime: vdso=${HYPERCORE_RUNTIME_VDSO} tls=${HYPERCORE_RUNTIME_TLS:-0} signal_abi=${HYPERCORE_RUNTIME_SIGNAL_ABI:-0}"
 fi
 if [ -n "${HYPERCORE_LOADER_GNU_HASH}" ]; then
-  echo "[hyper_init] loader: gnu_hash=${HYPERCORE_LOADER_GNU_HASH}"
+  echo "[aether_init] loader: gnu_hash=${HYPERCORE_LOADER_GNU_HASH}"
 fi
 if [ -n "${HYPERCORE_STARTUP_AUXV}" ]; then
-  echo "[hyper_init] startup: auxv=${HYPERCORE_STARTUP_AUXV} execfn=${HYPERCORE_AUXV_AT_EXECFN:-?} sysinfo_ehdr=${HYPERCORE_AUXV_AT_SYSINFO_EHDR:-?}"
+  echo "[aether_init] startup: auxv=${HYPERCORE_STARTUP_AUXV} execfn=${HYPERCORE_AUXV_AT_EXECFN:-?} sysinfo_ehdr=${HYPERCORE_AUXV_AT_SYSINFO_EHDR:-?}"
 fi
 if [ -n "${HYPERCORE_STARTUP_STACK_LAYOUT}" ]; then
-  echo "[hyper_init] startup layout: ${HYPERCORE_STARTUP_STACK_LAYOUT}"
+  echo "[aether_init] startup layout: ${HYPERCORE_STARTUP_STACK_LAYOUT}"
 fi
 if [ -r /usr/lib/hypercore/runtime-contract.txt ]; then
-  echo "[hyper_init] runtime contract manifest: /usr/lib/hypercore/runtime-contract.txt"
+  echo "[aether_init] runtime contract manifest: /usr/lib/hypercore/runtime-contract.txt"
 fi
 if [ -r /usr/lib/hypercore/userspace-programs.txt ]; then
-  echo "[hyper_init] userspace program list: /usr/lib/hypercore/userspace-programs.txt"
+  echo "[aether_init] userspace program list: /usr/lib/hypercore/userspace-programs.txt"
 fi
 if [ -r /usr/lib/hypercore/userspace-build.txt ]; then
-  echo "[hyper_init] userspace build manifest: /usr/lib/hypercore/userspace-build.txt"
+  echo "[aether_init] userspace build manifest: /usr/lib/hypercore/userspace-build.txt"
 fi
 if [ -r /usr/lib/hypercore/userspace-smoke.txt ]; then
-  echo "[hyper_init] userspace smoke report: /usr/lib/hypercore/userspace-smoke.txt"
+  echo "[aether_init] userspace smoke report: /usr/lib/hypercore/userspace-smoke.txt"
 fi
 if [ -r /usr/lib/hypercore/probe-linked.txt ]; then
-  echo "[hyper_init] linked probe manifest: /usr/lib/hypercore/probe-linked.txt"
+  echo "[aether_init] linked probe manifest: /usr/lib/hypercore/probe-linked.txt"
 fi
 if [ -r /usr/lib/hypercore/probe-exec-plan.txt ]; then
-  echo "[hyper_init] linked probe exec plan: /usr/lib/hypercore/probe-exec-plan.txt"
+  echo "[aether_init] linked probe exec plan: /usr/lib/hypercore/probe-exec-plan.txt"
 fi
 if [ -r /usr/lib/hypercore/probe-boot-harness.txt ]; then
-  echo "[hyper_init] linked probe boot harness: /usr/lib/hypercore/probe-boot-harness.txt"
+  echo "[aether_init] linked probe boot harness: /usr/lib/hypercore/probe-boot-harness.txt"
 fi
 if [ -r /usr/lib/hypercore/probe-kernel-append.txt ]; then
-  echo "[hyper_init] linked probe kernel append: /usr/lib/hypercore/probe-kernel-append.txt"
+  echo "[aether_init] linked probe kernel append: /usr/lib/hypercore/probe-kernel-append.txt"
 fi
 if [ -r /usr/lib/hypercore/probe-iso-plan.txt ]; then
-  echo "[hyper_init] linked probe iso plan: /usr/lib/hypercore/probe-iso-plan.txt"
+  echo "[aether_init] linked probe iso plan: /usr/lib/hypercore/probe-iso-plan.txt"
 fi
 if [ -r /usr/lib/hypercore/probe-qemu-command.txt ]; then
-  echo "[hyper_init] linked probe qemu command: /usr/lib/hypercore/probe-qemu-command.txt"
+  echo "[aether_init] linked probe qemu command: /usr/lib/hypercore/probe-qemu-command.txt"
 fi
 if [ -r /usr/lib/hypercore/run-linked-probe.ps1 ]; then
-  echo "[hyper_init] linked probe powershell harness: /usr/lib/hypercore/run-linked-probe.ps1"
+  echo "[aether_init] linked probe powershell harness: /usr/lib/hypercore/run-linked-probe.ps1"
 fi
 if [ -r /usr/lib/hypercore/run-linked-probe.sh ]; then
-  echo "[hyper_init] linked probe shell harness: /usr/lib/hypercore/run-linked-probe.sh"
+  echo "[aether_init] linked probe shell harness: /usr/lib/hypercore/run-linked-probe.sh"
 fi
 if [ -r /usr/lib/hypercore/userspace.mk ]; then
-  echo "[hyper_init] userspace makefile: /usr/lib/hypercore/userspace.mk"
+  echo "[aether_init] userspace makefile: /usr/lib/hypercore/userspace.mk"
 fi
 if [ -r /usr/lib/hypercore/build-userspace.sh ]; then
-  echo "[hyper_init] userspace build script: /usr/lib/hypercore/build-userspace.sh"
+  echo "[aether_init] userspace build script: /usr/lib/hypercore/build-userspace.sh"
 fi
 if [ -r /usr/lib/hypercore/hypercore_userspace.ld ]; then
-  echo "[hyper_init] userspace linker script: /usr/lib/hypercore/hypercore_userspace.ld"
+  echo "[aether_init] userspace linker script: /usr/lib/hypercore/hypercore_userspace.ld"
 fi
 if [ -r /usr/lib/hypercore/crt0-plan.txt ]; then
-  echo "[hyper_init] userspace startup plan: /usr/lib/hypercore/crt0-plan.txt"
+  echo "[aether_init] userspace startup plan: /usr/lib/hypercore/crt0-plan.txt"
 fi
 if [ -r /usr/lib/hypercore/probe.program.txt ]; then
-  echo "[hyper_init] userspace probe manifest: /usr/lib/hypercore/probe.program.txt"
+  echo "[aether_init] userspace probe manifest: /usr/lib/hypercore/probe.program.txt"
 fi
 if [ -r /usr/lib/hypercore/runtime-core.txt ]; then
-  echo "[hyper_init] runtime core manifest: /usr/lib/hypercore/runtime-core.txt"
+  echo "[aether_init] runtime core manifest: /usr/lib/hypercore/runtime-core.txt"
 fi
 if [ -r /usr/lib/hypercore/runtime-memory-helpers.txt ]; then
-  echo "[hyper_init] runtime memory helpers: /usr/lib/hypercore/runtime-memory-helpers.txt"
+  echo "[aether_init] runtime memory helpers: /usr/lib/hypercore/runtime-memory-helpers.txt"
 fi
 if [ -r /usr/lib/hypercore/runtime-string-helpers.txt ]; then
-  echo "[hyper_init] runtime string helpers: /usr/lib/hypercore/runtime-string-helpers.txt"
+  echo "[aether_init] runtime string helpers: /usr/lib/hypercore/runtime-string-helpers.txt"
 fi
 if [ -r /usr/lib/hypercore/runtime-auxv-helpers.txt ]; then
-  echo "[hyper_init] runtime auxv helpers: /usr/lib/hypercore/runtime-auxv-helpers.txt"
+  echo "[aether_init] runtime auxv helpers: /usr/lib/hypercore/runtime-auxv-helpers.txt"
 fi
 if [ -r /usr/lib/hypercore/runtime-env-helpers.txt ]; then
-  echo "[hyper_init] runtime env helpers: /usr/lib/hypercore/runtime-env-helpers.txt"
+  echo "[aether_init] runtime env helpers: /usr/lib/hypercore/runtime-env-helpers.txt"
 fi
 if [ -r /usr/lib/hypercore/runtime-errno-features.txt ]; then
-  echo "[hyper_init] runtime errno features: /usr/lib/hypercore/runtime-errno-features.txt"
+  echo "[aether_init] runtime errno features: /usr/lib/hypercore/runtime-errno-features.txt"
 fi
 if [ -r /usr/lib/hypercore/runtime-entrypoints.txt ]; then
-  echo "[hyper_init] runtime entrypoints: /usr/lib/hypercore/runtime-entrypoints.txt"
+  echo "[aether_init] runtime entrypoints: /usr/lib/hypercore/runtime-entrypoints.txt"
 fi
 if [ -r /usr/lib/hypercore/runtime-source-units.txt ]; then
-  echo "[hyper_init] runtime source units: /usr/lib/hypercore/runtime-source-units.txt"
+  echo "[aether_init] runtime source units: /usr/lib/hypercore/runtime-source-units.txt"
 fi
 if [ -r /usr/lib/hypercore/hypercore_runtime.h ]; then
-  echo "[hyper_init] runtime public header: /usr/lib/hypercore/hypercore_runtime.h"
+  echo "[aether_init] runtime public header: /usr/lib/hypercore/hypercore_runtime.h"
 fi
 if [ -r /usr/lib/hypercore/hypercore_runtime_state.h ]; then
-  echo "[hyper_init] runtime state header: /usr/lib/hypercore/hypercore_runtime_state.h"
+  echo "[aether_init] runtime state header: /usr/lib/hypercore/hypercore_runtime_state.h"
 fi
 if [ -r /usr/lib/hypercore/elf-contract.txt ]; then
-  echo "[hyper_init] elf contract manifest: /usr/lib/hypercore/elf-contract.txt"
+  echo "[aether_init] elf contract manifest: /usr/lib/hypercore/elf-contract.txt"
 fi
 if [ -r /usr/lib/hypercore/libc-contract.txt ]; then
-  echo "[hyper_init] libc contract manifest: /usr/lib/hypercore/libc-contract.txt"
+  echo "[aether_init] libc contract manifest: /usr/lib/hypercore/libc-contract.txt"
 fi
 if [ -r /usr/lib/hypercore/libc-planned-symbols.txt ]; then
-  echo "[hyper_init] libc planned symbols: /usr/lib/hypercore/libc-planned-symbols.txt"
+  echo "[aether_init] libc planned symbols: /usr/lib/hypercore/libc-planned-symbols.txt"
 fi
 if [ -r /usr/lib/hypercore/libc-source-modules.txt ]; then
-  echo "[hyper_init] libc source modules: /usr/lib/hypercore/libc-source-modules.txt"
+  echo "[aether_init] libc source modules: /usr/lib/hypercore/libc-source-modules.txt"
 fi
 if [ -r /usr/lib/hypercore/hypercore_libc.h ]; then
-  echo "[hyper_init] libc public header: /usr/lib/hypercore/hypercore_libc.h"
+  echo "[aether_init] libc public header: /usr/lib/hypercore/hypercore_libc.h"
 fi
 if [ -r /usr/lib/hypercore/hypercore_libc_state.h ]; then
-  echo "[hyper_init] libc state header: /usr/lib/hypercore/hypercore_libc_state.h"
+  echo "[aether_init] libc state header: /usr/lib/hypercore/hypercore_libc_state.h"
 fi
 
 if [ "${HYPERCORE_RUN_LINKED_PROBE:-0}" = "1" ] && [ -x /usr/lib/hypercore/probe-linked.elf ]; then
-  echo "[hyper_init] running optional linked probe: /usr/lib/hypercore/probe-linked.elf"
+  echo "[aether_init] running optional linked probe: /usr/lib/hypercore/probe-linked.elf"
   /usr/lib/hypercore/probe-linked.elf
   HYPERCORE_LINKED_PROBE_STATUS="$?"
   export HYPERCORE_LINKED_PROBE_STATUS
-  echo "[hyper_init] linked probe exit status: ${HYPERCORE_LINKED_PROBE_STATUS}"
+  echo "[aether_init] linked probe exit status: ${HYPERCORE_LINKED_PROBE_STATUS}"
   if [ "${HYPERCORE_LINKED_PROBE_STATUS}" = "0" ]; then
-    echo "[hyper_init] linked probe execution verified"
+    echo "[aether_init] linked probe execution verified"
     cat > /usr/lib/hypercore/probe-execution-proof.txt <<EOF
 [hypercore-userspace-probe-proof]
 status=verified
 artifact_present=yes
-expected_log=[hyper_init] linked probe exit status: 0
-verified_in=hyper_init_runtime
+expected_log=[aether_init] linked probe exit status: 0
+verified_in=aether_init_runtime
 scanned_logs=live_boot
 
 EOF
   else
-    echo "[hyper_init] linked probe execution failed"
+    echo "[aether_init] linked probe execution failed"
     cat > /usr/lib/hypercore/probe-execution-proof.txt <<EOF
 [hypercore-userspace-probe-proof]
 status=runtime_failed
 artifact_present=yes
-expected_log=[hyper_init] linked probe exit status: 0
-verified_in=hyper_init_runtime
+expected_log=[aether_init] linked probe exit status: 0
+verified_in=aether_init_runtime
 scanned_logs=live_boot
 exit_status=${HYPERCORE_LINKED_PROBE_STATUS}
 
@@ -231,40 +231,40 @@ EOF
   fi
 fi
 
-if [ "${HYPERCORE_RUN_DISKFS_SETUP:-1}" = "1" ] && [ -x /usr/bin/hypercore-diskfs-setup ]; then
-  echo "[hyper_init] running diskfs setup: /usr/bin/hypercore-diskfs-setup"
-  /usr/bin/hypercore-diskfs-setup
+if [ "${HYPERCORE_RUN_DISKFS_SETUP:-1}" = "1" ] && [ -x /usr/bin/aethercore-diskfs-setup ]; then
+  echo "[aether_init] running diskfs setup: /usr/bin/aethercore-diskfs-setup"
+  /usr/bin/aethercore-diskfs-setup
   HYPERCORE_DISKFS_SETUP_STATUS="$?"
   export HYPERCORE_DISKFS_SETUP_STATUS
-  echo "[hyper_init] diskfs setup exit status: ${HYPERCORE_DISKFS_SETUP_STATUS}"
+  echo "[aether_init] diskfs setup exit status: ${HYPERCORE_DISKFS_SETUP_STATUS}"
 fi
 
-if [ "${HYPERCORE_RUN_PIVOT_ROOT_SETUP:-1}" = "1" ] && [ -x /usr/bin/hypercore-pivot-root ]; then
-  echo "[hyper_init] running pivot-root setup: /usr/bin/hypercore-pivot-root"
-  /usr/bin/hypercore-pivot-root
+if [ "${HYPERCORE_RUN_PIVOT_ROOT_SETUP:-1}" = "1" ] && [ -x /usr/bin/aethercore-pivot-root ]; then
+  echo "[aether_init] running pivot-root setup: /usr/bin/aethercore-pivot-root"
+  /usr/bin/aethercore-pivot-root
   HYPERCORE_PIVOT_ROOT_SETUP_STATUS="$?"
   export HYPERCORE_PIVOT_ROOT_SETUP_STATUS
-  echo "[hyper_init] pivot-root setup exit status: ${HYPERCORE_PIVOT_ROOT_SETUP_STATUS}"
+  echo "[aether_init] pivot-root setup exit status: ${HYPERCORE_PIVOT_ROOT_SETUP_STATUS}"
   if [ -r /run/hypercore/pivot-root.status ]; then
-    echo "[hyper_init] pivot-root status file: /run/hypercore/pivot-root.status"
+    echo "[aether_init] pivot-root status file: /run/hypercore/pivot-root.status"
   fi
 fi
 
 if [ "${HYPERCORE_RUN_APT_SEED:-1}" = "1" ] && [ -x /usr/bin/hypercore-apt-seed ]; then
-  echo "[hyper_init] running userspace package seed: /usr/bin/hypercore-apt-seed"
+  echo "[aether_init] running userspace package seed: /usr/bin/hypercore-apt-seed"
   /usr/bin/hypercore-apt-seed
   HYPERCORE_APT_SEED_STATUS="$?"
   export HYPERCORE_APT_SEED_STATUS
-  echo "[hyper_init] apt seed exit status: ${HYPERCORE_APT_SEED_STATUS}"
+  echo "[aether_init] apt seed exit status: ${HYPERCORE_APT_SEED_STATUS}"
 fi
 
 for candidate in /usr/lib/hypercore/init.elf /usr/lib/hypercore/probe.elf /usr/lib/hypercore/init /usr/bin/init /bin/init /bin/sh
 do
   if [ -x "${candidate}" ]; then
-    echo "[hyper_init] launching ${candidate}"
+    echo "[aether_init] launching ${candidate}"
     exec "${candidate}"
   fi
 done
 
-echo "[hyper_init] FATAL: no runnable init candidate found"
+echo "[aether_init] FATAL: no runnable init candidate found"
 exit 127

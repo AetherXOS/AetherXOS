@@ -128,17 +128,46 @@ fn find_xorriso() -> Result<String> {
 /// Convert a Windows path to MSYS2-compatible format if needed.
 fn maybe_msys_path(path: &Path, _xorriso_bin: &str) -> String {
     let raw = path.to_string_lossy().to_string();
+    maybe_msys_path_for_platform(&raw, cfg!(windows))
+}
+
+fn maybe_msys_path_for_platform(raw: &str, is_windows: bool) -> String {
     // Only convert if using MSYS2 xorriso and path looks like a Windows drive path
     // Always convert Windows drive paths when xorriso is from MSYS, regardless of original case
     // On Windows, always convert drive paths to POSIX format for MSYS tools
     // Check if we're on Windows AND have a drive path (C:\, D:\, etc)
     let is_drive_path = raw.len() >= 2 && raw.as_bytes()[1] == b':';
-    if cfg!(windows) && is_drive_path {
+    if is_windows && is_drive_path {
         let drive = raw.as_bytes()[0].to_ascii_lowercase() as char;
         // Convert C:\path\to\file -> /c/path/to/file
         let path_part = raw[2..].replace('\\', "/");
         format!("/{}{}", drive, path_part)
     } else {
-        raw
+        raw.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::maybe_msys_path_for_platform;
+
+    #[test]
+    fn maybe_msys_path_converts_drive_paths_on_windows_branch() {
+        let converted = maybe_msys_path_for_platform(r"C:\work\artifacts\boot.iso", true);
+        assert_eq!(converted, "/c/work/artifacts/boot.iso");
+    }
+
+    #[test]
+    fn maybe_msys_path_keeps_drive_paths_on_non_windows_branch() {
+        let raw = r"C:\work\artifacts\boot.iso";
+        let converted = maybe_msys_path_for_platform(raw, false);
+        assert_eq!(converted, raw);
+    }
+
+    #[test]
+    fn maybe_msys_path_keeps_non_drive_paths_on_windows_branch() {
+        let raw = r"\\server\share\boot.iso";
+        let converted = maybe_msys_path_for_platform(raw, true);
+        assert_eq!(converted, raw);
     }
 }

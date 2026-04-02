@@ -15,6 +15,7 @@ use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use aethercore_common::units::PAGE_SIZE_4K;
 use core::sync::atomic::{AtomicU64, Ordering};
 use spin::Mutex;
 
@@ -32,30 +33,30 @@ mod ram_sink;
 pub use block_sink::{BlockDeviceAdapter, BlockWritebackSink, StorageManagerBlockAdapter};
 pub use ram_sink::RamWritebackSink;
 
-const PAGE_SIZE: usize = 4096;
+const PAGE_SIZE: usize = PAGE_SIZE_4K;
 const DT_REG: u8 = 8;
 const DT_DIR: u8 = 4;
 const DT_LNK: u8 = 10;
-// ÔöÇÔöÇ Block-Backed Writeback Sink ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+//  Block-Backed Writeback Sink 
 
-// ÔöÇÔöÇ RAM-backed Writeback Sink (for testing / RamFS persistence) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+//  RAM-backed Writeback Sink (for testing / RamFS persistence) 
 
-// ÔöÇÔöÇ Writable Overlay Filesystem ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+//  Writable Overlay Filesystem 
 
 /// A copy-on-write overlay filesystem.
 ///
-/// - Read path: check overlay first ÔåÆ fall through to base FS.
-/// - Write path: copy-up to overlay ÔåÆ write to page cache ÔåÆ mark dirty.
+/// - Read path: check overlay first  fall through to base FS.
+/// - Write path: copy-up to overlay  write to page cache  mark dirty.
 /// - Deleted files: recorded as whiteouts so they don't show from base.
 /// - fsync: flushes dirty pages via the writeback engine.
 pub struct WritableOverlayFs<Base: FileSystem> {
     /// Read-only base filesystem.
     base: Base,
-    /// Overlay metadata: path ÔåÆ entry.
+    /// Overlay metadata: path  entry.
     entries: Mutex<BTreeMap<String, OverlayEntry>>,
-    /// Directory children tracking: parent_path ÔåÆ set of child names.
+    /// Directory children tracking: parent_path  set of child names.
     dir_children: Mutex<BTreeMap<String, Vec<String>>>,
-    /// Path ÔåÆ inode mapping for the overlay.
+    /// Path  inode mapping for the overlay.
     path_to_ino: Mutex<BTreeMap<String, u64>>,
     /// Mount ID for writeback registration.
     #[allow(dead_code)]
@@ -228,7 +229,7 @@ impl<Base: FileSystem> WritableOverlayFs<Base> {
     }
 }
 
-// ÔöÇÔöÇ Overlay File Handle ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+//  Overlay File Handle 
 
 /// An open file handle in the writable overlay.
 struct OverlayFile {
@@ -380,7 +381,7 @@ impl File for OverlayFile {
     }
 }
 
-// ÔöÇÔöÇ FileSystem implementation ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+//  FileSystem implementation 
 
 struct RamJournalSink;
 impl WritebackSink for RamJournalSink {

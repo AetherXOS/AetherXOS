@@ -1,6 +1,6 @@
-use hypercore::kernel::launch::{spawn_bootstrap_from_image, stats, LaunchError};
-use hypercore::kernel::module_loader::inspect_elf_image;
-use hypercore::kernel::module_loader::ModuleLoadError;
+use aethercore::kernel::launch::{spawn_bootstrap_from_image, stats, LaunchError};
+use aethercore::kernel::module_loader::inspect_elf_image;
+use aethercore::kernel::module_loader::ModuleLoadError;
 
 #[test]
 fn launch_stats_snapshot_remains_self_consistent() {

@@ -1,0 +1,17 @@
+[package]
+name = "aethercore-common"
+version = "0.0.1"
+edition = "2024"
+publish = false
+description = "Shared macros, flags, and common system types for Aether X OS"
+
+[features]
+default = []
+std = []
+clap = ["dep:clap"]
+serde = ["dep:serde"]
+
+[dependencies]
+bitflags = "2.4.0"
+clap = { version = "4.4", features = ["derive"], optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }

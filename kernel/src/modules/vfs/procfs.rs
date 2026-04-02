@@ -148,7 +148,7 @@ impl FileSystem for ProcFs {
                 "maps" | "smaps" => return Ok(Box::new(ReadOnlyBuf::from_string(generate_self_maps(simulated_tid)))),
                 "stat" => return Ok(Box::new(ReadOnlyBuf::from_string(generate_self_stat(simulated_tid)))),
                 "cmdline" => return Ok(Box::new(ReadOnlyBuf::from_string(generate_cmdline()))),
-                "comm" => return Ok(Box::new(ReadOnlyBuf::from_string(String::from("hypercore\n")))),
+                "comm" => return Ok(Box::new(ReadOnlyBuf::from_string(String::from("aethercore\n")))),
                 "cgroup" => return Ok(Box::new(ReadOnlyBuf::from_string(String::from("0::/\n")))),
                 "limits" => {
                     let limits = format!(
@@ -197,7 +197,7 @@ impl FileSystem for ProcFs {
             ))),
             "sys/kernel/ostype" => Ok(Box::new(ReadOnlyBuf::from_string(String::from("Linux\n")))),
             "sys/kernel/hostname" => {
-                Ok(Box::new(ReadOnlyBuf::from_string(String::from("hypercore\n"))))
+                Ok(Box::new(ReadOnlyBuf::from_string(String::from("aethercore\n"))))
             }
             "sys/kernel/domainname" => {
                 Ok(Box::new(ReadOnlyBuf::from_string(String::from("(none)\n"))))

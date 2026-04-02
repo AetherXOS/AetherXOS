@@ -1,7 +1,7 @@
 #!/bin/sh
 echo "[initramfs:/bin/sh] fallback shell placeholder"
-echo "[initramfs:/bin/sh] install a real userland shell or /usr/bin/hyper_init"
+echo "[initramfs:/bin/sh] install a real userland shell or /usr/bin/aether_init"
 while true; do
-    echo "hypercore-initramfs> no interactive shell installed"
+    echo "aethercore-initramfs> no interactive shell installed"
     sleep 3600
 done

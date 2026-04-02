@@ -22,7 +22,7 @@ impl UtsNamespace {
     pub fn root() -> Self {
         Self {
             id: alloc_ns_id(),
-            hostname: String::from("hypercore"),
+            hostname: String::from("aethercore"),
             domainname: String::from("(none)"),
         }
     }

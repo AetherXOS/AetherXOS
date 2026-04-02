@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use crate::cli::ReleaseAction;
+use crate::constants;
 use crate::utils::{cargo, process};
 use crate::commands::infra;
 use crate::commands::ops;
@@ -48,7 +49,7 @@ fn preflight(skip_host_tests: bool, skip_boot_artifacts: bool) -> Result<()> {
     if !skip_boot_artifacts {
         println!("[release::preflight] Step 4: Full boot artifact build validation");
         infra::build::execute(&crate::cli::BuildAction::Full {
-            arch: "x86_64".to_string(),
+            arch: constants::defaults::build::ARCH,
             bootloader: crate::cli::Bootloader::Limine,
             format: crate::cli::ImageFormat::Iso,
             release: false,
@@ -67,7 +68,7 @@ fn preflight(skip_host_tests: bool, skip_boot_artifacts: bool) -> Result<()> {
     println!("[release::preflight] Step 6: Linux syscall coverage gate (default)");
     validation::syscall_coverage::execute(
         false, 
-        "md", 
+        constants::defaults::glibc::FORMAT_MD, 
         &Some("reports/syscall_coverage.md".to_string())
     )?;
 
@@ -75,7 +76,7 @@ fn preflight(skip_host_tests: bool, skip_boot_artifacts: bool) -> Result<()> {
     cargo::cargo(&["check", "--features", "linux_compat,posix_deep_tests"])?;
     validation::syscall_coverage::execute(
         true, 
-        "md", 
+        constants::defaults::glibc::FORMAT_MD, 
         &Some("reports/syscall_coverage_linux_compat.md".to_string())
     )?;
 

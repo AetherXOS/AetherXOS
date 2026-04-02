@@ -235,9 +235,9 @@ fn write_production_acceptance_scorecard(root: &Path) -> Result<()> {
     let qemu_log = root.join("artifacts/boot_image/qemu_smoke.log");
     let qemu_markers_ok = fs::read_to_string(&qemu_log)
         .map(|text| {
-            text.contains("[hyper_init] early userspace bootstrap")
-                || text.contains("[hyper_init] apt seed exit status:")
-                || text.contains("[hyper_init] pivot-root setup exit status:")
+            text.contains("[aether_init] early userspace bootstrap")
+                || text.contains("[aether_init] apt seed exit status:")
+                || text.contains("[aether_init] pivot-root setup exit status:")
         })
         .unwrap_or(false);
 

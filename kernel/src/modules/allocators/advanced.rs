@@ -6,6 +6,8 @@
 ///   - Memory hotplug (adding physical pages at runtime)
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
+use aethercore_common::telemetry;
+use aethercore_common::units::PAGE_SIZE_4K;
 use core::alloc::Layout;
 use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use lazy_static::lazy_static;
@@ -178,7 +180,7 @@ pub fn compact_memory(pass_budget: usize) -> usize {
         // Simulate moving `can_move` pages.
         // In production: copy page data, update mappings, release original.
         moved += can_move;
-        *base += can_move * 4096;
+        *base += can_move * PAGE_SIZE_4K;
         *count -= can_move;
         *count > 0 // retain if there are still pages to compact
     });
@@ -232,8 +234,8 @@ pub fn pick_oom_victim() -> Option<usize> {
 
     scores
         .iter()
-        .filter(|(_, &score)| score >= threshold)
-        .max_by_key(|(&task, &score)| (score, core::cmp::Reverse(task)))
+        .filter(|&(_, &score)| score >= threshold)
+        .max_by_key(|&(&task, &score)| (score, core::cmp::Reverse(task)))
         .map(|(&task, _)| task)
 }
 
@@ -269,7 +271,7 @@ pub fn hotplug_add_memory_pages(pages: usize) -> Result<usize, &'static str> {
     if pages == 0 {
         return Err("pages must be non-zero");
     }
-    let base = HOTPLUG_TOTAL_PAGES.load(Ordering::Relaxed) * 4096;
+    let base = HOTPLUG_TOTAL_PAGES.load(Ordering::Relaxed) * PAGE_SIZE_4K;
     hotplug_add_memory(base, pages)
 }
 
@@ -281,7 +283,7 @@ pub fn drain_hotplug_pending() -> usize {
     let mut total = 0usize;
 
     for (base_phys, page_count) in pending.drain(..) {
-        // In production this calls buddy.init_range(base_phys, page_count * 4096)
+        // In production this calls buddy.init_range(base_phys, page_count * PAGE_SIZE_4K)
         // or pmm.mark_free(frame(base_phys), page_count).
         // We emit a log and account the pages so that allocation tests can verify.
         crate::klog_info!("hotplug: activating {page_count} pages at {base_phys:#x}");
@@ -295,18 +297,36 @@ pub fn drain_hotplug_pending() -> usize {
 
 pub fn advanced_stats() -> AdvancedAllocatorStats {
     AdvancedAllocatorStats {
-        slub_alloc_calls: SLUB_ALLOC_CALLS.load(Ordering::Relaxed),
-        slub_alloc_fail: SLUB_ALLOC_FAIL.load(Ordering::Relaxed),
-        slub_free_calls: SLUB_FREE_CALLS.load(Ordering::Relaxed),
-        compaction_runs: COMPACTION_RUNS.load(Ordering::Relaxed),
-        compaction_pages_moved: COMPACTION_PAGES_MOVED.load(Ordering::Relaxed),
-        numa_hint_calls: NUMA_HINT_CALLS.load(Ordering::Relaxed),
-        oom_eval_calls: OOM_EVAL_CALLS.load(Ordering::Relaxed),
-        oom_kill_events: OOM_KILL_EVENTS.load(Ordering::Relaxed),
-        hotplug_add_calls: HOTPLUG_ADD_CALLS.load(Ordering::Relaxed),
-        hotplug_total_pages: HOTPLUG_TOTAL_PAGES.load(Ordering::Relaxed),
-        compaction_budget_pages: COMPACTION_BUDGET_PAGES.load(Ordering::Relaxed),
-        oom_kill_threshold: OOM_KILL_THRESHOLD.load(Ordering::Relaxed),
+        slub_alloc_calls: telemetry::snapshot_u64(&SLUB_ALLOC_CALLS),
+        slub_alloc_fail: telemetry::snapshot_u64(&SLUB_ALLOC_FAIL),
+        slub_free_calls: telemetry::snapshot_u64(&SLUB_FREE_CALLS),
+        compaction_runs: telemetry::snapshot_u64(&COMPACTION_RUNS),
+        compaction_pages_moved: telemetry::snapshot_u64(&COMPACTION_PAGES_MOVED),
+        numa_hint_calls: telemetry::snapshot_u64(&NUMA_HINT_CALLS),
+        oom_eval_calls: telemetry::snapshot_u64(&OOM_EVAL_CALLS),
+        oom_kill_events: telemetry::snapshot_u64(&OOM_KILL_EVENTS),
+        hotplug_add_calls: telemetry::snapshot_u64(&HOTPLUG_ADD_CALLS),
+        hotplug_total_pages: telemetry::snapshot_usize(&HOTPLUG_TOTAL_PAGES),
+        compaction_budget_pages: telemetry::snapshot_usize(&COMPACTION_BUDGET_PAGES),
+        oom_kill_threshold: telemetry::snapshot_u64(&OOM_KILL_THRESHOLD),
+        prefer_local_numa: NUMA_PREFER_LOCAL.load(Ordering::Relaxed),
+    }
+}
+
+pub fn take_advanced_stats() -> AdvancedAllocatorStats {
+    AdvancedAllocatorStats {
+        slub_alloc_calls: telemetry::take_u64(&SLUB_ALLOC_CALLS),
+        slub_alloc_fail: telemetry::take_u64(&SLUB_ALLOC_FAIL),
+        slub_free_calls: telemetry::take_u64(&SLUB_FREE_CALLS),
+        compaction_runs: telemetry::take_u64(&COMPACTION_RUNS),
+        compaction_pages_moved: telemetry::take_u64(&COMPACTION_PAGES_MOVED),
+        numa_hint_calls: telemetry::take_u64(&NUMA_HINT_CALLS),
+        oom_eval_calls: telemetry::take_u64(&OOM_EVAL_CALLS),
+        oom_kill_events: telemetry::take_u64(&OOM_KILL_EVENTS),
+        hotplug_add_calls: telemetry::take_u64(&HOTPLUG_ADD_CALLS),
+        hotplug_total_pages: telemetry::take_usize(&HOTPLUG_TOTAL_PAGES),
+        compaction_budget_pages: telemetry::snapshot_usize(&COMPACTION_BUDGET_PAGES),
+        oom_kill_threshold: telemetry::snapshot_u64(&OOM_KILL_THRESHOLD),
         prefer_local_numa: NUMA_PREFER_LOCAL.load(Ordering::Relaxed),
     }
 }

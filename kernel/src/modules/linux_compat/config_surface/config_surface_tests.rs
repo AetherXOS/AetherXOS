@@ -41,7 +41,7 @@ fn abi_keys_render_through_compat_surface() {
         alloc::format!("{}", crate::kernel::syscalls::linux_nr::OPENAT)
     );
     assert_eq!(
-        compat_path_to_config_key("/proc/sys/hypercore/abi/openat").as_deref(),
+        compat_path_to_config_key("/proc/sys/aethercore/abi/openat").as_deref(),
         Some("syscall_openat")
     );
     assert_eq!(
@@ -88,7 +88,7 @@ fn abi_keys_render_through_compat_surface() {
         .contains("runtime_probe_summary_report"));
     assert!(render_compat_config_key("runtime_core_entrypoints")
         .expect("runtime core entrypoints should render")
-        .contains("__hypercore_crt0_start"));
+        .contains("__aethercore_crt0_start"));
     assert!(render_compat_config_key("runtime_core_source_units")
         .expect("runtime core source units should render")
         .contains("runtime_probe.c"));
@@ -112,7 +112,7 @@ fn abi_keys_render_through_compat_surface() {
         .contains("libc_state.c"));
     assert!(render_compat_config_key("startup_syscall_env_keys")
         .expect("startup syscall env keys should render")
-        .contains("HYPERCORE_SYSCALL_FUTEX"));
+        .contains("AETHERCORE_SYSCALL_FUTEX"));
 }
 
 #[test_case]
@@ -182,15 +182,15 @@ fn syscall_surface_renders_multiple_core_numbers() {
 
     let env_keys =
         render_compat_config_key("startup_syscall_env_keys").expect("syscall env keys should render");
-    assert!(env_keys.contains("HYPERCORE_SYSCALL_OPENAT"));
-    assert!(env_keys.contains("HYPERCORE_SYSCALL_GETPID"));
-    assert!(env_keys.contains("HYPERCORE_SYSCALL_RT_SIGRETURN"));
+    assert!(env_keys.contains("AETHERCORE_SYSCALL_OPENAT"));
+    assert!(env_keys.contains("AETHERCORE_SYSCALL_GETPID"));
+    assert!(env_keys.contains("AETHERCORE_SYSCALL_RT_SIGRETURN"));
 }
 
 #[test_case]
 fn wayland_x11_runtime_toggles_round_trip_through_paths() {
     assert!(write_compat_config_path(
-        "/proc/sys/hypercore/compat/wayland_compat_enabled",
+        "/proc/sys/aethercore/compat/wayland_compat_enabled",
         "0"
     )
     .is_ok());
@@ -200,7 +200,7 @@ fn wayland_x11_runtime_toggles_round_trip_through_paths() {
         Ok("false\n")
     );
 
-    assert!(write_compat_config_path("/sys/hypercore/compat/x11_compat_enabled", "0").is_ok());
+    assert!(write_compat_config_path("/sys/aethercore/compat/x11_compat_enabled", "0").is_ok());
     assert!(!crate::modules::linux_compat::config::x11_compat_enabled());
     assert_eq!(
         render_compat_config_key("linux_x11_compat_enabled").as_deref(),
@@ -209,11 +209,11 @@ fn wayland_x11_runtime_toggles_round_trip_through_paths() {
 
     // Empty value resets compat toggles to their default-on behavior.
     assert!(write_compat_config_path(
-        "/proc/sys/hypercore/compat/wayland_compat_enabled",
+        "/proc/sys/aethercore/compat/wayland_compat_enabled",
         ""
     )
     .is_ok());
-    assert!(write_compat_config_path("/sys/hypercore/compat/x11_compat_enabled", "").is_ok());
+    assert!(write_compat_config_path("/sys/aethercore/compat/x11_compat_enabled", "").is_ok());
     assert!(crate::modules::linux_compat::config::wayland_compat_enabled());
     assert!(crate::modules::linux_compat::config::x11_compat_enabled());
 }
@@ -244,11 +244,11 @@ fn compat_mount_path_classification_matches_expected_fs_type() {
         crate::modules::vfs::mount_table::FsType::Procfs
     );
     assert_eq!(
-        classify_compat_surface_mount_path("/proc/sys/hypercore"),
+        classify_compat_surface_mount_path("/proc/sys/aethercore"),
         crate::modules::vfs::mount_table::FsType::Procfs
     );
     assert_eq!(
-        classify_compat_surface_mount_path("/sys/hypercore"),
+        classify_compat_surface_mount_path("/sys/aethercore"),
         crate::modules::vfs::mount_table::FsType::Sysfs
     );
 }

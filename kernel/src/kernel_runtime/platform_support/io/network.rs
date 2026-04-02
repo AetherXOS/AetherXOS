@@ -1,8 +1,8 @@
 #[cfg(feature = "networking")]
 pub(crate) fn log_network_transport_telemetry() {
-    let net = hypercore::modules::network::bridge::stats();
+    let net = aethercore::modules::network::bridge::stats();
     #[cfg(feature = "network_http")]
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Network transport: udp_bind={} udp_send={} udp_drop={} udp_recv={} udp_hits={} udp_high_water={} tcp_listen={} tcp_connect={} tcp_accept={}/{} tcp_send={} tcp_drop={} tcp_recv={}/{} tcp_high_water={} dns_register={} dns_resolve={}/{} filter_reg={} filter_rm={} filter_clear={} filter_eval={}/{} filter_drop={} http_reg={} http_rm={} http_req={} http_200={} http_304={} http_404={} http_sendfile={} http_bytes={} loopback_high_water={}",
         net.udp_bind_calls,
         net.udp_send_calls,
@@ -40,7 +40,7 @@ pub(crate) fn log_network_transport_telemetry() {
     );
 
     #[cfg(not(feature = "network_http"))]
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Network transport: udp_bind={} udp_send={} udp_drop={} udp_recv={} udp_hits={} udp_high_water={} tcp_listen={} tcp_connect={} tcp_accept={}/{} tcp_send={} tcp_drop={} tcp_recv={}/{} tcp_high_water={} dns_register={} dns_resolve={}/{} filter_reg={} filter_rm={} filter_clear={} filter_eval={}/{} filter_drop={} loopback_high_water={}",
         net.udp_bind_calls,
         net.udp_send_calls,
@@ -70,7 +70,7 @@ pub(crate) fn log_network_transport_telemetry() {
     );
 
     #[cfg(feature = "network_wireguard")]
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Network wireguard: peers_high_water={} add={} remove={} encap={} decap={} drops={} bytes={}/{}",
         net.wg_active_peers_high_water,
         net.wg_add_peer_calls,
@@ -85,8 +85,8 @@ pub(crate) fn log_network_transport_telemetry() {
 
 #[cfg(feature = "networking")]
 pub(crate) fn log_network_bridge_runtime() {
-    let net = hypercore::modules::network::bridge::stats();
-    hypercore::klog_info!(
+    let net = aethercore::modules::network::bridge::stats();
+    aethercore::klog_info!(
         "Networking bridge: ready={} poll_enabled={} poll_interval={} inits={} polls={} force_polls={} reinit_calls={} rx={} tx={} init_err={} poll_err={} poll_skips={} control_updates={} loop_send={} loop_drop={} loop_recv={} loop_recv_hits={} health={}",
         net.smoltcp_runtime_ready,
         net.smoltcp_runtime_poll_enabled,
@@ -111,8 +111,8 @@ pub(crate) fn log_network_bridge_runtime() {
 
 #[cfg(all(feature = "networking", feature = "libnet"))]
 pub(crate) fn log_libnet_runtime() {
-    let caps = hypercore::modules::libnet::capabilities();
-    hypercore::klog_info!(
+    let caps = aethercore::modules::libnet::capabilities();
+    aethercore::klog_info!(
         "LibNet capabilities: enabled={} l2={} l34={} l6={} l7={} transport={} https={} http={} http2={}",
         caps.libnet_enabled,
         caps.l2_enabled,
@@ -125,8 +125,8 @@ pub(crate) fn log_libnet_runtime() {
         caps.http2_available
     );
 
-    let compat = hypercore::modules::libnet::profile_compatibility();
-    hypercore::klog_info!(
+    let compat = aethercore::modules::libnet::profile_compatibility();
+    aethercore::klog_info!(
         "LibNet profile compatibility: strict={} l34(req={},feature={},ok={}) l6(req={},feature={},ok={}) l7(req={},http={},http2={},ok={})",
         compat.strict_optional_features,
         compat.l34_requested,
@@ -141,8 +141,8 @@ pub(crate) fn log_libnet_runtime() {
         compat.l7_compatible
     );
 
-    let bridge = hypercore::modules::libnet::bridge_snapshot();
-    hypercore::klog_info!(
+    let bridge = aethercore::modules::libnet::bridge_snapshot();
+    aethercore::klog_info!(
         "LibNet bridge snapshot: policy_network={} core_rx_depth={} core_tx_depth={} core_queue_limit={} runtime_ready={} poll_enabled={} poll_interval={} health={}",
         bridge.policy_network_surface_enabled,
         bridge.core_rx_depth,
@@ -160,7 +160,7 @@ pub(crate) fn init_network_bridge_runtime(
     telemetry: super::super::config::PlatformTelemetryConfig,
 ) {
     let nic = crate::kernel_runtime::networking::KernelLoopbackNic::new();
-    if hypercore::modules::network::bridge::init_smoltcp_runtime(&nic).is_ok() {
+    if aethercore::modules::network::bridge::init_smoltcp_runtime(&nic).is_ok() {
         if telemetry.network_runtime() {
             log_network_bridge_runtime();
 
@@ -168,6 +168,6 @@ pub(crate) fn init_network_bridge_runtime(
             log_libnet_runtime();
         }
     } else {
-        hypercore::klog_warn!("Networking bridge initialization failed");
+        aethercore::klog_warn!("Networking bridge initialization failed");
     }
 }

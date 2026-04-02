@@ -1,7 +1,7 @@
 #[cfg(feature = "ring_protection")]
 pub(crate) fn log_syscall_runtime() {
-    let sys = hypercore::kernel::syscalls::stats();
-    hypercore::klog_info!(
+    let sys = aethercore::kernel::syscalls::stats();
+    aethercore::klog_info!(
         "Syscalls: total={} unknown={} invalid={} user_access_denied={} user_word_unaligned_denied={} print={} tls={} affinity={} abi_info={} launch_stats={} proc_count={} proc_list={} proc_spawn={} proc_img={} proc_map={} proc_term={} proc_ctx={} proc_claim={} proc_ack={} proc_stage={} proc_consume={} proc_execute={} futex_wait={} futex_wake={} upcall_reg={} upcall_unreg={} upcall_query={} upcall_consume={} upcall_virq={} task_term={} task_pid={} vfs_mount={} vfs_unmount={} vfs_unmount_path={} vfs_list={} vfs_path={} vfs_stats={} pwr_stats={} pwr_set={} pwr_clear={} pwr_c_set={} pwr_c_clear={} net_stats={} net_poll_ctl={} net_reset={} net_force_poll={} net_reinit={} core_pressure={} lot_replay={}",
         sys.total,
         sys.unknown,

@@ -6,6 +6,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use lazy_static::lazy_static;
 
 use crate::interfaces::task::{ProcessId, TaskId};
+use super::common::{align_to_page_or_default, IPC_PAGE_SIZE_BYTES};
 
 /// Key used by shmget(2) to identify a shared memory segment.
 pub type ShmKey = i32;
@@ -32,7 +33,7 @@ impl Drop for ShmPages {
         let mut alloc = crate::modules::allocators::selector::ActivePageAllocator::new();
         for &page in &self.pages {
             // Free the physical page.
-            // In HyperCore, 0 is the order for a single 4KB page.
+            // In AetherCore, 0 is the order for a single 4KB page.
             alloc.free_pages(page, 0);
         }
     }
@@ -76,7 +77,7 @@ pub fn shm_get(key: ShmKey, size: usize, flags: u32) -> KernelResult<ShmId> {
     let id = state.next_id;
     state.next_id += 1;
 
-    let num_pages = (size + 4095) / 4096;
+    let num_pages = align_to_page_or_default(size) / IPC_PAGE_SIZE_BYTES;
     let mut pages = alloc::vec::Vec::with_capacity(num_pages);
 
     {
@@ -96,7 +97,7 @@ pub fn shm_get(key: ShmKey, size: usize, flags: u32) -> KernelResult<ShmId> {
     let region = ShmRegion {
         id,
         key,
-        size: num_pages * 4096,
+        size: num_pages * IPC_PAGE_SIZE_BYTES,
         owner: ProcessId(pid),
         creator_tid: tid,
         physical_pages: Arc::new(ShmPages::new(pages)),

@@ -6,11 +6,17 @@ use anyhow::Result;
 use serde_json::json;
 use std::fs;
 use std::path::Path;
+use crate::utils::{logging, process};
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
 use std::process::Command;
+
+#[cfg(unix)]
+fn run_first_success(candidates: &[(&str, &[&str])]) -> bool {
+    candidates.iter().any(|(program, args)| process::run_best_effort(program, args))
+}
 
 const FLUTTER_ENGINE_VERSION: &str = "3.24.0";
 const FLUTTER_STABILITY_CHANNEL: &str = "stable";
@@ -35,7 +41,12 @@ const FLUTTER_ESSENTIAL_LIBS: &[&str] = &[
 
 /// Download and prepare Flutter engine seed
 pub fn prepare_flutter_seed(initramfs_root: &Path) -> Result<()> {
-    println!("[flutter-seed] Preparing Flutter engine seed (v{})", FLUTTER_ENGINE_VERSION);
+    logging::event(
+        "flutter_seed",
+        "prepare_flutter_seed",
+        "start",
+        &[("flutter_engine_version", FLUTTER_ENGINE_VERSION)],
+    );
 
     let bin_dir = initramfs_root.join("usr/bin");
     let lib_dir = initramfs_root.join("usr/lib");
@@ -54,10 +65,10 @@ pub fn prepare_flutter_seed(initramfs_root: &Path) -> Result<()> {
     #[cfg(unix)]
     {
         if provision_flutter_from_host(&bin_dir, &lib_dir, &flutter_dir).is_err() {
-            println!("[flutter-seed] ⚠️ Flutter not available via host system");
+            logging::event("flutter_seed", "provision_from_host", "fallback", &[]);
             // Try to download Flutter binaries
             if download_flutter_binaries(&bin_dir, &lib_dir, &flutter_dir).is_err() {
-                println!("[flutter-seed] ⚠️ Flutter binary download failed, app execution support limited");
+                logging::event("flutter_seed", "download_flutter_binaries", "failed", &[]);
             }
         }
     }
@@ -72,13 +83,13 @@ pub fn prepare_flutter_seed(initramfs_root: &Path) -> Result<()> {
 
     write_flutter_closure_audit(initramfs_root)?;
 
-    println!("[flutter-seed] Flutter engine seed prepared");
+    logging::event("flutter_seed", "prepare_flutter_seed", "ready", &[]);
     Ok(())
 }
 
 fn write_flutter_closure_audit(initramfs_root: &Path) -> Result<()> {
-    let lib_hypercore = initramfs_root.join("usr/lib/hypercore");
-    fs::create_dir_all(&lib_hypercore)?;
+    let lib_aethercore = initramfs_root.join("usr/lib/aethercore");
+    fs::create_dir_all(&lib_aethercore)?;
 
     let binaries = FLUTTER_ESSENTIAL_BINARIES
         .iter()
@@ -109,7 +120,7 @@ fn write_flutter_closure_audit(initramfs_root: &Path) -> Result<()> {
             .count();
 
     let manifest = json!({
-        "schema": "hypercore.flutter.runtime.closure.v1",
+        "schema": "aethercore.flutter.runtime.closure.v1",
         "flutter_engine_version": FLUTTER_ENGINE_VERSION,
         "stability_channel": FLUTTER_STABILITY_CHANNEL,
         "build_host": std::env::consts::OS,
@@ -125,7 +136,7 @@ fn write_flutter_closure_audit(initramfs_root: &Path) -> Result<()> {
     });
 
     fs::write(
-        lib_hypercore.join("flutter-runtime-closure-audit.json"),
+        lib_aethercore.join("flutter-runtime-closure-audit.json"),
         serde_json::to_string_pretty(&manifest)?,
     )?;
 
@@ -136,32 +147,30 @@ fn write_flutter_closure_audit(initramfs_root: &Path) -> Result<()> {
 #[cfg(unix)]
 fn provision_flutter_from_host(bin_dir: &Path, lib_dir: &Path, flutter_dir: &Path) -> Result<()> {
     // Check if flutter command exists on host
-    if let Ok(output) = Command::new("which")
-        .arg("flutter")
-        .output()
-    {
-        if output.status.success() {
-            if let Ok(flutter_path_str) = String::from_utf8(output.stdout) {
-                let flutter_path = flutter_path_str.trim();
-                if Path::new(flutter_path).exists() {
-                    println!("[flutter-seed] Found Flutter on host: {}", flutter_path);
-                    return copy_flutter_with_dependencies(flutter_path, bin_dir, lib_dir, flutter_dir);
+    if process::which("flutter") {
+        if let Ok(output) = Command::new("which").arg("flutter").output() {
+            if output.status.success() {
+                if let Ok(flutter_path_str) = String::from_utf8(output.stdout) {
+                    let flutter_path = flutter_path_str.trim();
+                    if Path::new(flutter_path).exists() {
+                        println!("[flutter-seed] Found Flutter on host: {}", flutter_path);
+                        return copy_flutter_with_dependencies(flutter_path, bin_dir, lib_dir, flutter_dir);
+                    }
                 }
             }
         }
     }
 
     // Check if Dart SDK exists
-    if let Ok(output) = Command::new("which")
-        .arg("dart")
-        .output()
-    {
-        if output.status.success() {
-            if let Ok(dart_path_str) = String::from_utf8(output.stdout) {
-                let dart_path = dart_path_str.trim();
-                if Path::new(dart_path).exists() {
-                    println!("[flutter-seed] Found Dart on host: {}", dart_path);
-                    copy_dart_runtime(dart_path, bin_dir, lib_dir)?;
+    if process::which("dart") {
+        if let Ok(output) = Command::new("which").arg("dart").output() {
+            if output.status.success() {
+                if let Ok(dart_path_str) = String::from_utf8(output.stdout) {
+                    let dart_path = dart_path_str.trim();
+                    if Path::new(dart_path).exists() {
+                        println!("[flutter-seed] Found Dart on host: {}", dart_path);
+                        copy_dart_runtime(dart_path, bin_dir, lib_dir)?;
+                    }
                 }
             }
         }
@@ -279,47 +288,24 @@ fn download_flutter_binaries(bin_dir: &Path, lib_dir: &Path, _flutter_dir: &Path
 
     println!("[flutter-seed] Downloading from: {}", flutter_url);
 
-    let temp_dir = std::env::temp_dir().join("hypercore-flutter-seed");
+    let temp_dir = std::env::temp_dir().join("aethercore-flutter-seed");
     fs::create_dir_all(&temp_dir)?;
 
     let download_path = temp_dir.join("flutter.tar.xz");
 
     // Try curl first
-    let download_ok = Command::new("curl")
-        .arg("-fsSL")
-        .arg(&flutter_url)
-        .arg("-o")
-        .arg(&download_path)
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    let download_ok = run_first_success(&[
+        ("curl", &["-fsSL", &flutter_url, "-o", download_path.to_str().unwrap_or("")]),
+        ("wget", &["-qO", download_path.to_str().unwrap_or(""), &flutter_url]),
+    ]);
 
     if !download_ok {
-        println!("[flutter-seed] ⚠️ Download failed, trying wget...");
-        let wget_ok = Command::new("wget")
-            .arg("-qO")
-            .arg(&download_path)
-            .arg(&flutter_url)
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
-
-        if !wget_ok {
-            let _ = fs::remove_dir_all(&temp_dir);
-            return Err(anyhow::anyhow!("Flutter download failed"));
-        }
+        let _ = fs::remove_dir_all(&temp_dir);
+        return Err(anyhow::anyhow!("Flutter download failed"));
     }
 
     // Extract tar.xz archive
-    if !Command::new("tar")
-        .arg("-xJf")
-        .arg(&download_path)
-        .arg("-C")
-        .arg(&temp_dir)
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-    {
+    if !run_first_success(&[("tar", &["-xJf", download_path.to_str().unwrap_or(""), "-C", temp_dir.to_str().unwrap_or("")])]) {
         let _ = fs::remove_dir_all(&temp_dir);
         return Err(anyhow::anyhow!("Failed to extract Flutter archive"));
     }
@@ -353,7 +339,7 @@ fn download_flutter_binaries(bin_dir: &Path, lib_dir: &Path, _flutter_dir: &Path
 fn create_flutter_wrapper_script(bin_dir: &Path) -> Result<()> {
     let wrapper_script = if cfg!(windows) {
         r#"@echo off
-REM Flutter wrapper for HyperCore Linux compat layer
+REM Flutter wrapper for AetherCore Linux compat layer
 setlocal enabledelayedexpansion
 set FLUTTER_ROOT=%~dp0..\..\opt\flutter
 set PATH=%FLUTTER_ROOT%\bin;%PATH%
@@ -361,7 +347,7 @@ flutter %*
 "#
     } else {
         r#"#!/bin/sh
-# Flutter wrapper for HyperCore Linux compat layer
+# Flutter wrapper for AetherCore Linux compat layer
 FLUTTER_ROOT="$(cd "$(dirname "$0")/../.." && pwd)/opt/flutter"
 export FLUTTER_ROOT
 export PATH="$FLUTTER_ROOT/bin:$PATH"
@@ -393,8 +379,8 @@ pub fn create_flutter_test_harness(initramfs_root: &Path) -> Result<()> {
     fs::create_dir_all(&test_app_dir)?;
 
     // Create minimal pubspec.yaml
-    let pubspec = r#"name: hypercore_test_app
-description: HyperCore Flutter test application
+    let pubspec = r#"name: aethercore_test_app
+description: AetherCore Flutter test application
 publish_to: 'none'
 
 environment:
@@ -418,16 +404,16 @@ flutter:
     let main_dart = r#"import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const HyperCoreTestApp());
+  runApp(const AetherCoreTestApp());
 }
 
-class HyperCoreTestApp extends StatelessWidget {
-  const HyperCoreTestApp({Key? key}) : super(key: key);
+class AetherCoreTestApp extends StatelessWidget {
+  const AetherCoreTestApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'HyperCore Flutter Test',
+      title: 'AetherCore Flutter Test',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: const TestPage(),
     );
@@ -453,12 +439,12 @@ class _TestPageState extends State<TestPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('HyperCore Flutter Test')),
+      appBar: AppBar(title: const Text('AetherCore Flutter Test')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Text('HyperCore Flutter Runtime Test'),
+            const Text('AetherCore Flutter Runtime Test'),
             Text('Button pressed: $_counter times',
               style: Theme.of(context).textTheme.headlineMedium),
           ],

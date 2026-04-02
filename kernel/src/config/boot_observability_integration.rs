@@ -3,7 +3,7 @@
 // This demonstrates how to integrate the new autonomous observability system
 // into existing boot code with minimal changes.
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod boot_observability_examples {
     use crate::config::*;
 

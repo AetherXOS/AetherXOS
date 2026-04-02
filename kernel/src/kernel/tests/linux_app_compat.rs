@@ -1,4 +1,4 @@
-/// HyperCore Linux Application Compatibility Test Suite
+/// AetherCore Linux Application Compatibility Test Suite
 /// Tests that essential Linux applications and syscalls work smoothly
 /// 
 /// This test ensures every core Linux application can run without issues

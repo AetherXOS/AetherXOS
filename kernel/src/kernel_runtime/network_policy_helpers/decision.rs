@@ -8,8 +8,8 @@ pub(super) struct NetworkIoHealthDecisionContext {
 #[cfg(all(feature = "drivers", feature = "networking"))]
 pub(super) fn decide_network_io_health_action(
     context: NetworkIoHealthDecisionContext,
-) -> hypercore::modules::drivers::NetworkIoHealthAction {
-    let action = hypercore::modules::drivers::evaluate_network_io_health_action(
+) -> aethercore::modules::drivers::NetworkIoHealthAction {
+    let action = aethercore::modules::drivers::evaluate_network_io_health_action(
         context.io_error_streak,
         context.rebind_failure_streak,
         super::super::NETWORK_IO_REBIND_STREAK_THRESHOLD,
@@ -18,15 +18,15 @@ pub(super) fn decide_network_io_health_action(
     if context.driver_failed
         && matches!(
             action,
-            hypercore::modules::drivers::NetworkIoHealthAction::NoAction
+            aethercore::modules::drivers::NetworkIoHealthAction::NoAction
         )
     {
         return if context.rebind_failure_streak
             >= super::super::NETWORK_IO_FAILOVER_STREAK_THRESHOLD
         {
-            hypercore::modules::drivers::NetworkIoHealthAction::TriggerFailover
+            aethercore::modules::drivers::NetworkIoHealthAction::TriggerFailover
         } else {
-            hypercore::modules::drivers::NetworkIoHealthAction::AttemptRebind
+            aethercore::modules::drivers::NetworkIoHealthAction::AttemptRebind
         };
     }
     action
@@ -44,7 +44,7 @@ mod tests {
                 rebind_failure_streak: 0,
                 driver_failed: false,
             }),
-            hypercore::modules::drivers::NetworkIoHealthAction::NoAction
+            aethercore::modules::drivers::NetworkIoHealthAction::NoAction
         ));
         assert!(matches!(
             decide_network_io_health_action(NetworkIoHealthDecisionContext {
@@ -52,7 +52,7 @@ mod tests {
                 rebind_failure_streak: 0,
                 driver_failed: false,
             }),
-            hypercore::modules::drivers::NetworkIoHealthAction::AttemptRebind
+            aethercore::modules::drivers::NetworkIoHealthAction::AttemptRebind
         ));
         assert!(matches!(
             decide_network_io_health_action(NetworkIoHealthDecisionContext {
@@ -60,7 +60,7 @@ mod tests {
                 rebind_failure_streak: super::super::super::NETWORK_IO_FAILOVER_STREAK_THRESHOLD,
                 driver_failed: false,
             }),
-            hypercore::modules::drivers::NetworkIoHealthAction::TriggerFailover
+            aethercore::modules::drivers::NetworkIoHealthAction::TriggerFailover
         ));
     }
 
@@ -72,7 +72,7 @@ mod tests {
                 rebind_failure_streak: 0,
                 driver_failed: true,
             }),
-            hypercore::modules::drivers::NetworkIoHealthAction::AttemptRebind
+            aethercore::modules::drivers::NetworkIoHealthAction::AttemptRebind
         ));
         assert!(matches!(
             decide_network_io_health_action(NetworkIoHealthDecisionContext {
@@ -80,7 +80,7 @@ mod tests {
                 rebind_failure_streak: super::super::super::NETWORK_IO_FAILOVER_STREAK_THRESHOLD,
                 driver_failed: true,
             }),
-            hypercore::modules::drivers::NetworkIoHealthAction::TriggerFailover
+            aethercore::modules::drivers::NetworkIoHealthAction::TriggerFailover
         ));
     }
 }

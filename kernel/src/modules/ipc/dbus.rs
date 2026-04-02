@@ -1,19 +1,21 @@
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::sync::atomic::{AtomicU64, Ordering};
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
+use core::sync::atomic::Ordering;
 use lazy_static::lazy_static;
 use spin::Mutex;
+use super::common::{bounded_push_bytes, suspend_on, wake_one_task};
 
 const DBUS_TOPIC_QUEUE_LIMIT: usize = 256;
 
-static DBUS_SUBSCRIBE_CALLS: AtomicU64 = AtomicU64::new(0);
-static DBUS_PUBLISH_CALLS: AtomicU64 = AtomicU64::new(0);
-static DBUS_CONSUME_CALLS: AtomicU64 = AtomicU64::new(0);
-static DBUS_PUBLISH_DROPS: AtomicU64 = AtomicU64::new(0);
-static DBUS_CONSUME_HITS: AtomicU64 = AtomicU64::new(0);
-static DBUS_SERVICE_REGISTRATIONS: AtomicU64 = AtomicU64::new(0);
-static DBUS_SERVICE_HEARTBEATS: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(DBUS_SUBSCRIBE_CALLS);
+declare_counter_u64!(DBUS_PUBLISH_CALLS);
+declare_counter_u64!(DBUS_CONSUME_CALLS);
+declare_counter_u64!(DBUS_PUBLISH_DROPS);
+declare_counter_u64!(DBUS_CONSUME_HITS);
+declare_counter_u64!(DBUS_SERVICE_REGISTRATIONS);
+declare_counter_u64!(DBUS_SERVICE_HEARTBEATS);
 
 #[derive(Debug, Clone, Copy)]
 pub struct DbusStats {
@@ -36,7 +38,7 @@ pub enum SessionServiceState {
     Degraded = 2,
 }
 
-crate::impl_enum_u8_default_conversions!(SessionServiceState { Starting, Ready, Degraded }, default = Starting);
+impl_enum_u8_default_conversions!(SessionServiceState { Starting, Ready, Degraded }, default = Starting);
 
 #[derive(Debug, Clone)]
 struct SessionServiceEntry {
@@ -85,7 +87,7 @@ pub fn register_session_service(name: &str, auto_restart: bool) -> Result<(), &'
             last_heartbeat_tick: 0,
         },
     );
-    DBUS_SERVICE_REGISTRATIONS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(DBUS_SERVICE_REGISTRATIONS);
     Ok(())
 }
 
@@ -100,7 +102,7 @@ pub fn heartbeat_session_service(name: &str, tick: u64) -> Result<(), &'static s
     let mut services = DBUS_SESSION_SERVICES.lock();
     let service = services.get_mut(name).ok_or("service not found")?;
     service.last_heartbeat_tick = tick;
-    DBUS_SERVICE_HEARTBEATS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(DBUS_SERVICE_HEARTBEATS);
     Ok(())
 }
 
@@ -130,7 +132,7 @@ pub fn list_session_services() -> Vec<SessionServiceSnapshot> {
 }
 
 pub fn dbus_subscribe(topic: &str) -> Result<(), &'static str> {
-    DBUS_SUBSCRIBE_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(DBUS_SUBSCRIBE_CALLS);
     if topic.is_empty() {
         return Err("topic empty");
     }
@@ -159,7 +161,7 @@ pub fn dbus_subscribe(topic: &str) -> Result<(), &'static str> {
 }
 
 pub fn dbus_publish(topic: &str, payload: &[u8]) -> Result<usize, &'static str> {
-    DBUS_PUBLISH_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(DBUS_PUBLISH_CALLS);
     if topic.is_empty() {
         return Err("topic empty");
     }
@@ -167,26 +169,23 @@ pub fn dbus_publish(topic: &str, payload: &[u8]) -> Result<usize, &'static str> 
     {
         let mut queues = DBUS_QUEUES.lock();
         let queue = queues.entry(topic.into()).or_insert_with(VecDeque::new);
-        if queue.len() >= DBUS_TOPIC_QUEUE_LIMIT {
-            DBUS_PUBLISH_DROPS.fetch_add(1, Ordering::Relaxed);
+        if !bounded_push_bytes(queue, payload, DBUS_TOPIC_QUEUE_LIMIT) {
+            counter_inc!(DBUS_PUBLISH_DROPS);
             return Err("topic queue full");
         }
-        queue.push_back(payload.to_vec());
     }
 
     // Wake one waiting consumer
     let mut waiters_map = DBUS_WAITERS.lock();
     if let Some(wq) = waiters_map.get_mut(topic) {
-        if let Some(tid) = wq.wake_one() {
-            crate::kernel::task::wake_task(tid);
-        }
+        wake_one_task(wq);
     }
 
     Ok(payload.len())
 }
 
 pub fn dbus_consume(topic: &str, out: &mut [u8]) -> Result<usize, &'static str> {
-    DBUS_CONSUME_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(DBUS_CONSUME_CALLS);
 
     loop {
         {
@@ -195,7 +194,7 @@ pub fn dbus_consume(topic: &str, out: &mut [u8]) -> Result<usize, &'static str> 
             if let Some(frame) = queue.pop_front() {
                 let copied = core::cmp::min(frame.len(), out.len());
                 out[..copied].copy_from_slice(&frame[..copied]);
-                DBUS_CONSUME_HITS.fetch_add(1, Ordering::Relaxed);
+                counter_inc!(DBUS_CONSUME_HITS);
                 return Ok(copied);
             }
         }
@@ -209,21 +208,35 @@ pub fn dbus_consume(topic: &str, out: &mut [u8]) -> Result<usize, &'static str> 
                 .clone()
         };
 
-        crate::kernel::task::suspend_current_task(&wq);
+        suspend_on(&wq);
     }
 }
 
 pub fn dbus_stats() -> DbusStats {
     DbusStats {
-        subscribe_calls: DBUS_SUBSCRIBE_CALLS.load(Ordering::Relaxed),
-        publish_calls: DBUS_PUBLISH_CALLS.load(Ordering::Relaxed),
-        consume_calls: DBUS_CONSUME_CALLS.load(Ordering::Relaxed),
-        publish_drops: DBUS_PUBLISH_DROPS.load(Ordering::Relaxed),
-        consume_hits: DBUS_CONSUME_HITS.load(Ordering::Relaxed),
+        subscribe_calls: telemetry::snapshot_u64(&DBUS_SUBSCRIBE_CALLS),
+        publish_calls: telemetry::snapshot_u64(&DBUS_PUBLISH_CALLS),
+        consume_calls: telemetry::snapshot_u64(&DBUS_CONSUME_CALLS),
+        publish_drops: telemetry::snapshot_u64(&DBUS_PUBLISH_DROPS),
+        consume_hits: telemetry::snapshot_u64(&DBUS_CONSUME_HITS),
         topics: DBUS_QUEUES.lock().len(),
         session_services: DBUS_SESSION_SERVICES.lock().len(),
-        service_registrations: DBUS_SERVICE_REGISTRATIONS.load(Ordering::Relaxed),
-        service_heartbeats: DBUS_SERVICE_HEARTBEATS.load(Ordering::Relaxed),
+        service_registrations: telemetry::snapshot_u64(&DBUS_SERVICE_REGISTRATIONS),
+        service_heartbeats: telemetry::snapshot_u64(&DBUS_SERVICE_HEARTBEATS),
+    }
+}
+
+pub fn dbus_take_stats() -> DbusStats {
+    DbusStats {
+        subscribe_calls: telemetry::take_u64(&DBUS_SUBSCRIBE_CALLS),
+        publish_calls: telemetry::take_u64(&DBUS_PUBLISH_CALLS),
+        consume_calls: telemetry::take_u64(&DBUS_CONSUME_CALLS),
+        publish_drops: telemetry::take_u64(&DBUS_PUBLISH_DROPS),
+        consume_hits: telemetry::take_u64(&DBUS_CONSUME_HITS),
+        topics: DBUS_QUEUES.lock().len(),
+        session_services: DBUS_SESSION_SERVICES.lock().len(),
+        service_registrations: telemetry::take_u64(&DBUS_SERVICE_REGISTRATIONS),
+        service_heartbeats: telemetry::take_u64(&DBUS_SERVICE_HEARTBEATS),
     }
 }
 

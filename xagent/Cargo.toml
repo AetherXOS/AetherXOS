@@ -1,8 +1,8 @@
 [package]
 name = "hypercore-agent"
-version = "0.1.0"
-edition = "2021"
-description = "HyperCore OS dashboard agent — Rocket-based HTTP API replacing the PowerShell agent"
+version = "0.0.1"
+edition = "2024"
+description = "Aether X OS dashboard agent — Rocket-based HTTP API replacing the PowerShell agent"
 
 [features]
 default = []

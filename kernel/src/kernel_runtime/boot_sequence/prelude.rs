@@ -14,9 +14,9 @@ impl BootPrelude {
 }
 
 pub(crate) fn initialize_boot_prelude() -> BootPrelude {
-    use hypercore::kernel::startup::{mark_stage, StartupStage};
+    use aethercore::kernel::startup::{mark_stage, StartupStage};
 
-    use hypercore::hal::Hal;
+    use aethercore::hal::Hal;
     Hal::serial_write_raw("[EARLY SERIAL] prelude init begin\n");
     boot_info::init();
     Hal::serial_write_raw("[EARLY SERIAL] prelude boot_info init returned\n");
@@ -25,7 +25,7 @@ pub(crate) fn initialize_boot_prelude() -> BootPrelude {
 
     let kernel_cmdline = bi.kernel_cmdline_str();
     Hal::serial_write_raw("[EARLY SERIAL] prelude cmdline parsed\n");
-    let linked_probe_boot = kernel_cmdline.contains("HYPERCORE_RUN_LINKED_PROBE=1");
+    let linked_probe_boot = kernel_cmdline.contains("AETHERCORE_RUN_LINKED_PROBE=1");
 
     Hal::serial_write_raw("[EARLY SERIAL] kernel_runtime entered\n");
 
@@ -44,7 +44,7 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
         return;
     }
 
-    use hypercore::hal::Hal;
+    use aethercore::hal::Hal;
     Hal::serial_write_raw("[EARLY SERIAL] prelude finalize begin\n");
 
     Hal::serial_write_raw(
@@ -57,7 +57,7 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
     Hal::serial_write_raw(
         "[EARLY SERIAL] prelude finalize boot summary begin\n",
     );
-    hypercore::klog_info!("Boot: {}", bi);
+    aethercore::klog_info!("Boot: {}", bi);
     Hal::serial_write_raw(
         "[EARLY SERIAL] prelude finalize boot summary returned\n",
     );
@@ -67,9 +67,9 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
         Hal::serial_write_raw(
             "[EARLY SERIAL] prelude finalize overrides begin\n",
         );
-        match hypercore::config::KernelConfig::apply_kernel_cmdline_overrides(kernel_cmdline) {
+        match aethercore::config::KernelConfig::apply_kernel_cmdline_overrides(kernel_cmdline) {
             Ok(applied) if applied != 0 => {
-                hypercore::klog_info!(
+                aethercore::klog_info!(
                     "Boot config overrides applied: count={} cmdline=\"{}\"",
                     applied,
                     kernel_cmdline
@@ -77,7 +77,7 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
             }
             Ok(_) => {}
             Err(err) => {
-                hypercore::klog_warn!(
+                aethercore::klog_warn!(
                     "Boot config override rejected at token={} key={} cause={:?} raw={}",
                     err.index,
                     err.key.as_str(),
@@ -96,7 +96,7 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
             "[EARLY SERIAL] prelude finalize framebuffer begin\n",
         );
         if let Some(fb) = bi.framebuffer {
-            hypercore::klog_info!(
+            aethercore::klog_info!(
                 "Framebuffer: {}x{} bpp={} pitch={} phys={:#x}",
                 fb.width,
                 fb.height,
@@ -115,10 +115,10 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
 
 pub(crate) fn log_linked_probe_boot(prelude: &BootPrelude) {
     if prelude.linked_probe_boot {
-        use hypercore::hal::Hal;
+        use aethercore::hal::Hal;
         Hal::serial_write_raw("[EARLY SERIAL] linked probe cmdline observed\n");
         let kernel_cmdline = boot_info::get().kernel_cmdline_str();
-        hypercore::klog_info!(
+        aethercore::klog_info!(
             "[LINKED PROBE] probe boot requested cmdline=\"{}\"",
             kernel_cmdline
         );
@@ -126,7 +126,7 @@ pub(crate) fn log_linked_probe_boot(prelude: &BootPrelude) {
 }
 
 pub(crate) fn write_stage_serial_marker(marker: &str) {
-    use hypercore::hal::Hal;
+    use aethercore::hal::Hal;
     Hal::serial_write_raw(marker);
     Hal::serial_write_raw("\n");
 }

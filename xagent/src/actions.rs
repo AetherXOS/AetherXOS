@@ -116,7 +116,7 @@ pub fn retry_job(state: &AppState, original_job_id: &str, source: &str) -> Resul
 }
 
 /// Dispatch queued jobs up to concurrency limit. Each dispatched job is
-/// spawned as a Tokio task that runs the external `hypercore.ps1` command.
+/// spawned as a Tokio task that runs the external `aethercore.ps1` command.
 pub fn dispatch_queue(state: &AppState) {
     loop {
         let (job_id, action_cmd, action_args) = {
@@ -171,7 +171,14 @@ async fn run_job(state: AppState, job_id: String, cmd: String, args: Vec<String>
     // Determine the script path relative to the workspace root.
     // Works whether the binary is run from agent/ or from OS/.
     let script_root = locate_scripts_root();
-    let hypercore_ps1 = format!("{}/hypercore.ps1", script_root);
+    let aethercore_ps1 = {
+        let candidate = format!("{}/aethercore.ps1", script_root);
+        if std::path::Path::new(&candidate).exists() {
+            candidate
+        } else {
+            format!("{}/hypercore.ps1", script_root)
+        }
+    };
 
     let mut pwsh_args: Vec<String> = vec![
         "-NoProfile".into(),
@@ -179,7 +186,7 @@ async fn run_job(state: AppState, job_id: String, cmd: String, args: Vec<String>
         "-ExecutionPolicy".into(),
         "Bypass".into(),
         "-File".into(),
-        hypercore_ps1,
+        aethercore_ps1,
         cmd.clone(),
     ];
     pwsh_args.extend_from_slice(&args);
@@ -282,7 +289,7 @@ fn locate_scripts_root() -> String {
         "../../scripts",
     ];
     for c in candidates {
-        if std::path::Path::new(c).join("hypercore.ps1").exists() {
+        if std::path::Path::new(c).join("aethercore.ps1").exists() || std::path::Path::new(c).join("hypercore.ps1").exists() {
             return c.to_string();
         }
     }

@@ -7,37 +7,60 @@ use alloc::collections::BTreeMap;
 use core::sync::atomic::{AtomicU64, Ordering};
 use spin::Mutex;
 
+use aethercore_common::{counter_inc, counter_load, declare_counter_u64, const_assert};
+use aethercore_common::telemetry;
+
 // ─── Telemetry Counters ─────────────────────────────────────────────
-static CAP_MINT_CALLS: AtomicU64 = AtomicU64::new(0);
-static CAP_REVOKE_CALLS: AtomicU64 = AtomicU64::new(0);
-static CAP_CHECK_CALLS: AtomicU64 = AtomicU64::new(0);
-static CAP_CHECK_HITS: AtomicU64 = AtomicU64::new(0);
-static CAP_CHECK_DENIED: AtomicU64 = AtomicU64::new(0);
-static CAP_DELEGATE_CALLS: AtomicU64 = AtomicU64::new(0);
-static CAP_FULL_CHECK_CALLS: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(CAP_MINT_CALLS);
+declare_counter_u64!(CAP_REVOKE_CALLS);
+declare_counter_u64!(CAP_ACCESS_CALLS);
+declare_counter_u64!(CAP_ACCESS_HITS);
+declare_counter_u64!(CAP_ACCESS_DENIED);
+declare_counter_u64!(CAP_DELEGATE_CALLS);
+declare_counter_u64!(CAP_FULL_ACCESS_CALLS);
 static CAP_TOKEN_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+const TOKEN_MIX_1: u64 = 0x9E3779B97F4A7C15;
+const TOKEN_MIX_2: u64 = 0x517CC1B727220A95;
+const TOKEN_MIX_3: u64 = 0x6C62272E07BB0142;
+const TOKEN_SHIFT_1: u32 = 32;
+const TOKEN_SHIFT_2: u32 = 28;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CapabilityStats {
     pub mint_calls: u64,
     pub revoke_calls: u64,
-    pub check_calls: u64,
-    pub check_hits: u64,
-    pub check_denied: u64,
+    pub access_calls: u64,
+    pub access_hits: u64,
+    pub access_denied: u64,
     pub delegate_calls: u64,
-    pub full_check_calls: u64,
+    pub full_access_calls: u64,
     pub active_tokens: usize,
 }
 
 pub fn stats() -> CapabilityStats {
     CapabilityStats {
-        mint_calls: CAP_MINT_CALLS.load(Ordering::Relaxed),
-        revoke_calls: CAP_REVOKE_CALLS.load(Ordering::Relaxed),
-        check_calls: CAP_CHECK_CALLS.load(Ordering::Relaxed),
-        check_hits: CAP_CHECK_HITS.load(Ordering::Relaxed),
-        check_denied: CAP_CHECK_DENIED.load(Ordering::Relaxed),
-        delegate_calls: CAP_DELEGATE_CALLS.load(Ordering::Relaxed),
-        full_check_calls: CAP_FULL_CHECK_CALLS.load(Ordering::Relaxed),
+        mint_calls: telemetry::snapshot_u64(&CAP_MINT_CALLS),
+        revoke_calls: telemetry::snapshot_u64(&CAP_REVOKE_CALLS),
+        access_calls: telemetry::snapshot_u64(&CAP_ACCESS_CALLS),
+        access_hits: telemetry::snapshot_u64(&CAP_ACCESS_HITS),
+        access_denied: telemetry::snapshot_u64(&CAP_ACCESS_DENIED),
+        delegate_calls: telemetry::snapshot_u64(&CAP_DELEGATE_CALLS),
+        full_access_calls: telemetry::snapshot_u64(&CAP_FULL_ACCESS_CALLS),
+        active_tokens: 0, // filled by caller if needed
+    }
+}
+
+/// Returns a race-safe telemetry snapshot and resets counters for interval reporting.
+pub fn take_stats() -> CapabilityStats {
+    CapabilityStats {
+        mint_calls: telemetry::take_u64(&CAP_MINT_CALLS),
+        revoke_calls: telemetry::take_u64(&CAP_REVOKE_CALLS),
+        access_calls: telemetry::take_u64(&CAP_ACCESS_CALLS),
+        access_hits: telemetry::take_u64(&CAP_ACCESS_HITS),
+        access_denied: telemetry::take_u64(&CAP_ACCESS_DENIED),
+        delegate_calls: telemetry::take_u64(&CAP_DELEGATE_CALLS),
+        full_access_calls: telemetry::take_u64(&CAP_FULL_ACCESS_CALLS),
         active_tokens: 0, // filled by caller if needed
     }
 }
@@ -74,6 +97,8 @@ pub const PERM_IPC: u64 = 1 << 8;
 pub const PERM_NET: u64 = 1 << 9;
 pub const PERM_ALL: u64 = u64::MAX;
 
+const_assert!(core::mem::size_of::<CapabilityToken>() <= 64);
+
 fn action_to_perm(action: SecurityAction) -> u64 {
     match action {
         SecurityAction::Read => PERM_READ,
@@ -95,12 +120,12 @@ fn action_to_perm(action: SecurityAction) -> u64 {
 fn generate_token_id(resource_id: u64) -> u64 {
     let counter = CAP_TOKEN_COUNTER.fetch_add(1, Ordering::Relaxed);
     // Mix bits using xorshift-like transform
-    let mut h = counter.wrapping_mul(0x9E3779B97F4A7C15);
+    let mut h = counter.wrapping_mul(TOKEN_MIX_1);
     h ^= resource_id;
-    h = h.wrapping_mul(0x517CC1B727220A95);
-    h ^= h >> 32;
-    h = h.wrapping_mul(0x6C62272E07BB0142);
-    h ^= h >> 28;
+    h = h.wrapping_mul(TOKEN_MIX_2);
+    h ^= h >> TOKEN_SHIFT_1;
+    h = h.wrapping_mul(TOKEN_MIX_3);
+    h ^= h >> TOKEN_SHIFT_2;
     // Ensure non-zero
     if h == 0 {
         h = 1;
@@ -142,7 +167,7 @@ impl ObjectCapability {
         permissions: u64,
         delegatable: bool,
     ) -> u64 {
-        CAP_MINT_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(CAP_MINT_CALLS);
 
         let token_id = generate_token_id(resource_id);
         let generation = {
@@ -165,16 +190,16 @@ impl ObjectCapability {
 
     /// Revoke a specific token.
     pub fn revoke_token(&self, token_id: u64) -> bool {
-        CAP_REVOKE_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(CAP_REVOKE_CALLS);
         self.tokens.lock().remove(&token_id).is_some()
     }
 
     /// Revoke ALL tokens for a resource by bumping the generation.
     pub fn revoke_resource(&self, resource_id: u64) {
-        CAP_REVOKE_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(CAP_REVOKE_CALLS);
         let mut gens = self.generations.lock();
-        let gen = gens.entry(resource_id).or_insert(0);
-        *gen += 1;
+        let generation = gens.entry(resource_id).or_insert(0);
+        *generation += 1;
     }
 
     /// Delegate a token to another task (if the token is delegatable).
@@ -184,7 +209,7 @@ impl ObjectCapability {
         new_owner: TaskId,
         restricted_perms: Option<u64>,
     ) -> Option<u64> {
-        CAP_DELEGATE_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(CAP_DELEGATE_CALLS);
 
         let (resource_id, new_perms) = {
             let tokens = self.tokens.lock();
@@ -227,15 +252,15 @@ impl ObjectCapability {
 
 impl SecurityMonitor for ObjectCapability {
     fn check_access(&self, resource_handle: u64) -> bool {
-        CAP_CHECK_CALLS.fetch_add(1, Ordering::Relaxed);
+        CAP_ACCESS_CALLS.fetch_add(1, Ordering::Relaxed);
         let tokens = self.tokens.lock();
         if let Some(token) = tokens.get(&resource_handle) {
             if self.is_token_valid(token) {
-                CAP_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+                CAP_ACCESS_HITS.fetch_add(1, Ordering::Relaxed);
                 return true;
             }
         }
-        CAP_CHECK_DENIED.fetch_add(1, Ordering::Relaxed);
+        CAP_ACCESS_DENIED.fetch_add(1, Ordering::Relaxed);
         false
     }
 
@@ -246,11 +271,11 @@ impl SecurityMonitor for ObjectCapability {
         _resource_kind: ResourceKind,
         action: SecurityAction,
     ) -> SecurityVerdict {
-        CAP_FULL_CHECK_CALLS.fetch_add(1, Ordering::Relaxed);
+        CAP_FULL_ACCESS_CALLS.fetch_add(1, Ordering::Relaxed);
 
         // Root bypass
         if ctx.is_root() || ctx.privileged {
-            CAP_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+            CAP_ACCESS_HITS.fetch_add(1, Ordering::Relaxed);
             return SecurityVerdict::Allow;
         }
 
@@ -274,7 +299,7 @@ impl SecurityMonitor for ObjectCapability {
         };
 
         if required_cap != 0 && ctx.has_capability(required_cap) {
-            CAP_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+            CAP_ACCESS_HITS.fetch_add(1, Ordering::Relaxed);
             return SecurityVerdict::AuditAllow;
         }
 
@@ -287,7 +312,7 @@ impl SecurityMonitor for ObjectCapability {
                 && (token.permissions & required_perm) == required_perm
                 && self.is_token_valid(token)
             {
-                CAP_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+                CAP_ACCESS_HITS.fetch_add(1, Ordering::Relaxed);
                 return SecurityVerdict::Allow;
             }
         }
@@ -296,14 +321,14 @@ impl SecurityMonitor for ObjectCapability {
         if required_cap == 0 {
             match action {
                 SecurityAction::Read => {
-                    CAP_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+                    CAP_ACCESS_HITS.fetch_add(1, Ordering::Relaxed);
                     return SecurityVerdict::Allow;
                 }
                 _ => {}
             }
         }
 
-        CAP_CHECK_DENIED.fetch_add(1, Ordering::Relaxed);
+        CAP_ACCESS_DENIED.fetch_add(1, Ordering::Relaxed);
         if ctx.audit_enabled {
             SecurityVerdict::AuditDeny
         } else {

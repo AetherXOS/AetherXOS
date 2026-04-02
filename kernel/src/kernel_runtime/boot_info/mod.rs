@@ -202,12 +202,12 @@ mod tests {
     #[test_case]
     fn kernel_cmdline_contains_matches_raw_bytes_without_utf8_roundtrip() {
         let mut info = BootInfo::default();
-        let cmdline = b"foo HYPERCORE_RUN_LINKED_PROBE=1 bar";
+        let cmdline = b"foo AETHERCORE_RUN_LINKED_PROBE=1 bar";
         info.kernel_cmdline[..cmdline.len()].copy_from_slice(cmdline);
         info.kernel_cmdline[cmdline.len()] = 0;
 
-        assert!(info.kernel_cmdline_contains(b"HYPERCORE_RUN_LINKED_PROBE=1"));
-        assert!(!info.kernel_cmdline_contains(b"HYPERCORE_RUN_LINKED_PROBE=0"));
+        assert!(info.kernel_cmdline_contains(b"AETHERCORE_RUN_LINKED_PROBE=1"));
+        assert!(!info.kernel_cmdline_contains(b"AETHERCORE_RUN_LINKED_PROBE=0"));
     }
 
     #[test_case]

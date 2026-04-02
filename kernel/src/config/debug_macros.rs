@@ -74,7 +74,7 @@ impl_enum_u8_option_conversions!(ObservabilityCategory {
     Network,
 });
 
-crate::impl_enum_str_conversions!(ObservabilityCategory {
+impl_enum_str_conversions!(ObservabilityCategory {
     Core => "CORE",
     Boot => "BOOT",
     Loader => "LOADER",
@@ -92,6 +92,62 @@ impl ObservabilityCategory {
     #[inline(always)]
     pub const fn as_u8(self) -> u8 {
         self.to_u8()
+    }
+
+    #[inline(always)]
+    pub const fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(Self::Core),
+            1 => Some(Self::Boot),
+            2 => Some(Self::Loader),
+            3 => Some(Self::Task),
+            4 => Some(Self::Memory),
+            5 => Some(Self::Scheduler),
+            6 => Some(Self::Fault),
+            7 => Some(Self::Driver),
+            8 => Some(Self::Io),
+            9 => Some(Self::Network),
+            _ => None,
+        }
+    }
+
+    #[inline(always)]
+    pub fn from_str(value: &str) -> Option<Self> {
+        match value {
+            "CORE" => Some(Self::Core),
+            "BOOT" => Some(Self::Boot),
+            "LOADER" => Some(Self::Loader),
+            "TASK" => Some(Self::Task),
+            "MEMORY" => Some(Self::Memory),
+            "SCHED" => Some(Self::Scheduler),
+            "FAULT" => Some(Self::Fault),
+            "DRIVER" => Some(Self::Driver),
+            "IO" => Some(Self::Io),
+            "NET" => Some(Self::Network),
+            _ => None,
+        }
+    }
+}
+
+impl core::fmt::Display for ObservabilityCategory {
+    #[inline(always)]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl core::str::FromStr for ObservabilityCategory {
+    type Err = ::aethercore_common::result::ParseEnumError;
+
+    #[inline(always)]
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        self::ObservabilityCategory::from_str(value).ok_or_else(|| {
+            ::aethercore_common::result::ParseEnumError::new(
+                "ObservabilityCategory",
+                value,
+                &["CORE", "BOOT", "LOADER", "TASK", "MEMORY", "SCHED", "FAULT", "DRIVER", "IO", "NET"],
+            )
+        })
     }
 }
 
@@ -192,7 +248,7 @@ pub fn trace_autonomous_hex(category: ObservabilityCategory, key: &str, value: u
     alloc::format!("[{}] {}=0x{:x}\n", category.as_str(), key, value)
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 #[path = "debug_macros/tests.rs"]
 mod tests;
 

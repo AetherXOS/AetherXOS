@@ -13,7 +13,7 @@ mod telemetry;
 
 pub(super) fn init_network_drivers(
     runtime: &KernelRuntime,
-    devices: &[hypercore::hal::pci::PciDevice],
+    devices: &[aethercore::hal::pci::PciDevice],
     telemetry_drivers: bool,
 ) {
     #[cfg(feature = "networking")]

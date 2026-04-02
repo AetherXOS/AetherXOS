@@ -44,7 +44,7 @@ pub(crate) struct VirtualizationLogSnapshot {
 }
 
 pub(crate) fn current_virtualization_log_snapshot() -> VirtualizationLogSnapshot {
-    let virt = hypercore::hal::platform::status();
+    let virt = aethercore::hal::platform::status();
     VirtualizationLogSnapshot {
         backend: virt.virt_backend,
         lifecycle_summary: virt.virt_lifecycle_summary,

@@ -5,7 +5,7 @@ use super::super::system::{
 pub(crate) fn log_virtualization_runtime_profile() {
     let virt = current_virtualization_log_snapshot();
     let policy = current_virtualization_policy_log_snapshot();
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Virtualization profile: runtime(t={} l={} e={} r={} td={} n={} tv={} dp={} s={} d={} m={} tt={} exec={} gov={}) cargo(t={} l={} e={} r={} td={} n={} tv={} dp={} s={} d={} m={} tt={} exec={} gov={}) effective(t={} l={} e={} r={} td={} n={} tv={} dp={} s={} d={} m={} tt={} exec={} gov={}) governor_scope={} governor={} latency_bias={} energy_bias={}",
         policy.runtime.telemetry,
         policy.runtime.platform_lifecycle,

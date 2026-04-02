@@ -25,19 +25,19 @@ pub fn export_compat_surfaces_to_mount(
     ensure_dir(mount_id, &root, tid)?;
 
     let proc_dir = format!("{}/proc", root);
-    let proc_hypercore_dir = format!("{}/hypercore", proc_dir);
+    let proc_aethercore_dir = format!("{}/aethercore", proc_dir);
     let proc_sys_dir = format!("{}/sys", proc_dir);
-    let proc_sys_hypercore_dir = format!("{}/hypercore", proc_sys_dir);
-    let proc_sys_abi_dir = format!("{}/abi", proc_sys_hypercore_dir);
-    let proc_sys_features_dir = format!("{}/features", proc_sys_hypercore_dir);
-    let proc_sys_runtime_dir = format!("{}/runtime", proc_sys_hypercore_dir);
-    let proc_sys_library_dir = format!("{}/library", proc_sys_hypercore_dir);
-    let proc_sys_compat_dir = format!("{}/compat", proc_sys_hypercore_dir);
+    let proc_sys_aethercore_dir = format!("{}/aethercore", proc_sys_dir);
+    let proc_sys_abi_dir = format!("{}/abi", proc_sys_aethercore_dir);
+    let proc_sys_features_dir = format!("{}/features", proc_sys_aethercore_dir);
+    let proc_sys_runtime_dir = format!("{}/runtime", proc_sys_aethercore_dir);
+    let proc_sys_library_dir = format!("{}/library", proc_sys_aethercore_dir);
+    let proc_sys_compat_dir = format!("{}/compat", proc_sys_aethercore_dir);
 
     ensure_dir(mount_id, &proc_dir, tid)?;
-    ensure_dir(mount_id, &proc_hypercore_dir, tid)?;
+    ensure_dir(mount_id, &proc_aethercore_dir, tid)?;
     ensure_dir(mount_id, &proc_sys_dir, tid)?;
-    ensure_dir(mount_id, &proc_sys_hypercore_dir, tid)?;
+    ensure_dir(mount_id, &proc_sys_aethercore_dir, tid)?;
     ensure_dir(mount_id, &proc_sys_abi_dir, tid)?;
     ensure_dir(mount_id, &proc_sys_features_dir, tid)?;
     ensure_dir(mount_id, &proc_sys_runtime_dir, tid)?;
@@ -48,7 +48,7 @@ pub fn export_compat_surfaces_to_mount(
     if let Ok(proc_snapshot) = render_proc_config_snapshot() {
         write_file(
             mount_id,
-            &format!("{}/config", proc_hypercore_dir),
+            &format!("{}/config", proc_aethercore_dir),
             proc_snapshot.as_bytes(),
             tid,
         )?;
@@ -58,7 +58,7 @@ pub fn export_compat_surfaces_to_mount(
     if let Ok(sysctl_snapshot) = render_sysctl_snapshot() {
         write_file(
             mount_id,
-            &format!("{}/config", proc_sys_hypercore_dir),
+            &format!("{}/config", proc_sys_aethercore_dir),
             sysctl_snapshot.as_bytes(),
             tid,
         )?;
@@ -184,8 +184,8 @@ fn build_surface_summary() -> String {
 #[allow(dead_code)]
 fn render_compat_virtual_file(path: &str) -> Result<String, &'static str> {
     match path.trim() {
-        "/proc/hypercore/config" | "proc/hypercore/config" => render_proc_config_snapshot(),
-        "/proc/sys/hypercore/config" | "proc/sys/hypercore/config" => render_sysctl_snapshot(),
+        "/proc/aethercore/config" | "proc/aethercore/config" => render_proc_config_snapshot(),
+        "/proc/sys/aethercore/config" | "proc/sys/aethercore/config" => render_sysctl_snapshot(),
         "/proc/compat_surface_summary.txt" | "proc/compat_surface_summary.txt" => {
             Ok(build_surface_summary())
         }

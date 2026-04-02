@@ -1,9 +1,9 @@
 use crate::kernel_runtime::KernelRuntime;
-use hypercore::hal::HAL;
-use hypercore::interfaces::HardwareAbstraction;
+use aethercore::hal::HAL;
+use aethercore::interfaces::HardwareAbstraction;
 
 #[cfg(target_arch = "x86_64")]
-use hypercore::hal::x86_64::idt;
+use aethercore::hal::x86_64::idt;
 
 impl KernelRuntime {
     pub(super) fn finalize_runtime_interrupt_routing(self) {

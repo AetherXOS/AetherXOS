@@ -7,7 +7,9 @@ use super::{
 };
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicUsize, Ordering};
+
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 
 #[path = "control_plane_support.rs"]
 mod support;
@@ -21,9 +23,9 @@ mod features;
 mod utils;
 
 
-static CONFIG_APPLY_ATTEMPTS: AtomicU64 = AtomicU64::new(0);
-static CONFIG_APPLY_SUCCESS: AtomicU64 = AtomicU64::new(0);
-static CONFIG_APPLY_FAILURES: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(CONFIG_APPLY_ATTEMPTS);
+declare_counter_u64!(CONFIG_APPLY_SUCCESS);
+declare_counter_u64!(CONFIG_APPLY_FAILURES);
 static CONFIG_LAST_ERROR_INDEX: AtomicUsize = AtomicUsize::new(usize::MAX);
 
 
@@ -138,9 +140,9 @@ impl KernelConfig {
     pub fn audit_stats() -> ConfigAuditStats {
         let raw = CONFIG_LAST_ERROR_INDEX.load(Ordering::Relaxed);
         ConfigAuditStats {
-            apply_attempts: CONFIG_APPLY_ATTEMPTS.load(Ordering::Relaxed),
-            apply_success: CONFIG_APPLY_SUCCESS.load(Ordering::Relaxed),
-            apply_failures: CONFIG_APPLY_FAILURES.load(Ordering::Relaxed),
+            apply_attempts: telemetry::snapshot_u64(&CONFIG_APPLY_ATTEMPTS),
+            apply_success: telemetry::snapshot_u64(&CONFIG_APPLY_SUCCESS),
+            apply_failures: telemetry::snapshot_u64(&CONFIG_APPLY_FAILURES),
             last_error_index: if raw == usize::MAX { None } else { Some(raw) },
         }
     }

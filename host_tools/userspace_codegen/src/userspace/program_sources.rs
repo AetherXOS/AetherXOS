@@ -39,15 +39,15 @@ pub fn programs() -> Vec<ProgramSnapshot> {
         ProgramSnapshot {
             output_name: "init.elf",
             messages: vec![
-                "[hypercore-init] staged userspace init ELF started\n",
-                "[hypercore-init] wrappers: read,write,openat,close,getpid,getppid,getuid,geteuid,getgid,getegid,execve,exit\n",
-                "[hypercore-init] contract: auxv+vdso+proc/sys abi surface expected\n",
-                "[hypercore-init] loader: gnu-hash+runpath+init-hooks runtime: tls+signal-abi+vdso\n",
-                "[hypercore-init] startup env: runtime+syscall+auxv key groups exported\n",
+                "[aethercore-init] staged userspace init ELF started\n",
+                "[aethercore-init] wrappers: read,write,openat,close,getpid,getppid,getuid,geteuid,getgid,getegid,execve,exit\n",
+                "[aethercore-init] contract: auxv+vdso+proc/sys abi surface expected\n",
+                "[aethercore-init] loader: gnu-hash+runpath+init-hooks runtime: tls+signal-abi+vdso\n",
+                "[aethercore-init] startup env: runtime+syscall+auxv key groups exported\n",
             ],
             candidates: vec![
-                "/usr/lib/hypercore/probe.elf\0",
-                "/usr/lib/hypercore/console.elf\0",
+                "/usr/lib/aethercore/probe.elf\0",
+                "/usr/lib/aethercore/console.elf\0",
                 "/bin/sh\0",
             ],
             role: "bootstrap_init",
@@ -64,11 +64,11 @@ pub fn programs() -> Vec<ProgramSnapshot> {
         ProgramSnapshot {
             output_name: "probe.elf",
             messages: vec![
-                "[hypercore-probe] runtime probe ELF started\n",
-                "[hypercore-probe] goal: validate startup+auxv+vdso abi path\n",
-                "[hypercore-probe] expected runtime api: probe_mask+probe_status+probe_summary\n",
+                "[aethercore-probe] runtime probe ELF started\n",
+                "[aethercore-probe] goal: validate startup+auxv+vdso abi path\n",
+                "[aethercore-probe] expected runtime api: probe_mask+probe_status+probe_summary\n",
             ],
-            candidates: vec!["/usr/lib/hypercore/console.elf\0", "/bin/sh\0"],
+            candidates: vec!["/usr/lib/aethercore/console.elf\0", "/bin/sh\0"],
             role: "runtime_probe",
             probe_features: vec![
                 "runtime_probe_mask",
@@ -83,11 +83,11 @@ pub fn programs() -> Vec<ProgramSnapshot> {
         ProgramSnapshot {
             output_name: "console.elf",
             messages: vec![
-                "[hypercore-console] fallback console ELF started\n",
-                "[hypercore-console] wrappers: read,write,openat,close,getpid,getuid,getgid,execve,exit\n",
-                "[hypercore-console] handoff target: /bin/sh\n",
-                "[hypercore-console] runtime surface: /proc/sys/hypercore/abi/*\n",
-                "[hypercore-console] startup layout: argc|argv|null|envp|null|auxv\n",
+                "[aethercore-console] fallback console ELF started\n",
+                "[aethercore-console] wrappers: read,write,openat,close,getpid,getuid,getgid,execve,exit\n",
+                "[aethercore-console] handoff target: /bin/sh\n",
+                "[aethercore-console] runtime surface: /proc/sys/aethercore/abi/*\n",
+                "[aethercore-console] startup layout: argc|argv|null|envp|null|auxv\n",
             ],
             candidates: vec!["/bin/sh\0"],
             role: "console_fallback",

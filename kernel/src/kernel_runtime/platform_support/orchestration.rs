@@ -18,7 +18,7 @@ pub(crate) fn run_platform_runtime_orchestration(telemetry: PlatformTelemetryCon
     log_core_runtime_limits();
     log_watchdog_policy();
     log_library_surfaces(should_log_library_inventory());
-    hypercore::kernel::policy::apply_runtime_policy_preset();
+    aethercore::kernel::policy::apply_runtime_policy_preset();
 
     if telemetry_runtime {
         log_runtime_policy_summary();

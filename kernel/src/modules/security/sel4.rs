@@ -2,14 +2,15 @@ use crate::interfaces::security::{ResourceKind, SecurityAction, SecurityContext,
 use crate::interfaces::task::TaskId;
 use crate::interfaces::SecurityMonitor;
 use alloc::collections::BTreeSet;
-use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicBool, Ordering};
 use spin::Mutex;
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 
 // ─── Telemetry ──────────────────────────────────────────────────────
-static SEL4_CHECK_CALLS: AtomicU64 = AtomicU64::new(0);
-static SEL4_CHECK_HITS: AtomicU64 = AtomicU64::new(0);
-static SEL4_CHECK_DENIED: AtomicU64 = AtomicU64::new(0);
-static SEL4_POLICY_LOADS: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(SEL4_CHECK_CALLS);
+declare_counter_u64!(SEL4_CHECK_HITS);
+declare_counter_u64!(SEL4_CHECK_DENIED);
+declare_counter_u64!(SEL4_POLICY_LOADS);
 static SEL4_POLICIES_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, Copy)]
@@ -52,7 +53,7 @@ impl SeL4Style {
 
     /// Load a policy: grant an endpoint capability to a task.
     pub fn grant_endpoint(&self, holder: TaskId, resource_id: u64, permissions: u64) {
-        SEL4_POLICY_LOADS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(SEL4_POLICY_LOADS);
         SEL4_POLICIES_ACTIVE.store(true, Ordering::Relaxed);
 
         let cap = EndpointCap {
@@ -88,10 +89,10 @@ impl SeL4Style {
 
     pub fn stats(&self) -> SeL4Stats {
         SeL4Stats {
-            check_calls: SEL4_CHECK_CALLS.load(Ordering::Relaxed),
-            check_hits: SEL4_CHECK_HITS.load(Ordering::Relaxed),
-            check_denied: SEL4_CHECK_DENIED.load(Ordering::Relaxed),
-            policy_loads: SEL4_POLICY_LOADS.load(Ordering::Relaxed),
+            check_calls: telemetry::snapshot_u64(&SEL4_CHECK_CALLS),
+            check_hits: telemetry::snapshot_u64(&SEL4_CHECK_HITS),
+            check_denied: telemetry::snapshot_u64(&SEL4_CHECK_DENIED),
+            policy_loads: telemetry::snapshot_u64(&SEL4_POLICY_LOADS),
             policies_active: SEL4_POLICIES_ACTIVE.load(Ordering::Relaxed),
             endpoint_count: self.endpoints.lock().len(),
         }
@@ -100,9 +101,9 @@ impl SeL4Style {
 
 impl SecurityMonitor for SeL4Style {
     fn check_access(&self, _resource_id: u64) -> bool {
-        SEL4_CHECK_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(SEL4_CHECK_CALLS);
         // Strict deny-by-default without context
-        SEL4_CHECK_DENIED.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(SEL4_CHECK_DENIED);
         false
     }
 
@@ -113,11 +114,11 @@ impl SecurityMonitor for SeL4Style {
         _resource_kind: ResourceKind,
         action: SecurityAction,
     ) -> SecurityVerdict {
-        SEL4_CHECK_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(SEL4_CHECK_CALLS);
 
         // Kernel context always allowed (kernel is trusted)
         if ctx.security_level == crate::interfaces::security::SecurityLevel::KernelOnly {
-            SEL4_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+            counter_inc!(SEL4_CHECK_HITS);
             return SecurityVerdict::Allow;
         }
 
@@ -137,7 +138,7 @@ impl SecurityMonitor for SeL4Style {
         };
 
         if self.has_endpoint(ctx.task_id, resource_id, required_perm) {
-            SEL4_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+            counter_inc!(SEL4_CHECK_HITS);
             return if ctx.audit_enabled {
                 SecurityVerdict::AuditAllow
             } else {
@@ -146,7 +147,7 @@ impl SecurityMonitor for SeL4Style {
         }
 
         // Strict deny
-        SEL4_CHECK_DENIED.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(SEL4_CHECK_DENIED);
         if ctx.audit_enabled {
             SecurityVerdict::AuditDeny
         } else {

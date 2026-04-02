@@ -68,9 +68,9 @@ pub struct SecurityTelemetry {
     // Capability counters
     pub cap_mint_calls: u64,
     pub cap_revoke_calls: u64,
-    pub cap_check_calls: u64,
-    pub cap_check_hits: u64,
-    pub cap_check_denied: u64,
+    pub cap_access_calls: u64,
+    pub cap_access_hits: u64,
+    pub cap_access_denied: u64,
     pub cap_delegate_calls: u64,
     // MAC counters
     pub mac_check_calls: u64,
@@ -123,9 +123,9 @@ pub fn telemetry() -> SecurityTelemetry {
         acl_deny_calls: acl.deny_calls,
         cap_mint_calls: cap.mint_calls,
         cap_revoke_calls: cap.revoke_calls,
-        cap_check_calls: cap.check_calls,
-        cap_check_hits: cap.check_hits,
-        cap_check_denied: cap.check_denied,
+        cap_access_calls: cap.access_calls,
+        cap_access_hits: cap.access_hits,
+        cap_access_denied: cap.access_denied,
         cap_delegate_calls: cap.delegate_calls,
         mac_check_calls: mac_stats.check_calls,
         mac_check_hits: mac_stats.check_hits,
@@ -204,44 +204,42 @@ static CAP_IPC_UPCALL_TOKEN: AtomicU64 = AtomicU64::new(0);
 static CAP_PROCESS_SPAWN_TOKEN: AtomicU64 = AtomicU64::new(0);
 static CAP_PROCESS_KILL_TOKEN: AtomicU64 = AtomicU64::new(0);
 
+const CONTROL_TOKEN_SLOTS: &[(u64, &AtomicU64)] = &[
+    (RESOURCE_VFS_MOUNT, &CAP_VFS_MOUNT_TOKEN),
+    (RESOURCE_VFS_LIST, &CAP_VFS_LIST_TOKEN),
+    (RESOURCE_VFS_PATH, &CAP_VFS_PATH_TOKEN),
+    (RESOURCE_VFS_UNMOUNT, &CAP_VFS_UNMOUNT_TOKEN),
+    (RESOURCE_VFS_STATS, &CAP_VFS_STATS_TOKEN),
+    (RESOURCE_NETWORK_STATS, &CAP_NETWORK_STATS_TOKEN),
+    (RESOURCE_NETWORK_CONTROL, &CAP_NETWORK_CONTROL_TOKEN),
+    (RESOURCE_POWER_STATS, &CAP_POWER_STATS_TOKEN),
+    (RESOURCE_POWER_CONTROL, &CAP_POWER_CONTROL_TOKEN),
+    (RESOURCE_IPC_FUTEX, &CAP_IPC_FUTEX_TOKEN),
+    (RESOURCE_IPC_UPCALL, &CAP_IPC_UPCALL_TOKEN),
+    (RESOURCE_PROCESS_SPAWN, &CAP_PROCESS_SPAWN_TOKEN),
+    (RESOURCE_PROCESS_KILL, &CAP_PROCESS_KILL_TOKEN),
+];
+
+#[inline(always)]
+fn cap_token_slot(resource: u64) -> Option<&'static AtomicU64> {
+    for (slot_resource, slot) in CONTROL_TOKEN_SLOTS {
+        if *slot_resource == resource {
+            return Some(*slot);
+        }
+    }
+    None
+}
+
 #[inline(always)]
 fn store_cap_token(resource: u64, token: u64) {
-    match resource {
-        RESOURCE_VFS_MOUNT => CAP_VFS_MOUNT_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_VFS_LIST => CAP_VFS_LIST_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_VFS_PATH => CAP_VFS_PATH_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_VFS_UNMOUNT => CAP_VFS_UNMOUNT_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_VFS_STATS => CAP_VFS_STATS_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_NETWORK_STATS => CAP_NETWORK_STATS_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_NETWORK_CONTROL => CAP_NETWORK_CONTROL_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_POWER_STATS => CAP_POWER_STATS_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_POWER_CONTROL => CAP_POWER_CONTROL_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_IPC_FUTEX => CAP_IPC_FUTEX_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_IPC_UPCALL => CAP_IPC_UPCALL_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_PROCESS_SPAWN => CAP_PROCESS_SPAWN_TOKEN.store(token, Ordering::Relaxed),
-        RESOURCE_PROCESS_KILL => CAP_PROCESS_KILL_TOKEN.store(token, Ordering::Relaxed),
-        _ => {}
+    if let Some(slot) = cap_token_slot(resource) {
+        slot.store(token, Ordering::Relaxed);
     }
 }
 
 #[inline(always)]
 fn cap_token_for_resource(resource: u64) -> u64 {
-    match resource {
-        RESOURCE_VFS_MOUNT => CAP_VFS_MOUNT_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_VFS_LIST => CAP_VFS_LIST_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_VFS_PATH => CAP_VFS_PATH_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_VFS_UNMOUNT => CAP_VFS_UNMOUNT_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_VFS_STATS => CAP_VFS_STATS_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_NETWORK_STATS => CAP_NETWORK_STATS_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_NETWORK_CONTROL => CAP_NETWORK_CONTROL_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_POWER_STATS => CAP_POWER_STATS_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_POWER_CONTROL => CAP_POWER_CONTROL_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_IPC_FUTEX => CAP_IPC_FUTEX_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_IPC_UPCALL => CAP_IPC_UPCALL_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_PROCESS_SPAWN => CAP_PROCESS_SPAWN_TOKEN.load(Ordering::Relaxed),
-        RESOURCE_PROCESS_KILL => CAP_PROCESS_KILL_TOKEN.load(Ordering::Relaxed),
-        _ => 0,
-    }
+    cap_token_slot(resource).map(|slot| slot.load(Ordering::Relaxed)).unwrap_or(0)
 }
 
 fn bootstrap_control_security() {

@@ -9,6 +9,48 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "aether-x-os"
+version = "0.0.1"
+dependencies = [
+ "aethercore-common",
+ "bitflags 2.11.0",
+ "criterion",
+ "embedded-hal",
+ "ext4-view",
+ "fatfs",
+ "h2 0.4.13",
+ "hyper 1.8.1",
+ "lazy_static",
+ "limine",
+ "linked_list_allocator",
+ "littlefs2-core",
+ "proptest",
+ "quickcheck",
+ "quickcheck_macros",
+ "rustls",
+ "serde",
+ "serde_derive",
+ "serial_test",
+ "smoltcp",
+ "spin",
+ "tempfile",
+ "toml",
+ "uuid",
+ "volatile 0.5.4",
+ "x86_64",
+ "xmas-elf",
+]
+
+[[package]]
+name = "aethercore-common"
+version = "0.0.1"
+dependencies = [
+ "bitflags 2.11.0",
+ "clap",
+ "serde",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1008,40 +1050,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "hypercore"
-version = "0.2.0"
-dependencies = [
- "bitflags 2.11.0",
- "criterion",
- "embedded-hal",
- "ext4-view",
- "fatfs",
- "h2 0.4.13",
- "hyper 1.8.1",
- "lazy_static",
- "limine",
- "linked_list_allocator",
- "littlefs2-core",
- "proptest",
- "quickcheck",
- "quickcheck_macros",
- "rustls",
- "serde",
- "serde_derive",
- "serial_test",
- "smoltcp",
- "spin",
- "tempfile",
- "toml",
- "uuid",
- "volatile 0.5.4",
- "x86_64",
- "xmas-elf",
-]
-
-[[package]]
 name = "hypercore-agent"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "chrono",
  "clap",
@@ -2982,8 +2992,9 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.2.0"
+version = "0.0.1"
 dependencies = [
+ "aethercore-common",
  "anyhow",
  "chrono",
  "clap",

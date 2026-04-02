@@ -57,11 +57,11 @@ pub struct CargoPackage {
 #[derive(Deserialize, Debug, Default)]
 pub struct CargoMetadata {
     #[serde(default)]
-    pub hypercore: HypercoreMetadata,
+    pub aethercore: AethercoreMetadata,
 }
 
 #[derive(Deserialize, Debug, Default)]
-pub struct HypercoreMetadata {
+pub struct AethercoreMetadata {
     pub config: Option<Config>,
 }
 
@@ -669,7 +669,7 @@ impl Default for LinuxOsConfig {
     fn default() -> Self {
         Self {
             release: "5.15.0".to_string(),
-            version: "1.0 hypercore-os".to_string(),
+            version: "1.0 aethercore-os".to_string(),
         }
     }
 }

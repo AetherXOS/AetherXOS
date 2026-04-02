@@ -1,4 +1,4 @@
-use hypercore::config::{BoundaryMode, KernelConfig};
+use aethercore::config::{BoundaryMode, KernelConfig};
 use serial_test::serial;
 
 use crate::common::ctx;

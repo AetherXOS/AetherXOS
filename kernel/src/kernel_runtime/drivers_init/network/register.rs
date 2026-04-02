@@ -3,23 +3,23 @@ use crate::kernel_runtime::KernelRuntime;
 
 pub(super) fn register_active_network_driver(
     runtime: &KernelRuntime,
-    driver: hypercore::modules::drivers::ProbedNetworkDriver,
+    driver: aethercore::modules::drivers::ProbedNetworkDriver,
     irq_line: u8,
-    active_kind: hypercore::modules::drivers::ActiveNetworkDriver,
+    active_kind: aethercore::modules::drivers::ActiveNetworkDriver,
 ) {
     #[cfg(feature = "networking")]
     {
-        let registered = hypercore::modules::drivers::hotplug_attach_network_driver(driver);
+        let registered = aethercore::modules::drivers::hotplug_attach_network_driver(driver);
         match registered {
-            hypercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
-                hypercore::modules::drivers::register_virtio_network_dataplane();
+            aethercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
+                aethercore::modules::drivers::register_virtio_network_dataplane();
             }
-            hypercore::modules::drivers::ActiveNetworkDriver::E1000 => {
-                hypercore::modules::drivers::register_e1000_network_dataplane();
+            aethercore::modules::drivers::ActiveNetworkDriver::E1000 => {
+                aethercore::modules::drivers::register_e1000_network_dataplane();
             }
-            hypercore::modules::drivers::ActiveNetworkDriver::None => {}
+            aethercore::modules::drivers::ActiveNetworkDriver::None => {}
         }
-        hypercore::modules::drivers::network::set_driver_io_owned(true);
+        aethercore::modules::drivers::network::set_driver_io_owned(true);
     }
     #[cfg(not(feature = "networking"))]
     let _ = driver;

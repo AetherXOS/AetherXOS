@@ -1,8 +1,10 @@
+mod interval;
 mod compat;
 mod drift;
 mod network;
 mod vfs;
 
+pub(super) use self::interval::{is_sample_boundary, should_log_now};
 pub(super) use self::drift::log_runtime_policy_drift;
 
 #[cfg(all(feature = "drivers", feature = "networking"))]

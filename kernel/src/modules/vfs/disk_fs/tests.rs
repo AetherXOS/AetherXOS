@@ -82,17 +82,17 @@ fn compat_surface_diskfs_bridge_reads_and_writes_runtime_keys() {
     ));
 
     let before = fs
-        .read_all("/sys/hypercore/library/boundary_mode")
+        .read_all("/sys/aethercore/library/boundary_mode")
         .expect("read boundary mode");
     let before_str = core::str::from_utf8(&before).expect("utf8");
     assert!(before_str.contains("Balanced"));
 
-    fs.write_all("/sys/hypercore/runtime/telemetry_enabled", b"false\n")
+    fs.write_all("/sys/aethercore/runtime/telemetry_enabled", b"false\n")
         .expect("write telemetry");
     assert!(!crate::config::KernelConfig::is_telemetry_enabled());
 
     let after = fs
-        .read_all("/sys/hypercore/compat/telemetry_enabled")
+        .read_all("/sys/aethercore/compat/telemetry_enabled")
         .expect("read telemetry value");
     let after_str = core::str::from_utf8(&after).expect("utf8");
     assert_eq!(after_str.trim(), "false");

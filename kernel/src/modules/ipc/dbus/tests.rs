@@ -2,7 +2,7 @@ use super::*;
 
 #[test_case]
 fn session_service_registration_and_readiness_flow() {
-    let name = "org.hypercore.logind.test";
+    let name = "org.aethercore.logind.test";
     let _ = register_session_service(name, true);
     assert!(mark_session_service_ready(name).is_ok());
     assert!(heartbeat_session_service(name, 42).is_ok());
@@ -18,7 +18,7 @@ fn session_service_registration_and_readiness_flow() {
 
 #[test_case]
 fn degraded_service_with_autorestart_returns_to_starting() {
-    let name = "org.hypercore.udevd.test";
+    let name = "org.aethercore.udevd.test";
     let _ = register_session_service(name, true);
     assert!(mark_session_service_degraded(name).is_ok());
 

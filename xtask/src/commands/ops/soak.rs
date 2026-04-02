@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde::Serialize;
 
+use crate::constants;
 use crate::utils::{paths, report};
 
 /// Run QEMU soak/stress testing matrix.
@@ -9,20 +10,12 @@ use crate::utils::{paths, report};
 pub fn execute(dry_run: bool) -> Result<()> {
     println!("[soak] Running native QEMU soak matrix (dry_run={})", dry_run);
 
-    let out_dir = paths::resolve("artifacts/qemu_soak");
+    let out_dir = constants::paths::qemu_soak_root();
     let summary_path = out_dir.join("summary.json");
     paths::ensure_dir(&out_dir)?;
 
     if dry_run {
-        let summary = SoakSummary {
-            generated_utc: report::utc_now_iso(),
-            ok: true,
-            dry_run,
-            total_rounds: 0,
-            passed_rounds: 0,
-            failed_rounds: 0,
-            rounds: Vec::new(),
-        };
+        let summary = dry_run_summary(report::utc_now_iso());
         report::write_json_report(&summary_path, &summary)?;
         println!("[soak] DRY-RUN summary={}", summary_path.display());
         return Ok(());
@@ -95,4 +88,41 @@ struct SoakRound {
     ok: bool,
     duration_sec: f64,
     error: Option<String>,
+}
+
+fn dry_run_summary(generated_utc: String) -> SoakSummary {
+    SoakSummary {
+        generated_utc,
+        ok: true,
+        dry_run: true,
+        total_rounds: 0,
+        passed_rounds: 0,
+        failed_rounds: 0,
+        rounds: Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::dry_run_summary;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join(name)
+    }
+
+    #[test]
+    fn dry_run_summary_matches_fixture() {
+        let summary = dry_run_summary("2026-04-02T00:00:00Z".to_string());
+        let json = serde_json::to_string_pretty(&summary)
+            .expect("dry-run summary must serialize");
+        let expected = fs::read_to_string(fixture_path("soak_dry_run_summary.json"))
+            .expect("fixture must be readable");
+        let expected = expected.replace("\r\n", "\n");
+        assert_eq!(json, expected.trim_end());
+    }
 }

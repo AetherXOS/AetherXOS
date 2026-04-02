@@ -3,7 +3,7 @@ use std::sync::{
     Arc, Mutex, OnceLock,
 };
 
-use hypercore::modules::vfs::{
+use aethercore::modules::vfs::{
     journal,
     writeback::{self, WritebackSink},
     Inode, JournalEntry, GLOBAL_INODE_CACHE,

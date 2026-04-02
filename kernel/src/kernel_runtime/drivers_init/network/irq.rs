@@ -3,25 +3,25 @@ use crate::kernel_runtime::KernelRuntime;
 
 pub(super) fn register_network_irq_handler(
     runtime: &KernelRuntime,
-    driver_kind: hypercore::modules::drivers::ActiveNetworkDriver,
+    driver_kind: aethercore::modules::drivers::ActiveNetworkDriver,
     irq_line: u8,
 ) {
     #[cfg(feature = "dispatcher")]
     {
-        let irq_base = hypercore::config::KernelConfig::irq_vector_base();
+        let irq_base = aethercore::config::KernelConfig::irq_vector_base();
         let vector = irq_line.saturating_add(irq_base);
         match driver_kind {
-            hypercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
+            aethercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
                 runtime
                     .dispatcher
                     .register_handler(vector, virtio_irq_handler);
             }
-            hypercore::modules::drivers::ActiveNetworkDriver::E1000 => {
+            aethercore::modules::drivers::ActiveNetworkDriver::E1000 => {
                 runtime
                     .dispatcher
                     .register_handler(vector, e1000_irq_handler);
             }
-            hypercore::modules::drivers::ActiveNetworkDriver::None => {}
+            aethercore::modules::drivers::ActiveNetworkDriver::None => {}
         }
     }
     #[cfg(not(feature = "dispatcher"))]

@@ -42,8 +42,8 @@ pub fn write_proof_files(
         repo_root.join("artifacts/boot_image/qemu_linked_probe.log"),
         repo_root.join("artifacts/boot_image/qemu_linked_probe_direct.log"),
     ];
-    let expected_probe = "[hyper_init] linked probe exit status: 0";
-    let verified_probe = "[hyper_init] linked probe execution verified";
+    let expected_probe = "[aether_init] linked probe exit status: 0";
+    let verified_probe = "[aether_init] linked probe execution verified";
     let mut scanned_logs = Vec::new();
     let mut probe_verified_in = None::<String>;
     let mut fini_observed_in = None::<String>;
@@ -432,7 +432,7 @@ pub fn write_proof_files(
         }
         if content.contains("[LINKED PROBE] probe boot requested")
             || content.contains("[LINKED PROBE] main loop armed for linked probe boot")
-            || content.contains("[LINKED PROBE] linux-compat ready; awaiting hyper_init probe execution")
+            || content.contains("[LINKED PROBE] linux-compat ready; awaiting aether_init probe execution")
         {
             kernel_stage = "linked_probe_boot_kernel_ready";
         }
@@ -443,8 +443,8 @@ pub fn write_proof_files(
         }
         if fini_observed_in.is_none()
             && (content.contains("runtime_fini_entry=")
-                || content.contains("[hypercore-libc] runtime fini trampoline completed")
-                || content.contains("[hypercore-libc] runtime fini counts:"))
+                || content.contains("[aethercore-libc] runtime fini trampoline completed")
+                || content.contains("[aethercore-libc] runtime fini counts:"))
         {
             fini_observed_in = Some(log.display().to_string());
         }
@@ -460,7 +460,7 @@ pub fn write_proof_files(
     fs::write(
         userspace_dir.join("probe-execution-proof.txt"),
         [
-            "[hypercore-userspace-probe-proof]".to_string(),
+            "[aethercore-userspace-probe-proof]".to_string(),
             format!("status={probe_status}"),
             format!("artifact_present={}", yes_no(published_probe.is_some())),
             format!("expected_log={expected_probe}"),
@@ -487,7 +487,7 @@ pub fn write_proof_files(
         .unwrap_or_else(|_| String::new());
     let fini_status = if fini_observed_in.is_some() {
         "kernel_log_observed"
-    } else if telemetry_text.contains("hypercore_runtime_fini_attempt_count") {
+    } else if telemetry_text.contains("aethercore_runtime_fini_attempt_count") {
         "telemetry_ready"
     } else {
         "missing"
@@ -495,7 +495,7 @@ pub fn write_proof_files(
     fs::write(
         userspace_dir.join("runtime-fini-proof.txt"),
         [
-            "[hypercore-runtime-fini-proof]".to_string(),
+            "[aethercore-runtime-fini-proof]".to_string(),
             format!("status={fini_status}"),
             format!(
                 "observed_in={}",
@@ -504,7 +504,7 @@ pub fn write_proof_files(
             "expected_kernel_marker=runtime_fini_entry=".to_string(),
             format!(
                 "telemetry_symbols_present={}",
-                yes_no(telemetry_text.contains("hypercore_runtime_fini_attempt_count"))
+                yes_no(telemetry_text.contains("aethercore_runtime_fini_attempt_count"))
             ),
             String::new(),
         ]

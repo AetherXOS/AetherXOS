@@ -1,10 +1,10 @@
 [package]
-name = "hypercore-kani"
-version = "0.1.0"
-edition = "2021"
+name = "aethercore-kani"
+version = "0.0.1"
+edition = "2024"
 publish = false
 
 [dependencies]
-hypercore = { path = "../.." }
+aethercore = { path = "../..", package = "aether-x-os" }
 
 [workspace]

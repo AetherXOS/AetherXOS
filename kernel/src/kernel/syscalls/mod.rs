@@ -144,7 +144,7 @@ pub struct SyscallFrame {
 static EXECVE_NEW_ENTRY: AtomicUsize = AtomicUsize::new(0);
 
 /// Helper to handle syscalls in Rust
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn rust_syscall_handler(
     arg1: usize,
     arg2: usize,

@@ -1,6 +1,7 @@
 use crate::interfaces::task::ProcessId;
 use crate::kernel::sync::{IrqSafeMutex, WaitQueue};
 use crate::kernel::task::wake_tasks;
+use super::common::{suspend_on, wake_one_task};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -101,9 +102,7 @@ pub fn binder_transact(
     }
 
     // 4. Wake target process's binder threads.
-    if let Some(tid) = target_ctx.todo.wake_one() {
-        crate::kernel::task::wake_task(tid);
-    }
+    wake_one_task(&target_ctx.todo);
 
     Ok(())
 }
@@ -123,7 +122,7 @@ pub fn binder_read(out: &mut Option<BinderTransaction>) {
         }
 
         // Wait for incoming work
-        crate::kernel::task::suspend_current_task(&self_ctx.todo);
+        suspend_on(&self_ctx.todo);
     }
 }
 

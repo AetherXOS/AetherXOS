@@ -4,9 +4,9 @@ use super::super::logging::{
 };
 
 pub(super) fn log_network_probe_plan() {
-    let plan = hypercore::modules::drivers::network_probe_plan();
+    let plan = aethercore::modules::drivers::network_probe_plan();
     for step in plan {
-        hypercore::klog_info!(
+        aethercore::klog_info!(
             "Network probe step: order={} name={} bus={:?} dep={:?} kind={:?}",
             step.order,
             step.name,
@@ -18,12 +18,12 @@ pub(super) fn log_network_probe_plan() {
 }
 
 pub(super) fn log_network_driver_policy() {
-    use hypercore::modules::drivers::{
+    use aethercore::modules::drivers::{
         network_driver_policy_snapshot, probe_policy_fallback_kind, probe_policy_primary_kind,
     };
 
     let policy = network_driver_policy_snapshot();
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Network driver policy: active={:?} set_calls={} primary={:?} fallback={:?} remediation={:?} remediation_set_calls={} slo_streak={} cooldown_base={} jitter_mask={:#x} rebind_before_failover={}",
         policy.active_policy,
         policy.set_calls,
@@ -38,21 +38,21 @@ pub(super) fn log_network_driver_policy() {
     );
 }
 
-pub(super) fn log_driver_init_success(driver: &hypercore::modules::drivers::ProbedNetworkDriver) {
+pub(super) fn log_driver_init_success(driver: &aethercore::modules::drivers::ProbedNetworkDriver) {
     log_network_driver_initialized(driver.name());
 }
 
-pub(super) fn log_driver_init_failure(driver: &hypercore::modules::drivers::ProbedNetworkDriver) {
+pub(super) fn log_driver_init_failure(driver: &aethercore::modules::drivers::ProbedNetworkDriver) {
     let status = driver.status();
     log_network_driver_failure_for(driver.name(), "initialization failed", &status);
 }
 
-pub(super) fn log_probe_discovery(driver: &hypercore::modules::drivers::ProbedNetworkDriver) {
+pub(super) fn log_probe_discovery(driver: &aethercore::modules::drivers::ProbedNetworkDriver) {
     log_network_probe_discovery(driver);
 }
 
-pub(super) fn log_virtio_runtime(driver: &hypercore::modules::drivers::ProbedNetworkDriver) {
-    if let hypercore::modules::drivers::ProbedNetworkDriver::VirtIo(net) = driver {
+pub(super) fn log_virtio_runtime(driver: &aethercore::modules::drivers::ProbedNetworkDriver) {
+    if let aethercore::modules::drivers::ProbedNetworkDriver::VirtIo(net) = driver {
         log_virtio_driver_runtime(net);
     }
 }

@@ -8,9 +8,9 @@ use crate::kernel_runtime::network_policy_helpers::{
 use crate::kernel_runtime::networking::NETWORK_DRIVER_QUARANTINE_REBIND_FAILURES;
 
 pub(super) fn service_specific_network_driver_io(
-    driver: hypercore::modules::drivers::ActiveNetworkDriver,
+    driver: aethercore::modules::drivers::ActiveNetworkDriver,
 ) -> bool {
-    if driver != hypercore::modules::drivers::ActiveNetworkDriver::None
+    if driver != aethercore::modules::drivers::ActiveNetworkDriver::None
         && is_driver_quarantined(driver)
     {
         let _ = try_network_failover_for_io_health(driver, "driver-quarantined");
@@ -18,49 +18,49 @@ pub(super) fn service_specific_network_driver_io(
     }
 
     match driver {
-        hypercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
+        aethercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
             let Some(serviced) =
-                hypercore::modules::drivers::with_virtio_runtime_driver_mut(|runtime_driver| {
+                aethercore::modules::drivers::with_virtio_runtime_driver_mut(|runtime_driver| {
                     service_virtio_driver_io(runtime_driver, driver);
                     true
                 })
             else {
-                return hypercore::modules::drivers::has_virtio_runtime_driver();
+                return aethercore::modules::drivers::has_virtio_runtime_driver();
             };
             serviced
         }
-        hypercore::modules::drivers::ActiveNetworkDriver::E1000 => {
+        aethercore::modules::drivers::ActiveNetworkDriver::E1000 => {
             let Some(serviced) =
-                hypercore::modules::drivers::with_e1000_runtime_driver_mut(|runtime_driver| {
+                aethercore::modules::drivers::with_e1000_runtime_driver_mut(|runtime_driver| {
                     service_e1000_driver_io(runtime_driver, driver);
                     true
                 })
             else {
-                return hypercore::modules::drivers::has_e1000_runtime_driver();
+                return aethercore::modules::drivers::has_e1000_runtime_driver();
             };
             serviced
         }
-        hypercore::modules::drivers::ActiveNetworkDriver::None => false,
+        aethercore::modules::drivers::ActiveNetworkDriver::None => false,
     }
 }
 
 pub(super) fn service_registered_network_driver_io() -> bool {
-    let active = hypercore::modules::drivers::active_network_driver();
+    let active = aethercore::modules::drivers::active_network_driver();
     service_specific_network_driver_io(active)
 }
 
-fn service_driver_io<T: hypercore::modules::drivers::DriverLifecycle>(
+fn service_driver_io<T: aethercore::modules::drivers::DriverLifecycle>(
     runtime_driver: &mut T,
-    driver: hypercore::modules::drivers::ActiveNetworkDriver,
+    driver: aethercore::modules::drivers::ActiveNetworkDriver,
     state: DriverIoHealthState,
     rebind_driver: fn(&mut T) -> bool,
 ) {
-    if hypercore::modules::drivers::DriverLifecycle::service_io(runtime_driver).is_err() {
-        hypercore::modules::drivers::service_network_irq(driver);
-        let status = hypercore::modules::drivers::DriverLifecycle::status(runtime_driver);
+    if aethercore::modules::drivers::DriverLifecycle::service_io(runtime_driver).is_err() {
+        aethercore::modules::drivers::service_network_irq(driver);
+        let status = aethercore::modules::drivers::DriverLifecycle::status(runtime_driver);
         let driver_failed = matches!(
             status.state,
-            hypercore::modules::drivers::DriverState::Failed
+            aethercore::modules::drivers::DriverState::Failed
         );
         let context = DriverIoHealthContext {
             driver_failed,
@@ -85,7 +85,7 @@ fn service_driver_io<T: hypercore::modules::drivers::DriverLifecycle>(
 }
 
 fn handle_failed_rebind(
-    driver: hypercore::modules::drivers::ActiveNetworkDriver,
+    driver: aethercore::modules::drivers::ActiveNetworkDriver,
     context: &DriverIoHealthContext,
     state: &DriverIoHealthState,
 ) {
@@ -99,7 +99,7 @@ fn handle_failed_rebind(
             rebind_failure_streak: failures,
             driver_failed: context.driver_failed,
         }),
-        hypercore::modules::drivers::NetworkIoHealthAction::TriggerFailover
+        aethercore::modules::drivers::NetworkIoHealthAction::TriggerFailover
     ) && try_network_failover_for_io_health(driver, "io-health-rebind-failed")
     {
         state.clear_rebind_failures();
@@ -107,7 +107,7 @@ fn handle_failed_rebind(
 }
 
 fn handle_failover_threshold(
-    driver: hypercore::modules::drivers::ActiveNetworkDriver,
+    driver: aethercore::modules::drivers::ActiveNetworkDriver,
     state: &DriverIoHealthState,
 ) {
     if try_network_failover_for_io_health(driver, "io-health-failover-threshold") {
@@ -117,15 +117,15 @@ fn handle_failover_threshold(
 
 fn apply_io_health_action<T>(
     runtime_driver: &mut T,
-    driver: hypercore::modules::drivers::ActiveNetworkDriver,
+    driver: aethercore::modules::drivers::ActiveNetworkDriver,
     state: DriverIoHealthState,
-    action: hypercore::modules::drivers::NetworkIoHealthAction,
+    action: aethercore::modules::drivers::NetworkIoHealthAction,
     context: DriverIoHealthContext,
     rebind_driver: fn(&mut T) -> bool,
 ) {
     match action {
-        hypercore::modules::drivers::NetworkIoHealthAction::NoAction => {}
-        hypercore::modules::drivers::NetworkIoHealthAction::AttemptRebind => {
+        aethercore::modules::drivers::NetworkIoHealthAction::NoAction => {}
+        aethercore::modules::drivers::NetworkIoHealthAction::AttemptRebind => {
             let rebind_ok = rebind_driver(runtime_driver);
             state.clear_io_errors();
             if rebind_ok {
@@ -134,22 +134,22 @@ fn apply_io_health_action<T>(
                 handle_failed_rebind(driver, &context, &state);
             }
         }
-        hypercore::modules::drivers::NetworkIoHealthAction::TriggerFailover => {
+        aethercore::modules::drivers::NetworkIoHealthAction::TriggerFailover => {
             handle_failover_threshold(driver, &state);
         }
     }
 }
 
 fn service_virtio_driver_io(
-    runtime_driver: &mut hypercore::modules::drivers::VirtIoNet,
-    driver: hypercore::modules::drivers::ActiveNetworkDriver,
+    runtime_driver: &mut aethercore::modules::drivers::VirtIoNet,
+    driver: aethercore::modules::drivers::ActiveNetworkDriver,
 ) {
     service_driver_io(runtime_driver, driver, virtio_state(), rebind_virtio_driver);
 }
 
 fn service_e1000_driver_io(
-    runtime_driver: &mut hypercore::modules::drivers::E1000,
-    driver: hypercore::modules::drivers::ActiveNetworkDriver,
+    runtime_driver: &mut aethercore::modules::drivers::E1000,
+    driver: aethercore::modules::drivers::ActiveNetworkDriver,
 ) {
     service_driver_io(runtime_driver, driver, e1000_state(), rebind_e1000_driver);
 }

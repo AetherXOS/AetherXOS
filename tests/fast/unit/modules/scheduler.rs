@@ -1,5 +1,5 @@
-use hypercore::config::{BoundaryMode, KernelConfig};
-use hypercore::modules::{
+use aethercore::config::{BoundaryMode, KernelConfig};
+use aethercore::modules::{
     is_library_surface_enabled, library_surface_policy, LibrarySurfacePolicy,
 };
 use serial_test::serial;

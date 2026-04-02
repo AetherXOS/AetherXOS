@@ -49,7 +49,7 @@ fn render_config(kernel_name: &str, initramfs_name: &str, append: &str) -> Strin
 
 /// Append the probe-mode flag to the kernel command line.
 fn append_probe_args(append: &str) -> String {
-    let flag = "HYPERCORE_RUN_LINKED_PROBE=1";
+    let flag = "AETHERCORE_RUN_LINKED_PROBE=1";
     if append.contains(flag) {
         append.to_string()
     } else {

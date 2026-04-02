@@ -157,7 +157,7 @@ impl KernelConfig {
     }
 
     pub fn apply_feature_override_batch_str(raw: &str) -> Result<usize, ConfigBatchApplyError> {
-        CONFIG_APPLY_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(CONFIG_APPLY_ATTEMPTS);
         let mut applied = 0usize;
 
         for (index, raw_entry) in split_override_entries(raw).into_iter().enumerate() {
@@ -167,7 +167,7 @@ impl KernelConfig {
             }
 
             let (feature_name, enabled) = parse_feature_override_entry(trimmed).map_err(|cause| {
-                CONFIG_APPLY_FAILURES.fetch_add(1, Ordering::Relaxed);
+                counter_inc!(CONFIG_APPLY_FAILURES);
                 CONFIG_LAST_ERROR_INDEX.store(index, Ordering::Relaxed);
                 ConfigBatchApplyError {
                     index,
@@ -178,7 +178,7 @@ impl KernelConfig {
             })?;
 
             Self::set_feature_enabled(feature_name.as_str(), enabled).map_err(|cause| {
-                CONFIG_APPLY_FAILURES.fetch_add(1, Ordering::Relaxed);
+                counter_inc!(CONFIG_APPLY_FAILURES);
                 CONFIG_LAST_ERROR_INDEX.store(index, Ordering::Relaxed);
                 ConfigBatchApplyError {
                     index,
@@ -191,7 +191,7 @@ impl KernelConfig {
             applied += 1;
         }
 
-        CONFIG_APPLY_SUCCESS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(CONFIG_APPLY_SUCCESS);
         CONFIG_LAST_ERROR_INDEX.store(usize::MAX, Ordering::Relaxed);
         Ok(applied)
     }

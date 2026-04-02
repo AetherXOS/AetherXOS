@@ -38,7 +38,7 @@ Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: amd64
-Maintainer: hypercore <dev@local>
+Maintainer: aethercore <dev@local>
 Description: Flutter SDK packaged for local apt install
 EOF
 

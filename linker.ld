@@ -1,4 +1,4 @@
-/* HyperCore x86_64 Linker Script - Final Stability Fix */
+/* AetherCore x86_64 Linker Script - Final Stability Fix */
 
 ENTRY(_start)
 

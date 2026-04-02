@@ -1,8 +1,8 @@
 [package]
-name = "hypercore-host-rust-tests"
-version = "0.1.0"
-edition = "2021"
+name = "aethercore-host-rust-tests"
+version = "0.0.1"
+edition = "2024"
 publish = false
 
 [dependencies]
-hypercore = { path = "..", features = ["vfs"] }
+aethercore = { path = "..", package = "aether-x-os", features = ["vfs"] }

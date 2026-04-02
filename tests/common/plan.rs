@@ -113,7 +113,7 @@ const KMSANARGS: &[&str] = &[
     "host_tools/scheduler_host_tests/Cargo.toml",
     "--tests",
 ];
-const UBSANARGS: &[&str] = &["test", "--manifest-path", "agent/Cargo.toml", "--tests"];
+const UBSANARGS: &[&str] = &["test", "--manifest-path", "xagent/Cargo.toml", "--tests"];
 const VIRTARGS: &[&str] = &["--version"];
 
 const NIGHTARGS: &[&str] = &[
@@ -131,7 +131,7 @@ const NIGHTARGS: &[&str] = &[
 const KANIARGS: &[&str] = &["kani", "--manifest-path", "formal/kani/Cargo.toml"];
 const TLAARGS: &[&str] = &["formal/tla/KernelConfigOverrides.tla"];
 const ISABELLEARGS: &[&str] = &["build", "-D", "formal/isabelle"];
-const SYZARGS: &[&str] = &["-config", "formal/syzkaller/hypercore.cfg"];
+const SYZARGS: &[&str] = &["-config", "formal/syzkaller/aethercore.cfg"];
 const FLAMEARGS: &[&str] = &[
     "flamegraph",
     "--manifest-path",
@@ -159,21 +159,21 @@ pub fn fast() -> TierPlan {
                 "geiger",
                 ".",
                 GEIGERARGS,
-                "HYPERCORE_ENABLE_GEIGER",
+                "AETHERCORE_ENABLE_GEIGER",
                 Availability::CargoSubcommand("geiger"),
             ),
             cargo_optional_step(
                 "rudra",
                 ".",
                 RUDRAARGS,
-                "HYPERCORE_ENABLE_RUDRA",
+                "AETHERCORE_ENABLE_RUDRA",
                 Availability::CargoSubcommand("rudra"),
             ),
             cargo_optional_step(
                 "audit",
                 ".",
                 AUDITARGS,
-                "HYPERCORE_ENABLE_AUDIT",
+                "AETHERCORE_ENABLE_AUDIT",
                 Availability::CargoSubcommand("audit"),
             ),
         ],
@@ -190,29 +190,29 @@ pub fn integration() -> TierPlan {
                 "kasan",
                 ".",
                 KASANARGS,
-                "HYPERCORE_RUN_KASAN",
+                "AETHERCORE_RUN_KASAN",
                 Availability::None,
             ),
             cargo_optional_step(
                 "kmsan",
                 ".",
                 KMSANARGS,
-                "HYPERCORE_RUN_KMSAN",
+                "AETHERCORE_RUN_KMSAN",
                 Availability::None,
             ),
             cargo_optional_step(
                 "ubsan",
                 ".",
                 UBSANARGS,
-                "HYPERCORE_RUN_UBSAN",
+                "AETHERCORE_RUN_UBSAN",
                 Availability::None,
             ),
-            binary_optional_step("virtme", ".", "vng", VIRTARGS, "HYPERCORE_RUN_VIRTME"),
+            binary_optional_step("virtme", ".", "vng", VIRTARGS, "AETHERCORE_RUN_VIRTME"),
             cargo_optional_step(
                 "cargofuzz",
                 "fuzz",
                 FUZZARGS,
-                "HYPERCORE_RUN_FUZZ",
+                "AETHERCORE_RUN_FUZZ",
                 Availability::CargoSubcommand("fuzz"),
             ),
         ],
@@ -230,14 +230,14 @@ pub fn nightly() -> TierPlan {
                 ".",
                 "syz-manager",
                 SYZARGS,
-                "HYPERCORE_RUN_SYZKALLER",
+                "AETHERCORE_RUN_SYZKALLER",
             ),
-            binary_optional_step("tlaplus", ".", "tlc", TLAARGS, "HYPERCORE_RUN_TLAPLUS"),
+            binary_optional_step("tlaplus", ".", "tlc", TLAARGS, "AETHERCORE_RUN_TLAPLUS"),
             cargo_optional_step(
                 "kani",
                 ".",
                 KANIARGS,
-                "HYPERCORE_RUN_KANI",
+                "AETHERCORE_RUN_KANI",
                 Availability::CargoSubcommand("kani"),
             ),
             binary_optional_step(
@@ -245,13 +245,13 @@ pub fn nightly() -> TierPlan {
                 ".",
                 "isabelle",
                 ISABELLEARGS,
-                "HYPERCORE_RUN_ISABELLE",
+                "AETHERCORE_RUN_ISABELLE",
             ),
             cargo_optional_step(
                 "flamegraph",
                 ".",
                 FLAMEARGS,
-                "HYPERCORE_RUN_FLAMEGRAPH",
+                "AETHERCORE_RUN_FLAMEGRAPH",
                 Availability::CargoSubcommand("flamegraph"),
             ),
         ],

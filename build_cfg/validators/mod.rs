@@ -44,7 +44,7 @@ pub fn validate_all(config: &Config) {
         panic!(
             "\n\n========================================\n\
              Configuration validation failed with {} error(s).\n\
-             Fix the issues above in Cargo.toml [package.metadata.hypercore.config.*]\n\
+             Fix the issues above in Cargo.toml [package.metadata.aethercore.config.*]\n\
              ========================================\n",
             errors.len()
         );

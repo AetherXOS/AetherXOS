@@ -1,0 +1,9 @@
+#!/bin/sh
+echo "[aether_init] early userspace bootstrap"
+
+if [ -x /usr/bin/hyper_init ]; then
+  exec /usr/bin/hyper_init "$@"
+fi
+
+echo "[aether_init] FATAL: legacy /usr/bin/hyper_init compatibility target missing"
+exit 127

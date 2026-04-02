@@ -5,7 +5,7 @@ use alloc::string::{String, ToString};
 use core::sync::atomic::AtomicU64;
 
 pub const DEFAULT_COMPAT_SURFACE_MOUNT_PATH: &str = "/proc";
-pub const COMPAT_SURFACE_SOURCE_NAME: &str = "hypercore-compat-surface";
+pub const COMPAT_SURFACE_SOURCE_NAME: &str = "aethercore-compat-surface";
 #[cfg(feature = "vfs")]
 const DEFAULT_COMPAT_SURFACE_REFRESH_INTERVAL_TICKS: u64 = 1024;
 #[cfg(feature = "vfs")]
@@ -45,8 +45,8 @@ impl CompatConfigSurfaceKind {
 
     pub const fn mount_path(self) -> &'static str {
         match self {
-            Self::ProcConfig => "/proc/hypercore/config",
-            Self::Sysctl => "/proc/sys/hypercore",
+            Self::ProcConfig => "/proc/aethercore/config",
+            Self::Sysctl => "/proc/sys/aethercore",
         }
     }
 

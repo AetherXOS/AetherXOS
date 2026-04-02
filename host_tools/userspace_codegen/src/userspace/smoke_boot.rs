@@ -18,7 +18,7 @@ fn qemu_probe_iso_args(boot_image_dir: &Path) -> Vec<String> {
         "2".to_string(),
         "-cdrom".to_string(),
         boot_image_dir
-            .join("hypercore-probe.iso")
+            .join("aethercore-probe.iso")
             .display()
             .to_string(),
         "-boot".to_string(),
@@ -37,7 +37,7 @@ fn qemu_iso_args(boot_image_dir: &Path) -> Vec<String> {
         "-smp".to_string(),
         "2".to_string(),
         "-cdrom".to_string(),
-        boot_image_dir.join("hypercore.iso").display().to_string(),
+        boot_image_dir.join("aethercore.iso").display().to_string(),
         "-boot".to_string(),
         "d".to_string(),
     ]
@@ -54,17 +54,17 @@ fn qemu_direct_args(stage_boot_dir: &Path) -> Vec<String> {
         "-smp".to_string(),
         "2".to_string(),
         "-kernel".to_string(),
-        stage_boot_dir.join("hypercore.elf").display().to_string(),
+        stage_boot_dir.join("aethercore.elf").display().to_string(),
         "-initrd".to_string(),
         stage_boot_dir.join("initramfs.cpio.gz").display().to_string(),
         "-append".to_string(),
-        "console=ttyS0 loglevel=7 HYPERCORE_RUN_LINKED_PROBE=1".to_string(),
+        "console=ttyS0 loglevel=7 AETHERCORE_RUN_LINKED_PROBE=1".to_string(),
     ]
 }
 
 fn boot_attempt_log_prefix(mode: &str, timed_out: bool, exit_code: Option<i32>) -> String {
     format!(
-        "[hypercore-linked-probe-attempt]\nmode={mode}\ntimed_out={}\nexit_code={}\n\n",
+        "[aethercore-linked-probe-attempt]\nmode={mode}\ntimed_out={}\nexit_code={}\n\n",
         if timed_out { "yes" } else { "no" },
         exit_code
             .map(|code| code.to_string())
@@ -76,7 +76,7 @@ fn qemu_probe_ps1_command(preferred_boot_mode: &str) -> String {
     match preferred_boot_mode {
         "probe_iso" => "& $qemu -nographic -no-reboot -monitor none -m 512 -smp 2 -cdrom $probeIso -boot d *>&1 | Tee-Object -FilePath $liveLog | Tee-Object -FilePath $artifactLog".to_string(),
         "iso" => "& $qemu -nographic -no-reboot -monitor none -m 512 -smp 2 -cdrom $iso -boot d *>&1 | Tee-Object -FilePath $liveLog | Tee-Object -FilePath $artifactLog".to_string(),
-        _ => "& $qemu -nographic -no-reboot -monitor none -m 512 -smp 2 -kernel $kernel -initrd $initramfs -append \"console=ttyS0 loglevel=7 HYPERCORE_RUN_LINKED_PROBE=1\" *>&1 | Tee-Object -FilePath $liveLog | Tee-Object -FilePath $artifactLog".to_string(),
+        _ => "& $qemu -nographic -no-reboot -monitor none -m 512 -smp 2 -kernel $kernel -initrd $initramfs -append \"console=ttyS0 loglevel=7 AETHERCORE_RUN_LINKED_PROBE=1\" *>&1 | Tee-Object -FilePath $liveLog | Tee-Object -FilePath $artifactLog".to_string(),
     }
 }
 
@@ -84,7 +84,7 @@ fn qemu_probe_sh_command(preferred_boot_mode: &str) -> String {
     match preferred_boot_mode {
         "probe_iso" => "\"${QEMU_BIN}\" -nographic -no-reboot -monitor none -m 512 -smp 2 -cdrom \"${PROBE_ISO}\" -boot d 2>&1 | tee \"${LIVE_LOG}\" | tee \"${ARTIFACT_LOG}\"".to_string(),
         "iso" => "\"${QEMU_BIN}\" -nographic -no-reboot -monitor none -m 512 -smp 2 -cdrom \"${ISO}\" -boot d 2>&1 | tee \"${LIVE_LOG}\" | tee \"${ARTIFACT_LOG}\"".to_string(),
-        _ => "\"${QEMU_BIN}\" -nographic -no-reboot -monitor none -m 512 -smp 2 -kernel \"${KERNEL}\" -initrd \"${INITRAMFS}\" -append \"console=ttyS0 loglevel=7 HYPERCORE_RUN_LINKED_PROBE=1\" 2>&1 | tee \"${LIVE_LOG}\" | tee \"${ARTIFACT_LOG}\"".to_string(),
+        _ => "\"${QEMU_BIN}\" -nographic -no-reboot -monitor none -m 512 -smp 2 -kernel \"${KERNEL}\" -initrd \"${INITRAMFS}\" -append \"console=ttyS0 loglevel=7 AETHERCORE_RUN_LINKED_PROBE=1\" 2>&1 | tee \"${LIVE_LOG}\" | tee \"${ARTIFACT_LOG}\"".to_string(),
     }
 }
 
@@ -138,7 +138,7 @@ pub fn publish_linked_probe(
     fs::write(
         userspace_dir.join("probe-linked.txt"),
         [
-            "[hypercore-userspace-linked-probe]".to_string(),
+            "[aethercore-userspace-linked-probe]".to_string(),
             "output=probe-linked.elf".to_string(),
             format!(
                 "source=smoke-objects/{}",
@@ -155,8 +155,8 @@ pub fn publish_linked_probe(
     .map_err(|err| format!("failed to write probe-linked.txt: {err}"))?;
 
     let boot_image_dir = repo_root.join("artifacts").join("boot_image");
-    let probe_iso_artifact = boot_image_dir.join("hypercore-probe.iso");
-    let iso_artifact = boot_image_dir.join("hypercore.iso");
+    let probe_iso_artifact = boot_image_dir.join("aethercore-probe.iso");
+    let iso_artifact = boot_image_dir.join("aethercore.iso");
     let prefer_probe_iso_boot = probe_iso_artifact.exists() || boot_image_dir.exists();
     let prefer_iso_boot = prefer_probe_iso_boot || iso_artifact.exists();
     let host_root_rel = "..\\..\\..\\..\\..";
@@ -173,7 +173,7 @@ pub fn publish_linked_probe(
     let (qemu_command, probe_ps1_command, probe_sh_command) = if prefer_probe_iso_boot {
         (
             format!(
-                "\"{}\" -nographic -no-reboot -monitor none -m 512 -smp 2 -cdrom \"{}artifacts/boot_image/hypercore-probe.iso\" -boot d",
+                "\"{}\" -nographic -no-reboot -monitor none -m 512 -smp 2 -cdrom \"{}artifacts/boot_image/aethercore-probe.iso\" -boot d",
                 qemu_binary.display(),
                 host_root_rel_sh
             ),
@@ -183,7 +183,7 @@ pub fn publish_linked_probe(
     } else if prefer_iso_boot {
         (
             format!(
-                "\"{}\" -nographic -no-reboot -monitor none -m 512 -smp 2 -cdrom \"{}artifacts/boot_image/hypercore.iso\" -boot d",
+                "\"{}\" -nographic -no-reboot -monitor none -m 512 -smp 2 -cdrom \"{}artifacts/boot_image/aethercore.iso\" -boot d",
                 qemu_binary.display(),
                 host_root_rel_sh
             ),
@@ -193,7 +193,7 @@ pub fn publish_linked_probe(
     } else {
         (
             format!(
-                "\"{}\" -nographic -no-reboot -monitor none -m 512 -smp 2 -kernel \"{}artifacts/boot_image/stage/boot/hypercore.elf\" -initrd \"{}artifacts/boot_image/stage/boot/initramfs.cpio.gz\" -append \"console=ttyS0 loglevel=7 HYPERCORE_RUN_LINKED_PROBE=1\"",
+                "\"{}\" -nographic -no-reboot -monitor none -m 512 -smp 2 -kernel \"{}artifacts/boot_image/stage/boot/aethercore.elf\" -initrd \"{}artifacts/boot_image/stage/boot/initramfs.cpio.gz\" -append \"console=ttyS0 loglevel=7 AETHERCORE_RUN_LINKED_PROBE=1\"",
                 qemu_binary.display(),
                 host_root_rel_sh,
                 host_root_rel_sh
@@ -206,12 +206,12 @@ pub fn publish_linked_probe(
     fs::write(
         userspace_dir.join("probe-boot-harness.txt"),
         [
-            "[hypercore-userspace-boot-harness]".to_string(),
+            "[aethercore-userspace-boot-harness]".to_string(),
             "artifact=probe-linked.elf".to_string(),
             format!("preferred_boot_mode={preferred_boot_mode}"),
-            "kernel_append=console=ttyS0 loglevel=7 HYPERCORE_RUN_LINKED_PROBE=1".to_string(),
+            "kernel_append=console=ttyS0 loglevel=7 AETHERCORE_RUN_LINKED_PROBE=1".to_string(),
             "qemu_mode=-nographic".to_string(),
-            "expected_log=[hyper_init] linked probe exit status: 0".to_string(),
+            "expected_log=[aether_init] linked probe exit status: 0".to_string(),
             "fallback=continue_boot_to_init_elf".to_string(),
             String::new(),
         ]
@@ -226,10 +226,10 @@ pub fn publish_linked_probe(
             "$ErrorActionPreference = 'Stop'".to_string(),
             format!("$qemu = '{}'", qemu_binary.display()),
             format!("$workspaceRoot = Join-Path $PSScriptRoot '{host_root_rel}'"),
-            "$kernel = Join-Path $workspaceRoot 'artifacts\\boot_image\\stage\\boot\\hypercore.elf'".to_string(),
+            "$kernel = Join-Path $workspaceRoot 'artifacts\\boot_image\\stage\\boot\\aethercore.elf'".to_string(),
             "$initramfs = Join-Path $workspaceRoot 'artifacts\\boot_image\\stage\\boot\\initramfs.cpio.gz'".to_string(),
-            "$iso = Join-Path $workspaceRoot 'artifacts\\boot_image\\hypercore.iso'".to_string(),
-            "$probeIso = Join-Path $workspaceRoot 'artifacts\\boot_image\\hypercore-probe.iso'".to_string(),
+            "$iso = Join-Path $workspaceRoot 'artifacts\\boot_image\\aethercore.iso'".to_string(),
+            "$probeIso = Join-Path $workspaceRoot 'artifacts\\boot_image\\aethercore-probe.iso'".to_string(),
             "$liveLog = Join-Path $workspaceRoot 'artifacts\\boot_image\\qemu_linked_probe_live.log'".to_string(),
             "$artifactLog = Join-Path $workspaceRoot 'artifacts\\boot_image\\qemu_linked_probe.log'".to_string(),
             "Push-Location $workspaceRoot".to_string(),
@@ -250,10 +250,10 @@ pub fn publish_linked_probe(
             "set -eu".to_string(),
             format!("QEMU_BIN=\"{}\"", qemu_binary.display()),
             format!("WORKSPACE_ROOT=\"{host_root_rel_sh}\""),
-            "KERNEL=\"${WORKSPACE_ROOT}artifacts/boot_image/stage/boot/hypercore.elf\"".to_string(),
+            "KERNEL=\"${WORKSPACE_ROOT}artifacts/boot_image/stage/boot/aethercore.elf\"".to_string(),
             "INITRAMFS=\"${WORKSPACE_ROOT}artifacts/boot_image/stage/boot/initramfs.cpio.gz\"".to_string(),
-            "ISO=\"${WORKSPACE_ROOT}artifacts/boot_image/hypercore.iso\"".to_string(),
-            "PROBE_ISO=\"${WORKSPACE_ROOT}artifacts/boot_image/hypercore-probe.iso\"".to_string(),
+            "ISO=\"${WORKSPACE_ROOT}artifacts/boot_image/aethercore.iso\"".to_string(),
+            "PROBE_ISO=\"${WORKSPACE_ROOT}artifacts/boot_image/aethercore-probe.iso\"".to_string(),
             "LIVE_LOG=\"${WORKSPACE_ROOT}artifacts/boot_image/qemu_linked_probe_live.log\"".to_string(),
             "ARTIFACT_LOG=\"${WORKSPACE_ROOT}artifacts/boot_image/qemu_linked_probe.log\"".to_string(),
             probe_sh_command,
@@ -283,12 +283,12 @@ fn attempt_linked_probe_boot(repo_root: &Path, preferred_boot_mode: &str) -> Res
     let boot_image_dir = repo_root.join("artifacts").join("boot_image");
     let stage_boot_dir = boot_image_dir.join("stage").join("boot");
     let mut attempts = Vec::new();
-    if preferred_boot_mode == "probe_iso" && boot_image_dir.join("hypercore-probe.iso").exists() {
+    if preferred_boot_mode == "probe_iso" && boot_image_dir.join("aethercore-probe.iso").exists() {
         attempts.push((boot_image_dir.join("qemu_linked_probe.log"), qemu_probe_iso_args(&boot_image_dir)));
-    } else if preferred_boot_mode == "iso" && boot_image_dir.join("hypercore.iso").exists() {
+    } else if preferred_boot_mode == "iso" && boot_image_dir.join("aethercore.iso").exists() {
         attempts.push((boot_image_dir.join("qemu_linked_probe.log"), qemu_iso_args(&boot_image_dir)));
     }
-    if stage_boot_dir.join("hypercore.elf").exists() && stage_boot_dir.join("initramfs.cpio.gz").exists() {
+    if stage_boot_dir.join("aethercore.elf").exists() && stage_boot_dir.join("initramfs.cpio.gz").exists() {
         attempts.push((boot_image_dir.join("qemu_linked_probe_direct.log"), qemu_direct_args(&stage_boot_dir)));
     }
     for (log_path, args) in attempts {

@@ -1,7 +1,44 @@
 use anyhow::{Context, Result, bail};
-use std::process::Command;
 use crate::cli::SetupAction;
+use crate::constants;
 use crate::utils::paths;
+use crate::utils::process;
+
+struct ProvisionPlan {
+    tool: &'static str,
+    windows: Option<&'static [&'static str]>,
+    macos: Option<&'static [&'static str]>,
+    linux_apt: Option<&'static [&'static str]>,
+    linux_pacman: Option<&'static [&'static str]>,
+}
+
+fn run_provision_plan(plan: &ProvisionPlan, is_windows: bool, is_macos: bool, is_linux: bool) {
+    if is_windows {
+        if let Some(args) = plan.windows {
+            let _ = process::run_best_effort(args[0], &args[1..]);
+        }
+        return;
+    }
+
+    if is_macos {
+        if let Some(args) = plan.macos {
+            let _ = process::run_best_effort(args[0], &args[1..]);
+        }
+        return;
+    }
+
+    if is_linux {
+        if process::which("apt-get") {
+            if let Some(args) = plan.linux_apt {
+                let _ = process::run_best_effort("sudo", args);
+            }
+        } else if process::which("pacman") {
+            if let Some(args) = plan.linux_pacman {
+                let _ = process::run_best_effort("sudo", args);
+            }
+        }
+    }
+}
 
 /// Entry layer for generic system orchestrations, toolchain validations, and automated resource provisionings.
 pub fn execute(action: &SetupAction) -> Result<()> {
@@ -29,11 +66,16 @@ pub fn execute(action: &SetupAction) -> Result<()> {
 fn audit_host_environment() -> Result<()> {
     println!("[setup::audit] Scanning host workstation architecture and active PATHs...");
     
-    let required_bins = vec!["qemu-system-x86_64", "xorriso", "rustc", "cargo"];
+    let required_bins = [
+        constants::tools::QEMU_X86_64,
+        constants::tools::XORRISO,
+        constants::tools::RUSTC,
+        constants::tools::CARGO,
+    ];
     let mut missing = 0;
     
     for bin in required_bins {
-        if crate::utils::process::which(bin) {
+        if process::which(bin) {
             println!("[setup::audit] [ OK ] Verified binary executable inline: {}", bin);
         } else {
             println!("[setup::audit] [FAIL] Critical system dependency missing: {}", bin);
@@ -61,51 +103,41 @@ fn provision_host_environment() -> Result<()> {
     // ------------------------------------------------------------------------------------------------ //
     // 1. QEMU EMULATOR PROVISIONING
     // ------------------------------------------------------------------------------------------------ //
-    if !crate::utils::process::which("qemu-system-x86_64") && !crate::utils::process::which("qemu-system-x86_64.exe") {
+    if !process::which_any(&[constants::tools::QEMU_X86_64, constants::tools::QEMU_X86_64_EXE]) {
         println!("[setup::provision] QEMU architecture missing. Attempting automated host-based installation.");
-        if is_windows {
-            println!("[setup::provision] Discovered Windows Host. Engaging 'winget' automated deployment.");
-            let _ = Command::new("winget")
-                .args(&["install", "--id", "SoftwareFreedomConservancy.QEMU", "-e", "--accept-package-agreements", "--accept-source-agreements"])
-                .status();
-        } else if is_macos {
-            println!("[setup::provision] Discovered MacOS Host. Engaging 'brew' automated deployment.");
-            let _ = Command::new("brew").args(&["install", "qemu"]).status();
-        } else if is_linux {
-            println!("[setup::provision] Discovered Linux Host. Searching for active package daemon...");
-            if crate::utils::process::which("apt-get") {
-                let _ = Command::new("sudo").args(&["apt-get", "install", "-y", "qemu-system-x86"]).status();
-            } else if crate::utils::process::which("pacman") {
-                let _ = Command::new("sudo").args(&["pacman", "-S", "--noconfirm", "qemu"]).status();
-            }
-        }
+        let plan = ProvisionPlan {
+            tool: "qemu",
+            windows: Some(&["winget", "install", "--id", "SoftwareFreedomConservancy.QEMU", "-e", "--accept-package-agreements", "--accept-source-agreements"]),
+            macos: Some(&["brew", "install", "qemu"]),
+            linux_apt: Some(&["apt-get", "install", "-y", "qemu-system-x86"]),
+            linux_pacman: Some(&["pacman", "-S", "--noconfirm", "qemu"]),
+        };
+        println!("[setup::provision] Applying provisioning plan for {}.", plan.tool);
+        run_provision_plan(&plan, is_windows, is_macos, is_linux);
     }
     
     // ------------------------------------------------------------------------------------------------ //
     // 2. XORRISO IMAGE MANIPULATOR PROVISIONING
     // ------------------------------------------------------------------------------------------------ //
-    if !crate::utils::process::which("xorriso") && !crate::utils::process::which("xorriso.exe") {
+    if !process::which_any(&[constants::tools::XORRISO, constants::tools::XORRISO_EXE]) {
         println!("[setup::provision] Xorriso dependency missing. Attempting structural acquisition.");
-        if is_windows {
-            println!("[setup::provision] Windows detected. Attempting to use Scoop CLI for xorriso injection...");
-            if crate::utils::process::which("scoop") {
-                let _ = Command::new("scoop").args(&["install", "xorriso"]).status();
-            } else {
-                println!("[setup::provision] WARNING: Please install 'scoop' (scoop.sh) to automatically acquire xorriso on Windows without MSYS2.");
-            }
-        } else if is_macos {
-            let _ = Command::new("brew").args(&["install", "xorriso"]).status();
-        } else if is_linux {
-            if crate::utils::process::which("apt-get") {
-                let _ = Command::new("sudo").args(&["apt-get", "install", "-y", "xorriso"]).status();
-            } else if crate::utils::process::which("pacman") {
-                let _ = Command::new("sudo").args(&["pacman", "-S", "--noconfirm", "libisoburn"]).status();
-            }
+        let plan = ProvisionPlan {
+            tool: "xorriso",
+            windows: Some(&["scoop", "install", "xorriso"]),
+            macos: Some(&["brew", "install", "xorriso"]),
+            linux_apt: Some(&["apt-get", "install", "-y", "xorriso"]),
+            linux_pacman: Some(&["pacman", "-S", "--noconfirm", "libisoburn"]),
+        };
+        println!("[setup::provision] Applying provisioning plan for {}.", plan.tool);
+        if is_windows && !process::which("scoop") {
+            println!("[setup::provision] WARNING: Please install 'scoop' (scoop.sh) to automatically acquire xorriso on Windows without MSYS2.");
+        } else {
+            run_provision_plan(&plan, is_windows, is_macos, is_linux);
         }
     }
     
     println!("[setup::provision] Host evaluation layout locked. Native dependencies should be established.");
-    paths::ensure_dir(&paths::resolve("artifacts/host_tools/bin"))?;
+    paths::ensure_dir(&constants::paths::host_tools_bin())?;
     
     Ok(())
 }
@@ -131,19 +163,14 @@ fn fetch_limine_binaries() -> Result<()> {
         ("BOOTX64.EFI", "https://raw.githubusercontent.com/limine-bootloader/limine/v7.0-branch-binary/BOOTX64.EFI"),
     ];
     
-    let dest_dir = paths::resolve("artifacts/limine/bin");
+    let dest_dir = constants::paths::limine_bin_dir();
     paths::ensure_dir(&dest_dir).context("Failed establishing directory boundaries for limiting vendored bins")?;
     
     for (filename, url) in repos {
         let dest_file = dest_dir.join(filename);
         println!("[setup::fetch] -> Streaming object via cURL: {}", filename);
         
-        let status = Command::new("curl")
-            .args(&["-L", "-o", dest_file.to_str().unwrap_or(""), url])
-            .status()
-            .context("Host cURL invocation sequence failed. Ensure 'curl' exists statically in PATH.")?;
-            
-        if !status.success() {
+        if !process::run_best_effort("curl", &["-L", "-o", dest_file.to_str().unwrap_or(""), url]) {
             bail!("Remote host denied binary download or connection dropped forcefully.");
         }
     }

@@ -1,13 +1,14 @@
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
+use aethercore_common::units::PAGE_SIZE_4K;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use spin::Mutex;
 
 // ── Page Cache ────────────────────────────────────────────────────────────────
 
 /// The kernel page size used by the VFS page cache.
-const PAGE_SIZE: usize = 4096;
+const PAGE_SIZE: usize = PAGE_SIZE_4K;
 
 /// One 4 KiB page in the VFS Page Cache.
 pub struct CachePage {

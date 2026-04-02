@@ -85,7 +85,7 @@ pub(super) fn generate_cpuinfo() -> String {
              vendor_id\t: GenuineIntel\n\
              cpu family\t: 6\n\
              model\t\t: 158\n\
-             model name\t: HyperCore Virtual CPU\n\
+             model name\t: AetherCore Virtual CPU\n\
              stepping\t: 10\n\
              cpu MHz\t\t: 2400.000\n\
              cache size\t: 8192 KB\n\
@@ -197,7 +197,7 @@ pub(super) fn generate_self_status(tid: TaskId) -> String {
         0
     };
     let mut result = String::new();
-    result.push_str(&format!("Name:\thypercore\n"));
+    result.push_str(&format!("Name:\taethercore\n"));
     result.push_str(&format!("Umask:\t0022\n"));
     result.push_str(&format!("State:\tR (running)\n"));
     result.push_str(&format!("Tgid:\t{}\n", pid));
@@ -247,7 +247,7 @@ pub(super) fn generate_self_maps(_tid: TaskId) -> String {
 pub(super) fn generate_self_stat(tid: TaskId) -> String {
     let pid = tid.0;
     format!(
-        "{} (hypercore) R {} {} 0 0 -1 4194304 0 0 0 0 0 0 0 0 20 0 1 0 0 4096000 200 18446744073709551615 4194304 4239000 140736200000000 0 0 0 0 0 0 0 0 0 17 0 0 0 0 0 0\n",
+        "{} (aethercore) R {} {} 0 0 -1 4194304 0 0 0 0 0 0 0 0 20 0 1 0 0 4096000 200 18446744073709551615 4194304 4239000 140736200000000 0 0 0 0 0 0 0 0 0 17 0 0 0 0 0 0\n",
         pid,
         pid.max(1) - 1,
         pid,
@@ -255,7 +255,7 @@ pub(super) fn generate_self_stat(tid: TaskId) -> String {
 }
 
 pub(super) fn generate_cmdline() -> String {
-    String::from("hypercore\0")
+    String::from("aethercore\0")
 }
 
 #[cfg(test)]

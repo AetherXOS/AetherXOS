@@ -51,7 +51,7 @@ impl Fairing for CorsFairing {
         ));
         resp.set_header(Header::new(
             "Access-Control-Allow-Headers",
-            "Content-Type,X-HyperCore-Token",
+            "Content-Type,X-AetherCore-Token,X-HyperCore-Token",
         ));
     }
 }

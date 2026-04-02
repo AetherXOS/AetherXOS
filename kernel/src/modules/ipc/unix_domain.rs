@@ -1,17 +1,19 @@
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::sync::atomic::{AtomicU64, Ordering};
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
+use core::sync::atomic::Ordering;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
 use super::common::{current_task_id_or_kernel, IPC_UNIX_SOCKET_QUEUE_LIMIT};
+use super::common::bounded_push_bytes;
 
-static UNIX_BIND_CALLS: AtomicU64 = AtomicU64::new(0);
-static UNIX_SEND_CALLS: AtomicU64 = AtomicU64::new(0);
-static UNIX_RECV_CALLS: AtomicU64 = AtomicU64::new(0);
-static UNIX_SEND_DROPS: AtomicU64 = AtomicU64::new(0);
-static UNIX_RECV_HITS: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(UNIX_BIND_CALLS);
+declare_counter_u64!(UNIX_SEND_CALLS);
+declare_counter_u64!(UNIX_RECV_CALLS);
+declare_counter_u64!(UNIX_SEND_DROPS);
+declare_counter_u64!(UNIX_RECV_HITS);
 
 #[derive(Debug, Clone, Copy)]
 pub struct UnixSocketStats {
@@ -32,7 +34,7 @@ lazy_static! {
 }
 
 pub fn unix_bind(path: &str) -> Result<(), &'static str> {
-    UNIX_BIND_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(UNIX_BIND_CALLS);
     if path.is_empty() || !path.starts_with('/') {
         return Err("invalid unix socket path");
     }
@@ -51,19 +53,18 @@ pub fn unix_bind(path: &str) -> Result<(), &'static str> {
 }
 
 pub fn unix_send(path: &str, payload: &[u8]) -> Result<usize, &'static str> {
-    UNIX_SEND_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(UNIX_SEND_CALLS);
     let mut sockets = UNIX_SOCKETS.lock();
     let queue = sockets.get_mut(path).ok_or("unix socket not bound")?;
-    if queue.len() >= IPC_UNIX_SOCKET_QUEUE_LIMIT {
-        UNIX_SEND_DROPS.fetch_add(1, Ordering::Relaxed);
+    if !bounded_push_bytes(queue, payload, IPC_UNIX_SOCKET_QUEUE_LIMIT) {
+        counter_inc!(UNIX_SEND_DROPS);
         return Err("unix socket queue full");
     }
-    queue.push_back(payload.to_vec());
     Ok(payload.len())
 }
 
 pub fn unix_recv(path: &str, out: &mut [u8]) -> Result<usize, &'static str> {
-    UNIX_RECV_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(UNIX_RECV_CALLS);
 
     let tid = current_task_id_or_kernel();
 
@@ -80,17 +81,28 @@ pub fn unix_recv(path: &str, out: &mut [u8]) -> Result<usize, &'static str> {
     let frame = queue.pop_front().ok_or("unix socket empty")?;
     let copied = core::cmp::min(frame.len(), out.len());
     out[..copied].copy_from_slice(&frame[..copied]);
-    UNIX_RECV_HITS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(UNIX_RECV_HITS);
     Ok(copied)
 }
 
 pub fn unix_stats() -> UnixSocketStats {
     UnixSocketStats {
-        bind_calls: UNIX_BIND_CALLS.load(Ordering::Relaxed),
-        send_calls: UNIX_SEND_CALLS.load(Ordering::Relaxed),
-        recv_calls: UNIX_RECV_CALLS.load(Ordering::Relaxed),
-        send_drops: UNIX_SEND_DROPS.load(Ordering::Relaxed),
-        recv_hits: UNIX_RECV_HITS.load(Ordering::Relaxed),
+        bind_calls: telemetry::snapshot_u64(&UNIX_BIND_CALLS),
+        send_calls: telemetry::snapshot_u64(&UNIX_SEND_CALLS),
+        recv_calls: telemetry::snapshot_u64(&UNIX_RECV_CALLS),
+        send_drops: telemetry::snapshot_u64(&UNIX_SEND_DROPS),
+        recv_hits: telemetry::snapshot_u64(&UNIX_RECV_HITS),
+        bound_sockets: UNIX_SOCKETS.lock().len(),
+    }
+}
+
+pub fn unix_take_stats() -> UnixSocketStats {
+    UnixSocketStats {
+        bind_calls: telemetry::take_u64(&UNIX_BIND_CALLS),
+        send_calls: telemetry::take_u64(&UNIX_SEND_CALLS),
+        recv_calls: telemetry::take_u64(&UNIX_RECV_CALLS),
+        send_drops: telemetry::take_u64(&UNIX_SEND_DROPS),
+        recv_hits: telemetry::take_u64(&UNIX_RECV_HITS),
         bound_sockets: UNIX_SOCKETS.lock().len(),
     }
 }

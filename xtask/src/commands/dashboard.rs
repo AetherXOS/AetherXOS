@@ -1,31 +1,23 @@
 use anyhow::{Result, bail};
 
 use crate::cli::DashboardAction;
-use crate::utils::{process, paths};
+use crate::constants;
+use crate::utils::process;
 use crate::constants::{npm, commands};
-
-#[inline(always)]
-fn npm_bin() -> &'static str {
-    if cfg!(windows) {
-        "npm.cmd"
-    } else {
-        "npm"
-    }
-}
 
 /// Entry point for `cargo run -p xtask -- dashboard <action>`.
 pub fn execute(action: &DashboardAction) -> Result<()> {
-    let dashboard_dir = paths::resolve("dashboard");
+    let dashboard_dir = constants::paths::dashboard_dir();
     match action {
         DashboardAction::Build => {
             println!("[dashboard::build] Regenerating dashboard data, HTML, and UI assets");
-            process::run_checked_in_dir(npm_bin(), &[npm::ARG_RUN, npm::SCRIPT_BUILD], &dashboard_dir)
+            process::run_checked_in_dir(process::npm_bin(), &[npm::ARG_RUN, npm::SCRIPT_BUILD], &dashboard_dir)
         }
         DashboardAction::Test => {
             println!("[dashboard::test] Running dashboard unit and E2E tests");
-            process::run_checked_in_dir(npm_bin(), &[npm::ARG_RUN, npm::SCRIPT_CHECK], &dashboard_dir)?;
+            process::run_checked_in_dir(process::npm_bin(), &[npm::ARG_RUN, npm::SCRIPT_CHECK], &dashboard_dir)?;
             process::run_checked_in_dir(
-                npm_bin(),
+                process::npm_bin(),
                 &[npm::ARG_RUN, npm::SCRIPT_TEST_UNIT, npm::ARG_SEPARATOR, npm::ARG_TEST_RUN],
                 &dashboard_dir,
             )
@@ -34,7 +26,7 @@ pub fn execute(action: &DashboardAction) -> Result<()> {
             println!("[dashboard::open] Opening dashboard in browser");
             let ui_index = dashboard_dir.join(npm::BUILD_OUTPUT_PATH);
             if !ui_index.exists() {
-                process::run_checked_in_dir(npm_bin(), &[npm::ARG_RUN, npm::SCRIPT_BUILD], &dashboard_dir)?;
+                process::run_checked_in_dir(process::npm_bin(), &[npm::ARG_RUN, npm::SCRIPT_BUILD], &dashboard_dir)?;
             }
             let target = ui_index.to_string_lossy().to_string();
             if cfg!(windows) {
@@ -47,7 +39,7 @@ pub fn execute(action: &DashboardAction) -> Result<()> {
             if *no_safe {
                 println!("[dashboard::agent] Starting agent (unsafe/no-auth mode)");
                 let status = process::run_status_in_dir(
-                    npm_bin(),
+                    process::npm_bin(),
                     &[npm::ARG_RUN, npm::SCRIPT_DEV, npm::ARG_SEPARATOR, npm::ARG_HOST, npm::HOST_UNSAFE],
                     &dashboard_dir,
                 )?;
@@ -58,7 +50,7 @@ pub fn execute(action: &DashboardAction) -> Result<()> {
             } else {
                 println!("[dashboard::agent] Starting agent in background");
                 let status = process::run_status_in_dir(
-                    npm_bin(),
+                    process::npm_bin(),
                     &[npm::ARG_RUN, npm::SCRIPT_DEV, npm::ARG_SEPARATOR, npm::ARG_HOST, npm::HOST_SAFE],
                     &dashboard_dir,
                 )?;

@@ -21,7 +21,7 @@ struct LinkedProbeSpawnRequest {
 #[inline(always)]
 fn linked_probe_spawn_request() -> LinkedProbeSpawnRequest {
     LinkedProbeSpawnRequest {
-        process_name: b"hyper_init",
+        process_name: b"aether_init",
         image: LINKED_PROBE_IMAGE,
         priority: 128,
         deadline: 0,
@@ -36,7 +36,7 @@ fn try_spawn_linked_probe(request: LinkedProbeSpawnRequest) {
 
     match result {
         Ok((pid, _tid)) => {
-            hypercore::kernel::debug_trace::record_optional(
+            aethercore::kernel::debug_trace::record_optional(
                 "linked.probe",
                 "spawn_returned",
                 Some(pid as u64),
@@ -44,22 +44,22 @@ fn try_spawn_linked_probe(request: LinkedProbeSpawnRequest) {
             );
             super::LINKED_PROBE_PID.store(pid, Ordering::Relaxed);
             super::LINKED_PROBE_SPAWNED.store(true, Ordering::Relaxed);
-            hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn returned\n");
-            hypercore::klog_info!(
+            aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn returned\n");
+            aethercore::klog_info!(
                 "[LINKED PROBE] spawned embedded probe-linked.elf bytes={} pid={}",
                 LINKED_PROBE_IMAGE.len(),
                 pid,
             );
-            hypercore::klog_info!("[LINKED PROBE] spawned hyper_init probe pid={}", pid);
+            aethercore::klog_info!("[LINKED PROBE] spawned aether_init probe pid={}", pid);
         }
         Err(err) => {
-            hypercore::kernel::debug_trace::record_optional(
+            aethercore::kernel::debug_trace::record_optional(
                 "linked.probe",
                 "spawn_failed",
                 Some(err as u64),
                 false,
             );
-            hypercore::klog_warn!("[LINKED PROBE] spawn failed: {:?}", err);
+            aethercore::klog_warn!("[LINKED PROBE] spawn failed: {:?}", err);
         }
     }
 }
@@ -68,15 +68,15 @@ fn try_spawn_linked_probe(request: LinkedProbeSpawnRequest) {
 #[inline(always)]
 fn invoke_linked_probe_spawn(
     request: LinkedProbeSpawnRequest,
-) -> Result<(usize, usize), hypercore::kernel::launch::LaunchError> {
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn attempt\n");
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn call begin\n");
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "linux_compat_ok", None, false);
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "spawn_try", None, false);
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "spawn_attempt", None, false);
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "spawn_call", None, false);
+) -> Result<(usize, usize), aethercore::kernel::launch::LaunchError> {
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn attempt\n");
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn call begin\n");
+    aethercore::kernel::debug_trace::record_optional("linked.probe", "linux_compat_ok", None, false);
+    aethercore::kernel::debug_trace::record_optional("linked.probe", "spawn_try", None, false);
+    aethercore::kernel::debug_trace::record_optional("linked.probe", "spawn_attempt", None, false);
+    aethercore::kernel::debug_trace::record_optional("linked.probe", "spawn_call", None, false);
 
-    hypercore::kernel::launch::spawn_bootstrap_from_image(
+    aethercore::kernel::launch::spawn_bootstrap_from_image(
         request.process_name,
         request.image,
         request.priority,
@@ -90,10 +90,10 @@ fn invoke_linked_probe_spawn(
 #[allow(dead_code)]
 #[inline(always)]
 fn enter_linked_probe_spawn_branch() {
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe linux compat gate returned\n");
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service spawn branch\n");
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe can spawn\n");
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "spawn_gate", None, false);
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe linux compat gate returned\n");
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service spawn branch\n");
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe can spawn\n");
+    aethercore::kernel::debug_trace::record_optional("linked.probe", "spawn_gate", None, false);
 }
 
 #[cfg(feature = "process_abstraction")]
@@ -192,13 +192,13 @@ fn load_linked_probe_runtime_state() -> LinkedProbeRuntimeState {
 #[inline(always)]
 fn prepare_linked_probe_service_decision() -> LinkedProbeServiceDecision {
     let runtime_state = load_linked_probe_runtime_state();
-    hypercore::kernel::debug_trace::record_optional(
+    aethercore::kernel::debug_trace::record_optional(
         "linked.probe",
         "linux_compat_state_loaded",
         None,
         false,
     );
-    hypercore::kernel::debug_trace::record_optional(
+    aethercore::kernel::debug_trace::record_optional(
         "linked.probe",
         "spawned_state_loaded",
         None,
@@ -206,14 +206,14 @@ fn prepare_linked_probe_service_decision() -> LinkedProbeServiceDecision {
     );
     let decision =
         linked_probe_service_decision(runtime_state.linux_compat_inited, runtime_state.spawned);
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service action ready\n");
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service action ready\n");
     decision
 }
 
 #[cfg(feature = "process_abstraction")]
 #[inline(always)]
 fn prepare_linked_probe_service_transition() -> PreparedLinkedProbeServiceDecision {
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service transition begin\n");
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service transition begin\n");
     let decision = prepare_linked_probe_service_decision();
     let spawn_request = match decision.action {
         LinkedProbeServiceAction::Spawn => Some(linked_probe_spawn_request()),
@@ -223,7 +223,7 @@ fn prepare_linked_probe_service_transition() -> PreparedLinkedProbeServiceDecisi
         decision,
         spawn_request,
     };
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service transition returned\n");
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service transition returned\n");
     transition
 }
 
@@ -236,9 +236,9 @@ fn enter_linked_probe_service() -> PreparedLinkedProbeServiceDecision {
 #[cfg(feature = "process_abstraction")]
 #[inline(always)]
 fn prepare_linked_probe_service_entry() {
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service entered\n");
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "service_entered", None, false);
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "cmdline_gate_ok", None, false);
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service entered\n");
+    aethercore::kernel::debug_trace::record_optional("linked.probe", "service_entered", None, false);
+    aethercore::kernel::debug_trace::record_optional("linked.probe", "cmdline_gate_ok", None, false);
 }
 
 #[cfg(feature = "process_abstraction")]
@@ -255,7 +255,7 @@ fn dispatch_linked_probe_service_transition(
 ) -> bool {
     match transition.decision.action {
         LinkedProbeServiceAction::WaitForLinuxCompat => {
-            hypercore::hal::serial::write_raw(
+            aethercore::hal::serial::write_raw(
                 "[EARLY SERIAL] linked probe linux compat wait bypass check\n",
             );
             true
@@ -269,16 +269,16 @@ fn dispatch_linked_probe_service_transition(
             true
         }
         LinkedProbeServiceAction::ObserveExit => {
-            hypercore::hal::serial::write_raw(
+            aethercore::hal::serial::write_raw(
                 "[EARLY SERIAL] linked probe linux compat gate returned\n",
             );
-            hypercore::kernel::debug_trace::record_optional(
+            aethercore::kernel::debug_trace::record_optional(
                 "linked.probe",
                 "linux_compat_ok",
                 None,
                 false,
             );
-            hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn skipped\n");
+            aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn skipped\n");
             false
         }
     }
@@ -287,7 +287,7 @@ fn dispatch_linked_probe_service_transition(
 #[cfg(feature = "process_abstraction")]
 #[inline(always)]
 fn run_linked_probe_service_transition() -> bool {
-    hypercore::kernel::debug_trace::record_optional(
+    aethercore::kernel::debug_trace::record_optional(
         "linked.probe",
         "service_transition_run",
         None,
@@ -302,7 +302,7 @@ pub(super) fn try_mount_initrd_once() {
         return;
     }
 
-    hypercore::kernel::debug_trace::record_optional(
+    aethercore::kernel::debug_trace::record_optional(
         "main.loop",
         "initrd_mount_attempt",
         None,
@@ -318,7 +318,7 @@ pub(super) fn try_mount_initrd_once() {
 
         if let Some(module) = info.find_initrd() {
             if module.size == 0 {
-                hypercore::klog_warn!("[INITRD] Module found but size=0, skipping mount");
+                aethercore::klog_warn!("[INITRD] Module found but size=0, skipping mount");
                 super::INITRD_MOUNTED.store(true, Ordering::Relaxed);
                 return;
             }
@@ -330,7 +330,7 @@ pub(super) fn try_mount_initrd_once() {
             // mapped for the lifetime of the kernel.
             let initrd_slice = unsafe { core::slice::from_raw_parts(virt_base as *const u8, size) };
 
-            hypercore::klog_info!(
+            aethercore::klog_info!(
                 "[INITRD] Mounting {} bytes from {:#x} ({})",
                 size,
                 module.phys_base,
@@ -338,14 +338,14 @@ pub(super) fn try_mount_initrd_once() {
             );
 
             let _ = initrd_slice;
-            match hypercore::kernel::vfs_control::mount_ramfs(b"/") {
-                Ok(_) => hypercore::klog_info!("[INITRD] Base ramfs mounted at /"),
+            match aethercore::kernel::vfs_control::mount_ramfs(b"/") {
+                Ok(_) => aethercore::klog_info!("[INITRD] Base ramfs mounted at /"),
                 Err(e) => {
-                    hypercore::klog_warn!("[INITRD] Mount fallback failed: {:?} — diskless mode", e)
+                    aethercore::klog_warn!("[INITRD] Mount fallback failed: {:?} — diskless mode", e)
                 }
             }
         } else {
-            hypercore::klog_info!("[INITRD] No initrd module provided — diskless mode");
+            aethercore::klog_info!("[INITRD] No initrd module provided — diskless mode");
         }
 
         super::INITRD_MOUNTED.store(true, Ordering::Relaxed);
@@ -362,7 +362,7 @@ pub(super) fn try_init_linux_compat_once() {
         return;
     }
 
-    hypercore::kernel::debug_trace::record_optional(
+    aethercore::kernel::debug_trace::record_optional(
         "main.loop",
         "linux_compat_init_attempt",
         None,
@@ -371,19 +371,19 @@ pub(super) fn try_init_linux_compat_once() {
 
     #[cfg(feature = "linux_compat")]
     {
-        hypercore::klog_info!("[LINUX COMPAT] Initialising linux-compat layer");
-        hypercore::modules::linux_compat::init();
-        hypercore::klog_info!("[LINUX COMPAT] Ready");
+        aethercore::klog_info!("[LINUX COMPAT] Initialising linux-compat layer");
+        aethercore::modules::linux_compat::init();
+        aethercore::klog_info!("[LINUX COMPAT] Ready");
         #[cfg(feature = "process_abstraction")]
         if super::LINKED_PROBE_ENABLED.load(Ordering::Relaxed) {
-            hypercore::kernel::debug_trace::record_optional(
+            aethercore::kernel::debug_trace::record_optional(
                 "linked.probe",
                 "linux_compat_ready",
                 None,
                 false,
             );
-            hypercore::klog_info!(
-                "[LINKED PROBE] linux-compat ready; awaiting hyper_init probe execution"
+            aethercore::klog_info!(
+                "[LINKED PROBE] linux-compat ready; awaiting aether_init probe execution"
             );
         }
     }
@@ -395,7 +395,7 @@ pub(super) fn try_init_linux_compat_once() {
 #[allow(dead_code)]
 #[inline(always)]
 fn enter_linked_probe_service_body() -> bool {
-    hypercore::kernel::debug_trace::record_optional(
+    aethercore::kernel::debug_trace::record_optional(
         "linked.probe",
         "service_body_entered",
         None,
@@ -413,21 +413,21 @@ fn observe_linked_probe_exit() {
     }
 
     if let Some(process) =
-        hypercore::kernel::launch::process_arc_by_id(hypercore::interfaces::task::ProcessId(pid))
+        aethercore::kernel::launch::process_arc_by_id(aethercore::interfaces::task::ProcessId(pid))
     {
         let (state, status, _) = process.runtime_state();
-        if state == hypercore::kernel::process::ProcessLifecycleState::Exited {
-            hypercore::kernel::debug_trace::record_optional(
+        if state == aethercore::kernel::process::ProcessLifecycleState::Exited {
+            aethercore::kernel::debug_trace::record_optional(
                 "linked.probe",
                 "exit_observed",
                 Some(status as u64),
                 false,
             );
-            hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe exit observed\n");
-            hypercore::klog_info!("[hyper_init] linked probe exit status: {}", status);
+            aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe exit observed\n");
+            aethercore::klog_info!("[aether_init] linked probe exit status: {}", status);
             if status == 0 {
                 super::LINKED_PROBE_VERIFIED.store(true, Ordering::Relaxed);
-                hypercore::klog_info!("[hyper_init] linked probe execution verified");
+                aethercore::klog_info!("[aether_init] linked probe execution verified");
             }
         }
     }
@@ -440,13 +440,13 @@ fn run_entered_linked_probe_service() -> bool {
     if !enter_linked_probe_service_body() {
         return true;
     }
-    hypercore::kernel::debug_trace::record_optional("linked.probe", "service_run", None, false);
+    aethercore::kernel::debug_trace::record_optional("linked.probe", "service_run", None, false);
     run_linked_probe_service_transition()
 }
 
 #[cfg(feature = "process_abstraction")]
 pub(super) fn service_linked_probe_once() {
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service fast path\n");
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service fast path\n");
 
     if !super::LINKED_PROBE_ENABLED.load(Ordering::Relaxed)
         || super::LINKED_PROBE_VERIFIED.load(Ordering::Relaxed)
@@ -455,17 +455,17 @@ pub(super) fn service_linked_probe_once() {
     }
 
     if !super::LINUX_COMPAT_INITED.load(Ordering::Relaxed) {
-        hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe waiting linux compat\n");
+        aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe waiting linux compat\n");
         return;
     }
 
     if !super::LINKED_PROBE_SPAWNED.load(Ordering::Relaxed) {
-        hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn fast path\n");
+        aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe spawn fast path\n");
         try_spawn_linked_probe(linked_probe_spawn_request());
         return;
     }
 
-    hypercore::hal::serial::write_raw("[EARLY SERIAL] linked probe observe fast path\n");
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe observe fast path\n");
     observe_linked_probe_exit();
 }
 
@@ -535,7 +535,7 @@ mod tests {
     #[test_case]
     fn linked_probe_spawn_request_uses_expected_static_bootstrap_contract() {
         let request = super::linked_probe_spawn_request();
-        assert_eq!(request.process_name, b"hyper_init");
+        assert_eq!(request.process_name, b"aether_init");
         assert_eq!(request.image, super::LINKED_PROBE_IMAGE);
         assert_eq!(request.priority, 128);
         assert_eq!(request.deadline, 0);

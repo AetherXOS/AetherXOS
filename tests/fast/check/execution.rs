@@ -7,9 +7,9 @@ fn fast_plan_executes_full_host_flow_when_optional_tools_are_enabled() {
         ctx::root(),
         tool::FAKE_HOST_TRIPLE,
         &[
-            "HYPERCORE_ENABLE_GEIGER",
-            "HYPERCORE_ENABLE_RUDRA",
-            "HYPERCORE_ENABLE_AUDIT",
+            "AETHERCORE_ENABLE_GEIGER",
+            "AETHERCORE_ENABLE_RUDRA",
+            "AETHERCORE_ENABLE_AUDIT",
         ],
         &["geiger", "rudra", "audit"],
         &[],
@@ -36,7 +36,7 @@ fn fast_plan_keeps_optional_tools_probe_only_when_gate_or_tool_is_missing() {
         &plan::fast(),
         ctx::root(),
         tool::FAKE_HOST_TRIPLE,
-        &["HYPERCORE_ENABLE_GEIGER"],
+        &["AETHERCORE_ENABLE_GEIGER"],
         &["geiger"],
         &[],
     );

@@ -18,6 +18,8 @@ macro_rules! define_enum {
         }
 
         impl $name {
+            const EXPECTED: &'static [&'static str] = &[$($str),+];
+
             #[inline(always)]
             pub const fn to_raw(self) -> $raw {
                 self as $raw
@@ -63,6 +65,17 @@ macro_rules! define_enum {
                 Self::from_str_enum(s)
             }
 
+            #[inline(always)]
+            pub fn parse(s: &str) -> core::result::Result<Self, ::aethercore_common::result::ParseEnumError> {
+                Self::from_str_enum(s).ok_or_else(|| {
+                    ::aethercore_common::result::ParseEnumError::new(
+                        stringify!($name),
+                        s,
+                        Self::EXPECTED,
+                    )
+                })
+            }
+
         }
 
         impl From<$name> for $raw {
@@ -86,10 +99,10 @@ macro_rules! define_enum {
         }
 
         impl core::str::FromStr for $name {
-            type Err = ();
+            type Err = ::aethercore_common::result::ParseEnumError;
             #[inline(always)]
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                Self::from_str_enum(s).ok_or(())
+                Self::parse(s)
             }
         }
 

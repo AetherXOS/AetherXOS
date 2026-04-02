@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use crate::cli::RunAction;
+use crate::constants;
 
 /// Entry point for `cargo run -p xtask -- run <action>`.
 /// Isolates emulation layers and hardware block-level testing environments.
@@ -29,7 +30,7 @@ pub fn execute(action: &RunAction) -> Result<()> {
             println!("[run::pxe] Emulating stateless distribution host for physical machine broadcasting.");
             println!("[run::pxe] Initializing HTTP-based iPXE delivery subsystem natively on port: {}", port);
             
-            let host_dir = crate::utils::paths::resolve("artifacts");
+            let host_dir = constants::paths::artifact_dir();
             if !host_dir.exists() {
                 bail!("Network serving aborted: 'artifacts' directory missing. Please 'build full' first.");
             }
@@ -38,7 +39,7 @@ pub fn execute(action: &RunAction) -> Result<()> {
             println!("[run::pxe] Use your other computer's BIOS -> Network Boot pointing to this host's IP/{}", port);
             
             let mut server = std::process::Command::new("python")
-                .args(&["-m", "http.server", &port.to_string()])
+                .args(["-m", "http.server", &port.to_string()])
                 .current_dir(&host_dir)
                 .spawn()
                 .context("Failed executing Python HTTP fallback host module. (Is Python3 installed system-wide?)")?;
@@ -50,9 +51,9 @@ pub fn execute(action: &RunAction) -> Result<()> {
             println!("[run::deploy] CRITICAL PROCESS: Immediate raw byte-transfer to '{}' target initialized.", device);
             println!("[run::deploy] CAUTION: This operation bypasses logical FAT formats to enforce raw DD block sector overwrites.");
             
-            let img_path = crate::utils::paths::resolve("artifacts/hypercore.img");
+            let img_path = constants::paths::artifact_dir().join("aethercore.img");
             if !img_path.exists() {
-                bail!("Logical RAW medium missing: 'hypercore.img'. Terminated. Execute 'cargo run -p xtask -- build full --format img' first.");
+                bail!("Logical RAW medium missing: 'aethercore.img'. Terminated. Execute 'cargo run -p xtask -- build full --format img' first.");
             }
             
             println!("[run::deploy] Origin block source verified: {}", img_path.display());

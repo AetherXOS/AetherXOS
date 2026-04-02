@@ -1,5 +1,6 @@
 use std::time::SystemTime;
 use chrono::{DateTime, Utc};
+use serde_json::{Map, Value, json};
 
 pub const RESET: &str = "\x1b[0m";
 #[allow(dead_code)]
@@ -30,8 +31,34 @@ fn get_timestamp() -> String {
     datetime.format("%H:%M:%S%.3f").to_string()
 }
 
+fn use_json_output() -> bool {
+    std::env::var("XTASK_LOG_JSON")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+        || std::env::var("XTASK_LOG_FORMAT")
+            .map(|v| v.eq_ignore_ascii_case("json"))
+            .unwrap_or(false)
+}
+
 pub fn log(level: &str, module: &str, message: &str, kv: &[(&str, &str)]) {
     let ts = get_timestamp();
+
+    if use_json_output() {
+        let mut fields = Map::new();
+        for (k, v) in kv {
+            fields.insert((*k).to_string(), Value::String((*v).to_string()));
+        }
+        let record = json!({
+            "ts": ts,
+            "level": level,
+            "module": module,
+            "message": message,
+            "fields": fields,
+        });
+        println!("{}", record);
+        return;
+    }
+
     let (bg_color, fg_color) = match level {
         "ERROR" => (BG_RED, FG_WHITE),
         "WARN"  => (BG_YELLOW, FG_BLACK),
@@ -53,6 +80,15 @@ pub fn log(level: &str, module: &str, message: &str, kv: &[(&str, &str)]) {
 
 pub fn info(module: &str, message: &str, kv: &[(&str, &str)]) {
     log("INFO", module, message, kv);
+}
+
+#[allow(dead_code)]
+pub fn event(module: &str, event: &str, status: &str, kv: &[(&str, &str)]) {
+    let mut fields = Vec::with_capacity(kv.len() + 2);
+    fields.push(("event", event));
+    fields.push(("status", status));
+    fields.extend_from_slice(kv);
+    log("INFO", module, "event", &fields);
 }
 
 pub fn exec(module: &str, command: &str) {

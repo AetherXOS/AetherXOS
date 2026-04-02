@@ -1,7 +1,7 @@
 #[cfg(feature = "vfs")]
 pub(crate) fn log_vfs_slo_thresholds() {
-    let vfs_slo = hypercore::modules::vfs::mount_slo_thresholds();
-    hypercore::klog_info!(
+    let vfs_slo = aethercore::modules::vfs::mount_slo_thresholds();
+    aethercore::klog_info!(
         "VFS SLO thresholds: read_p99<={}t write_p99<={}t mount_fail<={}‰ unmount_fail<={}‰ path_rejects<={} capacity<={}%%",
         vfs_slo.max_read_latency_ticks,
         vfs_slo.max_write_latency_ticks,
@@ -14,9 +14,9 @@ pub(crate) fn log_vfs_slo_thresholds() {
 
 #[cfg(all(feature = "vfs", feature = "vfs_telemetry"))]
 pub(crate) fn log_vfs_core_runtime() {
-    let vfs_bridge = hypercore::modules::vfs::bridge_stats();
-    let vfs_mount = hypercore::kernel::vfs_control::stats();
-    hypercore::klog_info!(
+    let vfs_bridge = aethercore::modules::vfs::bridge_stats();
+    let vfs_mount = aethercore::kernel::vfs_control::stats();
+    aethercore::klog_info!(
         "VFS core: mounts={}/{} failures={} unmount={}/{} unmount_failures={} unmount_by_path={}/{} unmount_by_path_failures={} path_rejects={} initrd_loads={} initrd_files={} initrd_bytes={} initrd_failures={} last_mount={} ramfs_open={} ramfs_create={} ramfs_remove={} fatfs_probe={} disk_read_calls={} disk_read_avg={} disk_read_p50={} disk_read_p95={} disk_read_p99={} disk_read_max={} disk_write_calls={} disk_write_avg={} disk_write_p50={} disk_write_p95={} disk_write_p99={} disk_write_max={}",
         vfs_mount.mount_success,
         vfs_mount.mount_attempts,
@@ -54,8 +54,8 @@ pub(crate) fn log_vfs_core_runtime() {
 
 #[cfg(all(feature = "vfs", not(feature = "vfs_telemetry")))]
 pub(crate) fn log_vfs_core_runtime() {
-    let vfs_mount = hypercore::kernel::vfs_control::stats();
-    hypercore::klog_info!(
+    let vfs_mount = aethercore::kernel::vfs_control::stats();
+    aethercore::klog_info!(
         "VFS core: mounts={}/{} failures={} unmount={}/{} unmount_failures={} unmount_by_path={}/{} unmount_by_path_failures={} path_rejects={} initrd_loads={} initrd_files={} initrd_bytes={} initrd_failures={} last_mount={}",
         vfs_mount.mount_success,
         vfs_mount.mount_attempts,
@@ -79,12 +79,12 @@ pub(crate) fn log_vfs_core_runtime() {
 pub(crate) fn log_vfs_library_inventory() {
     #[cfg(feature = "vfs_library_backends")]
     {
-        let backends = hypercore::modules::vfs::library_backend_inventory();
+        let backends = aethercore::modules::vfs::library_backend_inventory();
         if backends.is_empty() {
-            hypercore::klog_info!("VFS library backends: none enabled");
+            aethercore::klog_info!("VFS library backends: none enabled");
         } else {
             for backend in backends {
-                hypercore::klog_info!(
+                aethercore::klog_info!(
                     "VFS library backend: name={} feature={} target={} maturity={}",
                     backend.name,
                     backend.feature,
@@ -97,6 +97,6 @@ pub(crate) fn log_vfs_library_inventory() {
 
     #[cfg(not(feature = "vfs_library_backends"))]
     {
-        hypercore::klog_info!("VFS library backends: feature disabled");
+        aethercore::klog_info!("VFS library backends: feature disabled");
     }
 }

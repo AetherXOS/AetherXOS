@@ -5,9 +5,9 @@ use super::policy::{resolve_standby_policy, standby_driver_ready};
 
 pub(super) fn init_standby_network_driver(
     runtime: &KernelRuntime,
-    devices: &[hypercore::hal::pci::PciDevice],
+    devices: &[aethercore::hal::pci::PciDevice],
     telemetry_drivers: bool,
-    policy: hypercore::modules::drivers::NetworkDriverPolicy,
+    policy: aethercore::modules::drivers::NetworkDriverPolicy,
 ) {
     let Some((fallback_kind, fallback_policy)) = resolve_standby_policy(policy) else {
         return;
@@ -18,7 +18,7 @@ pub(super) fn init_standby_network_driver(
     }
 
     if let Some(mut fallback) =
-        hypercore::modules::drivers::probe_network_driver_with_policy(devices, fallback_policy)
+        aethercore::modules::drivers::probe_network_driver_with_policy(devices, fallback_policy)
     {
         initialize_standby_driver(runtime, telemetry_drivers, fallback);
     } else if telemetry_drivers {
@@ -32,18 +32,18 @@ pub(super) fn init_standby_network_driver(
 fn initialize_standby_driver(
     runtime: &KernelRuntime,
     telemetry_drivers: bool,
-    mut fallback: hypercore::modules::drivers::ProbedNetworkDriver,
+    mut fallback: aethercore::modules::drivers::ProbedNetworkDriver,
 ) {
     if fallback.init_driver().is_ok() {
         let irq_line = fallback.irq_line();
         let standby_kind = fallback.active_kind();
-        let attached = hypercore::modules::drivers::hotplug_attach_network_driver(fallback);
+        let attached = aethercore::modules::drivers::hotplug_attach_network_driver(fallback);
         if telemetry_drivers {
-            hypercore::klog_info!(
+            aethercore::klog_info!(
                 "Standby network driver initialized: kind={:?} attached={:?} active={:?}",
                 standby_kind,
                 attached,
-                hypercore::modules::drivers::active_network_driver()
+                aethercore::modules::drivers::active_network_driver()
             );
         }
         register_network_irq_handler(runtime, standby_kind, irq_line);

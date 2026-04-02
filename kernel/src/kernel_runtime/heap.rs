@@ -10,7 +10,7 @@
 //! DTB / UEFI memory map parser hands us a dynamic range.
 
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use hypercore::interfaces::memory::HeapAllocator;
+use aethercore::interfaces::memory::HeapAllocator;
 
 const BYTES_PER_MIB: usize = 1024 * 1024;
 static PENDING_HEAP_PHYS_ADDR: AtomicUsize = AtomicUsize::new(0);
@@ -21,8 +21,8 @@ static PENDING_COMPACTION_BASE: AtomicUsize = AtomicUsize::new(0);
 static PENDING_COMPACTION_PAGES: AtomicUsize = AtomicUsize::new(0);
 static PENDING_HEAP_FINALIZE: AtomicBool = AtomicBool::new(false);
 
-pub(super) fn init_heap(allocator: &hypercore::modules::allocators::selector::ActiveHeapAllocator) {
-    use hypercore::generated_consts::MEM_HEAP_SIZE_MB;
+pub(super) fn init_heap(allocator: &aethercore::modules::allocators::selector::ActiveHeapAllocator) {
+    use aethercore::generated_consts::MEM_HEAP_SIZE_MB;
 
     #[cfg(target_arch = "x86_64")]
     use limine::MemoryMapEntryType;
@@ -33,15 +33,15 @@ pub(super) fn init_heap(allocator: &hypercore::modules::allocators::selector::Ac
     // ── x86_64: scan Limine memory map ───────────────────────────────────────
     #[cfg(target_arch = "x86_64")]
     {
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init entry\n");
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init hhdm query\n");
-        let hhdm = hypercore::hal::x86_64::hhdm_offset().unwrap_or(0);
+        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init entry\n");
+        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init hhdm query\n");
+        let hhdm = aethercore::hal::x86_64::hhdm_offset().unwrap_or(0);
         let _ = hhdm;
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init hhdm ready\n");
+        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init hhdm ready\n");
 
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init memmap query\n");
-        if let Some(mmap) = hypercore::hal::x86_64::mem_map() {
-            hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init memmap ready\n");
+        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init memmap query\n");
+        if let Some(mmap) = aethercore::hal::x86_64::mem_map() {
+            aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init memmap ready\n");
             // Pick the largest usable region ≥ heap_size.
             let mut best_base: u64 = 0;
             let mut best_len: u64 = 0;
@@ -62,7 +62,7 @@ pub(super) fn init_heap(allocator: &hypercore::modules::allocators::selector::Ac
                 }
             }
 
-            hypercore::hal::x86_64::serial::write_raw(
+            aethercore::hal::x86_64::serial::write_raw(
                 "[EARLY SERIAL] heap init memmap scan complete\n",
             );
 
@@ -72,12 +72,12 @@ pub(super) fn init_heap(allocator: &hypercore::modules::allocators::selector::Ac
                 // Cap the region at the configured heap size so we don't over-commit.
                 let actual_size = (best_len as usize).min(heap_size);
                 #[cfg(target_arch = "x86_64")]
-                hypercore::hal::x86_64::serial::write_raw(
+                aethercore::hal::x86_64::serial::write_raw(
                     "[EARLY SERIAL] heap allocator init begin\n",
                 );
                 allocator.init(virt_addr as usize, actual_size);
                 #[cfg(target_arch = "x86_64")]
-                hypercore::hal::x86_64::serial::write_raw(
+                aethercore::hal::x86_64::serial::write_raw(
                     "[EARLY SERIAL] heap allocator init complete\n",
                 );
                 PENDING_HEAP_PHYS_ADDR.store(phys_addr as usize, Ordering::Relaxed);
@@ -98,9 +98,9 @@ pub(super) fn init_heap(allocator: &hypercore::modules::allocators::selector::Ac
             }
         }
 
-        hypercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init no usable region\n");
-        hypercore::klog_error!("No usable memory region ≥ {} MiB found!", MEM_HEAP_SIZE_MB);
-        hypercore::kernel::fatal_halt("out of memory during heap init");
+        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init no usable region\n");
+        aethercore::klog_error!("No usable memory region ≥ {} MiB found!", MEM_HEAP_SIZE_MB);
+        aethercore::kernel::fatal_halt("out of memory during heap init");
     }
 
     // ── AArch64: larger static heap with DTB fallback notice ──────────────────
@@ -119,7 +119,7 @@ pub(super) fn init_heap(allocator: &hypercore::modules::allocators::selector::Ac
             p
         };
 
-        hypercore::klog_info!(
+        aethercore::klog_info!(
             "Heap (AArch64 static fallback): ptr={:#x} size={} MiB",
             ptr as usize,
             AARCH64_HEAP_SIZE / BYTES_PER_MIB
@@ -127,9 +127,9 @@ pub(super) fn init_heap(allocator: &hypercore::modules::allocators::selector::Ac
         allocator.init(ptr as usize, AARCH64_HEAP_SIZE);
 
         // If a DTB gives us additional memory, it will be hotplugged later via
-        // hypercore::modules::allocators::advanced::hotplug_add_memory().
-        if let Some(dtb_phys) = hypercore::hal::dtb_addr() {
-            hypercore::klog_info!(
+        // aethercore::modules::allocators::advanced::hotplug_add_memory().
+        if let Some(dtb_phys) = aethercore::hal::dtb_addr() {
+            aethercore::klog_info!(
                 "Heap: DTB at {:#x} — dynamic memory regions should be added via hotplug",
                 dtb_phys
             );
@@ -146,7 +146,7 @@ pub(super) fn finalize_heap_bootstrap() {
     let phys_addr = PENDING_HEAP_PHYS_ADDR.load(Ordering::Relaxed);
     let actual_size = PENDING_HEAP_ACTUAL_SIZE.load(Ordering::Relaxed);
     let best_len = PENDING_HEAP_BEST_LEN.load(Ordering::Relaxed);
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Heap: virt={:#x} phys={:#x} size={} MiB ({} MiB available)",
         virt_addr,
         phys_addr,
@@ -157,11 +157,11 @@ pub(super) fn finalize_heap_bootstrap() {
     let compaction_pages = PENDING_COMPACTION_PAGES.swap(0, Ordering::Relaxed);
     if compaction_pages != 0 {
         let compaction_base = PENDING_COMPACTION_BASE.swap(0, Ordering::Relaxed);
-        hypercore::modules::allocators::advanced::register_compaction_candidate(
+        aethercore::modules::allocators::advanced::register_compaction_candidate(
             compaction_base,
             compaction_pages,
         );
-        hypercore::klog_info!(
+        aethercore::klog_info!(
             "Heap: {} MiB remainder registered for memory compaction",
             (compaction_pages * 4096) / BYTES_PER_MIB
         );

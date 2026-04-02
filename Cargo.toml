@@ -1,30 +1,31 @@
 [package]
-name = "hypercore"
-version = "0.2.0"
-edition = "2021"
-authors = ["HyperCore Architect <systems@hypercore.os>"]
+name = "aether-x-os"
+version = "0.0.1"
+edition = "2024"
+authors = ["Aether X OS Architect <systems@aetherxos.com>"]
 
 [lib]
+name = "aethercore"
 path = "kernel/src/lib.rs"
 
 [[bin]]
-name = "hypercore"
+name = "aethercore"
 path = "kernel/src/main.rs"
 
-[package.metadata.hypercore]
+[package.metadata.aethercore]
 
-[package.metadata.hypercore.config.meta]
+[package.metadata.aethercore.config.meta]
 profile = "custom"
-version = "1.0.0"
+version = "0.0.1"
 
-[package.metadata.hypercore.config.kernel]
+[package.metadata.aethercore.config.kernel]
 arch = "x86_64"
 time_slice_ns = 4_000_000
 stack_size_pages = 16
 max_cpus = 64
 interrupt_stack_size_pages = 8
 
-[package.metadata.hypercore.config.core]
+[package.metadata.aethercore.config.core]
 enable_smp = true
 enable_work_stealing = true
 enable_pci_enumeration = true
@@ -54,7 +55,7 @@ soft_watchdog_stall_ticks = 4096
 soft_watchdog_action = "Halt"
 crash_log_capacity = 64
 
-[package.metadata.hypercore.config.library]
+[package.metadata.aethercore.config.library]
 boundary_mode = "Strict"
 enforce_core_minimal = true
 strict_optional_features = true
@@ -72,12 +73,12 @@ libnet_fast_path_pump_budget = 64
 max_services = 128
 verbose_boot_inventory = true
 
-[package.metadata.hypercore.config.boot]
+[package.metadata.aethercore.config.boot]
 cmdline_parse = true
 splash_screen = true
 quiet_boot = false
 
-[package.metadata.hypercore.config.memory]
+[package.metadata.aethercore.config.memory]
 allocator = "Slab"
 paging = true
 heap_size_mb = 32
@@ -86,46 +87,46 @@ slab_reclaim_profile = "Balanced"
 slab_pressure_scan_budget = 8
 slab_max_tracked_segments = 1024
 
-[package.metadata.hypercore.config.scheduler]
+[package.metadata.aethercore.config.scheduler]
 strategy = "CFS"
 priority_levels = 64
 
-[package.metadata.hypercore.config.scheduler.round_robin]
+[package.metadata.aethercore.config.scheduler.round_robin]
 max_tasks = 1024
 default_slice_ns = 4_000_000
 
-[package.metadata.hypercore.config.scheduler.cfs]
+[package.metadata.aethercore.config.scheduler.cfs]
 min_granularity_ns = 1_000_000
 latency_target_ns = 6_000_000
 
-[package.metadata.hypercore.config.scheduler.edf]
+[package.metadata.aethercore.config.scheduler.edf]
 max_deadlines = 128
 enforce_deadline = true
 default_relative_deadline_ns = 8_000_000
 
-[package.metadata.hypercore.config.scheduler.mlfq]
+[package.metadata.aethercore.config.scheduler.mlfq]
 num_queues = 4
 base_slice_ns = 1_000_000
 boost_interval_ticks = 250
 demote_on_slice_exhaustion = true
 
-[package.metadata.hypercore.config.scheduler.rt]
+[package.metadata.aethercore.config.scheduler.rt]
 enable_group_reservation = true
 period_ns = 100_000_000
 total_utilization_cap_percent = 80
 max_groups = 8
 
-[package.metadata.hypercore.config.dispatcher]
+[package.metadata.aethercore.config.dispatcher]
 strategy = "Vectored"
 buffer_size = 256
 vector_table_align = 128
 
-[package.metadata.hypercore.config.ipc]
+[package.metadata.aethercore.config.ipc]
 mechanism = "RingBuffer"
 max_channels = 1024
 msg_size_limit = 4096
 
-[package.metadata.hypercore.config.security]
+[package.metadata.aethercore.config.security]
 ring_level = "Ring3"
 monitor = "NullMonitor"
 nx_bit = true
@@ -137,7 +138,7 @@ max_security_labels = 256
 max_capability_tokens = 4096
 default_user_capabilities = 0
 
-[package.metadata.hypercore.config.telemetry]
+[package.metadata.aethercore.config.telemetry]
 enabled = true
 history_len = 100
 log_level = "Debug"
@@ -150,7 +151,7 @@ security = true
 power = true
 drivers = true
 
-[package.metadata.hypercore.config.linux_compat]
+[package.metadata.aethercore.config.linux_compat]
 max_path_len = 4096
 max_iov_count = 1024
 max_sockaddr_len = 1024
@@ -168,7 +169,7 @@ robust_list_head_size = 24
 enable_standard_error_mapping = true
 verbose_syscall_logs = false
 
-[package.metadata.hypercore.config.vfs]
+[package.metadata.aethercore.config.vfs]
 max_mounts = 256
 max_mount_path = 4096
 enable_buffered_io = false
@@ -184,7 +185,7 @@ devfs_net_gid = 0
 devfs_storage_mode = 0o660
 devfs_storage_gid = 0
 
-[package.metadata.hypercore.config.network]
+[package.metadata.aethercore.config.network]
 loopback_queue_limit = 128
 udp_queue_limit = 256
 tcp_queue_limit = 256
@@ -198,7 +199,7 @@ blocking_recv_retries = 64
 slo_sample_interval = 1024
 slo_log_interval_multiplier = 8
 
-[package.metadata.hypercore.config.drivers]
+[package.metadata.aethercore.config.drivers]
 network_irq_service_budget = 64
 network_loop_service_budget = 128
 network_ring_limit = 512
@@ -223,7 +224,7 @@ e1000_buffer_size_bytes = 2048
 e1000_rx_desc_count = 32
 e1000_tx_desc_count = 256
 
-[package.metadata.hypercore.config.governor]
+[package.metadata.aethercore.config.governor]
 watchdog_hard_stall_ns = 5000000000
 rt_force_min_ticks = 2
 rt_deadline_burst_threshold = 3
@@ -233,11 +234,11 @@ load_balance_percentile_window = 256
 runtime_policy_drift_sample_interval_ticks = 1024
 runtime_policy_drift_reapply_cooldown_ticks = 8192
 
-[package.metadata.hypercore.config.linux_os]
+[package.metadata.aethercore.config.linux_os]
 release = "5.15.0"
-version = "1.0 hypercore-os"
+version = "0.0.1"
 
-[package.metadata.hypercore.config.aarch64]
+[package.metadata.aethercore.config.aarch64]
 pci_ecam_bases = [0x10000000, 0x3F000000]
 pci_scan_stop_on_first_hit = true
 pci_max_bus = 255
@@ -261,7 +262,7 @@ irq_per_line_log_every = 64
 tlb_shootdown_timeout_spins = 1000000
 smp_known_mpidrs = [0x00000001, 0x00000002, 0x00000003]
 
-[package.metadata.hypercore.config."scheduler.lottery"]
+[package.metadata.aethercore.config."scheduler.lottery"]
 initial_seed = 3405691582
 tickets_per_priority_level = 10
 min_tickets_per_task = 1
@@ -273,6 +274,7 @@ lcg_increment = 1
 limine = "0.1.12"
 volatile = "0.5.4"
 spin = "0.9.8"
+aethercore-common = { path = "shared" }
 
 bitflags = "2.4.0"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }

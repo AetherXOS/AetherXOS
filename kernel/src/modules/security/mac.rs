@@ -3,16 +3,17 @@ use crate::interfaces::security::{
 };
 use crate::interfaces::task::TaskId;
 use alloc::collections::BTreeMap;
-use core::sync::atomic::{AtomicU64, Ordering};
+use core::sync::atomic::Ordering;
 use lazy_static::lazy_static;
 use spin::Mutex;
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 
 // ─── Telemetry ──────────────────────────────────────────────────────
-static MAC_SET_LABEL_CALLS: AtomicU64 = AtomicU64::new(0);
-static MAC_SET_CLEARANCE_CALLS: AtomicU64 = AtomicU64::new(0);
-static MAC_CHECK_CALLS: AtomicU64 = AtomicU64::new(0);
-static MAC_CHECK_HITS: AtomicU64 = AtomicU64::new(0);
-static MAC_CHECK_DENIED: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(MAC_SET_LABEL_CALLS);
+declare_counter_u64!(MAC_SET_CLEARANCE_CALLS);
+declare_counter_u64!(MAC_CHECK_CALLS);
+declare_counter_u64!(MAC_CHECK_HITS);
+declare_counter_u64!(MAC_CHECK_DENIED);
 
 /// Legacy label enum (kept for backward compat).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -56,7 +57,7 @@ lazy_static! {
 
 /// Set the security label for a resource.
 pub fn set_resource_label(resource: u64, label: MacLabel) {
-    MAC_SET_LABEL_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(MAC_SET_LABEL_CALLS);
     RESOURCE_LABELS
         .lock()
         .insert(resource, label.to_security_level());
@@ -64,19 +65,19 @@ pub fn set_resource_label(resource: u64, label: MacLabel) {
 
 /// Set the security label for a resource using SecurityLevel directly.
 pub fn set_resource_security_level(resource: u64, level: SecurityLevel) {
-    MAC_SET_LABEL_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(MAC_SET_LABEL_CALLS);
     RESOURCE_LABELS.lock().insert(resource, level);
 }
 
 /// Set per-task clearance level.
 pub fn set_task_clearance(task_id: TaskId, level: SecurityLevel) {
-    MAC_SET_CLEARANCE_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(MAC_SET_CLEARANCE_CALLS);
     TASK_CLEARANCE.lock().insert(task_id, level);
 }
 
 /// Set the global fallback clearance (legacy API).
 pub fn set_subject_clearance(clearance: MacLabel) {
-    MAC_SET_CLEARANCE_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(MAC_SET_CLEARANCE_CALLS);
     *GLOBAL_CLEARANCE.lock() = clearance.to_security_level();
 }
 
@@ -91,7 +92,7 @@ pub fn effective_clearance(task_id: TaskId) -> SecurityLevel {
 
 /// Check MAC access: does the current task/context have clearance for this resource?
 pub fn check_access(resource: u64) -> bool {
-    MAC_CHECK_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(MAC_CHECK_CALLS);
 
     let required = RESOURCE_LABELS
         .lock()
@@ -111,9 +112,9 @@ pub fn check_access(resource: u64) -> bool {
 
     let ok = clearance >= required;
     if ok {
-        MAC_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(MAC_CHECK_HITS);
     } else {
-        MAC_CHECK_DENIED.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(MAC_CHECK_DENIED);
     }
     ok
 }
@@ -124,7 +125,7 @@ pub fn check_access_full(
     resource: u64,
     _action: SecurityAction,
 ) -> SecurityVerdict {
-    MAC_CHECK_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(MAC_CHECK_CALLS);
 
     let required = RESOURCE_LABELS
         .lock()
@@ -153,14 +154,14 @@ pub fn check_access_full(
     };
 
     if allowed {
-        MAC_CHECK_HITS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(MAC_CHECK_HITS);
         if ctx.audit_enabled {
             SecurityVerdict::AuditAllow
         } else {
             SecurityVerdict::Allow
         }
     } else {
-        MAC_CHECK_DENIED.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(MAC_CHECK_DENIED);
         if ctx.audit_enabled {
             SecurityVerdict::AuditDeny
         } else {
@@ -171,11 +172,23 @@ pub fn check_access_full(
 
 pub fn stats() -> MacStats {
     MacStats {
-        set_label_calls: MAC_SET_LABEL_CALLS.load(Ordering::Relaxed),
-        set_clearance_calls: MAC_SET_CLEARANCE_CALLS.load(Ordering::Relaxed),
-        check_calls: MAC_CHECK_CALLS.load(Ordering::Relaxed),
-        check_hits: MAC_CHECK_HITS.load(Ordering::Relaxed),
-        check_denied: MAC_CHECK_DENIED.load(Ordering::Relaxed),
+        set_label_calls: telemetry::snapshot_u64(&MAC_SET_LABEL_CALLS),
+        set_clearance_calls: telemetry::snapshot_u64(&MAC_SET_CLEARANCE_CALLS),
+        check_calls: telemetry::snapshot_u64(&MAC_CHECK_CALLS),
+        check_hits: telemetry::snapshot_u64(&MAC_CHECK_HITS),
+        check_denied: telemetry::snapshot_u64(&MAC_CHECK_DENIED),
+        resource_label_count: RESOURCE_LABELS.lock().len(),
+        task_clearance_count: TASK_CLEARANCE.lock().len(),
+    }
+}
+
+pub fn take_stats() -> MacStats {
+    MacStats {
+        set_label_calls: telemetry::take_u64(&MAC_SET_LABEL_CALLS),
+        set_clearance_calls: telemetry::take_u64(&MAC_SET_CLEARANCE_CALLS),
+        check_calls: telemetry::take_u64(&MAC_CHECK_CALLS),
+        check_hits: telemetry::take_u64(&MAC_CHECK_HITS),
+        check_denied: telemetry::take_u64(&MAC_CHECK_DENIED),
         resource_label_count: RESOURCE_LABELS.lock().len(),
         task_clearance_count: TASK_CLEARANCE.lock().len(),
     }

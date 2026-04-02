@@ -2,6 +2,7 @@ use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use aethercore_common::TargetArch;
 use crate::cli::{Bootloader, BuildAction, ImageFormat};
 use crate::utils::{cargo, paths, logging};
 use crate::constants::{self, cargo as cargo_consts};
@@ -12,25 +13,25 @@ pub fn execute(action: &BuildAction) -> Result<()> {
     match action {
         BuildAction::Full { arch, bootloader, format, release } => {
             logging::info("build", "starting end-to-end pipeline", &[
-                ("arch", arch), 
-                ("bootloader", &format!("{:?}", bootloader)), 
-                ("format", &format!("{:?}", format)), 
+                ("arch", arch.as_str()), 
+                ("bootloader", bootloader.as_str()), 
+                ("format", format.as_str()), 
                 ("release", &release.to_string())
             ]);
             
-            build_kernel(arch, *release).context("Failed to compile kernel component")?;
+            build_kernel(*arch, *release).context("Failed to compile kernel component")?;
             build_initramfs().context("Failed to generate initramfs structure")?;
-            bundle_image(arch, bootloader, format).context("Failed to assemble bootable image hierarchy")?;
+            bundle_image(*arch, bootloader, format).context("Failed to assemble bootable image hierarchy")?;
         }
         BuildAction::Image { bootloader, format } => {
             logging::info("build", "assembling bootable image medium", &[
-                ("bootloader", &format!("{:?}", bootloader)), 
-                ("format", &format!("{:?}", format))
+                ("bootloader", bootloader.as_str()), 
+                ("format", format.as_str())
             ]);
-            bundle_image(constants::defaults::ARCH, bootloader, format).context("Failed to assemble specific bootable image format")?;
+            bundle_image(constants::defaults::build::ARCH, bootloader, format).context("Failed to assemble specific bootable image format")?;
         }
         BuildAction::Kernel { arch, release } => {
-            build_kernel(arch, *release).context("Failed to natively compile kernel")?;
+            build_kernel(*arch, *release).context("Failed to natively compile kernel")?;
         }
         BuildAction::Initramfs => {
             build_initramfs().context("Failed to pack initramfs")?;
@@ -43,21 +44,14 @@ pub fn execute(action: &BuildAction) -> Result<()> {
         }
     }
     
-    logging::ready("xtask", "pipeline process execution completed successfully", "artifacts/");
+    logging::ready("xtask", "pipeline process execution completed successfully", constants::paths::ARTIFACTS_DIR);
     Ok(())
 }
 
 /// Compiles the kernel ELF payload for the explicitly defined target architecture.
-fn build_kernel(arch: &str, is_release: bool) -> Result<()> {
-    logging::info("kernel", "processing standard kernel build", &[("arch", arch)]);
-    
-    // Validate architecture is supported
-    if !constants::arch::is_valid(arch) {
-        bail!("Unsupported architecture '{}'. Supported: {:?}", arch, constants::arch::supported());
-    }
-    
-    let target_triple = constants::arch::to_bare_metal_triple(arch)
-        .expect("Architecture already validated");
+fn build_kernel(arch: TargetArch, is_release: bool) -> Result<()> {
+    logging::info("kernel", "processing standard kernel build", &[("arch", arch.as_str())]);
+    let target_triple = arch.to_bare_metal_triple();
 
     let mut args = vec![cargo_consts::CMD_BUILD, cargo_consts::ARG_TARGET, target_triple];
     if is_release {
@@ -73,8 +67,8 @@ fn build_kernel(arch: &str, is_release: bool) -> Result<()> {
 fn build_initramfs() -> Result<()> {
     logging::info("ramfs", "generating CPIO compressed initramfs archive", &[]);
     
-    let initramfs_src = paths::resolve("boot/initramfs");
-    let out_archive = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
+    let initramfs_src = constants::paths::boot_initramfs_src();
+    let out_archive = constants::paths::boot_image_stage_initramfs();
     
     if let Some(parent) = out_archive.parent() {
         paths::ensure_dir(parent).context("Failed resolving parent directory for initramfs stage")?;
@@ -94,7 +88,13 @@ fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
         bail!("Requested userspace application directory not found: {}", app_dir.display());
     }
 
-    let mut compiler_args = vec!["build", "--manifest-path", "Cargo.toml", "--target", "x86_64-unknown-none"];
+    let mut compiler_args = vec![
+        cargo_consts::CMD_BUILD,
+        cargo_consts::ARG_MANIFEST_PATH,
+        cargo_consts::MANIFEST_FILE,
+        cargo_consts::ARG_TARGET,
+        constants::defaults::build::USERSPACE_TARGET,
+    ];
     if is_release {
         compiler_args.push(cargo_consts::ARG_RELEASE);
     }
@@ -110,9 +110,9 @@ fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
     }
 
     let target_profile = if is_release { "release" } else { "debug" };
-    let compiled_elf = app_dir.join(format!("target/x86_64-unknown-none/{}/{}", target_profile, name));
+    let compiled_elf = app_dir.join(format!("target/{}/{}/{}", constants::defaults::build::USERSPACE_TARGET, target_profile, name));
     
-    let init_bin_dir = paths::resolve("artifacts/boot_image/stage/boot/initramfs/usr/bin");
+    let init_bin_dir = constants::paths::boot_image_stage_boot().join("initramfs/usr/bin");
     paths::ensure_dir(&init_bin_dir)?;
     
     if compiled_elf.exists() {
@@ -127,21 +127,14 @@ fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
 
 /// Binds requested OS components (Kernel, RAM_FS, Configs) using the specified bootloader.
 /// Delegates the resulting staged directory into the ultimate format defined by ImageFormat.
-fn bundle_image(arch: &str, bootloader: &Bootloader, format: &ImageFormat) -> Result<()> {
-    let stage_dir = paths::resolve("artifacts/boot_image/stage/boot");
+fn bundle_image(arch: TargetArch, bootloader: &Bootloader, format: &ImageFormat) -> Result<()> {
+    let stage_dir = constants::paths::boot_image_stage_boot();
     paths::ensure_dir(&stage_dir)?;
-    
-    // Validate architecture
-    if !constants::arch::is_valid(arch) {
-        bail!("Invalid architecture for bundling: '{}'. Supported: {:?}", arch, constants::arch::supported());
-    }
-    
-    let target_triple = constants::arch::to_bare_metal_triple(arch)
-        .expect("Architecture already validated");
+    let target_triple = arch.to_bare_metal_triple();
 
     // Abstracted stage kernel artifact path (Rust emits without .elf on unknown-none)
-    let kernel_src = paths::resolve(&format!("target/{}/debug/hypercore", target_triple));
-    let kernel_src_release = paths::resolve(&format!("target/{}/release/hypercore", target_triple));
+    let kernel_src = paths::resolve(&format!("target/{}/debug/aethercore", target_triple));
+    let kernel_src_release = paths::resolve(&format!("target/{}/release/aethercore", target_triple));
     
     let active_kernel = if kernel_src_release.exists() {
         &kernel_src_release
@@ -150,7 +143,7 @@ fn bundle_image(arch: &str, bootloader: &Bootloader, format: &ImageFormat) -> Re
     };
 
     if active_kernel.exists() {
-        fs::copy(active_kernel, stage_dir.join("hypercore.elf"))
+        fs::copy(active_kernel, stage_dir.join("aethercore.elf"))
             .context("Failed staging binary kernel executable payload")?;
     } else {
         logging::info("image", "WARNING: kernel executable not discovered", &[]);
@@ -162,15 +155,15 @@ fn bundle_image(arch: &str, bootloader: &Bootloader, format: &ImageFormat) -> Re
             logging::info("image", "injecting limine protocol definitions", &[]);
             crate::commands::infra::limine::generate_configs(
                 &stage_dir,
-                "hypercore.elf",
+                "aethercore.elf",
                 "initramfs.cpio.gz",
-                "console=ttyS0 loglevel=7",
+                constants::defaults::run::KERNEL_APPEND,
             ).context("Limine baseline integration process failed")?;
         }
         Bootloader::Multiboot2 | Bootloader::Grub => {
             logging::info("image", "injecting multiboot2/grub2 legacy bindings", &[]);
             let grub_cfg = stage_dir.join("grub.cfg");
-            let cfg_content = "set timeout=0\nset default=0\nmenuentry \"AetherXOS\" {\n  multiboot2 /boot/hypercore.elf\n  boot\n}\n";
+            let cfg_content = "set timeout=0\nset default=0\nmenuentry \"Aether X OS\" {\n  multiboot2 /boot/aethercore.elf\n  boot\n}\n";
             fs::write(grub_cfg, cfg_content).context("GRUB sequential binding failed")?;
         }
         Bootloader::Direct => {
@@ -179,31 +172,31 @@ fn bundle_image(arch: &str, bootloader: &Bootloader, format: &ImageFormat) -> Re
     }
 
     // Target emission handling
-    let outdir_env = std::env::var("XTASK_OUTDIR").unwrap_or_else(|_| "artifacts".to_string());
+    let outdir_env = std::env::var("XTASK_OUTDIR").unwrap_or_else(|_| constants::paths::ARTIFACTS_DIR.to_string());
     let cli_outdir = PathBuf::from(outdir_env);
     
     match format {
         ImageFormat::Iso => {
-            let iso_out = cli_outdir.join("hypercore.iso");
+            let iso_out = cli_outdir.join("aethercore.iso");
             crate::commands::infra::iso::assemble(&stage_dir, &iso_out)
                 .context("Native ISO xorriso manipulation failed")?;
             logging::ready("image", "ISO image ready", &iso_out.to_string_lossy());
         }
         ImageFormat::Img => {
-            let base_iso = cli_outdir.join("hypercore-img-intermediate.iso");
+            let base_iso = cli_outdir.join("aethercore-img-intermediate.iso");
             crate::commands::infra::iso::assemble(&stage_dir, &base_iso)?;
             
-            let img_out = cli_outdir.join("hypercore.img");
+            let img_out = cli_outdir.join("aethercore.img");
             logging::info("image", "converting target to block RAW format", &[]);
             generate_raw_image(&base_iso, &img_out)?;
             let _ = fs::remove_file(base_iso);
             logging::ready("image", "disk image ready", &img_out.to_string_lossy());
         }
         ImageFormat::Vhd => {
-            let base_iso = cli_outdir.join("hypercore-vhd-intermediate.iso");
+            let base_iso = cli_outdir.join("aethercore-vhd-intermediate.iso");
             crate::commands::infra::iso::assemble(&stage_dir, &base_iso)?;
             
-            let vhd_out = cli_outdir.join("hypercore.vhd");
+            let vhd_out = cli_outdir.join("aethercore.vhd");
             logging::info("image", "converting target to VHD architecture", &[]);
             generate_vhd_image(&base_iso, &vhd_out)?;
             let _ = fs::remove_file(base_iso);
@@ -214,6 +207,16 @@ fn bundle_image(arch: &str, bootloader: &Bootloader, format: &ImageFormat) -> Re
     Ok(())
 }
 
+fn qemu_img_binary() -> Option<&'static str> {
+    if crate::utils::process::which(constants::tools::QEMU_IMG) {
+        Some(constants::tools::QEMU_IMG)
+    } else if crate::utils::process::which(constants::tools::QEMU_IMG_EXE) {
+        Some(constants::tools::QEMU_IMG_EXE)
+    } else {
+        None
+    }
+}
+
 /// Internal pipeline tool to translate a generic ISO layout into an absolute RAW block format (dd-capable)
 fn generate_raw_image(iso_src: &Path, img_dest: &Path) -> Result<()> {
     if !iso_src.exists() {
@@ -221,9 +224,12 @@ fn generate_raw_image(iso_src: &Path, img_dest: &Path) -> Result<()> {
     }
     
     // Prefer QEMU-IMG binary translations if available on host. Fallback to 1-to-1 ISOHybrid block copy natively.
-    if crate::utils::process::which("qemu-img") || crate::utils::process::which("qemu-img.exe") {
+    if let Some(qemu_img) = qemu_img_binary() {
         logging::info("image", "relying on qemu-img translation sub-system", &[]);
-        crate::utils::process::run_checked("qemu-img", &["convert", "-O", "raw", &iso_src.to_string_lossy(), &img_dest.to_string_lossy()])
+        crate::utils::process::run_checked(
+            qemu_img,
+            &["convert", "-O", "raw", &iso_src.to_string_lossy(), &img_dest.to_string_lossy()],
+        )
             .context("QEMU-IMG structural synthesis failed.")?;
     } else {
         logging::info("image", "standard host fallback: copying native ISOHybrid", &[]);
@@ -240,9 +246,12 @@ fn generate_vhd_image(iso_src: &Path, vhd_dest: &Path) -> Result<()> {
     }
     
     // Explicit hard dependency requirement for hypervisor-level translations (VirtualPC formatting)
-    if crate::utils::process::which("qemu-img") || crate::utils::process::which("qemu-img.exe") {
+    if let Some(qemu_img) = qemu_img_binary() {
         logging::info("image", "requesting qemu-img vpc header construction", &[]);
-        crate::utils::process::run_checked("qemu-img", &["convert", "-O", "vpc", &iso_src.to_string_lossy(), &vhd_dest.to_string_lossy()])
+        crate::utils::process::run_checked(
+            qemu_img,
+            &["convert", "-O", "vpc", &iso_src.to_string_lossy(), &vhd_dest.to_string_lossy()],
+        )
             .context("QEMU-IMG VHD header translation constraint failed.")?;
     } else {
         bail!("A verified QEMU environment is strictly required on this host workstation to construct VHD layouts.");

@@ -1,8 +1,8 @@
 use super::super::super::super::*;
 
 pub(super) fn log_driver_runtime_registry() {
-    let registry = hypercore::modules::drivers::runtime_registry_snapshot();
-    hypercore::klog_info!(
+    let registry = aethercore::modules::drivers::runtime_registry_snapshot();
+    aethercore::klog_info!(
         "Driver runtime registry: virtio={} e1000={} register={} unregister={} hotplug_attach={} hotplug_detach={} last_attach={:?} last_detach={:?} events={} overwrites={} last_event={:?}",
         registry.has_virtio,
         registry.has_e1000,
@@ -17,15 +17,15 @@ pub(super) fn log_driver_runtime_registry() {
         registry.last_event
     );
 
-    let mut recent_events = [hypercore::modules::drivers::DriverRuntimeEvent {
+    let mut recent_events = [aethercore::modules::drivers::DriverRuntimeEvent {
         seq: 0,
-        kind: hypercore::modules::drivers::DriverRuntimeEventKind::Registered,
-        driver: hypercore::modules::drivers::ActiveNetworkDriver::None,
+        kind: aethercore::modules::drivers::DriverRuntimeEventKind::Registered,
+        driver: aethercore::modules::drivers::ActiveNetworkDriver::None,
     }; 4];
-    let recent_count = hypercore::modules::drivers::runtime_registry_events(&mut recent_events);
+    let recent_count = aethercore::modules::drivers::runtime_registry_events(&mut recent_events);
     if recent_count > 0 {
         for event in recent_events.iter().take(recent_count) {
-            hypercore::klog_info!(
+            aethercore::klog_info!(
                 "Driver runtime event: seq={} kind={:?} driver={:?}",
                 event.seq,
                 event.kind,

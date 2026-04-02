@@ -1,4 +1,4 @@
-use super::common::{current_task_id_or_kernel, IPC_RING_BUFFER_SIZE_BYTES};
+use super::common::{current_task_id_or_kernel, suspend_on, wake_one_task, IPC_RING_BUFFER_SIZE_BYTES};
 use crate::interfaces::IpcChannel;
 use crate::kernel::sync::WaitQueue;
 use core::cell::UnsafeCell;
@@ -274,14 +274,12 @@ impl RingBuffer {
                 self.send_enqueued.fetch_add(1, Ordering::Relaxed);
 
                 // 5. Wake consumer
-                if let Some(w) = self.consumer_wait.wake_one() {
-                    crate::kernel::task::wake_task(w);
-                }
+                wake_one_task(&self.consumer_wait);
                 return;
             }
 
             // Full: Block wait
-            crate::kernel::task::suspend_current_task(&self.producer_wait);
+            suspend_on(&self.producer_wait);
         }
     }
 
@@ -342,15 +340,13 @@ impl RingBuffer {
                 self.receive_hits.fetch_add(1, Ordering::Relaxed);
 
                 // 5. Wake producer
-                if let Some(w) = self.producer_wait.wake_one() {
-                    crate::kernel::task::wake_task(w);
-                }
+                wake_one_task(&self.producer_wait);
 
                 return Some(copy_len);
             }
 
             // Empty: Block wait
-            crate::kernel::task::suspend_current_task(&self.consumer_wait);
+            suspend_on(&self.consumer_wait);
         }
     }
 }

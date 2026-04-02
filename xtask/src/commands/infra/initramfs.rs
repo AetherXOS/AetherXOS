@@ -13,22 +13,22 @@ const CPIO_MAGIC: &str = "070701";
 /// Files that must always have the executable bit set.
 const FORCE_EXECUTABLE: &[&str] = &[
     "init",
-    "usr/bin/hyper_init",
-    "usr/bin/hypercore-diskfs-setup",
-    "usr/bin/hypercore-pivot-root",
-    "usr/bin/hypercore-apt-seed",
-    "usr/bin/hypercore-userspace-abi-check",
-    "usr/lib/hypercore/init",
-    "usr/lib/hypercore/init.elf",
-    "usr/lib/hypercore/probe.elf",
-    "usr/lib/hypercore/probe-linked.elf",
-    "usr/lib/hypercore/console.elf",
+    "usr/bin/aether_init",
+    "usr/bin/aethercore-diskfs-setup",
+    "usr/bin/aethercore-pivot-root",
+    "usr/bin/aethercore-apt-seed",
+    "usr/bin/aethercore-userspace-abi-check",
+    "usr/lib/aethercore/init",
+    "usr/lib/aethercore/init.elf",
+    "usr/lib/aethercore/probe.elf",
+    "usr/lib/aethercore/probe-linked.elf",
+    "usr/lib/aethercore/console.elf",
 ];
 
 /// Required directories in the initramfs layout.
 const REQUIRED_DIRS: &[&str] = &[
     "bin", "dev", "etc", "proc", "run", "sys", "tmp",
-    "usr", "usr/bin", "usr/lib", "usr/lib/hypercore",
+    "usr", "usr/bin", "usr/lib", "usr/lib/aethercore",
     "var", "var/log",
 ];
 
@@ -124,10 +124,10 @@ fn validate_layout(dir: &Path) -> Result<()> {
     }
 
     // Check early userspace binary
-    let has_hyper_init = dir.join("usr/bin/hyper_init").exists();
+    let has_aether_init = dir.join("usr/bin/aether_init").exists();
     let has_sh = dir.join("bin/sh").exists();
-    if !has_hyper_init && !has_sh {
-        bail!("Initramfs must provide /usr/bin/hyper_init or /bin/sh for early userspace");
+    if !has_aether_init && !has_sh {
+        bail!("Initramfs must provide /usr/bin/aether_init or /bin/sh for early userspace");
     }
 
     Ok(())

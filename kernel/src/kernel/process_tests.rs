@@ -24,7 +24,7 @@ fn runtime_contract_snapshot_tracks_exec_path_and_hook_counts() {
         #[cfg(feature = "paging_enable")]
         x86_64::PhysAddr::new(0),
     );
-    process.set_exec_path("/usr/lib/hypercore/init");
+    process.set_exec_path("/usr/lib/aethercore/init");
     process.set_runtime_hooks(RuntimeLifecycleHooks {
         preinit_array: alloc::vec![0x1000],
         init: Some(0x2000),
@@ -35,7 +35,7 @@ fn runtime_contract_snapshot_tracks_exec_path_and_hook_counts() {
     process.set_runtime_entry(Some(0x7777));
     process.set_runtime_fini_entry(Some(0x8888));
     let snapshot = process.runtime_contract_snapshot();
-    assert_eq!(snapshot.exec_path, "/usr/lib/hypercore/init");
+    assert_eq!(snapshot.exec_path, "/usr/lib/aethercore/init");
     assert_eq!(snapshot.runtime_entry, 0x7777);
     assert_eq!(snapshot.runtime_fini_entry, 0x8888);
     assert_eq!(snapshot.init_calls, alloc::vec![0x1000, 0x2000, 0x3000]);

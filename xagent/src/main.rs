@@ -21,13 +21,13 @@ use cors::CorsFairing;
 use state::AppState;
 
 #[derive(Parser, Debug)]
-#[command(name = "hypercore-agent", about = "HyperCore OS dashboard agent (Rocket)")]
+#[command(name = "aethercore-agent", about = "AetherCore OS dashboard agent (Rocket)")]
 struct Args {
     /// Port to listen on (overrides config)
     #[arg(short, long)]
     port: Option<u16>,
 
-    /// Path to hypercore.defaults.cjson
+    /// Path to aethercore.defaults.cjson
     #[arg(short, long)]
     config: Option<String>,
 
@@ -61,7 +61,7 @@ async fn main() -> Result<(), rocket::Error> {
     }
 
     let address = args.address.as_deref().unwrap_or("127.0.0.1").to_string();
-    tracing::info!(port = cfg.port, address = %address, auth_mode = %cfg.auth_mode, "hypercore-agent starting");
+    tracing::info!(port = cfg.port, address = %address, auth_mode = %cfg.auth_mode, "aethercore-agent starting");
 
     build_rocket(cfg, &address).launch().await?;
 

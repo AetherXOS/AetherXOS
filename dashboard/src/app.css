@@ -1,9 +1,9 @@
 @import 'tailwindcss';
 @plugin 'daisyui';
 
-/* HyperCore Professional Design System */
+/* AetherCore Professional Design System */
 @theme {
-	--color-primary: oklch(65% 0.22 260); /* HyperCore Electric Blue */
+	--color-primary: oklch(65% 0.22 260); /* AetherCore Electric Blue */
 	--color-secondary: oklch(58% 0.24 15); /* Crisis Red */
 	--color-base-100: oklch(14% 0.02 260); /* Space Black */
 	--color-base-200: oklch(18% 0.02 260); /* Panel Black */

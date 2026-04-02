@@ -16,7 +16,7 @@ fn integration_plan_runs_only_mandatory_steps_without_optional_gates() {
         clippy(),
         cargo_test("host_rust_tests/Cargo.toml"),
         cargo_test("host_tools/scheduler_host_tests/Cargo.toml"),
-        cargo_test("agent/Cargo.toml"),
+        cargo_test("xagent/Cargo.toml"),
         probe("fuzz"),
     ];
 
@@ -30,11 +30,11 @@ fn integration_plan_expands_all_optional_steps_when_gates_and_tools_exist() {
         ctx::root(),
         tool::FAKE_HOST_TRIPLE,
         &[
-            "HYPERCORE_RUN_KASAN",
-            "HYPERCORE_RUN_KMSAN",
-            "HYPERCORE_RUN_UBSAN",
-            "HYPERCORE_RUN_VIRTME",
-            "HYPERCORE_RUN_FUZZ",
+            "AETHERCORE_RUN_KASAN",
+            "AETHERCORE_RUN_KMSAN",
+            "AETHERCORE_RUN_UBSAN",
+            "AETHERCORE_RUN_VIRTME",
+            "AETHERCORE_RUN_FUZZ",
         ],
         &["fuzz"],
         &["vng"],
@@ -45,7 +45,7 @@ fn integration_plan_expands_all_optional_steps_when_gates_and_tools_exist() {
         clippy(),
         cargo_test("host_rust_tests/Cargo.toml"),
         cargo_test("host_tools/scheduler_host_tests/Cargo.toml"),
-        cargo_test("agent/Cargo.toml"),
+        cargo_test("xagent/Cargo.toml"),
         step(&["vng", "--version"]),
         probe("fuzz"),
         step(&[

@@ -116,7 +116,7 @@ impl KernelConfig {
         raw: &str,
         strict_critical: bool,
     ) -> Result<usize, ConfigBatchApplyError> {
-        CONFIG_APPLY_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(CONFIG_APPLY_ATTEMPTS);
         let mut applied = 0usize;
         for (index, raw_entry) in split_override_entries(raw).into_iter().enumerate() {
             let trimmed = raw_entry.trim();
@@ -125,7 +125,7 @@ impl KernelConfig {
             }
 
             let (key, value) = parse_override_entry(trimmed).map_err(|(key, cause)| {
-                CONFIG_APPLY_FAILURES.fetch_add(1, Ordering::Relaxed);
+                counter_inc!(CONFIG_APPLY_FAILURES);
                 CONFIG_LAST_ERROR_INDEX.store(index, Ordering::Relaxed);
                 ConfigBatchApplyError {
                     index,
@@ -151,7 +151,7 @@ impl KernelConfig {
             }
 
             validate_runtime_override(key.as_str(), value.as_deref()).map_err(|cause| {
-                CONFIG_APPLY_FAILURES.fetch_add(1, Ordering::Relaxed);
+                counter_inc!(CONFIG_APPLY_FAILURES);
                 CONFIG_LAST_ERROR_INDEX.store(index, Ordering::Relaxed);
                 ConfigBatchApplyError {
                     index,
@@ -173,7 +173,7 @@ impl KernelConfig {
             })?;
             applied += 1;
         }
-        CONFIG_APPLY_SUCCESS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(CONFIG_APPLY_SUCCESS);
         CONFIG_LAST_ERROR_INDEX.store(usize::MAX, Ordering::Relaxed);
         refresh_runtime_compat_surface_if_needed();
         Ok(applied)

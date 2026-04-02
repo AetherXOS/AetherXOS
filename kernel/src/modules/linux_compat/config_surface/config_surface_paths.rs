@@ -78,18 +78,18 @@ pub fn compat_path_to_config_key(path: &str) -> Option<String> {
     let trimmed = path.trim();
     if matches!(
         trimmed,
-        "/proc/hypercore/config"
-            | "proc/hypercore/config"
-            | "/proc/sys/hypercore/config"
-            | "proc/sys/hypercore/config"
+        "/proc/aethercore/config"
+            | "proc/aethercore/config"
+            | "/proc/sys/aethercore/config"
+            | "proc/sys/aethercore/config"
     ) {
         return None;
     }
     let relative = trimmed
-        .strip_prefix("/proc/sys/hypercore/")
-        .or_else(|| trimmed.strip_prefix("proc/sys/hypercore/"))
-        .or_else(|| trimmed.strip_prefix("/sys/hypercore/"))
-        .or_else(|| trimmed.strip_prefix("sys/hypercore/"))?;
+        .strip_prefix("/proc/sys/aethercore/")
+        .or_else(|| trimmed.strip_prefix("proc/sys/aethercore/"))
+        .or_else(|| trimmed.strip_prefix("/sys/aethercore/"))
+        .or_else(|| trimmed.strip_prefix("sys/aethercore/"))?;
 
     let normalized = normalize_runtime_style_key(relative);
     if normalized.is_empty() {

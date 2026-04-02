@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Loaded from config/hypercore.defaults.cjson → .agent section
+/// Loaded from config/aethercore.defaults.cjson → .agent section
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
     #[serde(default = "default_port")]
@@ -86,7 +86,7 @@ pub struct HostConfig {
     pub token: String,
 }
 
-/// Top-level hypercore.defaults.cjson shape (only the `agent` key matters here)
+/// Top-level aethercore.defaults.cjson shape (only the `agent` key matters here)
 #[derive(Debug, Deserialize)]
 struct HypercoreDefaults {
     #[serde(default)]
@@ -184,7 +184,7 @@ impl Default for AgentConfig {
 
 /// Loads agent config from the given path (or falls back to defaults).
 pub fn load_agent_config(path: Option<&str>) -> AgentConfig {
-    let path = path.unwrap_or("config/hypercore.defaults.cjson");
+    let path = path.unwrap_or("config/aethercore.defaults.cjson");
     let content = match std::fs::read_to_string(path) {
         Ok(c) => c,
         Err(e) => {
@@ -202,8 +202,8 @@ pub fn load_agent_config(path: Option<&str>) -> AgentConfig {
             if cfg.allowed_origins.is_empty() {
                 cfg.allowed_origins = default_origins();
             }
-            if cfg.auth_token.is_empty() || cfg.auth_token == "change-me-hypercore-agent-token" {
-                cfg.auth_token = "hypercore-local-dev-token".into();
+            if cfg.auth_token.is_empty() || cfg.auth_token == "change-me-aethercore-agent-token" {
+                cfg.auth_token = "aethercore-local-dev-token".into();
             }
             cfg.max_concurrency = cfg.max_concurrency.max(1);
             cfg.max_queue = cfg.max_queue.max(10);

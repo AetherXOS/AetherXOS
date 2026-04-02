@@ -8,7 +8,7 @@ use spin::Mutex;
 
 lazy_static! {
     static ref ENV_TABLE: Mutex<BTreeMap<String, String>> = Mutex::new(BTreeMap::new());
-    static ref HOSTNAME: Mutex<String> = Mutex::new(String::from("hypercore"));
+    static ref HOSTNAME: Mutex<String> = Mutex::new(String::from("aethercore"));
     static ref DOMAINNAME: Mutex<String> = Mutex::new(String::from("localdomain"));
     static ref GROUP_MEMBERSHIP: Mutex<Vec<u32>> = Mutex::new(Vec::new());
 }
@@ -356,7 +356,7 @@ mod tests {
         assert_eq!(sethostname(""), Err(PosixErrno::Invalid));
         assert_eq!(setdomainname(""), Err(PosixErrno::Invalid));
 
-        sethostname("hypercore-test").expect("sethostname");
+        sethostname("aethercore-test").expect("sethostname");
         setdomainname("kernel.test").expect("setdomainname");
 
         let mut short = [0u8; 4];

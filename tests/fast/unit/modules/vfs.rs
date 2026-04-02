@@ -1,5 +1,5 @@
-use hypercore::config::KernelConfig;
-use hypercore::modules::vfs::path::{normalize_str, path_components, valid_path};
+use aethercore::config::KernelConfig;
+use aethercore::modules::vfs::path::{normalize_str, path_components, valid_path};
 use serial_test::serial;
 
 use crate::common::ctx;

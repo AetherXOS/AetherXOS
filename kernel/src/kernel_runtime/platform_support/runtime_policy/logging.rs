@@ -2,7 +2,7 @@ use super::snapshot::current_runtime_policy_log_snapshot;
 
 pub(crate) fn log_runtime_policy_summary() {
     let policy = current_runtime_policy_log_snapshot();
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Runtime policy: preset={:?} set_calls={} apply_calls={} drift_samples={} drift_events={} drift_reapply={} reapply_suppressed={} sample_interval_ticks={} reapply_cooldown_ticks={} last_reapply_tick={} last_reason={}({}) last_driver_wait_delta={} virt_exec={} virt_governor_profile={} virt_governor={} virt_latency_bias={}",
         policy.active_preset,
         policy.set_calls,

@@ -13,5 +13,5 @@ pub fn test_client() -> Client {
 }
 
 pub fn admin_header() -> Header<'static> {
-    Header::new("X-HyperCore-Token", ADMIN_TOKEN)
+    Header::new("X-AetherCore-Token", ADMIN_TOKEN)
 }

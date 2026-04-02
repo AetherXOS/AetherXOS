@@ -5,6 +5,7 @@
 pub mod backends;
 pub mod cache;
 pub mod devfs;
+mod error_context;
 #[cfg(feature = "vfs_disk_fs")]
 pub mod disk_fs;
 #[cfg(feature = "vfs_disk_fs")]

@@ -170,7 +170,7 @@ impl HttpRequestBuilder {
 
         // Standard headers
         out.extend_from_slice(b"Connection: keep-alive\r\n");
-        out.extend_from_slice(b"User-Agent: HyperCore-Kernel/0.2\r\n");
+        out.extend_from_slice(b"User-Agent: AetherCore-Kernel/0.2\r\n");
         out.extend_from_slice(b"Accept: */*\r\n");
 
         // Content length when body present

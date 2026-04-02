@@ -1,6 +1,7 @@
-use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicBool, Ordering};
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 
-static HW_DETECT_CALLS: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(HW_DETECT_CALLS);
 static SMEP_ENABLED: AtomicBool = AtomicBool::new(false);
 static SMAP_ENABLED: AtomicBool = AtomicBool::new(false);
 static NX_ENABLED: AtomicBool = AtomicBool::new(false);
@@ -37,7 +38,7 @@ pub struct HardwareSecurityStats {
 }
 
 pub fn detect_hardware_security() -> HardwareSecurityBackend {
-    HW_DETECT_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(HW_DETECT_CALLS);
 
     #[cfg(target_arch = "x86_64")]
     {
@@ -69,7 +70,7 @@ pub fn detect_hardware_security() -> HardwareSecurityBackend {
 
 pub fn hardware_security_stats() -> HardwareSecurityStats {
     HardwareSecurityStats {
-        detect_calls: HW_DETECT_CALLS.load(Ordering::Relaxed),
+        detect_calls: telemetry::snapshot_u64(&HW_DETECT_CALLS),
         backend: detect_hardware_security(),
         cpu_protection: cpu_protection_status(),
     }

@@ -1,9 +1,9 @@
 [package]
 name = "xtask"
-version = "0.2.0"
-edition = "2021"
+version = "0.0.1"
+edition = "2024"
 publish = false
-description = "AetherXOS unified build, image, test and run pipeline"
+description = "Aether X OS unified build, image, test and run pipeline"
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
@@ -17,3 +17,4 @@ sha2 = "0.10"
 regex = "1.10"
 walkdir = "2.4"
 glob = "0.3"
+aethercore-common = { path = "../shared", features = ["clap"] }

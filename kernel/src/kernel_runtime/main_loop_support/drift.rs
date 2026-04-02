@@ -1,8 +1,8 @@
 pub(crate) fn log_runtime_policy_drift(
-    drift: hypercore::kernel::policy::CoreRuntimePolicyDriftReport,
+    drift: aethercore::kernel::policy::CoreRuntimePolicyDriftReport,
 ) {
     if drift.drifted {
-        hypercore::klog_warn!(
+        aethercore::klog_warn!(
             "[POLICY DRIFT] preset={:?} reason={}({}) tick={} pressure={:?}/{:?} rt_starvation={} net_breaches={} vfs_breaches={} driver_wait_delta={} virt_exec={} virt_governor_profile={} virt_governor={} virt_latency_bias={} reapply_attempted={} reapply_executed={} reapply_suppressed={}",
             drift.preset,
             drift.reason_name,

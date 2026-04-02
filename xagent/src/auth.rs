@@ -4,7 +4,7 @@ use rocket::{
 };
 use crate::state::AppState;
 
-/// Rocket request guard: resolves the caller's role from the `X-HyperCore-Token` header.
+/// Rocket request guard: resolves the caller's role from the `X-AetherCore-Token` header.
 /// Always succeeds — returns "anonymous" when no valid token is presented.
 pub struct ResolvedRole(pub String);
 pub struct OptionalIdempotencyKey(pub Option<String>);
@@ -16,7 +16,8 @@ impl<'r> FromRequest<'r> for ResolvedRole {
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let token = req
             .headers()
-            .get_one("X-HyperCore-Token")
+            .get_one("X-AetherCore-Token")
+            .or_else(|| req.headers().get_one("X-HyperCore-Token"))
             .unwrap_or("")
             .to_string();
 
@@ -56,7 +57,8 @@ impl<'r> FromRequest<'r> for RequireViewer {
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, ()> {
         let token = req
             .headers()
-            .get_one("X-HyperCore-Token")
+            .get_one("X-AetherCore-Token")
+            .or_else(|| req.headers().get_one("X-HyperCore-Token"))
             .unwrap_or("")
             .to_string();
 
@@ -83,7 +85,8 @@ impl<'r> FromRequest<'r> for RequireOperator {
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, ()> {
         let token = req
             .headers()
-            .get_one("X-HyperCore-Token")
+            .get_one("X-AetherCore-Token")
+            .or_else(|| req.headers().get_one("X-HyperCore-Token"))
             .unwrap_or("")
             .to_string();
 
@@ -110,7 +113,8 @@ impl<'r> FromRequest<'r> for RequireAdmin {
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, ()> {
         let token = req
             .headers()
-            .get_one("X-HyperCore-Token")
+            .get_one("X-AetherCore-Token")
+            .or_else(|| req.headers().get_one("X-HyperCore-Token"))
             .unwrap_or("")
             .to_string();
 

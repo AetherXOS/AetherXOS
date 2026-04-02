@@ -11,7 +11,7 @@ pub fn userspace_contract_files(
         (
             "runtime-contract.txt".to_string(),
             [
-                "[hypercore-runtime-contract]".to_string(),
+                "[aethercore-runtime-contract]".to_string(),
                 format!("startup_layout={startup_layout}"),
                 format!("runtime_env_keys={}", runtime_env_keys.join(",")),
                 format!("syscall_env_keys={}", syscall_env_keys.join(",")),
@@ -55,7 +55,7 @@ pub fn runtime_files(
         (
             "runtime-core.txt".to_string(),
             [
-                "[hypercore-runtime-core]".to_string(),
+                "[aethercore-runtime-core]".to_string(),
                 format!("helpers={}", helpers.join(",")),
                 format!("memory_helpers={}", memory_helpers.join(",")),
                 format!("string_helpers={}", string_helpers.join(",")),
@@ -111,9 +111,9 @@ pub fn runtime_files(
             "startup-features.txt".to_string(),
             format!("{}\n", startup_features.join("\n")),
         ),
-        ("hypercore_runtime.h".to_string(), format!("{public_header}\n")),
+        ("aethercore_runtime.h".to_string(), format!("{public_header}\n")),
         (
-            "hypercore_runtime_state.h".to_string(),
+            "aethercore_runtime_state.h".to_string(),
             format!("{state_header}\n"),
         ),
     ])
@@ -131,7 +131,7 @@ pub fn elf_files(
         (
             "elf-contract.txt".to_string(),
             [
-                "[hypercore-elf-runtime]".to_string(),
+                "[aethercore-elf-runtime]".to_string(),
                 format!("class={elf_class}"),
                 format!("endianness={elf_endianness}"),
                 format!("machine_targets={}", machine_targets.join(",")),
@@ -175,12 +175,12 @@ pub fn libc_files(
     state_header: &str,
 ) -> BTreeMap<String, String> {
     let fini_telemetry = [
-        "hypercore_runtime_fini_present",
-        "hypercore_runtime_fini_hook_count",
-        "hypercore_runtime_fini_attempt_count",
-        "hypercore_runtime_fini_completed_count",
-        "hypercore_runtime_fini_deferred_count",
-        "hypercore_run_runtime_fini",
+        "aethercore_runtime_fini_present",
+        "aethercore_runtime_fini_hook_count",
+        "aethercore_runtime_fini_attempt_count",
+        "aethercore_runtime_fini_completed_count",
+        "aethercore_runtime_fini_deferred_count",
+        "aethercore_run_runtime_fini",
     ];
     let exported: std::collections::BTreeSet<&str> = exported_symbols.iter().copied().collect();
     let present: Vec<&str> = fini_telemetry
@@ -192,7 +192,7 @@ pub fn libc_files(
         (
             "libc-contract.txt".to_string(),
             [
-                "[hypercore-libc-runtime]".to_string(),
+                "[aethercore-libc-runtime]".to_string(),
                 format!("startup_capabilities={}", startup_capabilities.join(",")),
                 format!("thread_capabilities={}", thread_capabilities.join(",")),
                 format!("signal_capabilities={}", signal_capabilities.join(",")),
@@ -256,15 +256,15 @@ pub fn libc_files(
             "libc-syscall-surface.txt".to_string(),
             format!("{}\n", syscall_surface.join("\n")),
         ),
-        ("hypercore_libc.h".to_string(), public_header.to_string()),
+        ("aethercore_libc.h".to_string(), public_header.to_string()),
         (
-            "hypercore_libc_state.h".to_string(),
+            "aethercore_libc_state.h".to_string(),
             format!("{state_header}\n"),
         ),
         (
             "runtime-fini-telemetry.txt".to_string(),
             [
-                "[hypercore-runtime-fini-telemetry]".to_string(),
+                "[aethercore-runtime-fini-telemetry]".to_string(),
                 format!("symbols={}", present.join(",")),
                 format!(
                     "present={}",

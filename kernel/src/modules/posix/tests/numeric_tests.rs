@@ -198,13 +198,13 @@
         assert_eq!(process::getenv("POSIX_MODE"), None);
         process::clearenv();
         assert!(process::environ_snapshot().is_empty());
-        process::sethostname("hypercore-os").expect("sethostname");
+        process::sethostname("aethercore-os").expect("sethostname");
         process::setdomainname("kernel.local").expect("setdomainname");
         let mut host = [0u8; 64];
         let mut domain = [0u8; 64];
         let hlen = process::gethostname(&mut host).expect("gethostname");
         let dlen = process::getdomainname(&mut domain).expect("getdomainname");
-        assert_eq!(&host[..hlen], b"hypercore-os");
+        assert_eq!(&host[..hlen], b"aethercore-os");
         assert_eq!(&domain[..dlen], b"kernel.local");
         assert_eq!(process::getresuid(), (0, 0, 0));
         assert_eq!(process::getresgid(), (0, 0, 0));

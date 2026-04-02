@@ -4,6 +4,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 
+use crate::constants;
 use crate::utils::{paths, report};
 
 #[derive(Serialize)]
@@ -124,7 +125,7 @@ pub fn run(max_lines: usize, magic_repeat_threshold: usize) -> Result<()> {
         top_coupling_files,
     };
 
-    let out_dir = paths::resolve("reports/kernel_refactor_audit");
+    let out_dir = constants::paths::kernel_refactor_audit_dir();
     paths::ensure_dir(&out_dir)?;
     report::write_json_report(&out_dir.join("summary.json"), &report_obj)?;
 
@@ -153,7 +154,7 @@ pub fn run(max_lines: usize, magic_repeat_threshold: usize) -> Result<()> {
         md.push_str(&format!("- {} (uses={}, lines={})\n", file.path, file.use_count, file.line_count));
     }
 
-    fs::write(out_dir.join("summary.md"), md)?;
+    report::write_text_report(&out_dir.join("summary.md"), &md)?;
 
     println!(
         "[test::kernel-refactor-audit] done: scanned={} long_files={}",

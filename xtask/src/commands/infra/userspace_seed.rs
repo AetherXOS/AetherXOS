@@ -32,15 +32,15 @@ pub fn inject_seed(
     policy: &InstallerPolicy,
     bundle_dir: &Path,
 ) -> Result<()> {
-    let etc_hypercore = initramfs_root.join("etc/hypercore");
-    let bundle_dst = initramfs_root.join("usr/share/hypercore/userspace_apps");
+    let etc_aethercore = initramfs_root.join("etc/aethercore");
+    let bundle_dst = initramfs_root.join("usr/share/aethercore/userspace_apps");
     let bin_dir = initramfs_root.join("usr/bin");
-    let lib_hypercore = initramfs_root.join("usr/lib/hypercore");
+    let lib_aethercore = initramfs_root.join("usr/lib/aethercore");
 
-    fs::create_dir_all(&etc_hypercore)?;
+    fs::create_dir_all(&etc_aethercore)?;
     fs::create_dir_all(&bundle_dst)?;
     fs::create_dir_all(&bin_dir)?;
-    fs::create_dir_all(&lib_hypercore)?;
+    fs::create_dir_all(&lib_aethercore)?;
 
     // Prepare APT binary seed for live package installation
     if let Err(e) = apt_binary_seed::prepare_apt_seed(initramfs_root) {
@@ -59,7 +59,7 @@ pub fn inject_seed(
     }
     let package_list = selection.packages.join("\n");
     fs::write(
-        etc_hypercore.join("apt-preload-packages.txt"),
+        etc_aethercore.join("apt-preload-packages.txt"),
         format!("{}\n", package_list),
     )?;
 
@@ -76,15 +76,15 @@ pub fn inject_seed(
         smoke_command_count: selection.smoke_commands.len(),
     };
     fs::write(
-        etc_hypercore.join("installer-selection.json"),
+        etc_aethercore.join("installer-selection.json"),
         serde_json::to_string_pretty(&seed_manifest)?,
     )?;
     fs::write(
-        etc_hypercore.join("selected-app-targets.txt"),
+        etc_aethercore.join("selected-app-targets.txt"),
         format!("{}\n", selection.selected_apps.join("\n")),
     )?;
     fs::write(
-        etc_hypercore.join("installer-policy.json"),
+        etc_aethercore.join("installer-policy.json"),
         serde_json::to_string_pretty(policy)?,
     )?;
 
@@ -107,18 +107,18 @@ pub fn inject_seed(
     }
     mirrors.dedup();
     fs::write(
-        etc_hypercore.join("mirror-failover.list"),
+        etc_aethercore.join("mirror-failover.list"),
         format!("{}\n", mirrors.join("\n")),
     )?;
     fs::write(
-        etc_hypercore.join("checksum-policy.conf"),
+        etc_aethercore.join("checksum-policy.conf"),
         format!(
             "CHECKSUM_REQUIRED={}\n",
             if policy.checksum_required { "1" } else { "0" }
         ),
     )?;
     fs::write(
-        etc_hypercore.join("metadata-signature-policy.conf"),
+        etc_aethercore.join("metadata-signature-policy.conf"),
         format!(
             "METADATA_SIGNATURE_REQUIRED={}\nMETADATA_SIGNATURE_MODE={}\n",
             if policy.metadata_signature_required {
@@ -130,54 +130,54 @@ pub fn inject_seed(
         ),
     )?;
     fs::write(
-        etc_hypercore.join("apt-trusted-keyrings.list"),
+        etc_aethercore.join("apt-trusted-keyrings.list"),
         format!("{}\n", policy.apt_trusted_keyring_paths.join("\n")),
     )?;
     fs::write(
-        etc_hypercore.join("pacman-keyring-dir.path"),
+        etc_aethercore.join("pacman-keyring-dir.path"),
         format!("{}\n", policy.pacman_keyring_dir),
     )?;
     fs::write(
-        etc_hypercore.join("artifact-ledger.path"),
+        etc_aethercore.join("artifact-ledger.path"),
         format!("{}\n", policy.artifact_ledger_path),
     )?;
     fs::write(
-        etc_hypercore.join("postinstall-hooks.list"),
+        etc_aethercore.join("postinstall-hooks.list"),
         format!("{}\n", policy.postinstall_hooks.join("\n")),
     )?;
     fs::write(
-        etc_hypercore.join("package-pins.list"),
+        etc_aethercore.join("package-pins.list"),
         format!("{}\n", policy.package_pins.join("\n")),
     )?;
     fs::write(
-        etc_hypercore.join("installer-timeout.conf"),
+        etc_aethercore.join("installer-timeout.conf"),
         format!(
             "INSTALL_TIMEOUT_SECONDS={}\n",
             policy.install_timeout_seconds
         ),
     )?;
     fs::write(
-        etc_hypercore.join("transaction-journal.path"),
+        etc_aethercore.join("transaction-journal.path"),
         format!("{}\n", policy.transaction_log_path),
     )?;
     fs::write(
-        etc_hypercore.join("transaction-state.path"),
+        etc_aethercore.join("transaction-state.path"),
         format!("{}\n", policy.transaction_state_path),
     )?;
     fs::write(
-        etc_hypercore.join("event-log.path"),
+        etc_aethercore.join("event-log.path"),
         format!("{}\n", policy.event_log_path),
     )?;
     fs::write(
-        etc_hypercore.join("resume-marker.path"),
+        etc_aethercore.join("resume-marker.path"),
         format!("{}\n", policy.resume_marker_path),
     )?;
     fs::write(
-        etc_hypercore.join("rollback-marker.path"),
+        etc_aethercore.join("rollback-marker.path"),
         format!("{}\n", policy.rollback_marker_path),
     )?;
     fs::write(
-        etc_hypercore.join("smoke-timeout.conf"),
+        etc_aethercore.join("smoke-timeout.conf"),
         format!("SMOKE_TIMEOUT_SECONDS={}\n", policy.smoke_timeout_seconds),
     )?;
     let download_artifact_lines = selection
@@ -195,11 +195,11 @@ pub fn inject_seed(
         .collect::<Vec<_>>()
         .join("\n");
     fs::write(
-        etc_hypercore.join("download-artifacts.list"),
+        etc_aethercore.join("download-artifacts.list"),
         format!("{}\n", download_artifact_lines),
     )?;
     fs::write(
-        etc_hypercore.join("smoke-commands.list"),
+        etc_aethercore.join("smoke-commands.list"),
         format!("{}\n", selection.smoke_commands.join("\n")),
     )?;
 
@@ -237,18 +237,18 @@ pub fn inject_seed(
     }
 
     copied_bundles.sort_by(|a, b| a.0.cmp(&b.0));
-    let mut manifest = String::from("# HyperCore userspace bundle seed manifest\n");
+    let mut manifest = String::from("# AetherCore userspace bundle seed manifest\n");
     for (id, version) in copied_bundles {
         manifest.push_str(&format!("{}={}\n", id, version));
     }
-    fs::write(etc_hypercore.join("userspace-bundles.manifest"), manifest)?;
+    fs::write(etc_aethercore.join("userspace-bundles.manifest"), manifest)?;
 
         let apt_abi_contract = format!(
-                "# HyperCore userspace ABI contract for production package-manager workloads\n\
-abi.surface=hypercore-linux-compat\n\
+                "# AetherCore userspace ABI contract for production package-manager workloads\n\
+abi.surface=aethercore-linux-compat\n\
 abi.profile={}\n\
 required.mounts=/proc,/sys,/dev/shm,/run,/tmp\n\
-required.diskfs=/var/lib/hypercore\n\
+required.diskfs=/var/lib/aethercore\n\
 required.tools=apt-get,dpkg,xz\n\
 required.syscalls=openat2,statx,renameat2,faccessat2,clone3,epoll_pwait2\n\
 flutter.requested={}\n",
@@ -256,7 +256,7 @@ flutter.requested={}\n",
                 selection.selected_apps.iter().any(|app| app == "flutter")
         );
         fs::write(
-                lib_hypercore.join("userspace-apt-abi-contract.txt"),
+                lib_aethercore.join("userspace-apt-abi-contract.txt"),
                 apt_abi_contract,
         )?;
 
@@ -281,10 +281,10 @@ check_mountpoint() {
     fi
 }
 
-check_path /proc/sys/hypercore/abi/platform
-check_path /proc/sys/hypercore/abi/abi_version_major
-check_path /proc/sys/hypercore/abi/abi_version_minor
-check_path /proc/sys/hypercore/abi/abi_version_patch
+check_path /proc/sys/aethercore/abi/platform
+check_path /proc/sys/aethercore/abi/abi_version_major
+check_path /proc/sys/aethercore/abi/abi_version_minor
+check_path /proc/sys/aethercore/abi/abi_version_patch
 
 check_mountpoint /proc
 check_mountpoint /sys
@@ -292,8 +292,8 @@ check_mountpoint /tmp
 check_mountpoint /run
 check_mountpoint /dev/shm
 
-if [ ! -d /var/lib/hypercore ]; then
-    echo "[userspace-abi-check] persistent package state directory missing: /var/lib/hypercore"
+if [ ! -d /var/lib/aethercore ]; then
+    echo "[userspace-abi-check] persistent package state directory missing: /var/lib/aethercore"
     missing=1
 fi
 
@@ -310,36 +310,36 @@ fi
 echo "[userspace-abi-check] OK"
 exit 0
 "#;
-        fs::write(bin_dir.join("hypercore-userspace-abi-check"), abi_check_script)?;
+        fs::write(bin_dir.join("aethercore-userspace-abi-check"), abi_check_script)?;
 
     let mirror = selection.mirror.as_deref().unwrap_or("");
     let script = format!(
         r#"#!/bin/sh
 set -eu
 
-PKG_FILE="/etc/hypercore/apt-preload-packages.txt"
-APP_FILE="/etc/hypercore/selected-app-targets.txt"
-MIRROR_FILE="/etc/hypercore/mirror-failover.list"
-ARTIFACT_FILE="/etc/hypercore/download-artifacts.list"
-SMOKE_FILE="/etc/hypercore/smoke-commands.list"
-HOOK_FILE="/etc/hypercore/postinstall-hooks.list"
-PIN_FILE="/etc/hypercore/package-pins.list"
-CHECKSUM_FILE="/etc/hypercore/checksum-policy.conf"
-METADATA_SIG_POLICY_FILE="/etc/hypercore/metadata-signature-policy.conf"
-APT_KEYRING_LIST_FILE="/etc/hypercore/apt-trusted-keyrings.list"
-PACMAN_KEYRING_DIR_FILE="/etc/hypercore/pacman-keyring-dir.path"
-ARTIFACT_LEDGER_PATH_FILE="/etc/hypercore/artifact-ledger.path"
-TX_PATH_FILE="/etc/hypercore/transaction-journal.path"
-TX_STATE_PATH_FILE="/etc/hypercore/transaction-state.path"
-EV_PATH_FILE="/etc/hypercore/event-log.path"
-RESUME_PATH_FILE="/etc/hypercore/resume-marker.path"
-ROLLBACK_PATH_FILE="/etc/hypercore/rollback-marker.path"
-SMOKE_TIMEOUT_FILE="/etc/hypercore/smoke-timeout.conf"
+PKG_FILE="/etc/aethercore/apt-preload-packages.txt"
+APP_FILE="/etc/aethercore/selected-app-targets.txt"
+MIRROR_FILE="/etc/aethercore/mirror-failover.list"
+ARTIFACT_FILE="/etc/aethercore/download-artifacts.list"
+SMOKE_FILE="/etc/aethercore/smoke-commands.list"
+HOOK_FILE="/etc/aethercore/postinstall-hooks.list"
+PIN_FILE="/etc/aethercore/package-pins.list"
+CHECKSUM_FILE="/etc/aethercore/checksum-policy.conf"
+METADATA_SIG_POLICY_FILE="/etc/aethercore/metadata-signature-policy.conf"
+APT_KEYRING_LIST_FILE="/etc/aethercore/apt-trusted-keyrings.list"
+PACMAN_KEYRING_DIR_FILE="/etc/aethercore/pacman-keyring-dir.path"
+ARTIFACT_LEDGER_PATH_FILE="/etc/aethercore/artifact-ledger.path"
+TX_PATH_FILE="/etc/aethercore/transaction-journal.path"
+TX_STATE_PATH_FILE="/etc/aethercore/transaction-state.path"
+EV_PATH_FILE="/etc/aethercore/event-log.path"
+RESUME_PATH_FILE="/etc/aethercore/resume-marker.path"
+ROLLBACK_PATH_FILE="/etc/aethercore/rollback-marker.path"
+SMOKE_TIMEOUT_FILE="/etc/aethercore/smoke-timeout.conf"
 MIRROR="{mirror}"
 RETRY_MAX={retry_max}
 RETRY_BACKOFF={retry_backoff}
 INSTALL_TIMEOUT={install_timeout}
-ABI_CHECK_BIN="/usr/bin/hypercore-userspace-abi-check"
+ABI_CHECK_BIN="/usr/bin/aethercore-userspace-abi-check"
 
 read_first_line() {{
     if [ -f "$1" ]; then
@@ -422,7 +422,7 @@ cleanup_artifacts_from_ledger() {{
     while IFS= read -r item; do
         [ -z "$item" ] && continue
         case "$item" in
-            /var/cache/hypercore/*|/opt/hypercore/artifacts/*)
+            /var/cache/aethercore/*|/opt/aethercore/artifacts/*)
                 rm -f "$item" || true
                 log_tx "ROLLBACK_CLEANUP_OK path=$item"
                 ;;
@@ -693,22 +693,22 @@ validate_repo_metadata() {{
 }}
 
 if [ -f "$PKG_FILE" ]; then
-  echo "[hypercore-apt-seed] package targets:"
+  echo "[aethercore-apt-seed] package targets:"
   cat "$PKG_FILE"
 fi
 
 if [ -f "$APP_FILE" ]; then
-    echo "[hypercore-apt-seed] app targets:"
+    echo "[aethercore-apt-seed] app targets:"
     cat "$APP_FILE"
 fi
 
 if [ -f "$SMOKE_FILE" ] && [ -s "$SMOKE_FILE" ]; then
-    echo "[hypercore-apt-seed] smoke commands:"
+    echo "[aethercore-apt-seed] smoke commands:"
     cat "$SMOKE_FILE"
 fi
 
 if [ -f "$ARTIFACT_FILE" ] && [ -s "$ARTIFACT_FILE" ]; then
-    echo "[hypercore-apt-seed] download artifacts:"
+    echo "[aethercore-apt-seed] download artifacts:"
     cat "$ARTIFACT_FILE"
     while IFS='|' read -r art_id art_url art_sha art_dst; do
         [ -z "$art_id" ] && continue
@@ -723,9 +723,9 @@ if [ -f "$ARTIFACT_FILE" ] && [ -s "$ARTIFACT_FILE" ]; then
     done < "$ARTIFACT_FILE"
 fi
 
-echo "[hypercore-apt-seed] bundle descriptors available under /usr/share/hypercore/userspace_apps"
+echo "[aethercore-apt-seed] bundle descriptors available under /usr/share/aethercore/userspace_apps"
 if [ -x "$ABI_CHECK_BIN" ]; then
-    echo "[hypercore-apt-seed] running userspace ABI preflight"
+    echo "[aethercore-apt-seed] running userspace ABI preflight"
     "$ABI_CHECK_BIN" || fail_install "userspace-abi-preflight-failed"
 fi
 replay_previous_state
@@ -823,7 +823,7 @@ log_event "installer-seed-complete"
         profile = selection.profile,
         apps = selection.selected_apps.join(",")
     );
-    fs::write(bin_dir.join("hypercore-apt-seed"), script)?;
+    fs::write(bin_dir.join("aethercore-apt-seed"), script)?;
 
     Ok(())
 }

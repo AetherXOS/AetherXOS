@@ -281,8 +281,8 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     let disk_fs = paths::kernel_src("modules/vfs/disk_fs.rs");
     let writeback = paths::kernel_src("modules/vfs/writeback.rs");
     let writeback_tests = paths::kernel_src("modules/vfs/writeback/tests.rs");
-    let diskfs_bootstrap = root.join("boot/initramfs/usr/bin/hypercore-diskfs-setup");
-    let pivot_root_setup = root.join("boot/initramfs/usr/bin/hypercore-pivot-root");
+    let diskfs_bootstrap = root.join("boot/initramfs/usr/bin/aethercore-diskfs-setup");
+    let pivot_root_setup = root.join("boot/initramfs/usr/bin/aethercore-pivot-root");
     let userspace_seed = root.join("xtask/src/commands/infra/userspace_seed.rs");
     let apt_seed = root.join("xtask/src/commands/infra/apt_binary_seed.rs");
     let syscall_consts = paths::kernel_src("kernel/syscalls/syscalls_consts.rs");
@@ -369,10 +369,10 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         || generated_seed_root.join("usr/bin/apt").exists();
     let seeded_pacman_available = generated_seed_root.join("usr/bin/pacman").exists();
     let seeded_diskfs_setup_available = generated_seed_root
-        .join("usr/bin/hypercore-diskfs-setup")
+        .join("usr/bin/aethercore-diskfs-setup")
         .exists();
     let seeded_pivot_root_setup_available = generated_seed_root
-        .join("usr/bin/hypercore-pivot-root")
+        .join("usr/bin/aethercore-pivot-root")
         .exists();
     let diskfs_bootstrap_telemetry_ok = file_contains_all(
         &diskfs_bootstrap,
@@ -383,40 +383,40 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         ],
     );
     let seeded_abi_check_available = generated_seed_root
-        .join("usr/bin/hypercore-userspace-abi-check")
+        .join("usr/bin/aethercore-userspace-abi-check")
         .exists();
     let seeded_abi_contract_available = generated_seed_root
-        .join("usr/lib/hypercore/userspace-apt-abi-contract.txt")
+        .join("usr/lib/aethercore/userspace-apt-abi-contract.txt")
         .exists();
     let seeded_flutter_closure_audit_available = generated_seed_root
-        .join("usr/lib/hypercore/flutter-runtime-closure-audit.json")
+        .join("usr/lib/aethercore/flutter-runtime-closure-audit.json")
         .exists();
     let seeded_apt_capability_manifest_available = generated_seed_root
-        .join("usr/lib/hypercore/apt-seed-capability.json")
+        .join("usr/lib/aethercore/apt-seed-capability.json")
         .exists();
     let seeded_apt_host_limitation_note_available = generated_seed_root
-        .join("usr/lib/hypercore/apt-seed-host-limitation.txt")
+        .join("usr/lib/aethercore/apt-seed-host-limitation.txt")
         .exists();
     let seeded_mirror_failover_available = generated_seed_root
-        .join("etc/hypercore/mirror-failover.list")
+        .join("etc/aethercore/mirror-failover.list")
         .exists();
     let seeded_signature_policy_available = generated_seed_root
-        .join("etc/hypercore/metadata-signature-policy.conf")
+        .join("etc/aethercore/metadata-signature-policy.conf")
         .exists();
     let seeded_checksum_policy_available = generated_seed_root
-        .join("etc/hypercore/checksum-policy.conf")
+        .join("etc/aethercore/checksum-policy.conf")
         .exists();
     let seeded_installer_policy_available = generated_seed_root
-        .join("etc/hypercore/installer-policy.json")
+        .join("etc/aethercore/installer-policy.json")
         .exists();
     let seeded_retry_timeout_available = generated_seed_root
-        .join("etc/hypercore/installer-timeout.conf")
+        .join("etc/aethercore/installer-timeout.conf")
         .exists();
     let seeded_apt_keyring_list_available = generated_seed_root
-        .join("etc/hypercore/apt-trusted-keyrings.list")
+        .join("etc/aethercore/apt-trusted-keyrings.list")
         .exists();
     let seeded_pacman_keyring_path_available = generated_seed_root
-        .join("etc/hypercore/pacman-keyring-dir.path")
+        .join("etc/aethercore/pacman-keyring-dir.path")
         .exists();
     let seeded_system_pkg_manager_any = seeded_apt_available || seeded_pacman_available;
 
@@ -441,12 +441,12 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     let fs_stack_ok =
         file_contains(&posix_lifecycle, "mount_devfs")
         && file_contains(&posix_lifecycle, "mount_ramfs")
-        && file_contains_all(&diskfs_bootstrap, &["probing block devices", "mount -t", "/var/lib/hypercore"])
+        && file_contains_all(&diskfs_bootstrap, &["probing block devices", "mount -t", "/var/lib/aethercore"])
         && file_contains_all(
             &pivot_root_setup,
             &[
                 "pivot-root",
-                "HYPERCORE_ENABLE_PIVOT_ROOT",
+                "AETHERCORE_ENABLE_PIVOT_ROOT",
                 "switch_root",
                 "chroot",
                 "pivot-root.status",
@@ -505,7 +505,7 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
             &userspace_seed,
             &[
                 "userspace-apt-abi-contract.txt",
-                "hypercore-userspace-abi-check",
+                "aethercore-userspace-abi-check",
                 "apt-xz-utils-probe-failed",
                 "mirror-failover.list",
                 "run_with_retry",

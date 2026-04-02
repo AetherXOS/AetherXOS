@@ -1,4 +1,4 @@
-//! Write-Ahead Log (WAL) / Journal for HyperCore VFS
+//! Write-Ahead Log (WAL) / Journal for AetherCore VFS
 //!
 //! Provides crash-safe ordered writes, checkpoint/recovery, and per-inode
 //! transaction tracking. Modelled after a simplified ext3/ext4 journal:

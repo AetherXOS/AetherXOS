@@ -99,10 +99,10 @@ pub fn errno_features() -> Vec<&'static str> {
 pub fn entrypoints() -> Vec<&'static str> {
     vec![
         "_start",
-        "__hypercore_crt0_start",
-        "__hypercore_auxv_init",
-        "__hypercore_env_init",
-        "__hypercore_syscall_init",
+        "__aethercore_crt0_start",
+        "__aethercore_auxv_init",
+        "__aethercore_env_init",
+        "__aethercore_syscall_init",
     ]
 }
 

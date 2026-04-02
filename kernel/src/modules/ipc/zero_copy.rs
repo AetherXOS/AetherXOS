@@ -1,14 +1,15 @@
 use crate::interfaces::IpcChannel;
-use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 const ZERO_COPY_MAX_LEN: usize = 64 * 1024;
 
-static ZERO_COPY_SET_BUFFER_CALLS: AtomicU64 = AtomicU64::new(0);
-static ZERO_COPY_SEND_CALLS: AtomicU64 = AtomicU64::new(0);
-static ZERO_COPY_SEND_DROPS_OVERSIZE: AtomicU64 = AtomicU64::new(0);
-static ZERO_COPY_RECEIVE_CALLS: AtomicU64 = AtomicU64::new(0);
-static ZERO_COPY_RECEIVE_HITS: AtomicU64 = AtomicU64::new(0);
-static ZERO_COPY_RECEIVE_SMALL_BUFFER: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(ZERO_COPY_SET_BUFFER_CALLS);
+declare_counter_u64!(ZERO_COPY_SEND_CALLS);
+declare_counter_u64!(ZERO_COPY_SEND_DROPS_OVERSIZE);
+declare_counter_u64!(ZERO_COPY_RECEIVE_CALLS);
+declare_counter_u64!(ZERO_COPY_RECEIVE_HITS);
+declare_counter_u64!(ZERO_COPY_RECEIVE_SMALL_BUFFER);
 
 #[derive(Debug, Clone, Copy)]
 pub struct ZeroCopyStats {
@@ -22,12 +23,23 @@ pub struct ZeroCopyStats {
 
 pub fn stats() -> ZeroCopyStats {
     ZeroCopyStats {
-        set_buffer_calls: ZERO_COPY_SET_BUFFER_CALLS.load(Ordering::Relaxed),
-        send_calls: ZERO_COPY_SEND_CALLS.load(Ordering::Relaxed),
-        send_drops_oversize: ZERO_COPY_SEND_DROPS_OVERSIZE.load(Ordering::Relaxed),
-        receive_calls: ZERO_COPY_RECEIVE_CALLS.load(Ordering::Relaxed),
-        receive_hits: ZERO_COPY_RECEIVE_HITS.load(Ordering::Relaxed),
-        receive_small_buffer: ZERO_COPY_RECEIVE_SMALL_BUFFER.load(Ordering::Relaxed),
+        set_buffer_calls: telemetry::snapshot_u64(&ZERO_COPY_SET_BUFFER_CALLS),
+        send_calls: telemetry::snapshot_u64(&ZERO_COPY_SEND_CALLS),
+        send_drops_oversize: telemetry::snapshot_u64(&ZERO_COPY_SEND_DROPS_OVERSIZE),
+        receive_calls: telemetry::snapshot_u64(&ZERO_COPY_RECEIVE_CALLS),
+        receive_hits: telemetry::snapshot_u64(&ZERO_COPY_RECEIVE_HITS),
+        receive_small_buffer: telemetry::snapshot_u64(&ZERO_COPY_RECEIVE_SMALL_BUFFER),
+    }
+}
+
+pub fn take_stats() -> ZeroCopyStats {
+    ZeroCopyStats {
+        set_buffer_calls: telemetry::take_u64(&ZERO_COPY_SET_BUFFER_CALLS),
+        send_calls: telemetry::take_u64(&ZERO_COPY_SEND_CALLS),
+        send_drops_oversize: telemetry::take_u64(&ZERO_COPY_SEND_DROPS_OVERSIZE),
+        receive_calls: telemetry::take_u64(&ZERO_COPY_RECEIVE_CALLS),
+        receive_hits: telemetry::take_u64(&ZERO_COPY_RECEIVE_HITS),
+        receive_small_buffer: telemetry::take_u64(&ZERO_COPY_RECEIVE_SMALL_BUFFER),
     }
 }
 
@@ -54,7 +66,7 @@ impl ZeroCopy {
     /// Set the shared buffer for IPC.
     /// In a real exokernel, this would involve remapping page table entries.
     pub fn set_buffer(&self, ptr: usize, len: usize) {
-        ZERO_COPY_SET_BUFFER_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(ZERO_COPY_SET_BUFFER_CALLS);
 
         let tid = unsafe {
             crate::kernel::cpu_local::CpuLocal::try_get()
@@ -72,9 +84,9 @@ impl IpcChannel for ZeroCopy {
     /// "Send" a message by updating the shared pointer.
     /// In true Zero-Copy, we just ensure the receiver can see the sender's memory.
     fn send(&self, msg: &[u8]) {
-        ZERO_COPY_SEND_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(ZERO_COPY_SEND_CALLS);
         if msg.len() > ZERO_COPY_MAX_LEN {
-            ZERO_COPY_SEND_DROPS_OVERSIZE.fetch_add(1, Ordering::Relaxed);
+            counter_inc!(ZERO_COPY_SEND_DROPS_OVERSIZE);
             return;
         }
 
@@ -93,7 +105,7 @@ impl IpcChannel for ZeroCopy {
 
     /// "Receive" a message by reading from the shared pointer into the buffer.
     fn receive(&self, buffer: &mut [u8]) -> Option<usize> {
-        ZERO_COPY_RECEIVE_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(ZERO_COPY_RECEIVE_CALLS);
         let ptr = self.shared_buffer_ptr.load(Ordering::Acquire);
         let len = self.buffer_len.load(Ordering::Acquire);
         let owner = self.owner.load(Ordering::Acquire);
@@ -111,7 +123,7 @@ impl IpcChannel for ZeroCopy {
             // In a real OS, we'd check if `tid` has permission to read `owner`'s memory.
             None
         } else if len > buffer.len() {
-            ZERO_COPY_RECEIVE_SMALL_BUFFER.fetch_add(1, Ordering::Relaxed);
+            counter_inc!(ZERO_COPY_RECEIVE_SMALL_BUFFER);
             None
         } else {
             // Safety: In a real OS, ensure memory is mapped and sender hasn't unmapped it.
@@ -119,7 +131,7 @@ impl IpcChannel for ZeroCopy {
             unsafe {
                 core::ptr::copy_nonoverlapping(ptr as *const u8, buffer.as_mut_ptr(), len);
             }
-            ZERO_COPY_RECEIVE_HITS.fetch_add(1, Ordering::Relaxed);
+            counter_inc!(ZERO_COPY_RECEIVE_HITS);
             Some(len)
         }
     }

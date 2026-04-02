@@ -15,17 +15,17 @@ pub(crate) struct PlatformTelemetryConfig {
 impl PlatformTelemetryConfig {
     pub(crate) fn collect() -> Self {
         Self {
-            runtime: hypercore::config::KernelConfig::telemetry_runtime_summary_enabled(),
-            virtualization: hypercore::config::KernelConfig::telemetry_virtualization_enabled(),
+            runtime: aethercore::config::KernelConfig::telemetry_runtime_summary_enabled(),
+            virtualization: aethercore::config::KernelConfig::telemetry_virtualization_enabled(),
             platform_lifecycle:
-                hypercore::config::KernelConfig::telemetry_platform_lifecycle_enabled(),
-            scheduler: hypercore::config::KernelConfig::telemetry_scheduler_enabled(),
-            power: hypercore::config::KernelConfig::telemetry_power_enabled(),
-            drivers: hypercore::config::KernelConfig::telemetry_drivers_enabled(),
+                aethercore::config::KernelConfig::telemetry_platform_lifecycle_enabled(),
+            scheduler: aethercore::config::KernelConfig::telemetry_scheduler_enabled(),
+            power: aethercore::config::KernelConfig::telemetry_power_enabled(),
+            drivers: aethercore::config::KernelConfig::telemetry_drivers_enabled(),
             #[cfg(feature = "networking")]
-            network: hypercore::config::KernelConfig::telemetry_network_enabled(),
+            network: aethercore::config::KernelConfig::telemetry_network_enabled(),
             #[cfg(feature = "vfs")]
-            vfs: hypercore::config::KernelConfig::telemetry_vfs_enabled(),
+            vfs: aethercore::config::KernelConfig::telemetry_vfs_enabled(),
         }
     }
 
@@ -71,17 +71,17 @@ pub(crate) struct PciAttachTelemetryConfig {
 impl PciAttachTelemetryConfig {
     pub(crate) fn collect() -> Self {
         Self {
-            security: hypercore::config::KernelConfig::telemetry_security_enabled(),
-            ipc: hypercore::config::KernelConfig::telemetry_ipc_enabled(),
+            security: aethercore::config::KernelConfig::telemetry_security_enabled(),
+            ipc: aethercore::config::KernelConfig::telemetry_ipc_enabled(),
             #[cfg(feature = "networking")]
-            network: hypercore::config::KernelConfig::telemetry_network_enabled(),
+            network: aethercore::config::KernelConfig::telemetry_network_enabled(),
         }
     }
 }
 
 #[inline(always)]
 pub(crate) fn should_log_library_inventory() -> bool {
-    hypercore::config::KernelConfig::should_log_library_inventory()
+    aethercore::config::KernelConfig::should_log_library_inventory()
 }
 
 #[cfg(feature = "networking")]

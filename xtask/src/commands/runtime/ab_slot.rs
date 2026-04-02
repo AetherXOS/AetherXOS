@@ -4,6 +4,7 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::Path;
 
+use crate::constants;
 use crate::cli::AbSlotAction;
 use crate::utils::paths;
 use crate::utils::report;
@@ -77,14 +78,14 @@ fn default_state() -> SlotState {
         previous_slot: None,
         pending_slot: None,
         status: "healthy".to_string(),
-        policy: SlotPolicy { max_consecutive_failures: 3 },
+        policy: SlotPolicy { max_consecutive_failures: constants::defaults::ab_slot::MAX_CONSECUTIVE_FAILURES },
         slots,
         history: Vec::new(),
     }
 }
 
 fn state_path() -> std::path::PathBuf {
-    paths::resolve("artifacts/boot_ab/state.json")
+    constants::paths::boot_ab_state()
 }
 
 fn load_state() -> Result<SlotState> {
@@ -139,19 +140,19 @@ fn stage(slot: &str) -> Result<()> {
     println!("[ab-slot::stage] Staging artifacts to slot {}", slot);
 
     let mut state = load_state()?;
-    let ab_root = paths::resolve("artifacts/boot_ab");
+    let ab_root = constants::paths::boot_ab_root();
     let slot_boot = ab_root.join("slots").join(slot).join("boot");
     paths::ensure_dir(&slot_boot)?;
 
     // Copy current build artifacts to slot
-    let kernel_src = paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
-    let initramfs_src = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
-    let limine_src = paths::resolve("artifacts/boot_image/stage/boot/limine.conf");
+    let kernel_src = constants::paths::boot_image_stage_kernel();
+    let initramfs_src = constants::paths::boot_image_stage_initramfs();
+    let limine_src = constants::paths::boot_image_stage_limine();
 
     if !kernel_src.exists() { bail!("Kernel not found: {}. Run `cargo run -p xtask -- build full` first", kernel_src.display()); }
     if !initramfs_src.exists() { bail!("Initramfs not found: {}", initramfs_src.display()); }
 
-    fs::copy(&kernel_src, slot_boot.join("hypercore.elf"))?;
+    fs::copy(&kernel_src, slot_boot.join("aethercore.elf"))?;
     if initramfs_src.exists() { fs::copy(&initramfs_src, slot_boot.join("initramfs.cpio.gz"))?; }
     if limine_src.exists() { fs::copy(&limine_src, slot_boot.join("limine.conf"))?; }
 
@@ -163,7 +164,7 @@ fn stage(slot: &str) -> Result<()> {
         });
         meta.generation += 1;
         meta.updated_at_utc = Some(report::utc_now_iso());
-        meta.artifacts.insert("kernel_sha256".into(), sha256_file(&slot_boot.join("hypercore.elf"))?);
+        meta.artifacts.insert("kernel_sha256".into(), sha256_file(&slot_boot.join("aethercore.elf"))?);
         (meta.generation, meta.version.clone())
     };
 
@@ -200,9 +201,8 @@ fn nightly_flip() -> Result<()> {
 fn recovery_gate() -> Result<()> {
     println!("[ab-slot::recovery] Running boot recovery gate");
 
-    let root = paths::repo_root();
-    let soak_path = root.join("artifacts/qemu_soak/summary.json");
-    let out_dir = paths::resolve("reports/ab_boot_recovery_gate");
+    let soak_path = constants::paths::qemu_soak_root().join("summary.json");
+    let out_dir = constants::paths::reports_ab_boot_recovery_gate();
     paths::ensure_dir(&out_dir)?;
 
     if !soak_path.exists() {

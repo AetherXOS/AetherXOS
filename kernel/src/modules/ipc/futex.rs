@@ -1,16 +1,18 @@
 use crate::kernel::sync::WaitQueue;
-use crate::kernel::task::{suspend_current_task, wake_tasks};
+use crate::kernel::task::wake_tasks;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
-use core::sync::atomic::{AtomicU64, Ordering};
 use lazy_static::lazy_static;
 use spin::Mutex;
+use super::common::suspend_on;
 
-static FUTEX_WAIT_CALLS: AtomicU64 = AtomicU64::new(0);
-static FUTEX_WAIT_ENQUEUED: AtomicU64 = AtomicU64::new(0);
-static FUTEX_WAIT_MISMATCH: AtomicU64 = AtomicU64::new(0);
-static FUTEX_WAKE_CALLS: AtomicU64 = AtomicU64::new(0);
-static FUTEX_WAKE_WOKEN: AtomicU64 = AtomicU64::new(0);
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
+
+declare_counter_u64!(FUTEX_WAIT_CALLS);
+declare_counter_u64!(FUTEX_WAIT_ENQUEUED);
+declare_counter_u64!(FUTEX_WAIT_MISMATCH);
+declare_counter_u64!(FUTEX_WAKE_CALLS);
+declare_counter_u64!(FUTEX_WAKE_WOKEN);
 
 #[derive(Debug, Clone, Copy)]
 pub struct FutexStats {
@@ -32,11 +34,29 @@ pub struct FutexStats {
 pub fn stats() -> FutexStats {
     let keys = FUTEX_MAP.lock().len();
     FutexStats {
-        wait_calls: FUTEX_WAIT_CALLS.load(Ordering::Relaxed),
-        wait_enqueued: FUTEX_WAIT_ENQUEUED.load(Ordering::Relaxed),
-        wait_value_mismatch: FUTEX_WAIT_MISMATCH.load(Ordering::Relaxed),
-        wake_calls: FUTEX_WAKE_CALLS.load(Ordering::Relaxed),
-        wake_woken: FUTEX_WAKE_WOKEN.load(Ordering::Relaxed),
+        wait_calls: telemetry::snapshot_u64(&FUTEX_WAIT_CALLS),
+        wait_enqueued: telemetry::snapshot_u64(&FUTEX_WAIT_ENQUEUED),
+        wait_value_mismatch: telemetry::snapshot_u64(&FUTEX_WAIT_MISMATCH),
+        wake_calls: telemetry::snapshot_u64(&FUTEX_WAKE_CALLS),
+        wake_woken: telemetry::snapshot_u64(&FUTEX_WAKE_WOKEN),
+        active_keys: keys,
+        send_calls: 0,
+        send_invalid_control: 0,
+        receive_calls: 0,
+        receive_hits: 0,
+        receive_small_buffer: 0,
+        wake_event_drops: 0,
+    }
+}
+
+pub fn take_stats() -> FutexStats {
+    let keys = FUTEX_MAP.lock().len();
+    FutexStats {
+        wait_calls: telemetry::take_u64(&FUTEX_WAIT_CALLS),
+        wait_enqueued: telemetry::take_u64(&FUTEX_WAIT_ENQUEUED),
+        wait_value_mismatch: telemetry::take_u64(&FUTEX_WAIT_MISMATCH),
+        wake_calls: telemetry::take_u64(&FUTEX_WAKE_CALLS),
+        wake_woken: telemetry::take_u64(&FUTEX_WAKE_WOKEN),
         active_keys: keys,
         send_calls: 0,
         send_invalid_control: 0,
@@ -77,10 +97,10 @@ impl Futex {
     /// Wait on a futex key.
     /// Returns `FutexWaitResult` so the syscall layer can distinguish outcomes.
     pub fn wait(&self, key: u64, observed: u32, expected: u32) -> FutexWaitResult {
-        FUTEX_WAIT_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(FUTEX_WAIT_CALLS);
 
         if observed != expected {
-            FUTEX_WAIT_MISMATCH.fetch_add(1, Ordering::Relaxed);
+            counter_inc!(FUTEX_WAIT_MISMATCH);
             return FutexWaitResult::ValueMismatch;
         }
 
@@ -95,14 +115,14 @@ impl Futex {
                 .clone()
         };
 
-        suspend_current_task(&entry.queue);
-        FUTEX_WAIT_ENQUEUED.fetch_add(1, Ordering::Relaxed);
+        suspend_on(&entry.queue);
+        counter_inc!(FUTEX_WAIT_ENQUEUED);
         FutexWaitResult::Enqueued
     }
 
     /// Wake up to `max_wake` threads waiting on the key.
     pub fn wake(&self, key: u64, max_wake: usize) -> usize {
-        FUTEX_WAKE_CALLS.fetch_add(1, Ordering::Relaxed);
+        counter_inc!(FUTEX_WAKE_CALLS);
         if max_wake == 0 {
             return 0;
         }
@@ -124,7 +144,9 @@ impl Futex {
 
             let count = woken_tids.len();
             if count > 0 {
-                FUTEX_WAKE_WOKEN.fetch_add(count as u64, Ordering::Relaxed);
+                for _ in 0..count {
+                    counter_inc!(FUTEX_WAKE_WOKEN);
+                }
                 wake_tasks(woken_tids);
             }
 
@@ -146,3 +168,29 @@ impl Futex {
 }
 
 // POSIX/Linux Syscall glue follows in the dispatcher layers
+
+#[cfg(test)]
+mod tests {
+    use super::{global, stats, take_stats, FutexWaitResult};
+
+    #[test]
+    fn futex_stats_take_resets_counters() {
+        let futex = global();
+
+        let result = futex.wait(42, 1, 2);
+        assert_eq!(result, FutexWaitResult::ValueMismatch);
+
+        let before = stats();
+        assert_eq!(before.wait_calls, 1);
+        assert_eq!(before.wait_value_mismatch, 1);
+        assert_eq!(before.wait_enqueued, 0);
+
+        let taken = take_stats();
+        assert_eq!(taken.wait_calls, 1);
+        assert_eq!(taken.wait_value_mismatch, 1);
+
+        let after = stats();
+        assert_eq!(after.wait_calls, 0);
+        assert_eq!(after.wait_value_mismatch, 0);
+    }
+}

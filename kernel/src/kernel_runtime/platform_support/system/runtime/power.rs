@@ -1,9 +1,9 @@
 use super::super::current_virtualization_log_snapshot;
 
 pub(crate) fn log_power_baseline() {
-    let pwr = hypercore::kernel::power::stats();
+    let pwr = aethercore::kernel::power::stats();
     let virt = current_virtualization_log_snapshot();
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "Power baseline: idle_calls={} c1={} c2={} c3={} pstate_switches={} current_pstate={:?} p_override_active={} p_override_set={} p_override_clear={} c_override_active={} c_override_set={} c_override_clear={} acpi_loaded={} fadt_rev={} guard_hits={} rq_clamps={} failsafe={} override_rejects_no_acpi={} virt_exec_profile={} virt_lane={} virt_mode={} virt_governor={} latency_bias={} energy_bias={}",
         pwr.idle_calls,
         pwr.c1_entries,

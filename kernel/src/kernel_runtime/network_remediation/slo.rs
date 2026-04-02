@@ -7,10 +7,10 @@ use crate::kernel_runtime::networking::{
 };
 
 pub(super) fn maybe_auto_switch_network_driver_on_slo(
-    slo: hypercore::modules::drivers::NetworkDriverSloReport,
+    slo: aethercore::modules::drivers::NetworkDriverSloReport,
 ) -> bool {
-    let profile = hypercore::modules::drivers::network_remediation_profile();
-    let tuning = hypercore::modules::drivers::remediation_tuning_for_profile(profile);
+    let profile = aethercore::modules::drivers::network_remediation_profile();
+    let tuning = aethercore::modules::drivers::remediation_tuning_for_profile(profile);
     let cooldown = NETWORK_AUTO_POLICY_SWITCH_COOLDOWN.load(core::sync::atomic::Ordering::Relaxed);
     if cooldown > 0 {
         NETWORK_AUTO_POLICY_SWITCH_COOLDOWN
@@ -36,17 +36,17 @@ pub(super) fn maybe_auto_switch_network_driver_on_slo(
     let applied = match next_stage {
         1 => {
             let target_profile = if slo.tx_ring_breach || slo.rx_ring_breach {
-                hypercore::modules::drivers::NetworkPollProfile::Throughput
+                aethercore::modules::drivers::NetworkPollProfile::Throughput
             } else if slo.drop_rate_breach {
-                hypercore::modules::drivers::NetworkPollProfile::Balanced
+                aethercore::modules::drivers::NetworkPollProfile::Balanced
             } else {
-                hypercore::modules::drivers::NetworkPollProfile::LowLatency
+                aethercore::modules::drivers::NetworkPollProfile::LowLatency
             };
-            hypercore::modules::drivers::apply_network_poll_profile(target_profile);
+            aethercore::modules::drivers::apply_network_poll_profile(target_profile);
             if slo.tx_ring_breach || slo.rx_ring_breach {
-                hypercore::modules::drivers::configure_network_ring_limit(2048);
+                aethercore::modules::drivers::configure_network_ring_limit(2048);
             }
-            hypercore::klog_warn!(
+            aethercore::klog_warn!(
                 "Network remediation stage=1 profile={:?} poll_profile={:?} breach(drop={},tx={},rx={},io={})",
                 profile,
                 target_profile,
@@ -58,24 +58,24 @@ pub(super) fn maybe_auto_switch_network_driver_on_slo(
             true
         }
         2 if tuning.rebind_before_failover => {
-            let active = hypercore::modules::drivers::active_network_driver();
+            let active = aethercore::modules::drivers::active_network_driver();
             let rebind_ok = match active {
-                hypercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
-                    hypercore::modules::drivers::with_virtio_runtime_driver_mut(|runtime_driver| {
+                aethercore::modules::drivers::ActiveNetworkDriver::VirtIo => {
+                    aethercore::modules::drivers::with_virtio_runtime_driver_mut(|runtime_driver| {
                         super::service::rebind_virtio_driver(runtime_driver)
                     })
                     .unwrap_or(false)
                 }
-                hypercore::modules::drivers::ActiveNetworkDriver::E1000 => {
-                    hypercore::modules::drivers::with_e1000_runtime_driver_mut(|runtime_driver| {
+                aethercore::modules::drivers::ActiveNetworkDriver::E1000 => {
+                    aethercore::modules::drivers::with_e1000_runtime_driver_mut(|runtime_driver| {
                         super::service::rebind_e1000_driver(runtime_driver)
                     })
                     .unwrap_or(false)
                 }
-                hypercore::modules::drivers::ActiveNetworkDriver::None => false,
+                aethercore::modules::drivers::ActiveNetworkDriver::None => false,
             };
             if rebind_ok {
-                hypercore::klog_warn!(
+                aethercore::klog_warn!(
                     "Network remediation stage=2 profile={:?} action=rebind driver={:?}",
                     profile,
                     active
@@ -84,13 +84,13 @@ pub(super) fn maybe_auto_switch_network_driver_on_slo(
             rebind_ok
         }
         _ => {
-            let current = hypercore::modules::drivers::active_network_driver();
+            let current = aethercore::modules::drivers::active_network_driver();
             let fallback = select_network_failover_target(
                 current,
-                hypercore::modules::drivers::has_virtio_runtime_driver(),
-                hypercore::modules::drivers::has_e1000_runtime_driver(),
+                aethercore::modules::drivers::has_virtio_runtime_driver(),
+                aethercore::modules::drivers::has_e1000_runtime_driver(),
             );
-            if fallback == hypercore::modules::drivers::ActiveNetworkDriver::None {
+            if fallback == aethercore::modules::drivers::ActiveNetworkDriver::None {
                 false
             } else {
                 let switched =
@@ -99,7 +99,7 @@ pub(super) fn maybe_auto_switch_network_driver_on_slo(
                     NETWORK_AUTO_POLICY_SWITCH_COUNT
                         .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
                     failover_performed = true;
-                    hypercore::klog_warn!(
+                    aethercore::klog_warn!(
                         "Network remediation stage={} profile={:?} action=failover target={:?}",
                         next_stage,
                         profile,

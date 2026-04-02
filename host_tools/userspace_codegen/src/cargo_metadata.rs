@@ -36,13 +36,13 @@ pub fn load_config_snapshot(repo_root: &Path) -> Result<ConfigSnapshot, String> 
 
     let linux_compat = metadata_table(
         &value,
-        &["package", "metadata", "hypercore", "config", "linux_compat"],
+        &["package", "metadata", "aethercore", "config", "linux_compat"],
     )
     .map(stringify_table)
     .unwrap_or_default();
     let linux_os = metadata_table(
         &value,
-        &["package", "metadata", "hypercore", "config", "linux_os"],
+        &["package", "metadata", "aethercore", "config", "linux_os"],
     )
     .map(stringify_table)
     .unwrap_or_default();

@@ -20,7 +20,7 @@ pub fn run_smoke() -> Result<()> {
     let mut in_drivers_section = false;
     for line in cargo_text.lines() {
         let line = line.trim();
-        if line.starts_with("[package.metadata.hypercore.config.drivers]") {
+        if line.starts_with("[package.metadata.aethercore.config.drivers]") {
             in_drivers_section = true;
             continue;
         } else if line.starts_with('[') {

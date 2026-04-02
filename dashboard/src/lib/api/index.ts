@@ -351,7 +351,7 @@ class DashboardApiClient {
 
 const agentApi = new DashboardApiClient({
 	baseUrlGetter: () => appState.agentUrl,
-	tokenHeader: 'X-HyperCore-Token',
+	tokenHeader: 'X-AetherCore-Token',
 	tokenGetter: () => appState.agentToken,
 	onDisconnect: () => {
 		appState.isConnected = false;
@@ -364,7 +364,7 @@ const agentApi = new DashboardApiClient({
 
 const launcherApi = new DashboardApiClient({
 	baseUrlGetter: () => appState.agentUrl,
-	tokenHeader: 'X-HyperCore-Token',
+	tokenHeader: 'X-AetherCore-Token',
 	tokenGetter: () => appState.agentToken,
 	onDisconnect: () => {
 		appState.launcherConnected = false;
@@ -607,7 +607,7 @@ export const AgentRepo = {
 		const headers = new Headers();
 		headers.set('Accept', 'text/event-stream');
 		if (appState.agentToken) {
-			headers.set('X-HyperCore-Token', appState.agentToken);
+			headers.set('X-AetherCore-Token', appState.agentToken);
 		}
 
 		let response: Response;

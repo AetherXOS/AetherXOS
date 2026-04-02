@@ -9,7 +9,7 @@ use super::smoke_proof::{lossy_bytes, write_proof_files};
 
 pub fn run_generated_userspace_smoke(repo_root: &Path, userspace_dir: &Path) -> Result<(), String> {
     let compiler = detect_host_c_compiler();
-    let mut smoke_lines = vec!["[hypercore-userspace-smoke]".to_string()];
+    let mut smoke_lines = vec!["[aethercore-userspace-smoke]".to_string()];
     if compiler.is_none() {
         smoke_lines.extend([
             "status=compiler_missing".to_string(),
@@ -119,7 +119,7 @@ pub fn run_generated_userspace_smoke(repo_root: &Path, userspace_dir: &Path) -> 
                 .arg("-m")
                 .arg("elf_x86_64")
                 .arg("-T")
-                .arg(userspace_dir.join("hypercore_userspace.ld"))
+                .arg(userspace_dir.join("aethercore_userspace.ld"))
                 .arg("-o")
                 .arg(&link_target)
                 .arg(&startup_obj)
@@ -132,7 +132,7 @@ pub fn run_generated_userspace_smoke(repo_root: &Path, userspace_dir: &Path) -> 
                 .arg("-fuse-ld=lld")
                 .arg(format!(
                     "-Wl,-T,{}",
-                    userspace_dir.join("hypercore_userspace.ld").display()
+                    userspace_dir.join("aethercore_userspace.ld").display()
                 ))
                 .arg("-o")
                 .arg(&link_target)

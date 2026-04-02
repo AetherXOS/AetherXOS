@@ -1,11 +1,11 @@
 extern crate alloc;
 
 // ── Architecture imports ──────────────────────────────────────────────────────
-use hypercore::hal::{Hal, HAL};
+use aethercore::hal::{Hal, HAL};
 
 // ── IRQ dispatcher (x86_64 only) ─────────────────────────────────────────────
 #[cfg(all(feature = "dispatcher", target_arch = "x86_64"))]
-use hypercore::modules::dispatcher::selector::ActiveDispatcher;
+use aethercore::modules::dispatcher::selector::ActiveDispatcher;
 
 // ── Sub-modules ───────────────────────────────────────────────────────────────
 #[path = "kernel_runtime/boot_flow/mod.rs"]
@@ -67,13 +67,13 @@ impl KernelRuntime {
         heap::init_heap(&crate::ALLOCATOR);
         Hal::serial_write_raw("[BOOT] System heap initialized\n");
         // 1.5 TTY
-        hypercore::kernel::tty::init_default_tty();
+        aethercore::kernel::tty::init_default_tty();
         boot.after_heap_init();
         Hal::serial_write_raw("[BOOT] After-heap-init hook complete\n");
 
         boot.after_hal_early_init();
         #[cfg(target_arch = "x86_64")]
-        hypercore::hal::x86_64::serial::write_raw(
+        aethercore::hal::x86_64::serial::write_raw(
             "[EARLY SERIAL] after_hal_early_init hook returned\n",
         );
 

@@ -1,4 +1,4 @@
-//! Modular build configuration system for HyperCore OS.
+//! Modular build configuration system for AetherCore OS.
 //!
 //! Each subsystem owns its own validation, range constants, and feature rules.
 //! build.rs delegates to this module instead of being a monolithic god-file.

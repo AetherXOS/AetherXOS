@@ -1,10 +1,10 @@
 [package]
 name = "scheduler_host_tests"
-version = "0.1.0"
-edition = "2021"
+version = "0.0.1"
+edition = "2024"
 
 [dependencies]
-hypercore = { path = "../..", default-features = true, features = [
+aethercore = { path = "../..", package = "aether-x-os", default-features = true, features = [
     "sched_round_robin",
     "sched_weighted_round_robin",
     "sched_fifo",

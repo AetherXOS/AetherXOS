@@ -1,6 +1,7 @@
 use alloc::string::String;
+use aethercore_common::units::PAGE_SIZE_4K;
 
-const PAGE_SIZE: usize = 4096;
+const PAGE_SIZE: usize = PAGE_SIZE_4K;
 const S_IFREG: u16 = 0o100000;
 const S_IFDIR: u16 = 0o040000;
 const S_IFLNK: u16 = 0o120000;

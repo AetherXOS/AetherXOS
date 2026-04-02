@@ -1,5 +1,5 @@
-use hypercore::kernel::launch::{spawn_bootstrap_from_image, LaunchError};
-use hypercore::kernel::module_loader::{
+use aethercore::kernel::launch::{spawn_bootstrap_from_image, LaunchError};
+use aethercore::kernel::module_loader::{
     build_load_plan, inspect_elf_image, snapshot_module_image, ModuleLoadError,
 };
 

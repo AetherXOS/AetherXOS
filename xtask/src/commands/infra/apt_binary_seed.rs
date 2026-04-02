@@ -6,11 +6,17 @@ use anyhow::Result;
 use serde_json::json;
 use std::fs;
 use std::path::Path;
+use crate::utils::process;
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
 use std::process::Command;
+
+#[cfg(unix)]
+fn run_first_success(candidates: &[(&str, &[&str])]) -> bool {
+    candidates.iter().any(|(program, args)| process::run_best_effort(program, args))
+}
 
 /// Download and prepare APT binary seed
 pub fn prepare_apt_seed(initramfs_root: &Path) -> Result<()> {
@@ -39,7 +45,7 @@ Apt::Install-Suggests "false";
 "#;
 
     fs::create_dir_all(etc_dir.join("apt/apt.conf.d"))?;
-    fs::write(etc_dir.join("apt/apt.conf.d/90-hypercore"), apt_conf)?;
+    fs::write(etc_dir.join("apt/apt.conf.d/90-aethercore"), apt_conf)?;
 
     // Try to provision APT binary (Unix only)
     #[cfg(unix)]
@@ -73,8 +79,8 @@ Apt::Install-Suggests "false";
 fn write_seed_capability_manifest(initramfs_root: &Path, provisioning_mode: &str) -> Result<()> {
     let bin_dir = initramfs_root.join("usr/bin");
     let lib_dir = initramfs_root.join("usr/lib");
-    let hypercore_lib_dir = lib_dir.join("hypercore");
-    fs::create_dir_all(&hypercore_lib_dir)?;
+    let aethercore_lib_dir = lib_dir.join("aethercore");
+    fs::create_dir_all(&aethercore_lib_dir)?;
 
     let apt_seeded = bin_dir.join("apt-get").exists() || bin_dir.join("apt").exists();
     let dpkg_seeded = bin_dir.join("dpkg").exists();
@@ -83,7 +89,7 @@ fn write_seed_capability_manifest(initramfs_root: &Path, provisioning_mode: &str
         || lib_dir.join("ld-linux.so.2").exists();
 
     let manifest = json!({
-        "schema": "hypercore.apt.seed.capability.v1",
+        "schema": "aethercore.apt.seed.capability.v1",
         "provisioning_mode": provisioning_mode,
         "build_host": std::env::consts::OS,
         "seeded_tools": {
@@ -98,13 +104,13 @@ fn write_seed_capability_manifest(initramfs_root: &Path, provisioning_mode: &str
     });
 
     fs::write(
-        hypercore_lib_dir.join("apt-seed-capability.json"),
+        aethercore_lib_dir.join("apt-seed-capability.json"),
         serde_json::to_string_pretty(&manifest)?,
     )?;
 
     if provisioning_mode == "non-unix-build-host" {
         fs::write(
-            hypercore_lib_dir.join("apt-seed-host-limitation.txt"),
+            aethercore_lib_dir.join("apt-seed-host-limitation.txt"),
             "APT binary closure cannot be fully seeded on non-Unix build hosts.\nRun apt-iso on Linux to seed apt-get/dpkg/loader shared libraries for runtime package installation.\n",
         )?;
     }
@@ -134,7 +140,7 @@ fn install_apt_binary_unix(bin_dir: &Path, lib_dir: &Path) -> Result<()> {
     // Try downloading from known sources (requires curl/wget)
     let urls = [
         "https://snapshot.debian.org/archive/debian/20230101T000000Z/pool/main/a/apt/apt_2.2.4-1~bpo11+1_amd64.deb",
-        "https://github.com/hypercore-os/apt-binaries/releases/download/v2.2.4/apt-amd64.tar.gz",
+        "https://github.com/aethercore-os/apt-binaries/releases/download/v2.2.4/apt-amd64.tar.gz",
     ];
 
     for url in &urls {
@@ -214,35 +220,17 @@ fn copy_apt_with_dependencies(apt_exe: &str, bin_dir: &Path, lib_dir: &Path) -> 
 /// Try to download and extract apt binary from URL
 #[cfg(unix)]
 fn try_download_apt(url: &str, bin_dir: &Path) -> Result<()> {
-    let temp_dir = std::env::temp_dir().join("hypercore-apt-seed");
+    let temp_dir = std::env::temp_dir().join("aethercore-apt-seed");
     fs::create_dir_all(&temp_dir)?;
 
     let file_name = url.split('/').last().unwrap_or("apt-binary");
     let download_path = temp_dir.join(file_name);
 
     // Try curl first, then wget
-    let download_success = if Command::new("curl")
-        .arg("-fsSL")
-        .arg(url)
-        .arg("-o")
-        .arg(&download_path)
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-    {
-        true
-    } else if Command::new("wget")
-        .arg("-qO")
-        .arg(&download_path)
-        .arg(url)
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-    {
-        true
-    } else {
-        false
-    };
+    let download_success = run_first_success(&[
+        ("curl", &["-fsSL", url, "-o", download_path.to_str().unwrap_or("")]),
+        ("wget", &["-qO", download_path.to_str().unwrap_or(""), url]),
+    ]);
 
     if !download_success {
         return Err(anyhow::anyhow!("Download failed"));
@@ -251,15 +239,7 @@ fn try_download_apt(url: &str, bin_dir: &Path) -> Result<()> {
     // Handle single binary file
     if file_name.ends_with(".tar.gz") || file_name.ends_with(".tgz") {
         // Try to extract gzipped tar archive using tar command
-        if !Command::new("tar")
-            .arg("-xzf")
-            .arg(&download_path)
-            .arg("-C")
-            .arg(&temp_dir)
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false)
-        {
+        if !run_first_success(&[("tar", &["-xzf", download_path.to_str().unwrap_or(""), "-C", temp_dir.to_str().unwrap_or("")])]) {
             return Err(anyhow::anyhow!("Failed to extract .tar.gz"));
         }
 

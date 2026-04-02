@@ -1,6 +1,56 @@
-use core::sync::atomic::Ordering;
+use core::sync::atomic::{AtomicU64, Ordering};
 
 use super::*;
+
+#[inline(always)]
+fn load_lottery_lcg_odd_param(atom: &AtomicU64, default_value: u64) -> u64 {
+    let raw = load_u64_override_clamped(atom, default_value, 1, MAX_SCHED_LOTTERY_LCG_PARAM);
+    raw | 1
+}
+
+#[inline(always)]
+fn apply_scheduler_runtime_profile_fields(profile: &SchedulerRuntimeProfile) {
+    KernelConfig::set_cfs_min_granularity_ns(Some(profile.cfs_min_granularity_ns));
+    KernelConfig::set_cfs_latency_target_ns(Some(profile.cfs_latency_target_ns));
+    KernelConfig::set_mlfq_base_slice_ns(Some(profile.mlfq_base_slice_ns));
+    KernelConfig::set_mlfq_boost_interval_ticks(Some(profile.mlfq_boost_interval_ticks));
+    KernelConfig::set_mlfq_demote_on_slice_exhaustion(Some(
+        profile.mlfq_demote_on_slice_exhaustion,
+    ));
+    KernelConfig::set_edf_enforce_deadline(Some(profile.edf_enforce_deadline));
+    KernelConfig::set_edf_default_relative_deadline_ns(Some(
+        profile.edf_default_relative_deadline_ns,
+    ));
+    KernelConfig::set_rt_group_reservation_enabled(Some(profile.rt_group_reservation_enabled));
+    KernelConfig::set_rt_period_ns(Some(profile.rt_period_ns));
+    KernelConfig::set_rt_total_utilization_cap_percent(Some(
+        profile.rt_total_utilization_cap_percent,
+    ));
+    KernelConfig::set_rt_max_groups(Some(profile.rt_max_groups));
+    KernelConfig::set_sched_lottery_tickets_per_priority_level(Some(
+        profile.lottery_tickets_per_priority_level,
+    ));
+    KernelConfig::set_sched_lottery_min_tickets_per_task(Some(
+        profile.lottery_min_tickets_per_task,
+    ));
+}
+
+#[inline(always)]
+fn reset_scheduler_runtime_profile_fields() {
+    KernelConfig::set_cfs_min_granularity_ns(None);
+    KernelConfig::set_cfs_latency_target_ns(None);
+    KernelConfig::set_mlfq_base_slice_ns(None);
+    KernelConfig::set_mlfq_boost_interval_ticks(None);
+    KernelConfig::set_mlfq_demote_on_slice_exhaustion(None);
+    KernelConfig::set_edf_enforce_deadline(None);
+    KernelConfig::set_edf_default_relative_deadline_ns(None);
+    KernelConfig::set_rt_group_reservation_enabled(None);
+    KernelConfig::set_rt_period_ns(None);
+    KernelConfig::set_rt_total_utilization_cap_percent(None);
+    KernelConfig::set_rt_max_groups(None);
+    KernelConfig::set_sched_lottery_tickets_per_priority_level(None);
+    KernelConfig::set_sched_lottery_min_tickets_per_task(None);
+}
 
 impl KernelConfig {
     pub fn mlfq_num_queues() -> usize {
@@ -188,13 +238,10 @@ impl KernelConfig {
     }
 
     pub fn sched_lottery_lcg_multiplier() -> u64 {
-        let override_value = SCHED_LOTTERY_LCG_MULTIPLIER_OVERRIDE.load(Ordering::Relaxed);
-        let raw = if override_value == 0 {
-            DEFAULT_SCHED_LOTTERY_LCG_MULTIPLIER
-        } else {
-            override_value.min(MAX_SCHED_LOTTERY_LCG_PARAM)
-        };
-        raw.max(1) | 1
+        load_lottery_lcg_odd_param(
+            &SCHED_LOTTERY_LCG_MULTIPLIER_OVERRIDE,
+            DEFAULT_SCHED_LOTTERY_LCG_MULTIPLIER,
+        )
     }
 
     pub fn set_sched_lottery_lcg_multiplier(value: Option<u64>) {
@@ -202,13 +249,10 @@ impl KernelConfig {
     }
 
     pub fn sched_lottery_lcg_increment() -> u64 {
-        let override_value = SCHED_LOTTERY_LCG_INCREMENT_OVERRIDE.load(Ordering::Relaxed);
-        let raw = if override_value == 0 {
-            DEFAULT_SCHED_LOTTERY_LCG_INCREMENT
-        } else {
-            override_value.min(MAX_SCHED_LOTTERY_LCG_PARAM)
-        };
-        raw.max(1) | 1
+        load_lottery_lcg_odd_param(
+            &SCHED_LOTTERY_LCG_INCREMENT_OVERRIDE,
+            DEFAULT_SCHED_LOTTERY_LCG_INCREMENT,
+        )
     }
 
     pub fn set_sched_lottery_lcg_increment(value: Option<u64>) {
@@ -266,44 +310,10 @@ impl KernelConfig {
         apply_profile_override(
             value,
             |profile| {
-                Self::set_cfs_min_granularity_ns(Some(profile.cfs_min_granularity_ns));
-                Self::set_cfs_latency_target_ns(Some(profile.cfs_latency_target_ns));
-                Self::set_mlfq_base_slice_ns(Some(profile.mlfq_base_slice_ns));
-                Self::set_mlfq_boost_interval_ticks(Some(profile.mlfq_boost_interval_ticks));
-                Self::set_mlfq_demote_on_slice_exhaustion(Some(
-                    profile.mlfq_demote_on_slice_exhaustion,
-                ));
-                Self::set_edf_enforce_deadline(Some(profile.edf_enforce_deadline));
-                Self::set_edf_default_relative_deadline_ns(Some(
-                    profile.edf_default_relative_deadline_ns,
-                ));
-                Self::set_rt_group_reservation_enabled(Some(profile.rt_group_reservation_enabled));
-                Self::set_rt_period_ns(Some(profile.rt_period_ns));
-                Self::set_rt_total_utilization_cap_percent(Some(
-                    profile.rt_total_utilization_cap_percent,
-                ));
-                Self::set_rt_max_groups(Some(profile.rt_max_groups));
-                Self::set_sched_lottery_tickets_per_priority_level(Some(
-                    profile.lottery_tickets_per_priority_level,
-                ));
-                Self::set_sched_lottery_min_tickets_per_task(Some(
-                    profile.lottery_min_tickets_per_task,
-                ));
+                apply_scheduler_runtime_profile_fields(&profile);
             },
             || {
-                Self::set_cfs_min_granularity_ns(None);
-                Self::set_cfs_latency_target_ns(None);
-                Self::set_mlfq_base_slice_ns(None);
-                Self::set_mlfq_boost_interval_ticks(None);
-                Self::set_mlfq_demote_on_slice_exhaustion(None);
-                Self::set_edf_enforce_deadline(None);
-                Self::set_edf_default_relative_deadline_ns(None);
-                Self::set_rt_group_reservation_enabled(None);
-                Self::set_rt_period_ns(None);
-                Self::set_rt_total_utilization_cap_percent(None);
-                Self::set_rt_max_groups(None);
-                Self::set_sched_lottery_tickets_per_priority_level(None);
-                Self::set_sched_lottery_min_tickets_per_task(None);
+                reset_scheduler_runtime_profile_fields();
             },
         );
     }

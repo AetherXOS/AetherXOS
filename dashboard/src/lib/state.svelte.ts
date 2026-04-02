@@ -29,7 +29,7 @@ class DashboardState {
 		if (this.agentUrl !== DEFAULT_AGENT_URL) {
 			return;
 		}
-		if (!this.agentToken || this.agentToken === 'change-me-hypercore-agent-token') {
+		if (!this.agentToken || this.agentToken === 'change-me-aethercore-agent-token') {
 			this.agentToken = DEFAULT_LOCAL_AGENT_TOKEN;
 		}
 	}

@@ -31,7 +31,8 @@ pub use binder::{
 };
 #[cfg(feature = "ipc_dbus")]
 pub use dbus::{
-    dbus_consume, dbus_publish, dbus_stats, dbus_subscribe, heartbeat_session_service,
+    dbus_consume, dbus_publish, dbus_stats, dbus_subscribe, dbus_take_stats,
+    heartbeat_session_service,
     list_session_services, mark_session_service_degraded, mark_session_service_ready,
     register_session_service, DbusStats, SessionServiceSnapshot, SessionServiceState,
 };

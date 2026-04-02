@@ -1,4 +1,5 @@
-use core::sync::atomic::{AtomicU64, Ordering};
+use core::sync::atomic::Ordering;
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(usize)]
@@ -33,10 +34,10 @@ pub struct BackendDescriptor {
     pub enabled: bool,
 }
 
-static FATFS_PROBE_CALLS: AtomicU64 = AtomicU64::new(0);
-static LITTLEFS_PROBE_CALLS: AtomicU64 = AtomicU64::new(0);
-static EXT4_PROBE_CALLS: AtomicU64 = AtomicU64::new(0);
-static SQUASHFS_PROBE_CALLS: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(FATFS_PROBE_CALLS);
+declare_counter_u64!(LITTLEFS_PROBE_CALLS);
+declare_counter_u64!(EXT4_PROBE_CALLS);
+declare_counter_u64!(SQUASHFS_PROBE_CALLS);
 
 pub fn supported_backends() -> BackendMatrix {
     BackendMatrix {
@@ -59,61 +60,70 @@ pub fn probe_backend(kind: FsBackendKind) -> bool {
 
 #[cfg(all(feature = "vfs_fatfs", not(target_os = "none")))]
 fn probe_fatfs() -> bool {
-    FATFS_PROBE_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(FATFS_PROBE_CALLS);
     let _ = fatfs::FsOptions::new();
     true
 }
 
 #[cfg(any(not(feature = "vfs_fatfs"), target_os = "none"))]
 fn probe_fatfs() -> bool {
-    FATFS_PROBE_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(FATFS_PROBE_CALLS);
     false
 }
 
 #[cfg(feature = "vfs_littlefs")]
 fn probe_littlefs() -> bool {
-    LITTLEFS_PROBE_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(LITTLEFS_PROBE_CALLS);
     let _ = core::mem::size_of::<littlefs2_core::Metadata>();
     true
 }
 
 #[cfg(not(feature = "vfs_littlefs"))]
 fn probe_littlefs() -> bool {
-    LITTLEFS_PROBE_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(LITTLEFS_PROBE_CALLS);
     false
 }
 
 #[cfg(feature = "vfs_ext4")]
 fn probe_ext4() -> bool {
-    EXT4_PROBE_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(EXT4_PROBE_CALLS);
     let _ = core::mem::size_of::<ext4_view::Ext4>();
     true
 }
 
 #[cfg(not(feature = "vfs_ext4"))]
 fn probe_ext4() -> bool {
-    EXT4_PROBE_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(EXT4_PROBE_CALLS);
     false
 }
 
 #[cfg(feature = "vfs_squashfs")]
 fn probe_squashfs() -> bool {
-    SQUASHFS_PROBE_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(SQUASHFS_PROBE_CALLS);
     true
 }
 
 #[cfg(not(feature = "vfs_squashfs"))]
 fn probe_squashfs() -> bool {
-    SQUASHFS_PROBE_CALLS.fetch_add(1, Ordering::Relaxed);
+    counter_inc!(SQUASHFS_PROBE_CALLS);
     false
 }
 
 pub fn backend_probe_stats() -> BackendProbeStats {
     BackendProbeStats {
-        fatfs_probe_calls: FATFS_PROBE_CALLS.load(Ordering::Relaxed),
-        littlefs_probe_calls: LITTLEFS_PROBE_CALLS.load(Ordering::Relaxed),
-        ext4_probe_calls: EXT4_PROBE_CALLS.load(Ordering::Relaxed),
-        squashfs_probe_calls: SQUASHFS_PROBE_CALLS.load(Ordering::Relaxed),
+        fatfs_probe_calls: telemetry::snapshot_u64(&FATFS_PROBE_CALLS),
+        littlefs_probe_calls: telemetry::snapshot_u64(&LITTLEFS_PROBE_CALLS),
+        ext4_probe_calls: telemetry::snapshot_u64(&EXT4_PROBE_CALLS),
+        squashfs_probe_calls: telemetry::snapshot_u64(&SQUASHFS_PROBE_CALLS),
+    }
+}
+
+pub fn take_backend_probe_stats() -> BackendProbeStats {
+    BackendProbeStats {
+        fatfs_probe_calls: telemetry::take_u64(&FATFS_PROBE_CALLS),
+        littlefs_probe_calls: telemetry::take_u64(&LITTLEFS_PROBE_CALLS),
+        ext4_probe_calls: telemetry::take_u64(&EXT4_PROBE_CALLS),
+        squashfs_probe_calls: telemetry::take_u64(&SQUASHFS_PROBE_CALLS),
     }
 }
 

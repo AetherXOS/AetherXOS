@@ -222,7 +222,7 @@ pub(super) fn parse_override_entry(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod tests {
     use super::*;
 

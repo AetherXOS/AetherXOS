@@ -1,11 +1,11 @@
 fn main() {
-    println!("arch={}", hypercore::config::KernelConfig::arch());
+    println!("arch={}", aethercore::config::KernelConfig::arch());
     println!(
         "time_slice={}",
-        hypercore::config::KernelConfig::time_slice()
+        aethercore::config::KernelConfig::time_slice()
     );
     println!(
         "telemetry_enabled={}",
-        hypercore::config::KernelConfig::is_telemetry_enabled()
+        aethercore::config::KernelConfig::is_telemetry_enabled()
     );
 }

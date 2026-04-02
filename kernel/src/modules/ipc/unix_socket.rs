@@ -16,6 +16,7 @@ use alloc::collections::VecDeque;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 use core::sync::atomic::{AtomicU64, Ordering};
 use spin::Mutex;
 
@@ -425,8 +426,8 @@ pub fn unix_socketpair(stype: UnixSocketType) -> KernelResult<(Arc<UnixSocket>, 
 
 // ── Statistics ──────────────────────────────────────────────────────────────
 
-static STAT_CREATED: AtomicU64 = AtomicU64::new(0);
-static STAT_BYTES: AtomicU64 = AtomicU64::new(0);
+declare_counter_u64!(STAT_CREATED);
+declare_counter_u64!(STAT_BYTES);
 
 /// Runtime statistics for Unix socket subsystem.
 #[derive(Debug, Clone, Copy)]
@@ -438,8 +439,16 @@ pub struct UnixSocketStats {
 
 pub fn stats() -> UnixSocketStats {
     UnixSocketStats {
-        sockets_created: STAT_CREATED.load(Ordering::Relaxed),
-        bytes_transferred: STAT_BYTES.load(Ordering::Relaxed),
+        sockets_created: telemetry::snapshot_u64(&STAT_CREATED),
+        bytes_transferred: telemetry::snapshot_u64(&STAT_BYTES),
+        registered_names: registry::registered_names(),
+    }
+}
+
+pub fn take_stats() -> UnixSocketStats {
+    UnixSocketStats {
+        sockets_created: telemetry::take_u64(&STAT_CREATED),
+        bytes_transferred: telemetry::take_u64(&STAT_BYTES),
         registered_names: registry::registered_names(),
     }
 }

@@ -14,7 +14,7 @@ pub enum GpuBackend {
     VirtIoGpu = 2,
 }
 
-crate::impl_enum_u8_default_conversions!(GpuBackend { None, Framebuffer, VirtIoGpu }, default = None);
+impl_enum_u8_default_conversions!(GpuBackend { None, Framebuffer, VirtIoGpu }, default = None);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GpuStackState {

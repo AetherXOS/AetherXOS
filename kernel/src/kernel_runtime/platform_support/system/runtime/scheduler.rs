@@ -1,9 +1,9 @@
 use super::super::current_virtualization_log_snapshot;
 
 pub(crate) fn log_rt_preemption_guard() {
-    let rt = hypercore::kernel::rt_preemption::stats();
+    let rt = aethercore::kernel::rt_preemption::stats();
     let virt = current_virtualization_log_snapshot();
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "RT preemption guard: ticks={} reschedules={} forced={} manual_force={} streak={} max_streak={} runqueue={} starvation={} edf_pressure={} force_threshold={} force_override={} burst={}/{} deadline_alert={} deadline_events={} virt_dispatch={} virt_preemption={} virt_lane={} virt_window={} virt_mode={} virt_governor={} latency_bias={} energy_bias={}",
         rt.ticks,
         rt.reschedules,
@@ -32,8 +32,8 @@ pub(crate) fn log_rt_preemption_guard() {
 }
 
 pub(crate) fn log_watchdog_runtime() {
-    let wd = hypercore::kernel::watchdog::stats();
-    hypercore::klog_info!(
+    let wd = aethercore::kernel::watchdog::stats();
+    aethercore::klog_info!(
         "Watchdog: tick={} checks={} stalls={} last_stalled_cpu={} hard_panic_ticks={} hard_panics={}",
         wd.global_tick,
         wd.checks,
@@ -45,9 +45,9 @@ pub(crate) fn log_watchdog_runtime() {
 }
 
 pub(crate) fn log_load_balance_runtime() {
-    let lb = hypercore::kernel::load_balance::stats_snapshot();
+    let lb = aethercore::kernel::load_balance::stats_snapshot();
     let virt = current_virtualization_log_snapshot();
-    hypercore::klog_info!(
+    aethercore::klog_info!(
         "LoadBalance: attempts={} moved={} affinity_skips={} prefer_local_skips={} prefer_local_forced={} hist_lt2={} hist_2_3={} hist_4_7={} hist_8_15={} hist_ge16={} p50={} p90={} p99={} samples={} virt_exec_profile={} virt_lane={} virt_mode={} virt_dispatch={} virt_governor={} latency_bias={} energy_bias={}",
         lb.attempts,
         lb.moved,

@@ -90,14 +90,14 @@ fn aligned_static_boot_image_record_preserves_borrowed_static_slice() {
 #[test_case]
 fn bootstrap_launch_request_preserves_inputs() {
     let request = bootstrap_launch_request(
-        b"hyper_init",
+        b"aether_init",
         BootImageRecord::BorrowedStatic(b"probe"),
         TEST_PRIORITY,
         TEST_DEADLINE,
         TEST_BURST,
         TEST_KERNEL_STACK_TOP,
     );
-    assert_eq!(request.process_name, b"hyper_init");
+    assert_eq!(request.process_name, b"aether_init");
     assert_eq!(bootstrap_image_slice(&request.boot_image), b"probe");
     assert_eq!(request.priority, TEST_PRIORITY);
     assert_eq!(request.deadline, TEST_DEADLINE);
@@ -108,7 +108,7 @@ fn bootstrap_launch_request_preserves_inputs() {
 #[test_case]
 fn bootstrap_launch_decision_preserves_runtime_fields() {
     let request = bootstrap_launch_request(
-        b"hyper_init",
+        b"aether_init",
         BootImageRecord::BorrowedStatic(b"probe"),
         TEST_PRIORITY,
         TEST_DEADLINE,
@@ -179,14 +179,14 @@ fn invoke_aligned_static_bootstrap_preserves_borrowed_static_path_contract() {
 #[test_case]
 fn prepare_bootstrap_launch_entry_preserves_request_and_decision() {
     let (request, decision) = prepare_bootstrap_launch_entry(
-        b"hyper_init",
+        b"aether_init",
         BootImageRecord::BorrowedStatic(b"probe"),
         TEST_PRIORITY,
         TEST_DEADLINE,
         TEST_BURST,
         TEST_KERNEL_STACK_TOP,
     );
-    assert_eq!(request.process_name, b"hyper_init");
+    assert_eq!(request.process_name, b"aether_init");
     assert_eq!(decision.priority, TEST_PRIORITY);
     assert_eq!(decision.deadline, TEST_DEADLINE);
     assert_eq!(decision.burst_time, TEST_BURST);
@@ -196,7 +196,7 @@ fn prepare_bootstrap_launch_entry_preserves_request_and_decision() {
 #[test_case]
 fn prepare_bootstrap_launch_image_validates_and_preserves_slice() {
     let record = BootImageRecord::BorrowedStatic(b"probe");
-    let image = prepare_bootstrap_launch_image(b"hyper_init", &record).unwrap();
+    let image = prepare_bootstrap_launch_image(b"aether_init", &record).unwrap();
     assert_eq!(image, b"probe");
 }
 
@@ -204,7 +204,7 @@ fn prepare_bootstrap_launch_image_validates_and_preserves_slice() {
 #[test_case]
 fn prepare_bootstrap_launch_preflight_returns_slice_and_snapshot() {
     let record = BootImageRecord::BorrowedStatic(b"\x7FELF\x02\x01\x01\0probe");
-    let result = prepare_bootstrap_launch_preflight(b"hyper_init", &record);
+    let result = prepare_bootstrap_launch_preflight(b"aether_init", &record);
     assert!(result.is_err() || result.is_ok());
 }
 

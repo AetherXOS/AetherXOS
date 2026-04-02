@@ -1,10 +1,15 @@
 use anyhow::{Result, bail};
+use serde::Serialize;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
+use crate::builders::qemu::{iso_boot_args, kernel_boot_args, smoke_timeout_sec};
+use crate::constants;
 use crate::utils::paths;
 use crate::utils::process;
+use crate::utils::report;
+use crate::utils::report::JunitSingleCaseReport;
 
 const PANIC_MARKERS: &[&str] = &[
     "PANIC report:",
@@ -16,29 +21,37 @@ const BOOT_SUCCESS_MARKERS: &[&str] = &[
     "limine: Loading executable",
     "smp: Successfully brought up AP",
     "[linux_compat] init complete",
-    "[hyper_init] early userspace bootstrap",
-    "[hyper_init] diskfs setup exit status:",
-    "[hyper_init] pivot-root setup exit status:",
-    "[hyper_init] apt seed exit status:",
+    "[aether_init] early userspace bootstrap",
+    "[aether_init] diskfs setup exit status:",
+    "[aether_init] pivot-root setup exit status:",
+    "[aether_init] apt seed exit status:",
     "installer-seed-complete",
 ];
 
+#[derive(Serialize)]
+struct QemuSmokeSummary {
+    mode: String,
+    duration_sec: f64,
+    timed_out: bool,
+    panic_seen: bool,
+    boot_marker_seen: bool,
+    success: bool,
+    pass: bool,
+}
+
 /// Run an automated QEMU smoke test with timeout and panic detection.
 pub fn smoke_test() -> Result<()> {
-    let outdir = std::env::var("XTASK_OUTDIR").unwrap_or_else(|_| "artifacts".to_string());
-    let kernel = paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
-    let initramfs = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
-    let iso = std::env::var("HYPERCORE_QEMU_SMOKE_ISO")
+    let outdir = std::env::var("XTASK_OUTDIR").unwrap_or_else(|_| constants::paths::ARTIFACTS_DIR.to_string());
+    let kernel = constants::paths::boot_image_stage_kernel();
+    let initramfs = constants::paths::boot_image_stage_initramfs();
+    let iso = std::env::var("AETHERCORE_QEMU_SMOKE_ISO")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| paths::resolve(&format!("{}/hypercore.iso", outdir)));
-    let log_path = paths::resolve("artifacts/boot_image/qemu_smoke.log");
-    let append = "console=ttyS0 loglevel=7";
-    let memory_mb = 512;
-    let cores = 2;
-    let timeout_sec = std::env::var("HYPERCORE_QEMU_SMOKE_TIMEOUT_SEC")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(20);
+        .unwrap_or_else(|_| paths::resolve(&format!("{}/aethercore.iso", outdir)));
+    let log_path = constants::paths::qemu_smoke_log();
+    let append = constants::defaults::run::KERNEL_APPEND;
+    let memory_mb = constants::defaults::run::MEMORY_MB;
+    let cores = constants::defaults::run::SMP_CORES;
+    let timeout_sec = smoke_timeout_sec();
 
     let qemu_bin = find_qemu()?;
     println!("[qemu::smoke] Binary: {}", qemu_bin);
@@ -46,19 +59,14 @@ pub fn smoke_test() -> Result<()> {
     println!("[qemu::smoke] ISO fallback: {}", iso.display());
     println!("[qemu::smoke] Timeout: {}s", timeout_sec);
 
-    let direct_args = vec![
-        "-nographic".to_string(),
-        "-m".to_string(),
-        memory_mb.to_string(),
-        "-smp".to_string(),
-        cores.to_string(),
-        "-kernel".to_string(),
-        kernel.to_string_lossy().to_string(),
-        "-initrd".to_string(),
-        initramfs.to_string_lossy().to_string(),
-        "-append".to_string(),
-        append.to_string(),
-    ];
+    let direct_args = kernel_boot_args(
+        memory_mb,
+        cores,
+        &kernel.to_string_lossy(),
+        &initramfs.to_string_lossy(),
+        append,
+        true,
+    );
     let direct = run_qemu_attempt(&qemu_bin, &direct_args, timeout_sec)?;
 
     let mut combined_log = format_attempt_log("direct-kernel", &direct_args, &direct);
@@ -73,17 +81,7 @@ pub fn smoke_test() -> Result<()> {
         println!(
             "[qemu::smoke] Direct kernel boot rejected by QEMU (PVH note); retrying with ISO"
         );
-        let iso_args = vec![
-            "-nographic".to_string(),
-            "-m".to_string(),
-            memory_mb.to_string(),
-            "-smp".to_string(),
-            cores.to_string(),
-            "-cdrom".to_string(),
-            iso.to_string_lossy().to_string(),
-            "-boot".to_string(),
-            "d".to_string(),
-        ];
+        let iso_args = iso_boot_args(memory_mb, cores, &iso.to_string_lossy(), true);
         let iso_result = run_qemu_attempt(&qemu_bin, &iso_args, timeout_sec)?;
         combined_log.push_str("\n\n");
         combined_log.push_str(&format_attempt_log("iso-fallback", &iso_args, &iso_result));
@@ -91,9 +89,8 @@ pub fn smoke_test() -> Result<()> {
         final_result = iso_result;
     }
 
-    // Write log with both stdout and stderr so failures are diagnosable.
-    paths::ensure_dir(log_path.parent().unwrap())?;
-    std::fs::write(&log_path, &combined_log)?;
+    // Write text log with both stdout and stderr so failures are diagnosable.
+    report::write_text_report(&log_path, &combined_log)?;
 
     let stream = format!("{}\n{}", final_result.stdout, final_result.stderr);
     let panic_seen = PANIC_MARKERS.iter().any(|m| stream.contains(m));
@@ -108,33 +105,32 @@ pub fn smoke_test() -> Result<()> {
     println!("[qemu::smoke] Exit success: {}", final_result.success);
     println!("[qemu::smoke] Text Log: {}", log_path.display());
 
-    // Export Enterprise-Grade CI/CD XML structured reports
-    let junit_path = paths::resolve("artifacts/qemu_smoke_junit.xml");
-    let failure_tag = if pass { String::new() } else { 
-        format!("<failure message=\"Boot assertion failed\"><![CDATA[Panic Seen: {} | Timed Out: {}]]></failure>", panic_seen, final_result.timed_out)
+    // Export Enterprise-Grade CI/CD report set (JUnit + JSON summary)
+    let junit_path = constants::paths::qemu_smoke_junit();
+    let failure_message = format!("Panic Seen: {} | Timed Out: {}", panic_seen, final_result.timed_out);
+    let junit = JunitSingleCaseReport {
+        suite_name: "QemuSmokeTest",
+        case_name: "Aether_X_OS_Limine_Boot",
+        class_name: "kernel.boot",
+        duration_secs: final_result.elapsed.as_secs_f64(),
+        passed: pass,
+        failure_message: Some(&failure_message),
+        stdout: &final_result.stdout,
+        stderr: &final_result.stderr,
     };
-    
-    let xml = format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<testsuites tests="1" failures="{failures}" errors="0" time="{time:.3}">
-    <testsuite name="QemuSmokeTest" tests="1" failures="{failures}" errors="0" time="{time:.3}">
-        <testcase name="Hypercore_Limine_Boot" classname="kernel.boot" time="{time:.3}">
-            {failure_tag}
-            <system-out><![CDATA[{stdout}]]></system-out>
-            <system-err><![CDATA[{stderr}]]></system-err>
-        </testcase>
-    </testsuite>
-</testsuites>"#,
-        failures = if pass { 0 } else { 1 },
-        time = final_result.elapsed.as_secs_f64(),
-        failure_tag = failure_tag,
-        stdout = final_result.stdout.replace("]]>", "]]>]]&gt;<![CDATA["),
-        stderr = final_result.stderr.replace("]]>", "]]>]]&gt;<![CDATA["),
-    );
-    
-    if std::fs::write(&junit_path, xml).is_ok() {
-        println!("[qemu::smoke] CI/CD JUnit API Report exported: {}", junit_path.display());
-    }
+    report::write_junit_single_case(&junit_path, &junit)?;
+
+    let summary_path = constants::paths::qemu_smoke_json();
+    let summary = QemuSmokeSummary {
+        mode: final_mode.to_string(),
+        duration_sec: final_result.elapsed.as_secs_f64(),
+        timed_out: final_result.timed_out,
+        panic_seen,
+        boot_marker_seen,
+        success: final_result.success,
+        pass,
+    };
+    report::write_json_report(&summary_path, &summary)?;
 
     if !pass {
         bail!(
@@ -211,20 +207,23 @@ fn format_attempt_log(mode: &str, args: &[String], result: &AttemptResult) -> St
 
 /// Launch an interactive QEMU session with display.
 pub fn interactive() -> Result<()> {
-    let kernel = paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
-    let initramfs = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
+    let kernel = constants::paths::boot_image_stage_kernel();
+    let initramfs = constants::paths::boot_image_stage_initramfs();
     let qemu_bin = find_qemu()?;
 
     println!("[qemu::live] Launching interactive session");
+    let mut args = kernel_boot_args(
+        constants::defaults::run::MEMORY_MB,
+        constants::defaults::run::SMP_CORES,
+        &kernel.to_string_lossy(),
+        &initramfs.to_string_lossy(),
+        constants::defaults::run::KERNEL_APPEND,
+        false,
+    );
+    args.splice(4..4, ["-serial".to_string(), "stdio".to_string()]);
+
     let status = Command::new(&qemu_bin)
-        .args([
-            "-m", "512",
-            "-smp", "2",
-            "-serial", "stdio",
-            "-kernel", &kernel.to_string_lossy(),
-            "-initrd", &initramfs.to_string_lossy(),
-            "-append", "console=ttyS0 loglevel=7",
-        ])
+        .args(args)
         .status()?;
 
     if !status.success() {
@@ -235,8 +234,8 @@ pub fn interactive() -> Result<()> {
 
 /// Locate the qemu-system-x86_64 binary on the system.
 fn find_qemu() -> Result<String> {
-    if process::which("qemu-system-x86_64") {
-        return Ok("qemu-system-x86_64".to_string());
+    if let Some(binary) = process::first_available_binary(&[constants::tools::QEMU_X86_64, constants::tools::QEMU_X86_64_EXE]) {
+        return Ok(binary.to_string());
     }
     // Windows fallback: check Program Files
     let pf = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".to_string());
@@ -262,7 +261,9 @@ impl WaitTimeout for std::process::Child {
                     if start.elapsed() >= duration {
                         return Ok(None);
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    std::thread::sleep(std::time::Duration::from_millis(
+                        constants::defaults::run::WAIT_POLL_INTERVAL_MS,
+                    ));
                 }
             }
         }
@@ -271,22 +272,23 @@ impl WaitTimeout for std::process::Child {
 
 /// Launches QEMU paused (-S -s) to await a GDB localhost:1234 attachment.
 pub fn debug_session() -> Result<()> {
-    let kernel = paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
-    let initramfs = paths::resolve("artifacts/boot_image/stage/boot/initramfs.cpio.gz");
+    let kernel = constants::paths::boot_image_stage_kernel();
+    let initramfs = constants::paths::boot_image_stage_initramfs();
     let qemu_bin = find_qemu()?;
 
     println!("[qemu::debug] QEMU initialized with paused CPU states.");
     println!("[qemu::debug] Exposing local debugger port... Run 'target remote :1234' on GDB");
-    
+    let mut args = kernel_boot_args(
+        constants::defaults::run::MEMORY_MB,
+        constants::defaults::run::SMP_CORES,
+        &kernel.to_string_lossy(),
+        &initramfs.to_string_lossy(),
+        constants::defaults::run::KERNEL_APPEND,
+        false,
+    );
+    args.extend(["-S".to_string(), "-s".to_string()]);
     let status = Command::new(&qemu_bin)
-        .args([
-            "-m", "512",
-            "-smp", "2",
-            "-kernel", &kernel.to_string_lossy(),
-            "-initrd", &initramfs.to_string_lossy(),
-            "-append", "console=ttyS0 loglevel=7",
-            "-S", "-s",
-        ])
+        .args(args)
         .status()?;
 
     if !status.success() {
@@ -294,3 +296,4 @@ pub fn debug_session() -> Result<()> {
     }
     Ok(())
 }
+

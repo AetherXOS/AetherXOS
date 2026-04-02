@@ -4,7 +4,7 @@ use super::platform_support::{
     run_platform_runtime_orchestration, PciAttachTelemetryConfig, PlatformTelemetryConfig,
 };
 use crate::kernel_runtime::KernelRuntime;
-use hypercore::generated_consts::{
+use aethercore::generated_consts::{
     CORE_ENABLE_ACPI_DISCOVERY, CORE_ENABLE_IOMMU, CORE_ENABLE_PCI_ENUMERATION, CORE_ENABLE_SMP,
     CORE_ENABLE_VIRTUALIZATION,
 };
@@ -20,12 +20,12 @@ impl KernelRuntime {
         run_platform_runtime_orchestration(telemetry);
     }
 
-    pub(super) fn attach_pci_to_iommu_domain(&self, devices: &[hypercore::hal::pci::PciDevice]) {
+    pub(super) fn attach_pci_to_iommu_domain(&self, devices: &[aethercore::hal::pci::PciDevice]) {
         let telemetry = PciAttachTelemetryConfig::collect();
         attach_pci_to_iommu_domain(CORE_ENABLE_IOMMU, telemetry, devices);
     }
 
-    pub(super) fn enumerate_pci(&self) -> alloc::vec::Vec<hypercore::hal::pci::PciDevice> {
+    pub(super) fn enumerate_pci(&self) -> alloc::vec::Vec<aethercore::hal::pci::PciDevice> {
         enumerate_pci(CORE_ENABLE_PCI_ENUMERATION)
     }
 

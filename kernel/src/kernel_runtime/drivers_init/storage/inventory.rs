@@ -1,5 +1,5 @@
 pub(super) fn log_storage_inventory(
-    infos: &[hypercore::modules::drivers::StorageDriverInfo],
+    infos: &[aethercore::modules::drivers::StorageDriverInfo],
     telemetry_drivers: bool,
 ) {
     if !telemetry_drivers {
@@ -7,7 +7,7 @@ pub(super) fn log_storage_inventory(
     }
 
     for info in infos {
-        hypercore::klog_info!(
+        aethercore::klog_info!(
             "Storage device: kind={:?} base={:#x} irq={} block_size={}",
             info.kind,
             info.io_base,

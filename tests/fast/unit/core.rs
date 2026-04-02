@@ -1,4 +1,4 @@
-use hypercore::config::KernelConfig;
+use aethercore::config::KernelConfig;
 use serial_test::serial;
 
 use crate::common::ctx;

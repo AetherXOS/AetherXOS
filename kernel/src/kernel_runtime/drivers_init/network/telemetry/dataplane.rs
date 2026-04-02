@@ -1,8 +1,8 @@
 use super::super::super::super::*;
 
 pub(super) fn log_network_dataplane_dashboard() {
-    let net = hypercore::modules::drivers::network_dataplane_stats();
-    hypercore::klog_info!(
+    let net = aethercore::modules::drivers::network_dataplane_stats();
+    aethercore::klog_info!(
         "Network dataplane: active={:?} profile={:?} io_owned={} regs(v={},e={}) service(loop={},irq={}) tx(frames={},drops={}) rx(frames={},drops={}) rings(vrx={},vtx={},erx={},etx={}) e1000(io_calls={} rx={}/{} tx={}/{} trunc={} busy={} lock={} err={}) quarantine(v={},e={},events={},threshold={},cooldown={})",
         net.active_driver,
         net.poll_profile,

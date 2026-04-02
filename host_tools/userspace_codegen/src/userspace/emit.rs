@@ -30,7 +30,7 @@ pub fn emit_userspace_dir(snapshot: &UserspaceSnapshot, dir: &Path) -> Result<()
             dir.join(format!("{}.program.txt", program.output_name.trim_end_matches(".elf"))),
             [
                 format!(
-                    "[hypercore-userspace-program:{}]",
+                    "[aethercore-userspace-program:{}]",
                     program.output_name.trim_end_matches(".elf")
                 ),
                 format!("role={}", program.role),

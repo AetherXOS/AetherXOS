@@ -35,12 +35,12 @@ fi
 
 if command -v switch_root >/dev/null 2>&1; then
   echo "[pivot-root] switching root via switch_root" >> "${STATUS_FILE}"
-  exec switch_root "${NEW_ROOT}" /usr/bin/hyper_init
+  exec switch_root "${NEW_ROOT}" /usr/bin/aether_init
 fi
 
 if command -v chroot >/dev/null 2>&1; then
   echo "[pivot-root] switching root via chroot fallback" >> "${STATUS_FILE}"
-  exec chroot "${NEW_ROOT}" /usr/bin/hyper_init
+  exec chroot "${NEW_ROOT}" /usr/bin/aether_init
 fi
 
 echo "[pivot-root] no switch_root/chroot available; staying on initramfs" >> "${STATUS_FILE}"

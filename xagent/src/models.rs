@@ -31,7 +31,7 @@ pub struct Action {
     pub id: String,
     pub title: String,
     pub desc: String,
-    /// The hypercore.ps1 sub-command name
+    /// The aethercore.ps1 sub-command name
     pub cmd: String,
     pub args: Vec<String>,
     pub risk: String,

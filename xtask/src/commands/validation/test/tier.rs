@@ -73,7 +73,7 @@ fn fast_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
         rustfmt_spec(),
         cargo_subcommand_spec(
             "geiger",
-            "HYPERCORE_ENABLE_GEIGER",
+            "AETHERCORE_ENABLE_GEIGER",
             vec![
                 "geiger".into(),
                 cargo_consts::ARG_MANIFEST_PATH.into(),
@@ -87,7 +87,7 @@ fn fast_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
         ),
         cargo_subcommand_spec(
             "rudra",
-            "HYPERCORE_ENABLE_RUDRA",
+            "AETHERCORE_ENABLE_RUDRA",
             vec![
                 "rudra".into(),
                 "--manifest-path".into(),
@@ -99,7 +99,7 @@ fn fast_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
                 test_consts::TEST_FEATURES.into(),
             ],
         ),
-        cargo_subcommand_spec("audit", "HYPERCORE_ENABLE_AUDIT", vec!["audit".into()]),
+        cargo_subcommand_spec("audit", "AETHERCORE_ENABLE_AUDIT", vec!["audit".into()]),
     ]
 }
 
@@ -109,26 +109,26 @@ fn integration_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
         clippy_spec(host),
         host_cargo_test_spec(
             "kasan",
-            "HYPERCORE_RUN_KASAN",
+            "AETHERCORE_RUN_KASAN",
             "host_rust_tests/Cargo.toml",
             host,
         ),
         host_cargo_test_spec(
             "kmsan",
-            "HYPERCORE_RUN_KMSAN",
+            "AETHERCORE_RUN_KMSAN",
             "host_tools/scheduler_host_tests/Cargo.toml",
             host,
         ),
-        host_cargo_test_spec("ubsan", "HYPERCORE_RUN_UBSAN", "agent/Cargo.toml", host),
+        host_cargo_test_spec("ubsan", "AETHERCORE_RUN_UBSAN", "xagent/Cargo.toml", host),
         binary_spec(
             "virtme",
             "vng",
-            "HYPERCORE_RUN_VIRTME",
+            "AETHERCORE_RUN_VIRTME",
             vec!["--version".into()],
         ),
         cargo_subcommand_spec(
             "cargofuzz",
-            "HYPERCORE_RUN_FUZZ",
+            "AETHERCORE_RUN_FUZZ",
             vec![
                 "fuzz".into(),
                 "build".into(),
@@ -147,18 +147,18 @@ fn nightly_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
         binary_spec(
             "syzkaller",
             "syz-manager",
-            "HYPERCORE_RUN_SYZKALLER",
-            vec!["-config".into(), "formal/syzkaller/hypercore.cfg".into()],
+            "AETHERCORE_RUN_SYZKALLER",
+            vec!["-config".into(), "formal/syzkaller/aethercore.cfg".into()],
         ),
         binary_spec(
             "tlaplus",
             "tlc",
-            "HYPERCORE_RUN_TLAPLUS",
+            "AETHERCORE_RUN_TLAPLUS",
             vec!["formal/tla/KernelConfigOverrides.tla".into()],
         ),
         cargo_subcommand_spec(
             "kani",
-            "HYPERCORE_RUN_KANI",
+            "AETHERCORE_RUN_KANI",
             vec![
                 "kani".into(),
                 "--manifest-path".into(),
@@ -168,12 +168,12 @@ fn nightly_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
         binary_spec(
             "isabelle",
             "isabelle",
-            "HYPERCORE_RUN_ISABELLE",
+            "AETHERCORE_RUN_ISABELLE",
             vec!["build".into(), "-D".into(), "formal/isabelle".into()],
         ),
         cargo_subcommand_spec(
             "flamegraph",
-            "HYPERCORE_RUN_FLAMEGRAPH",
+            "AETHERCORE_RUN_FLAMEGRAPH",
             vec![
                 "flamegraph".into(),
                 "--manifest-path".into(),

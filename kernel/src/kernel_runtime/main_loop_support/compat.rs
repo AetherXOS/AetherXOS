@@ -6,11 +6,11 @@ pub(crate) fn refresh_linux_compat_surface() {
         .fetch_add(1, Ordering::Relaxed)
         .wrapping_add(1);
     if let Ok(Some(_)) =
-        hypercore::modules::linux_compat::maybe_refresh_runtime_compat_surface(sample)
+        aethercore::modules::linux_compat::maybe_refresh_runtime_compat_surface(sample)
     {
-        let epoch = hypercore::modules::linux_compat::compat_surface_refresh_epoch();
+        let epoch = aethercore::modules::linux_compat::compat_surface_refresh_epoch();
         if sample % (1024 * 8) == 0 {
-            hypercore::klog_info!("[LINUX COMPAT] compat surface refreshed epoch={}", epoch);
+            aethercore::klog_info!("[LINUX COMPAT] compat surface refreshed epoch={}", epoch);
         }
     }
 }

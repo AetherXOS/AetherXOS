@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# HyperCore Bootstrap Script: Debian + Flutter SDK
+# AetherCore Bootstrap Script: Debian + Flutter SDK
 # Description: Provisions a Debian rootfs, packages Flutter as a .deb, 
 #              and creates a bootable ext4 disk image for QEMU.
 # ==============================================================================
@@ -102,8 +102,8 @@ Version: 1.0.0
 Section: utils
 Priority: optional
 Architecture: amd64
-Maintainer: hypercore <dev@local>
-Description: Flutter SDK packaged for HyperCore/VelOS
+Maintainer: aethercore <dev@local>
+Description: Flutter SDK packaged for AetherCore/VelOS
 EOF
     fakeroot dpkg-deb --build "$DEB_ROOT" "$FLUTTER_DEB"
     rm -rf "$DEB_ROOT"

@@ -1,7 +1,9 @@
 use anyhow::{Context, Result, bail};
-use std::process::Command;
 use crate::cli::SecurebootAction;
+use crate::builders::secureboot::{openssl_mok_args, sbsign_args};
+use crate::constants;
 use crate::commands::validation;
+use crate::utils::process;
 
 pub fn execute(action: &SecurebootAction) -> Result<()> {
     match action {
@@ -25,9 +27,10 @@ pub fn execute(action: &SecurebootAction) -> Result<()> {
 }
 
 fn execute_sign() -> Result<()> {
-    let kernel_src = crate::utils::paths::resolve("artifacts/boot_image/stage/boot/hypercore.elf");
-    let key_path = crate::utils::paths::resolve("artifacts/secureboot/MOK.key");
-    let cert_path = crate::utils::paths::resolve("artifacts/secureboot/MOK.crt");
+    let kernel_src = constants::paths::boot_image_stage_kernel();
+    let secureboot_root = constants::paths::secureboot_root();
+    let key_path = secureboot_root.join("MOK.key");
+    let cert_path = secureboot_root.join("MOK.crt");
     
     if !kernel_src.exists() {
         bail!("Missing kernel payload to encrypt: execute 'cargo run -p xtask -- build full' first.");
@@ -35,25 +38,17 @@ fn execute_sign() -> Result<()> {
     
     if !key_path.exists() || !cert_path.exists() {
         println!("[secureboot::sign] MOK cryptographic identities not detected on host. Automating key generation locally...");
-        crate::utils::paths::ensure_dir(&crate::utils::paths::resolve("artifacts/secureboot"))?;
+        crate::utils::paths::ensure_dir(&secureboot_root)?;
         
-        let genkey = Command::new("openssl")
-            .args(&["req", "-new", "-x509", "-newkey", "rsa:2048", "-keyout", &key_path.to_string_lossy(), "-out", &cert_path.to_string_lossy(), "-days", "3650", "-nodes", "-subj", "/CN=AetherXOS_Local_Platform_Key/"])
-            .status()
-            .context("Host lacks 'openssl' command line tools to generate secure boot variables.")?;
-            
-        if !genkey.success() {
+        let key_args = openssl_mok_args(&key_path.to_string_lossy(), &cert_path.to_string_lossy());
+        if !process::run_best_effort("openssl", &key_args.iter().map(|value| value.as_str()).collect::<Vec<_>>()) {
             bail!("Fatal openssl sequence timeout. UEFI security boundaries compromised.");
         }
     }
     
     println!("[secureboot::sign] Generating PE/COFF SBAT hashes over final ELF structures.");
-    let sign_status = Command::new("sbsign")
-        .args(&["--key", &key_path.to_string_lossy(), "--cert", &cert_path.to_string_lossy(), "--output", &kernel_src.to_string_lossy(), &kernel_src.to_string_lossy()])
-        .status()
-        .context("Host machine completely misses 'sbsign' (sbsigntool package). Unable to physically manipulate Kernel PE headers on this OS.")?;
-        
-    if sign_status.success() {
+    let sign_args = sbsign_args(&key_path.to_string_lossy(), &cert_path.to_string_lossy(), &kernel_src.to_string_lossy());
+    if process::run_best_effort("sbsign", &sign_args.iter().map(|value| value.as_str()).collect::<Vec<_>>()) {
         println!("[secureboot::sign] SUCCESS: AetherXOS kernel natively supports Tier-1 Boot Authentication restrictions!");
     } else {
         bail!("SBSign reported logical failure. Ensure target is a valid UEFI PE formatted binary executable.");

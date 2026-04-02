@@ -30,7 +30,11 @@ impl NegativeDentryCache {
         let mut map = self.entries.lock();
         if map.len() >= self.max_entries {
             // Evict oldest entry.
-            if let Some(oldest_key) = map.iter().min_by_key(|(_, &v)| v).map(|(k, _)| k.clone()) {
+            if let Some(oldest_key) = map
+                .iter()
+                .min_by_key(|&(_, &v)| v)
+                .map(|(k, _)| k.clone())
+            {
                 map.remove(&oldest_key);
             }
         }

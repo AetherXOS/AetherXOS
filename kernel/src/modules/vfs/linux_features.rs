@@ -273,7 +273,7 @@ pub fn feature_report() -> String {
     let features = feature_inventory();
     let mut report = String::with_capacity(2048);
 
-    report.push_str("═══ HyperCore Linux Compatibility Features ═══\n\n");
+    report.push_str("═══ AetherCore Linux Compatibility Features ═══\n\n");
 
     let categories = [
         FeatureCategory::VirtualFS,
@@ -325,7 +325,7 @@ pub fn has_feature(name: &str) -> bool {
     feature_inventory().iter().any(|f| f.name == name && f.enabled)
 }
 
-/// Feature summary for /proc/hypercore/features exposure.
+/// Feature summary for /proc/aethercore/features exposure.
 pub fn features_procfs_string() -> String {
     let features = feature_inventory();
     let mut result = String::with_capacity(512);

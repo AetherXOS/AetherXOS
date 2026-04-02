@@ -7,16 +7,8 @@ pub mod tier;
 
 use crate::cli::TestAction;
 use anyhow::{bail, Result};
+use crate::constants;
 use crate::constants::npm;
-
-#[inline(always)]
-fn npm_bin() -> &'static str {
-    if cfg!(windows) {
-        "npm.cmd"
-    } else {
-        "npm"
-    }
-}
 
 /// Entry point for `cargo run -p xtask -- test <action>`.
 pub fn execute(action: &TestAction) -> Result<()> {
@@ -71,7 +63,7 @@ fn quality_gate() -> Result<()> {
     posix::run_gate()?;
     crate::commands::validation::linux_abi::execute(&crate::cli::LinuxAbiAction::Gate)?;
     crate::commands::infra::build::execute(&crate::cli::BuildAction::Full {
-        arch: "x86_64".to_string(),
+        arch: constants::defaults::build::ARCH,
         bootloader: crate::cli::Bootloader::Limine,
         format: crate::cli::ImageFormat::Iso,
         release: false,
@@ -85,12 +77,12 @@ fn quality_gate() -> Result<()> {
 /// Replaces: scripts/agent-contract.ps1
 fn agent_contract() -> Result<()> {
     println!("[test::agent-contract] Running native dashboard workflow contract suite");
-    let dashboard_dir = crate::utils::paths::resolve("dashboard");
+    let dashboard_dir = constants::paths::dashboard_dir();
 
     // Build and workflow tests act as the agent contract baseline.
-    crate::utils::process::run_checked_in_dir(npm_bin(), &[npm::ARG_RUN, npm::SCRIPT_BUILD], &dashboard_dir)?;
+    crate::utils::process::run_checked_in_dir(crate::utils::process::npm_bin(), &[npm::ARG_RUN, npm::SCRIPT_BUILD], &dashboard_dir)?;
     let workflow = crate::utils::process::run_status_in_dir(
-        npm_bin(),
+        crate::utils::process::npm_bin(),
         &[npm::ARG_RUN, npm::SCRIPT_WORKFLOW_TEST],
         &dashboard_dir,
     )?;

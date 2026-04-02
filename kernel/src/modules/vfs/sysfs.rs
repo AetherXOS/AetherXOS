@@ -106,7 +106,7 @@ impl FileSystem for SysFs {
             ))),
             "kernel/ostype" => Ok(Box::new(SysFsEntry::from_str("Linux\n"))),
             "kernel/version" => Ok(Box::new(SysFsEntry::from_str("#1 SMP\n"))),
-            "kernel/hostname" => Ok(Box::new(SysFsEntry::from_str("hypercore\n"))),
+            "kernel/hostname" => Ok(Box::new(SysFsEntry::from_str("aethercore\n"))),
 
             // /sys/devices/system/cpu/
             "devices/system/cpu/online" => {
