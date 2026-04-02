@@ -2,6 +2,7 @@
 /// Downloads pre-built apt-get binary and essential package manager tools
 /// into the initramfs for live package installation capability.
 
+use crate::utils::logging;
 use anyhow::Result;
 use serde_json::json;
 use std::fs;
@@ -20,7 +21,7 @@ fn run_first_success(candidates: &[(&str, &[&str])]) -> bool {
 
 /// Download and prepare APT binary seed
 pub fn prepare_apt_seed(initramfs_root: &Path) -> Result<()> {
-    println!("[apt-seed] Preparing APT binary seed");
+    logging::info("apt-seed", "Preparing APT binary seed", &[]);
 
     let bin_dir = initramfs_root.join("usr/bin");
     let lib_dir = initramfs_root.join("usr/lib");
@@ -52,9 +53,9 @@ Apt::Install-Suggests "false";
     let provisioning_mode = {
         let apt_get_path = bin_dir.join("apt-get");
         if !apt_get_path.exists() {
-            println!("[apt-seed] Attempting to provision apt-get binary...");
+            logging::info("apt-seed", "Attempting to provision apt-get binary", &[]);
             if install_apt_binary_unix(&bin_dir, &lib_dir).is_err() {
-                println!("[apt-seed] ⚠️ apt-get binary not available, package installation will require host support");
+                logging::warn("apt-seed", "apt-get binary not available, package installation will require host support", &[]);
                 "unix-provision-failed"
             } else {
                 "unix-provisioned"
@@ -66,13 +67,13 @@ Apt::Install-Suggests "false";
 
     #[cfg(not(unix))]
     let provisioning_mode = {
-        println!("[apt-seed] ℹ️ APT binary provisioning skipped on non-Unix platform (build host is not Unix)");
+        logging::info("apt-seed", "APT binary provisioning skipped on non-Unix platform (build host is not Unix)", &[]);
         "non-unix-build-host"
     };
 
     write_seed_capability_manifest(initramfs_root, provisioning_mode)?;
 
-    println!("[apt-seed] APT binary seed prepared");
+    logging::ready("apt-seed", "APT binary seed prepared", &initramfs_root.to_string_lossy());
     Ok(())
 }
 
@@ -144,7 +145,7 @@ fn install_apt_binary_unix(bin_dir: &Path, lib_dir: &Path) -> Result<()> {
     ];
 
     for url in &urls {
-        println!("[apt-seed] Trying to download from: {}", url);
+        logging::info("apt-seed", "Trying to download binary", &[("url", url)]);
         if try_download_apt(url, bin_dir).is_ok() {
             return Ok(());
         }
@@ -177,7 +178,7 @@ fn copy_apt_with_dependencies(apt_exe: &str, bin_dir: &Path, lib_dir: &Path) -> 
     
     dst.sync_all()?;
     fs::set_permissions(&dest, fs::Permissions::from_mode(0o755))?;
-    println!("[apt-seed] Copied apt-get binary");
+    logging::info("apt-seed", "Copied apt-get binary", &[]);
 
     // Try to collect and copy essential dependencies
     if let Ok(output) = Command::new("ldd")
@@ -203,8 +204,8 @@ fn copy_apt_with_dependencies(apt_exe: &str, bin_dir: &Path, lib_dir: &Path) -> 
 
                             if !dest_lib.exists() {
                                 match fs::copy(lib_path, &dest_lib) {
-                                    Ok(_) => println!("[apt-seed] Copied library: {}", lib_name),
-                                    Err(e) => println!("[apt-seed] ⚠️ Failed to copy {}: {}", lib_name, e),
+                                    Ok(_) => logging::info("apt-seed", "Copied library", &[("library", lib_name)]),
+                                    Err(e) => logging::error("apt-seed", "Failed to copy library", &[("library", lib_name), ("error", &e.to_string())]),
                                 }
                             }
                         }

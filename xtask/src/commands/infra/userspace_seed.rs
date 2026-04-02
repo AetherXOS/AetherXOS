@@ -1,3 +1,4 @@
+use crate::utils::logging;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde::Serialize;
@@ -44,17 +45,19 @@ pub fn inject_seed(
 
     // Prepare APT binary seed for live package installation
     if let Err(e) = apt_binary_seed::prepare_apt_seed(initramfs_root) {
-        println!(
-            "[userspace-seed] ⚠️ APT binary seed preparation failed (non-critical): {}",
-            e
+        logging::warn(
+            "userspace-seed",
+            "APT binary seed preparation failed (non-critical)",
+            &[("error", &e.to_string())],
         );
     }
 
     // Prepare Flutter engine seed for desktop app support
     if let Err(e) = flutter_engine_seed::prepare_flutter_seed(initramfs_root) {
-        println!(
-            "[userspace-seed] ⚠️ Flutter engine seed preparation failed (non-critical): {}",
-            e
+        logging::warn(
+            "userspace-seed",
+            "Flutter engine seed preparation failed (non-critical)",
+            &[("error", &e.to_string())],
         );
     }
     let package_list = selection.packages.join("\n");

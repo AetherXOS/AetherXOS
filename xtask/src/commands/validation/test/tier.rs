@@ -51,18 +51,21 @@ pub fn run(tier: &str, ci: bool) -> Result<()> {
 }
 
 pub fn run_all(ci: bool) -> Result<()> {
-    for tier in ["fast", "integration", "nightly"] {
+    for tier in test_consts::all_tiers() {
         run(tier, ci)?;
     }
     Ok(())
 }
 
 fn tier_specs(tier: &str, ci: bool, host: &str) -> Result<Vec<CommandSpec>> {
+    if !test_consts::is_valid_tier(tier) {
+        bail!("unknown tier: {tier}. Supported: {:?}", test_consts::all_tiers());
+    }
     match tier {
         test_consts::TIER_FAST => Ok(fast_specs(ci, host)),
         test_consts::TIER_INTEGRATION => Ok(integration_specs(ci, host)),
         test_consts::TIER_NIGHTLY => Ok(nightly_specs(ci, host)),
-        other => bail!("unknown tier: {other}. Supported: {:?}", test_consts::all_tiers()),
+        _ => unreachable!(),
     }
 }
 
@@ -188,7 +191,7 @@ fn nightly_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
 fn nextest_spec(test_name: &'static str, ci: bool, host: &str) -> CommandSpec {
     let mut args = vec![
         "nextest".into(),
-        "run".into(),
+        cargo_consts::CMD_RUN.into(),
         "--config-file".into(),
         ".config/nextest.toml".into(),
     ];
@@ -206,7 +209,7 @@ fn nextest_spec(test_name: &'static str, ci: bool, host: &str) -> CommandSpec {
 
     CommandSpec {
         label: "nextest",
-        program: "cargo",
+        program: crate::constants::tools::CARGO,
         args,
         gate: None,
         availability: ToolAvailability::None,
@@ -260,12 +263,12 @@ fn host_cargo_test_spec(
 ) -> CommandSpec {
     CommandSpec {
         label,
-        program: "cargo",
+        program: crate::constants::tools::CARGO,
         args: vec![
-            "test".into(),
-            "--manifest-path".into(),
+            cargo_consts::CMD_TEST.into(),
+            cargo_consts::ARG_MANIFEST_PATH.into(),
             manifest_path.into(),
-            "--target".into(),
+            cargo_consts::ARG_TARGET.into(),
             host.into(),
             "--tests".into(),
         ],
@@ -281,7 +284,7 @@ fn cargo_subcommand_spec(
 ) -> CommandSpec {
     CommandSpec {
         label,
-        program: "cargo",
+        program: crate::constants::tools::CARGO,
         availability: ToolAvailability::CargoSubcommand(label_for_probe(label)),
         gate: Some(gate),
         args,

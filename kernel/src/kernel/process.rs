@@ -18,14 +18,13 @@ pub use process_runtime::bind_prepared_image_snapshot;
 pub use process_types::{
     MappingRecord, ProcessLifecycleState, ProcessRuntimeContractSnapshot, RuntimeLifecycleHooks,
 };
+pub(crate) use crate::kernel::memory::{PAGE_ALIGN_MASK, PAGE_SIZE_BYTES_U64};
 #[cfg(feature = "posix_mman")]
 use process_vdso::{build_minimal_vdso_page, build_minimal_vvar_page};
 #[cfg(feature = "paging_enable")]
 use x86_64::PhysAddr;
 
 const PROCESS_NAME_LEN: usize = 32;
-const PAGE_SIZE_BYTES_U64: u64 = 4096;
-const PAGE_ALIGN_MASK: u64 = PAGE_SIZE_BYTES_U64 - 1;
 const PROCESS_THREAD_INLINE_CAPACITY: usize = 4;
 
 impl ProcessId {

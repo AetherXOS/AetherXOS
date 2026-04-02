@@ -65,7 +65,10 @@ pub fn run(max_lines: usize, magic_repeat_threshold: usize) -> Result<()> {
 
         let text = fs::read_to_string(abs).unwrap_or_default();
         let line_count = text.lines().count();
-        let use_count = text.lines().filter(|l| l.trim_start().starts_with("use ")).count();
+        let use_count = text
+            .lines()
+            .filter(|l| l.trim_start().starts_with("use "))
+            .count();
 
         let mut counts: HashMap<String, usize> = HashMap::new();
         for cap in number_re.captures_iter(&text) {
@@ -131,19 +134,37 @@ pub fn run(max_lines: usize, magic_repeat_threshold: usize) -> Result<()> {
 
     let mut md = String::new();
     md.push_str("# Kernel Refactor Audit\n\n");
-    md.push_str(&format!("- scanned_files: {}\n", report_obj.summary.scanned_files));
-    md.push_str(&format!("- long_file_count: {}\n", report_obj.summary.long_file_count));
-    md.push_str(&format!("- max_lines_threshold: {}\n", report_obj.summary.max_lines_threshold));
-    md.push_str(&format!("- magic_repeat_threshold: {}\n\n", report_obj.summary.magic_repeat_threshold));
+    md.push_str(&format!(
+        "- scanned_files: {}\n",
+        report_obj.summary.scanned_files
+    ));
+    md.push_str(&format!(
+        "- long_file_count: {}\n",
+        report_obj.summary.long_file_count
+    ));
+    md.push_str(&format!(
+        "- max_lines_threshold: {}\n",
+        report_obj.summary.max_lines_threshold
+    ));
+    md.push_str(&format!(
+        "- magic_repeat_threshold: {}\n\n",
+        report_obj.summary.magic_repeat_threshold
+    ));
 
     md.push_str("## Long Files\n\n");
     if report_obj.long_files.is_empty() {
         md.push_str("No long files above threshold.\n\n");
     } else {
         for file in &report_obj.long_files {
-            md.push_str(&format!("- {} (lines={}, uses={})\n", file.path, file.line_count, file.use_count));
+            md.push_str(&format!(
+                "- {} (lines={}, uses={})\n",
+                file.path, file.line_count, file.use_count
+            ));
             for m in &file.magic_candidates {
-                md.push_str(&format!("  - magic candidate: {} (count={})\n", m.literal, m.count));
+                md.push_str(&format!(
+                    "  - magic candidate: {} (count={})\n",
+                    m.literal, m.count
+                ));
             }
         }
         md.push('\n');
@@ -151,15 +172,17 @@ pub fn run(max_lines: usize, magic_repeat_threshold: usize) -> Result<()> {
 
     md.push_str("## Top Coupling Files (by use-count)\n\n");
     for file in &report_obj.top_coupling_files {
-        md.push_str(&format!("- {} (uses={}, lines={})\n", file.path, file.use_count, file.line_count));
+        md.push_str(&format!(
+            "- {} (uses={}, lines={})\n",
+            file.path, file.use_count, file.line_count
+        ));
     }
 
     report::write_text_report(&out_dir.join("summary.md"), &md)?;
 
     println!(
         "[test::kernel-refactor-audit] done: scanned={} long_files={}",
-        report_obj.summary.scanned_files,
-        report_obj.summary.long_file_count
+        report_obj.summary.scanned_files, report_obj.summary.long_file_count
     );
 
     Ok(())

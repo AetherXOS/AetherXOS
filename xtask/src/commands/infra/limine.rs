@@ -1,3 +1,4 @@
+use crate::utils::logging;
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
@@ -14,18 +15,30 @@ pub fn generate_configs(
     let conf_path = stage_dir.join("limine.conf");
     let probe_path = stage_dir.join("limine-probe.conf");
 
-    println!("[limine] Generating: {}", conf_path.display());
+    logging::info(
+        "limine",
+        "Generating configuration",
+        &[("path", &conf_path.to_string_lossy())],
+    );
     let conf = render_config(kernel_name, initramfs_name, append_args);
     fs::write(&conf_path, &conf)
         .with_context(|| format!("Failed to write {}", conf_path.display()))?;
 
-    println!("[limine] Generating: {}", probe_path.display());
+    logging::info(
+        "limine",
+        "Generating configuration",
+        &[("path", &probe_path.to_string_lossy())],
+    );
     let probe_append = append_probe_args(append_args);
     let probe_conf = render_config(kernel_name, initramfs_name, &probe_append);
     fs::write(&probe_path, &probe_conf)
         .with_context(|| format!("Failed to write {}", probe_path.display()))?;
 
-    println!("[limine] Configuration generation completed.");
+    logging::ready(
+        "limine",
+        "Configuration generation completed.",
+        &stage_dir.to_string_lossy(),
+    );
     Ok(())
 }
 

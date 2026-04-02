@@ -2,7 +2,7 @@ pub use super::BitField64;
 pub const PAGE_SIZE: usize = 4096;
 
 pub mod generic {
-    use super::{BitField64, PAGE_SIZE};
+    use super::BitField64;
 
     pub const VALID: BitField64 = BitField64::new(1, 0);
     pub const TABLE: BitField64 = BitField64::new(1, 1);

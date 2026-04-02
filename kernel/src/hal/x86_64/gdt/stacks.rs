@@ -1,5 +1,5 @@
 use x86_64::VirtAddr;
-use crate::kernel::bit_utils::x86_64_arch::{DOUBLE_FAULT_STACK_SIZE, PAGE_FAULT_STACK_SIZE};
+use crate::kernel::bit_utils::x86_64_arch::DOUBLE_FAULT_STACK_SIZE;
 
 /// Size of the IST interrupt stacks (legacy constant, now redirected to bit_utils).
 pub const IST_STACK_SIZE: usize = DOUBLE_FAULT_STACK_SIZE;

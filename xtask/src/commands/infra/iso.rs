@@ -2,6 +2,7 @@ use anyhow::{bail, Result};
 use std::fs;
 use std::path::Path;
 
+use crate::utils::logging;
 use crate::utils::paths;
 use crate::utils::process;
 
@@ -9,11 +10,11 @@ use crate::utils::process;
 ///
 /// Replaces: scripts/build_boot_image_platform.py::build_iso()
 pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
-    println!("[iso] Assembling bootable ISO: {}", out_iso.display());
+    logging::info("iso", &format!("Assembling bootable ISO: {}", out_iso.display()), &[]);
 
     // Locate xorriso
     let xorriso = find_xorriso()?;
-    println!("[iso] Using xorriso: {}", xorriso);
+    logging::info("iso", &format!("Using xorriso: {}", xorriso), &[]);
 
     // Locate limine binaries
     let limine_bin_dir = paths::resolve("artifacts/limine/bin");
@@ -102,7 +103,7 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
         ],
     )?;
 
-    println!("[iso] ISO assembled successfully: {}", out_iso.display());
+    logging::ready("iso", "ISO assembled successfully", &out_iso.to_string_lossy());
     Ok(())
 }
 

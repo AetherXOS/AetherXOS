@@ -360,7 +360,7 @@ pub extern "C" fn handle_irq(_frame: &mut ExceptionFrame) {
 
         // UART interrupt (QEMU virt UART SPI 1 = 32 + 1 = 33)
         if irq_id == 33 {
-            let mut serial = crate::hal::aarch64::serial::SERIAL1.lock();
+            let serial = crate::hal::aarch64::serial::SERIAL1.lock();
             let mut rx_buf = [0u8; 32];
             let n = serial.recv_burst(&mut rx_buf);
             if n > 0 {
