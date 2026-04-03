@@ -30,7 +30,7 @@ fn phys_to_virt_table(phys: u64, hhdm: u64) -> Option<&'static PageTable> {
 
 #[cfg(target_arch = "x86_64")]
 fn user_page_access_fault(addr: usize, mode: UserAccessMode) -> Option<UserAccessFault> {
-    let Some(hhdm) = crate::hal::x86_64::hhdm_offset() else {
+    let Some(hhdm) = crate::hal::hhdm_offset() else {
         return Some(UserAccessFault::HhdmMissing);
     };
 
@@ -82,7 +82,7 @@ fn user_page_access_fault(addr: usize, mode: UserAccessMode) -> Option<UserAcces
     use crate::interfaces::cpu::CpuRegisters;
     use crate::kernel::bit_utils::paging as bits;
 
-    let Some(hhdm) = crate::hal::aarch64::hhdm_offset() else {
+    let Some(hhdm) = crate::hal::hhdm_offset() else {
         return Some(UserAccessFault::HhdmMissing);
     };
 

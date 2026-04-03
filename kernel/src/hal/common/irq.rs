@@ -81,7 +81,8 @@ pub fn abs_diff_u64(a: u64, b: u64) -> u64 {
 mod tests {
     use super::*;
 
-    #[test_case]
+    #[cfg_attr(all(test, target_os = "none"), test_case)]
+    #[cfg_attr(not(all(test, target_os = "none")), test)]
     fn storm_decision_handles_healthy_first_storm_and_suppressed_cases() {
         assert_eq!(
             storm_decision(1, 4, 3, true),
@@ -112,13 +113,15 @@ mod tests {
         );
     }
 
-    #[test_case]
+    #[cfg_attr(all(test, target_os = "none"), test_case)]
+    #[cfg_attr(not(all(test, target_os = "none")), test)]
     fn hottest_counter_index_picks_largest_entry() {
         assert_eq!(hottest_counter_index(&[1, 7, 3]), 1);
         assert_eq!(hottest_counter_index(&[0, 0, 0]), 0);
     }
 
-    #[test_case]
+    #[cfg_attr(all(test, target_os = "none"), test_case)]
+    #[cfg_attr(not(all(test, target_os = "none")), test)]
     fn reset_window_and_abs_diff_behave_as_expected() {
         assert!(reset_window(0, 10, 50));
         assert!(!reset_window(10, 30, 50));

@@ -34,6 +34,10 @@ static USER_FATAL_ASYNC_EXCEPTIONS: AtomicU64 = AtomicU64::new(0);
 static KERNEL_FATAL_ASYNC_EXCEPTIONS: AtomicU64 = AtomicU64::new(0);
 static IRQ_TOTAL_EXCEPTIONS: AtomicU64 = AtomicU64::new(0);
 static IRQ_SPURIOUS_EXCEPTIONS: AtomicU64 = AtomicU64::new(0);
+static IRQ_TIMER_LINE_EXCEPTIONS: AtomicU64 = AtomicU64::new(0);
+static IRQ_SERIAL_LINE_EXCEPTIONS: AtomicU64 = AtomicU64::new(0);
+static IRQ_GENERIC_LINE_EXCEPTIONS: AtomicU64 = AtomicU64::new(0);
+static IRQ_TLB_SHOOTDOWN_LINE_EXCEPTIONS: AtomicU64 = AtomicU64::new(0);
 static IRQ_STORM_WINDOWS: AtomicU64 = AtomicU64::new(0);
 static IRQ_STORM_SUPPRESSED_LOGS: AtomicU64 = AtomicU64::new(0);
 static TIMER_IRQ_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -58,6 +62,10 @@ pub struct ExceptionStats {
     pub kernel_fatal_async_exceptions: u64,
     pub irq_total_exceptions: u64,
     pub irq_spurious_exceptions: u64,
+    pub irq_timer_line_exceptions: u64,
+    pub irq_serial_line_exceptions: u64,
+    pub irq_generic_line_exceptions: u64,
+    pub irq_tlb_shootdown_line_exceptions: u64,
     pub irq_storm_windows: u64,
     pub irq_storm_suppressed_logs: u64,
     pub timer_irq_count: u64,
@@ -72,13 +80,7 @@ pub struct ExceptionStats {
 
 #[inline(always)]
 pub fn stats() -> ExceptionStats {
-    let (
-        hottest_irq_line,
-        hottest_irq_total,
-        hottest_irq_storm_events,
-        hottest_irq_suppressed_logs,
-        irq_track_limit,
-    ) = irq::hottest_irq_snapshot();
+    let hotspot = irq::hottest_irq_snapshot();
 
     ExceptionStats {
         sync_exceptions: SYNC_EXCEPTIONS.load(Ordering::Relaxed),
@@ -91,15 +93,19 @@ pub fn stats() -> ExceptionStats {
         kernel_fatal_async_exceptions: KERNEL_FATAL_ASYNC_EXCEPTIONS.load(Ordering::Relaxed),
         irq_total_exceptions: IRQ_TOTAL_EXCEPTIONS.load(Ordering::Relaxed),
         irq_spurious_exceptions: IRQ_SPURIOUS_EXCEPTIONS.load(Ordering::Relaxed),
+        irq_timer_line_exceptions: IRQ_TIMER_LINE_EXCEPTIONS.load(Ordering::Relaxed),
+        irq_serial_line_exceptions: IRQ_SERIAL_LINE_EXCEPTIONS.load(Ordering::Relaxed),
+        irq_generic_line_exceptions: IRQ_GENERIC_LINE_EXCEPTIONS.load(Ordering::Relaxed),
+        irq_tlb_shootdown_line_exceptions: IRQ_TLB_SHOOTDOWN_LINE_EXCEPTIONS.load(Ordering::Relaxed),
         irq_storm_windows: IRQ_STORM_WINDOWS.load(Ordering::Relaxed),
         irq_storm_suppressed_logs: IRQ_STORM_SUPPRESSED_LOGS.load(Ordering::Relaxed),
         timer_irq_count: TIMER_IRQ_COUNT.load(Ordering::Relaxed),
         timer_irq_jitter_events: TIMER_IRQ_JITTER_EVENTS.load(Ordering::Relaxed),
-        irq_track_limit,
-        hottest_irq_line,
-        hottest_irq_total,
-        hottest_irq_storm_events,
-        hottest_irq_suppressed_logs,
+        irq_track_limit: hotspot.tracked_limit,
+        hottest_irq_line: hotspot.line,
+        hottest_irq_total: hotspot.total,
+        hottest_irq_storm_events: hotspot.storm_events,
+        hottest_irq_suppressed_logs: hotspot.suppressed_logs,
         gic_cpu_priority_mask: AARCH64_GIC_CPU_PRIORITY_MASK.min(GIC_CPU_PRIORITY_MASK_MAX),
     }
 }

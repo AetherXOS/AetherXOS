@@ -59,10 +59,7 @@ impl HardwareAbstraction for Hal {
     }
 
     fn serial_write_raw(s: &str) {
-        #[cfg(target_arch = "x86_64")]
-        x86_64::serial::write_raw(s);
-        #[cfg(target_arch = "aarch64")]
-        aarch64::serial::write_raw(s);
+        crate::hal::serial::write_raw(s);
     }
 }
 
@@ -104,8 +101,8 @@ pub use crate::kernel::syscalls::syscalls_consts;
 pub use x86_64::HAL;
 #[cfg(target_arch = "x86_64")]
 pub use x86_64::{
-    acpi, acpi_rsdp_addr, apic, dtb_addr, framebuffer, gdt, hhdm_offset, idt, mem_map, paging, pci,
-    pic, platform, port, smp, virt,
+    acpi, acpi_rsdp_addr, apic, dtb_addr, framebuffer, gdt, hhdm_offset, idt, input, mem_map,
+    paging, pci, pic, platform, port, smp, virt,
 };
 
 #[cfg(target_arch = "aarch64")]

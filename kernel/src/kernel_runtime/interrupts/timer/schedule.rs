@@ -1,6 +1,16 @@
 use super::types::SwitchInfo;
-use aethercore::generated_consts::CORE_ENABLE_SCHEDULER_TRACE;
+use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use aethercore::interfaces::{Scheduler, SchedulerAction};
+
+static SCHED_TRACE_EVENT_SEQ: AtomicU64 = AtomicU64::new(0);
+
+#[inline(always)]
+fn should_emit_scheduler_trace() -> bool {
+    let seq = SCHED_TRACE_EVENT_SEQ
+        .fetch_add(1, AtomicOrdering::Relaxed)
+        .saturating_add(1);
+    aethercore::config::KernelConfig::should_emit_scheduler_trace_sample(seq)
+}
 
 #[inline(always)]
 fn should_emit_timer_scheduler_serial(
@@ -33,7 +43,7 @@ pub(super) fn prepare_scheduler_switch(
 
     #[cfg(target_arch = "x86_64")]
     if should_emit_timer_scheduler_serial(runqueue_len, &action, force_rt_reschedule) {
-        aethercore::hal::x86_64::serial::write_raw(
+        aethercore::hal::serial::write_raw(
             "[EARLY SERIAL] timer scheduler tick evaluated\n",
         );
     }
@@ -44,7 +54,7 @@ pub(super) fn prepare_scheduler_switch(
     {
         #[cfg(target_arch = "x86_64")]
         if should_emit_timer_scheduler_serial(runqueue_len, &action, force_rt_reschedule) {
-            aethercore::hal::x86_64::serial::write_raw(
+            aethercore::hal::serial::write_raw(
                 "[EARLY SERIAL] timer scheduler no switch requested\n",
             );
         }
@@ -52,11 +62,11 @@ pub(super) fn prepare_scheduler_switch(
     }
 
     #[cfg(target_arch = "x86_64")]
-    aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] timer pick_next call begin\n");
+    aethercore::hal::serial::write_raw("[EARLY SERIAL] timer pick_next call begin\n");
     #[cfg(feature = "sched_cfs")]
     let bootstrap_tid = if current_tid.0 == 0 && scheduler.runqueue_len() == 1 {
         #[cfg(target_arch = "x86_64")]
-        aethercore::hal::x86_64::serial::write_raw(
+        aethercore::hal::serial::write_raw(
             "[EARLY SERIAL] timer bootstrap singleton path\n",
         );
         scheduler.bootstrap_pick_next()
@@ -67,21 +77,21 @@ pub(super) fn prepare_scheduler_switch(
     let bootstrap_tid: Option<aethercore::interfaces::task::TaskId> = None;
     let next_tid = if let Some(tid) = bootstrap_tid {
         #[cfg(target_arch = "x86_64")]
-        aethercore::hal::x86_64::serial::write_raw(
+        aethercore::hal::serial::write_raw(
             "[EARLY SERIAL] timer bootstrap singleton returned\n",
         );
         tid
     } else if let Some(tid) = scheduler.pick_next() {
         #[cfg(target_arch = "x86_64")]
-        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] timer pick_next returned\n");
+        aethercore::hal::serial::write_raw("[EARLY SERIAL] timer pick_next returned\n");
         tid
     } else {
         #[cfg(target_arch = "x86_64")]
-        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] timer pick_next empty\n");
+        aethercore::hal::serial::write_raw("[EARLY SERIAL] timer pick_next empty\n");
         let stolen_task = aethercore::kernel::load_balance::try_steal_for_cpu(cpu)?;
         let tid = stolen_task.lock().id;
         scheduler.add_task(stolen_task);
-        if CORE_ENABLE_SCHEDULER_TRACE {
+        if should_emit_scheduler_trace() {
             aethercore::klog_trace!("Scheduler stole task {} onto CPU {}", tid, cpu.cpu_id.0);
         }
         tid
@@ -89,7 +99,7 @@ pub(super) fn prepare_scheduler_switch(
 
     if next_tid == current_tid {
         #[cfg(target_arch = "x86_64")]
-        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] timer next equals current\n");
+        aethercore::hal::serial::write_raw("[EARLY SERIAL] timer next equals current\n");
         return None;
     }
 
@@ -130,10 +140,10 @@ pub(super) fn prepare_scheduler_switch(
     match (next_sp, current_sp_ptr) {
         (Some(next_sp), Some(current_sp_ptr)) => {
             #[cfg(target_arch = "x86_64")]
-            aethercore::hal::x86_64::serial::write_raw(
+            aethercore::hal::serial::write_raw(
                 "[EARLY SERIAL] timer scheduler switch ready\n",
             );
-            if CORE_ENABLE_SCHEDULER_TRACE {
+            if should_emit_scheduler_trace() {
                 aethercore::klog_trace!(
                     "Scheduler switch cpu={} {} -> {}",
                     cpu.cpu_id.0,
@@ -155,19 +165,19 @@ pub(super) fn prepare_scheduler_switch(
         }
         (None, Some(_)) => {
             #[cfg(target_arch = "x86_64")]
-            aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] timer next_sp missing\n");
+            aethercore::hal::serial::write_raw("[EARLY SERIAL] timer next_sp missing\n");
             None
         }
         (Some(_), None) => {
             #[cfg(target_arch = "x86_64")]
-            aethercore::hal::x86_64::serial::write_raw(
+            aethercore::hal::serial::write_raw(
                 "[EARLY SERIAL] timer current_sp_ptr missing\n",
             );
             None
         }
         (None, None) => {
             #[cfg(target_arch = "x86_64")]
-            aethercore::hal::x86_64::serial::write_raw(
+            aethercore::hal::serial::write_raw(
                 "[EARLY SERIAL] timer both_sp_paths missing\n",
             );
             None

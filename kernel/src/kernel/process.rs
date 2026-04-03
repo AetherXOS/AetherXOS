@@ -165,7 +165,7 @@ impl Process {
     #[inline(always)]
     pub fn new_bootstrap(name: &[u8], #[cfg(feature = "paging_enable")] cr3: PhysAddr) -> Self {
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap ctor begin\n",
         );
         let process = Self::build_with_thread_capacity(
@@ -175,7 +175,7 @@ impl Process {
             cr3,
         );
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap ctor returned\n",
         );
         process
@@ -190,28 +190,28 @@ impl Process {
 
     pub fn add_thread(&self, task_id: TaskId) {
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] process add_thread lock begin\n");
+        crate::hal::serial::write_raw("[EARLY SERIAL] process add_thread lock begin\n");
         let mut threads = self.threads.lock();
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] process add_thread lock returned\n");
+        crate::hal::serial::write_raw("[EARLY SERIAL] process add_thread lock returned\n");
         threads.push(task_id);
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] process add_thread push returned\n");
+        crate::hal::serial::write_raw("[EARLY SERIAL] process add_thread push returned\n");
     }
 
     pub fn add_thread_unpublished(&self, task_id: TaskId) {
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process add_thread bootstrap borrow begin\n",
         );
         let threads = unsafe { self.threads.bootstrap_borrow_mut() };
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process add_thread bootstrap borrow returned\n",
         );
         threads.push(task_id);
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process add_thread bootstrap push returned\n",
         );
     }
@@ -514,11 +514,11 @@ impl Process {
             crate::kernel::debug_trace::TraceCategory::Launch,
         );
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap build task begin\n",
         );
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap loader call begin\n",
         );
         let task = crate::kernel::module_loader::build_process_bootstrap_task(
@@ -531,11 +531,11 @@ impl Process {
             kernel_stack_top,
         )?;
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap loader call returned\n",
         );
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap build task returned\n",
         );
         crate::kernel::debug_trace::record_with_metadata(
@@ -589,11 +589,11 @@ impl Process {
             crate::kernel::debug_trace::TraceCategory::Launch,
         );
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap build task begin\n",
         );
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap loader call begin\n",
         );
         let task = crate::kernel::module_loader::build_process_bootstrap_task_from_snapshot(
@@ -607,11 +607,11 @@ impl Process {
             kernel_stack_top,
         )?;
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap loader call returned\n",
         );
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap build task returned\n",
         );
         crate::kernel::debug_trace::record_with_metadata(
@@ -665,7 +665,7 @@ impl Process {
             crate::kernel::debug_trace::TraceCategory::Launch,
         );
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap materialized build task begin\n",
         );
         let task = crate::kernel::module_loader::materialize_and_build_process_bootstrap_task(
@@ -680,7 +680,7 @@ impl Process {
             frame_allocator,
         )?;
         #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] process bootstrap materialized build task returned\n",
         );
         crate::kernel::debug_trace::record_with_metadata(

@@ -3,7 +3,7 @@ use super::{BootInfo, MAX_USABLE_REGIONS, MemRegion};
 pub(super) fn collect_hhdm_offset(info: &mut BootInfo) {
     #[cfg(target_arch = "x86_64")]
     {
-        info.hhdm_offset = aethercore::hal::x86_64::hhdm_offset().unwrap_or(0);
+        info.hhdm_offset = aethercore::hal::hhdm_offset().unwrap_or(0);
     }
 }
 
@@ -12,7 +12,7 @@ pub(super) fn collect_memory_map(info: &mut BootInfo) {
     {
         use limine::MemoryMapEntryType;
 
-        if let Some(mmap) = aethercore::hal::x86_64::mem_map() {
+        if let Some(mmap) = aethercore::hal::mem_map() {
             for entry_ptr in mmap.memmap() {
                 let entry_raw = entry_ptr.as_ptr();
                 if entry_raw.is_null() {

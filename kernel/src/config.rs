@@ -166,6 +166,7 @@ static SCHED_RT_ENABLE_GROUP_RESERVATION_OVERRIDE: AtomicUsize = AtomicUsize::ne
 static SCHED_RT_PERIOD_NS_OVERRIDE: AtomicU64 = AtomicU64::new(0);
 static SCHED_RT_TOTAL_UTILIZATION_CAP_PERCENT_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 static SCHED_RT_MAX_GROUPS_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
+static SCHEDULER_TRACE_SAMPLE_RATE_OVERRIDE: AtomicU64 = AtomicU64::new(0);
 static TELEMETRY_ENABLED_OVERRIDE: AtomicUsize = AtomicUsize::new(0); // 0=default,1=false,2=true
 static TELEMETRY_RUNTIME_SUMMARY_OVERRIDE: AtomicUsize = AtomicUsize::new(0); // 0=default,1=false,2=true
 static TELEMETRY_VIRTUALIZATION_OVERRIDE: AtomicUsize = AtomicUsize::new(0); // 0=default,1=false,2=true
@@ -221,6 +222,9 @@ static MULTI_USER_ENABLED_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 static CREDENTIAL_ENFORCEMENT_ENABLED_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 static LIBNET_FAST_PATH_RUN_PUMP_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 static LIBNET_FAST_PATH_COLLECT_TRANSPORT_SNAPSHOT_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
+
+const DEFAULT_SCHEDULER_TRACE_SAMPLE_RATE: u64 = 16;
+const MAX_SCHEDULER_TRACE_SAMPLE_RATE: u64 = 4096;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CoreRuntimeLimits {
@@ -313,6 +317,29 @@ impl KernelConfig {
 
     pub fn is_scheduler_trace_enabled() -> bool {
         CORE_ENABLE_SCHEDULER_TRACE
+    }
+
+    pub fn scheduler_trace_sample_rate() -> u64 {
+        let override_value = SCHEDULER_TRACE_SAMPLE_RATE_OVERRIDE.load(Ordering::Relaxed);
+        let base = if override_value == 0 {
+            DEFAULT_SCHEDULER_TRACE_SAMPLE_RATE
+        } else {
+            override_value
+        };
+        base.clamp(1, MAX_SCHEDULER_TRACE_SAMPLE_RATE)
+    }
+
+    pub fn set_scheduler_trace_sample_rate(value: Option<u64>) {
+        let encoded = value.unwrap_or(0).clamp(0, MAX_SCHEDULER_TRACE_SAMPLE_RATE);
+        SCHEDULER_TRACE_SAMPLE_RATE_OVERRIDE.store(encoded, Ordering::Relaxed);
+    }
+
+    pub fn should_emit_scheduler_trace_sample(sequence: u64) -> bool {
+        if !Self::is_scheduler_trace_enabled() {
+            return false;
+        }
+        let rate = Self::scheduler_trace_sample_rate();
+        rate <= 1 || sequence % rate == 0
     }
 
     pub fn is_syscall_tracing_enabled() -> bool {
@@ -426,6 +453,24 @@ impl KernelConfig {
 
     pub fn irq_storm_window_ticks() -> u64 {
         CORE_IRQ_STORM_WINDOW_TICKS
+    }
+
+    pub fn interrupt_storm_profile() -> &'static str {
+        if !Self::is_interrupt_storm_protection_enabled() {
+            "observe"
+        } else if matches!(Self::soft_watchdog_action_mode(), WatchdogAction::Halt) {
+            "panic-safe"
+        } else {
+            "throttle"
+        }
+    }
+
+    pub fn is_interrupt_storm_observe_mode() -> bool {
+        Self::interrupt_storm_profile() == "observe"
+    }
+
+    pub fn is_interrupt_storm_panic_safe_mode() -> bool {
+        Self::interrupt_storm_profile() == "panic-safe"
     }
 
     pub fn is_soft_watchdog_enabled() -> bool {

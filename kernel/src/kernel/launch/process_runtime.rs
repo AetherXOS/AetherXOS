@@ -599,21 +599,21 @@ fn publish_bootstrap_process_and_task(
         false,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap register process begin\n",
     );
     let proc_ref = register_process(process);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap register process returned\n",
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap registry image begin\n",
     );
     register_process_with_task_image(proc_ref, task_id, registry_boot_image);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap registry image returned\n",
     );
     crate::kernel::debug_trace::record_optional(
@@ -639,16 +639,16 @@ fn publish_bootstrap_process_and_task(
         false,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap register task returned\n",
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap scheduler lock begin\n",
     );
     let mut scheduler = cpu.scheduler.lock();
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap scheduler lock returned\n",
     );
     scheduler.add_task(task.clone());
@@ -659,7 +659,7 @@ fn publish_bootstrap_process_and_task(
         false,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap scheduler add returned\n",
     );
 
@@ -671,7 +671,7 @@ fn publish_bootstrap_process_and_task(
         false,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap forced reschedule requested\n",
     );
 
@@ -759,7 +759,7 @@ fn prepare_bootstrap_launch_entry<'a>(
     kernel_stack_top: u64,
 ) -> (BootstrapLaunchRequest<'a>, BootstrapLaunchDecision) {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap wrapper entered\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap wrapper entered\n");
     let request = bootstrap_launch_request(
         process_name,
         boot_image,
@@ -769,10 +769,10 @@ fn prepare_bootstrap_launch_entry<'a>(
         kernel_stack_top,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap request ready\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap request ready\n");
     let decision = bootstrap_launch_decision(&request);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap decision ready\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap decision ready\n");
     (request, decision)
 }
 
@@ -780,7 +780,7 @@ fn prepare_bootstrap_launch_entry<'a>(
 #[inline(always)]
 fn prepare_aligned_static_bootstrap(image: &'static [u8]) -> PreparedAlignedStaticBootstrap {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch aligned static image wrapper begin\n",
     );
     crate::kernel::debug_trace::record_optional("launch.bootstrap", "aligned_static_borrow_begin", None, false);
@@ -831,7 +831,7 @@ fn spawn_bootstrap_from_image_record(
         kernel_stack_top,
     } = decision;
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap entered\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap entered\n");
     crate::kernel::debug_trace::record_optional("launch.bootstrap", "entered", None, false);
     SPAWN_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
 
@@ -843,7 +843,7 @@ fn spawn_bootstrap_from_image_record(
     record_launch_image_preview(image);
 
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap task id alloc begin\n",
     );
     let task_id = allocate_task_id();
@@ -854,16 +854,16 @@ fn spawn_bootstrap_from_image_record(
         false,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap task id allocated\n",
     );
     #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
     let kernel_stack_top = if kernel_stack_top == 0 {
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] launch bootstrap kernel stack alloc begin\n",
         );
-        let stack_top = crate::hal::x86_64::smp::allocate_kernel_stack_top() as u64;
-        crate::hal::x86_64::serial::write_raw(
+        let stack_top = crate::hal::smp::allocate_kernel_stack_top() as u64;
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] launch bootstrap kernel stack alloc returned\n",
         );
         stack_top
@@ -871,7 +871,7 @@ fn spawn_bootstrap_from_image_record(
         kernel_stack_top
     };
     #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap task build begin\n",
     );
     #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
@@ -880,7 +880,7 @@ fn spawn_bootstrap_from_image_record(
     let _ = kernel_stack_top;
     #[cfg(all(feature = "ring_protection", target_arch = "aarch64"))]
     let kernel_stack_top = if kernel_stack_top == 0 {
-        crate::hal::aarch64::smp::allocate_kernel_stack_top() as u64
+        crate::hal::smp::allocate_kernel_stack_top() as u64
     } else {
         kernel_stack_top
     };
@@ -890,12 +890,12 @@ fn spawn_bootstrap_from_image_record(
     #[cfg(target_os = "none")]
     let irq_flags = crate::hal::HAL::irq_save();
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap irq hold begin\n",
     );
 
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap task create call begin\n",
     );
 
@@ -946,7 +946,7 @@ fn spawn_bootstrap_from_image_record(
     );
 
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap task create call returned\n",
     );
 
@@ -973,22 +973,22 @@ fn spawn_bootstrap_from_image_record(
     };
     crate::kernel::debug_trace::record_optional("launch.bootstrap", "task_build_returned", None, false);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap task build returned\n",
     );
 
     #[cfg(target_os = "none")]
     crate::hal::HAL::irq_restore(irq_flags);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap irq hold returned\n",
     );
 
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap registry image clone begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap registry image clone begin\n");
     let registry_boot_image = boot_image.clone();
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap registry image clone returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap registry image clone returned\n");
 
     let publish_result =
         publish_bootstrap_process_and_task(process, task, task_id, registry_boot_image);
@@ -1003,7 +1003,7 @@ fn prepare_bootstrap_launch_image<'a>(
     boot_image: &'a BootImageRecord,
 ) -> Result<&'a [u8], LaunchError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap image prep begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap image prep begin\n");
     let (max_name_len, max_boot_image_bytes) = bootstrap_launch_limits();
     let image = bootstrap_image_slice(boot_image);
 
@@ -1020,7 +1020,7 @@ fn prepare_bootstrap_launch_image<'a>(
         return Err(LaunchError::InvalidSpawnRequest);
     }
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap validation returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap validation returned\n");
     crate::kernel::debug_trace::record_optional(
         "launch.bootstrap",
         "validation_returned",
@@ -1028,7 +1028,7 @@ fn prepare_bootstrap_launch_image<'a>(
         false,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap image prep returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap image prep returned\n");
     Ok(image)
 }
 
@@ -1036,18 +1036,18 @@ fn prepare_bootstrap_launch_image<'a>(
 #[inline(always)]
 fn begin_bootstrap_preflight_window() {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch preflight win\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch preflight win\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap preflight window begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap preflight window begin\n");
 }
 
 #[cfg(feature = "process_abstraction")]
 #[inline(always)]
 fn finish_bootstrap_preflight_window() {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch preflight ok\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch preflight ok\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap preflight window returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap preflight window returned\n");
 }
 
 #[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
@@ -1059,13 +1059,13 @@ fn prepare_bootstrap_launch_preflight<'a>(
     begin_bootstrap_preflight_window();
     let image = prepare_bootstrap_launch_image(process_name, boot_image)?;
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch preflight run\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch preflight run\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap preflight begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap preflight begin\n");
     preflight_bootstrap_image(process_name, image)?;
     crate::kernel::debug_trace::record_optional("launch.bootstrap", "preflight_returned", None, false);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap preflight returned\n",
     );
     finish_bootstrap_preflight_window();
@@ -1081,13 +1081,13 @@ fn prepare_bootstrap_launch_preflight<'a>(
     begin_bootstrap_preflight_window();
     let image = prepare_bootstrap_launch_image(process_name, boot_image)?;
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch preflight run\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch preflight run\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap preflight begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap preflight begin\n");
     let precomputed_snapshot = preflight_bootstrap_snapshot(process_name, image)?;
     crate::kernel::debug_trace::record_optional("launch.bootstrap", "preflight_returned", None, false);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap preflight returned\n",
     );
     finish_bootstrap_preflight_window();
@@ -1098,13 +1098,13 @@ fn prepare_bootstrap_launch_preflight<'a>(
 #[inline(always)]
 fn bootstrap_launch_limits() -> (usize, usize) {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap config begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap config begin\n");
     let limits = (
         crate::config::KernelConfig::launch_max_process_name_len(),
         crate::config::KernelConfig::launch_max_boot_image_bytes(),
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap config returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap config returned\n");
     limits
 }
 
@@ -1112,10 +1112,10 @@ fn bootstrap_launch_limits() -> (usize, usize) {
 #[inline(always)]
 fn bootstrap_image_slice(boot_image: &BootImageRecord) -> &[u8] {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap image slice begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap image slice begin\n");
     let image = boot_image.as_slice();
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap image slice returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap image slice returned\n");
     image
 }
 
@@ -1148,7 +1148,7 @@ pub fn spawn_bootstrap_from_image(
     kernel_stack_top: u64,
 ) -> Result<(usize, usize), LaunchError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch owned image wrapper begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch owned image wrapper begin\n");
     spawn_bootstrap_from_image_record(
         process_name,
         BootImageRecord::Owned(image.to_vec()),
@@ -1169,7 +1169,7 @@ pub fn spawn_bootstrap_from_static_image(
     kernel_stack_top: u64,
 ) -> Result<(usize, usize), LaunchError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch static image wrapper begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch static image wrapper begin\n");
     spawn_bootstrap_from_image_record(
         process_name,
         BootImageRecord::OwnedAligned(

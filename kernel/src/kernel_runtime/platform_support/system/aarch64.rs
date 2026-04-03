@@ -28,7 +28,7 @@ pub(crate) fn log_aarch64_exception_runtime() {
         AARCH64_TIMER_JITTER_TOLERANCE_TICKS
     );
 
-    let ex = aethercore::hal::aarch64::exception::stats();
+    let ex = aethercore::hal::exception::stats();
     aethercore::klog_info!(
         "AArch64 exception stats: sync={} fiq={} serror={} user_abort={} kernel_abort={} user_fatal_sync={} user_fatal_async={} kernel_fatal_async={} irq_total={} irq_spurious={} irq_storm_windows={} irq_suppressed={} timer_irq={} timer_jitter={} irq_track_limit={} irq_hot={} irq_hot_total={} irq_hot_storms={} irq_hot_suppressed={} gic_pmr={}",
         ex.sync_exceptions,
@@ -53,7 +53,7 @@ pub(crate) fn log_aarch64_exception_runtime() {
         ex.gic_cpu_priority_mask
     );
 
-    let timer = aethercore::hal::aarch64::timer::GenericTimer::stats();
+    let timer = aethercore::hal::timer::GenericTimer::stats();
     aethercore::klog_info!(
         "AArch64 timer stats: freq={} last_ticks={} clamp_min={} clamp_max={}",
         timer.frequency_hz,

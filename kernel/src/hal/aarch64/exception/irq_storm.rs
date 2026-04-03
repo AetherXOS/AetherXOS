@@ -7,7 +7,36 @@ use crate::generated_consts::{
 };
 use crate::hal::common::irq::{hottest_counter_index, reset_window, storm_decision, tracked_limit};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StormProfile {
+    Observe,
+    Throttle,
+    PanicSafe,
+}
+
+impl StormProfile {
+    #[inline(always)]
+    fn current() -> Self {
+        if crate::config::KernelConfig::is_interrupt_storm_observe_mode() {
+            Self::Observe
+        } else if crate::config::KernelConfig::is_interrupt_storm_panic_safe_mode() {
+            Self::PanicSafe
+        } else {
+            Self::Throttle
+        }
+    }
+}
+
 pub(super) const MAX_TRACKED_IRQS: usize = 256;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in super::super) struct IrqHotspotSnapshot {
+    pub line: usize,
+    pub total: u64,
+    pub storm_events: u64,
+    pub suppressed_logs: u64,
+    pub tracked_limit: usize,
+}
 
 #[derive(Debug, Clone)]
 pub(in super::super) struct IrqRateTracker {
@@ -32,6 +61,7 @@ impl IrqRateTracker {
 
 pub(super) struct IrqStormState {
     now_counter: u64,
+    profile: StormProfile,
     window_ticks: u64,
     global_threshold: u64,
     global_log_every: u64,
@@ -42,15 +72,51 @@ pub(super) struct IrqStormState {
 
 impl IrqStormState {
     pub(super) fn new(now_counter: u64) -> Self {
+        let profile = StormProfile::current();
+        let base_global_threshold = AARCH64_IRQ_STORM_THRESHOLD.max(1);
+        let base_global_log_every = AARCH64_IRQ_STORM_LOG_EVERY.max(1);
+        let base_per_line_threshold = AARCH64_IRQ_PER_LINE_STORM_THRESHOLD.max(1);
+        let base_per_line_log_every = AARCH64_IRQ_PER_LINE_LOG_EVERY.max(1);
+        let (
+            global_threshold,
+            global_log_every,
+            per_line_threshold,
+            per_line_log_every,
+        ) = match profile {
+            StormProfile::Observe => (
+                u64::MAX,
+                base_global_log_every,
+                u64::MAX,
+                base_per_line_log_every,
+            ),
+            StormProfile::Throttle => (
+                base_global_threshold,
+                base_global_log_every,
+                base_per_line_threshold,
+                base_per_line_log_every,
+            ),
+            StormProfile::PanicSafe => (
+                core::cmp::max(1, base_global_threshold / 2),
+                core::cmp::max(1, base_global_log_every / 2),
+                core::cmp::max(1, base_per_line_threshold / 2),
+                core::cmp::max(1, base_per_line_log_every / 2),
+            ),
+        };
+
         Self {
             now_counter,
+            profile,
             window_ticks: AARCH64_IRQ_STORM_WINDOW_TICKS.max(1),
-            global_threshold: AARCH64_IRQ_STORM_THRESHOLD.max(1),
-            global_log_every: AARCH64_IRQ_STORM_LOG_EVERY.max(1),
+            global_threshold,
+            global_log_every,
             tracked_limit: tracked_limit(AARCH64_IRQ_RATE_TRACK_LIMIT, MAX_TRACKED_IRQS),
-            per_line_threshold: AARCH64_IRQ_PER_LINE_STORM_THRESHOLD.max(1),
-            per_line_log_every: AARCH64_IRQ_PER_LINE_LOG_EVERY.max(1),
+            per_line_threshold,
+            per_line_log_every,
         }
+    }
+
+    pub(super) fn panic_safe_mode(&self) -> bool {
+        self.profile == StormProfile::PanicSafe
     }
 
     pub(super) fn per_line_threshold(&self) -> u64 {
@@ -118,15 +184,15 @@ impl IrqStormState {
     }
 }
 
-pub(in super::super) fn hottest_irq_snapshot() -> (usize, u64, u64, u64, usize) {
+pub(in super::super) fn hottest_irq_snapshot() -> IrqHotspotSnapshot {
     let tracked = tracked_limit(AARCH64_IRQ_RATE_TRACK_LIMIT, MAX_TRACKED_IRQS);
     let tracker = IRQ_RATE_TRACKER.lock();
     let best_idx = hottest_counter_index(&tracker.total[..tracked]);
-    (
-        best_idx,
-        tracker.total[best_idx],
-        tracker.storm_events[best_idx],
-        tracker.suppressed_logs[best_idx],
-        tracked,
-    )
+    IrqHotspotSnapshot {
+        line: best_idx,
+        total: tracker.total[best_idx],
+        storm_events: tracker.storm_events[best_idx],
+        suppressed_logs: tracker.suppressed_logs[best_idx],
+        tracked_limit: tracked,
+    }
 }

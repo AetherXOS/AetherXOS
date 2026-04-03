@@ -74,12 +74,12 @@ pub mod selector {
     #[inline(never)]
     pub fn bootstrap_active_scheduler() -> ActiveScheduler {
         #[cfg(target_arch = "x86_64")]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] bootstrap active scheduler wrapper begin\n",
         );
         let scheduler = ActiveScheduler::new();
         #[cfg(target_arch = "x86_64")]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] bootstrap active scheduler wrapper returned\n",
         );
         scheduler
@@ -101,12 +101,12 @@ pub mod selector {
     #[inline(never)]
     pub fn bootstrap_active_scheduler() -> ActiveScheduler {
         #[cfg(target_arch = "x86_64")]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] bootstrap active scheduler wrapper begin\n",
         );
         let scheduler = NoopScheduler::new();
         #[cfg(target_arch = "x86_64")]
-        crate::hal::x86_64::serial::write_raw(
+        crate::hal::serial::write_raw(
             "[EARLY SERIAL] bootstrap active scheduler wrapper returned\n",
         );
         scheduler

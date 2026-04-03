@@ -22,7 +22,7 @@ fn bind_snapshot_to_process(
             ProcessPrepareError::ProcessBindFailed
         })?;
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] loader bind prepared snapshot returned\n",
     );
     crate::kernel::debug_trace::record_optional(
@@ -43,7 +43,7 @@ pub fn prepare_process_image_entry_from_snapshot(
 ) -> Result<u64, ProcessPrepareError> {
     let snapshot = bind_snapshot_to_process(process, image, snapshot)?;
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] loader prepare process image entry returned\n",
     );
     crate::kernel::debug_trace::record_with_metadata(

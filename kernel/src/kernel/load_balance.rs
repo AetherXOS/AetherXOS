@@ -24,6 +24,7 @@ static REBALANCE_IMBALANCE_BIN_4_7: AtomicU64 = AtomicU64::new(0);
 static REBALANCE_IMBALANCE_BIN_8_15: AtomicU64 = AtomicU64::new(0);
 static REBALANCE_IMBALANCE_BIN_GE16: AtomicU64 = AtomicU64::new(0);
 static REBALANCE_IMBALANCE_SEQ: AtomicU64 = AtomicU64::new(0);
+static REBALANCE_TRACE_EVENT_SEQ: AtomicU64 = AtomicU64::new(0);
 
 const IMBALANCE_WINDOW: usize = crate::generated_consts::GOVERNOR_LOAD_BALANCE_PERCENTILE_WINDOW;
 static REBALANCE_IMBALANCE_RING: Mutex<[u32; IMBALANCE_WINDOW]> = Mutex::new([0; IMBALANCE_WINDOW]);
@@ -170,6 +171,14 @@ fn prefer_local_skip_budget(
 ) -> usize {
     KernelConfig::rebalance_prefer_local_skip_budget()
         .saturating_div(tuning.prefer_local_skip_budget_divisor.max(1))
+}
+
+#[inline(always)]
+fn should_emit_rebalance_trace() -> bool {
+    let seq = REBALANCE_TRACE_EVENT_SEQ
+        .fetch_add(1, Ordering::Relaxed)
+        .saturating_add(1);
+    KernelConfig::should_emit_scheduler_trace_sample(seq)
 }
 
 #[inline(always)]
@@ -331,7 +340,7 @@ fn rebalance_once() {
         REBALANCE_MOVED.fetch_add(moved as u64, Ordering::Relaxed);
     }
 
-    if moved > 0 && KernelConfig::is_scheduler_trace_enabled() {
+    if moved > 0 && should_emit_rebalance_trace() {
         crate::klog_trace!(
             "rebalance moved={} from cpu={} to cpu={} load {}->{} policy={}",
             moved,

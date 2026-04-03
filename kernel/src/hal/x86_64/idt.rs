@@ -18,6 +18,8 @@ mod exception_handlers;
 /// Routes hardware interrupts and CPU exceptions to handlers.
 
 pub use dispatch::init_dispatcher;
+#[cfg(target_os = "none")]
+pub use dispatch::{irq_dispatch_metrics, IrqDispatchMetrics};
 
 #[cfg(target_os = "none")]
 static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {

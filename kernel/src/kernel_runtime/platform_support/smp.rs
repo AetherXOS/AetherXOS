@@ -3,7 +3,7 @@ pub(crate) fn init_smp_runtime(enabled: bool) {
         aethercore::hal::HAL::init_smp();
         #[cfg(target_arch = "aarch64")]
         {
-            let st = aethercore::hal::aarch64::smp::boot_stats();
+            let st = aethercore::hal::smp::boot_stats();
             aethercore::klog_info!(
                 "SMP boot stats: hvc={}/{} smc={}/{} failures={} timeouts={} aps_ready={}",
                 st.hvc_success,

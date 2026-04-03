@@ -6,6 +6,34 @@ pub enum IrqLineKind {
     TlbShootdown,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct IrqLineId(pub u32);
+
+impl IrqLineId {
+    pub const fn new(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn raw(self) -> u32 {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct IrqVector(pub u8);
+
+impl IrqVector {
+    pub const fn new(raw: u8) -> Self {
+        Self(raw)
+    }
+
+    pub const fn raw(self) -> u8 {
+        self.0
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct IrqLineDescriptor<Id> {
     pub id: Id,

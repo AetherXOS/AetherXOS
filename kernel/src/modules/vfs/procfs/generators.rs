@@ -1,14 +1,7 @@
 use super::*;
 
 fn cpu_count() -> usize {
-    #[cfg(target_arch = "x86_64")]
-    {
-        crate::hal::x86_64::smp::CPUS.lock().len().max(1)
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        1
-    }
+    crate::hal::smp::cpu_count().max(1)
 }
 
 pub(super) fn generate_version() -> String {

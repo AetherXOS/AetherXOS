@@ -41,3 +41,7 @@ define_irq_handlers!(
     (irq_46_handler, x86::IRQ_VECTOR_BASE + 14),
     (irq_47_handler, x86::IRQ_VECTOR_BASE + 15),
 );
+
+#[cfg(target_os = "none")]
+const _EXTENDED_IRQ_ROUTE_COUNT_ASSERT: [(); metadata::EXTENDED_IRQ_COUNT as usize] =
+    [(); EXTENDED_IRQ_ROUTES.len()];

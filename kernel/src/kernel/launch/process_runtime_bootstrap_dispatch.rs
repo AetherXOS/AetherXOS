@@ -3,12 +3,12 @@ use super::*;
 #[inline(always)]
 pub(super) fn record_launch_image_preview(image: &[u8]) {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap image preview begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap image preview begin\n");
     if crate::config::KernelConfig::is_advanced_debug_enabled() {
         crate::kernel::debug_trace::record_bytes_preview("launch.image", "preview", image);
     }
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap image preview returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap image preview returned\n");
 }
 
 #[inline(always)]
@@ -45,7 +45,7 @@ pub(super) fn invoke_bootstrap_dispatch_call(
     kernel_stack_top: u64,
 ) -> Result<(usize, usize), LaunchError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch bootstrap dispatch call begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch bootstrap dispatch call begin\n");
     let result = spawn_bootstrap_from_image_record(
         process_name,
         boot_image,
@@ -55,7 +55,7 @@ pub(super) fn invoke_bootstrap_dispatch_call(
         kernel_stack_top,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch bootstrap dispatch call returned\n",
     );
     result
@@ -110,7 +110,7 @@ pub(super) fn invoke_aligned_static_dispatch(
     kernel_stack_top: u64,
 ) -> Result<(usize, usize), LaunchError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch aligned static image dispatch begin\n",
     );
     crate::kernel::debug_trace::record_optional(
@@ -128,7 +128,7 @@ pub(super) fn invoke_aligned_static_dispatch(
         kernel_stack_top,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch aligned static image dispatch returned\n",
     );
     result
@@ -144,7 +144,7 @@ pub(super) fn invoke_aligned_static_bootstrap(
     kernel_stack_top: u64,
 ) -> Result<(usize, usize), LaunchError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch aligned static image invoke begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch aligned static image invoke begin\n");
     crate::kernel::debug_trace::record_optional(
         "launch.bootstrap",
         "aligned_static_invoke_call",
@@ -160,7 +160,7 @@ pub(super) fn invoke_aligned_static_bootstrap(
         kernel_stack_top,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] launch aligned static image invoke returned\n",
     );
     result

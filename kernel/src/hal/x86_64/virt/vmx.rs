@@ -6,11 +6,13 @@ pub(super) fn prepare_vmcs_region() -> bool {
     let revision = (basic & 0x7fff_ffff) as u32;
 
     unsafe {
-        VMCS_REGION.revision_id = revision;
-        VMCS_REGION.abort_indicator = 0;
+        with_vmcs_region_mut(|region| {
+            region.revision_id = revision;
+            region.abort_indicator = 0;
+        });
     }
 
-    let vmcs_phys = support::virt_to_phys((&raw const VMCS_REGION) as usize);
+    let vmcs_phys = support::virt_to_phys(vmcs_region_ptr() as usize);
     let ok = vmcs_phys.unwrap_or(0) != 0;
     VMX_VMCS_READY.store(ok, Ordering::Relaxed);
     support::set_prep_result(ok);
@@ -59,10 +61,12 @@ pub(super) fn try_enter_vmx_operation() -> bool {
     let revision = (basic & 0x7fff_ffff) as u32;
 
     unsafe {
-        VMXON_REGION.revision_id = revision;
+        with_vmxon_region_mut(|region| {
+            region.revision_id = revision;
+        });
     }
 
-    let vmxon_phys = support::virt_to_phys((&raw const VMXON_REGION) as usize);
+    let vmxon_phys = support::virt_to_phys(vmxon_region_ptr() as usize);
     let Some(vmxon_phys) = vmxon_phys else {
         crate::klog_warn!("VMXON skipped: could not translate VMXON region to physical address");
         return false;

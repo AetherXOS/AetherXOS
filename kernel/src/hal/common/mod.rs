@@ -5,6 +5,7 @@ pub mod ipi;
 pub mod irq;
 pub mod irq_catalog;
 pub mod irq_registration;
+pub mod irq_trace;
 pub mod mmio;
 pub mod smp;
 pub mod timer;

@@ -26,7 +26,7 @@ pub(crate) fn sys_spawn_process(
             with_user_read_bounded_bytes(name_ptr, name_len, name_limit, |name| {
                 #[cfg(target_arch = "x86_64")]
                 #[cfg(feature = "ring_protection")]
-                let kernel_stack_top = crate::hal::x86_64::smp::allocate_kernel_stack_top() as u64;
+                let kernel_stack_top = crate::hal::smp::allocate_kernel_stack_top() as u64;
                 #[cfg(not(feature = "ring_protection"))]
                 let kernel_stack_top = 0;
                 #[cfg(not(target_arch = "x86_64"))]

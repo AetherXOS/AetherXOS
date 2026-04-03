@@ -21,7 +21,7 @@ pub(crate) fn timer_tick_handler(_irq: u8) {
 
     if let Some(switch_info) = switch_info {
         #[cfg(target_arch = "x86_64")]
-        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] timer switch prepared\n");
+        aethercore::hal::serial::write_raw("[EARLY SERIAL] timer switch prepared\n");
         arch::apply_arch_switch_state(cpu, &switch_info);
         unsafe {
             aethercore::kernel::rt_preemption::on_context_switch();

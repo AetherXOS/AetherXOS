@@ -35,8 +35,19 @@ struct QemuSmokeSummary {
     timed_out: bool,
     panic_seen: bool,
     boot_marker_seen: bool,
+    interrupt_health_ok: bool,
     success: bool,
     pass: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct InterruptHealth {
+    total: u64,
+    timer: u64,
+    non_timer: u64,
+    dropped: u64,
+    dispatch_attempted: u64,
+    dispatch_handled: u64,
 }
 
 /// Run an automated QEMU smoke test with timeout and panic detection.
@@ -94,7 +105,13 @@ pub fn smoke_test() -> Result<()> {
     let stream = format!("{}\n{}", final_result.stdout, final_result.stderr);
     let panic_seen = PANIC_MARKERS.iter().any(|m| stream.contains(m));
     let boot_marker_seen = BOOT_SUCCESS_MARKERS.iter().any(|m| stream.contains(m));
-    let pass = !panic_seen && (final_result.success || boot_marker_seen);
+    let interrupt_health = detect_interrupt_health(&stream);
+    let interrupt_health_ok = interrupt_health
+        .map(|health| validate_interrupt_health(health))
+        .unwrap_or(false);
+    let pass = !panic_seen
+        && interrupt_health_ok
+        && (final_result.success || boot_marker_seen);
 
     println!("[qemu::smoke] Mode: {}", final_mode);
     println!(
@@ -104,14 +121,17 @@ pub fn smoke_test() -> Result<()> {
     println!("[qemu::smoke] Timeout: {}", final_result.timed_out);
     println!("[qemu::smoke] Panic detected: {}", panic_seen);
     println!("[qemu::smoke] Boot marker detected: {}", boot_marker_seen);
+    println!("[qemu::smoke] Interrupt health asserted: {}", interrupt_health_ok);
     println!("[qemu::smoke] Exit success: {}", final_result.success);
     println!("[qemu::smoke] Text Log: {}", log_path.display());
 
     // Export Enterprise-Grade CI/CD report set (JUnit + JSON summary)
     let junit_path = constants::paths::qemu_smoke_junit();
     let failure_message = format!(
-        "Panic Seen: {} | Timed Out: {}",
-        panic_seen, final_result.timed_out
+        "Panic Seen: {} | Timed Out: {} | Interrupt Health: {}",
+        panic_seen,
+        final_result.timed_out,
+        interrupt_health_ok
     );
     let junit = JunitSingleCaseReport {
         suite_name: "QemuSmokeTest",
@@ -132,6 +152,7 @@ pub fn smoke_test() -> Result<()> {
         timed_out: final_result.timed_out,
         panic_seen,
         boot_marker_seen,
+        interrupt_health_ok,
         success: final_result.success,
         pass,
     };
@@ -139,18 +160,131 @@ pub fn smoke_test() -> Result<()> {
 
     if !pass {
         bail!(
-            "QEMU smoke test failed (mode={}, timeout={}, panic={}, success={}, boot_marker={}); log={}",
+            "QEMU smoke test failed (mode={}, timeout={}, panic={}, success={}, boot_marker={}, interrupt_health={}); log={}",
             final_mode,
             final_result.timed_out,
             panic_seen,
             final_result.success,
             boot_marker_seen,
+            interrupt_health_ok,
             log_path.display()
         );
     }
 
     println!("[qemu::smoke] PASS");
     Ok(())
+}
+
+fn detect_interrupt_health(stream: &str) -> Option<InterruptHealth> {
+    if let Some(line) = stream
+        .lines()
+        .rev()
+        .find(|line| line.contains("x86_64 irq stats:"))
+    {
+        let total = extract_u64_kv(line, "total")?;
+        let timer = extract_u64_kv(line, "timer")?;
+        let non_timer = extract_u64_kv(line, "non_timer")?;
+        let dropped = extract_u64_kv(line, "dropped")?;
+        let dispatch_attempted = extract_u64_kv(line, "dispatch_attempted")?;
+        let dispatch_handled = extract_u64_kv(line, "dispatch_handled")?;
+        return Some(InterruptHealth {
+            total,
+            timer,
+            non_timer,
+            dropped,
+            dispatch_attempted,
+            dispatch_handled,
+        });
+    }
+
+    if let Some(line) = stream
+        .lines()
+        .rev()
+        .find(|line| line.contains("AArch64 exception stats:"))
+    {
+        let total = extract_u64_kv(line, "irq_total")?;
+        let timer = extract_u64_kv(line, "timer_irq")?;
+        let non_timer = total.saturating_sub(timer);
+        let dispatch_attempted = total;
+        let dispatch_handled = total;
+        let dropped = 0;
+        return Some(InterruptHealth {
+            total,
+            timer,
+            non_timer,
+            dropped,
+            dispatch_attempted,
+            dispatch_handled,
+        });
+    }
+
+    None
+}
+
+fn validate_interrupt_health(health: InterruptHealth) -> bool {
+    if health.total < health.timer.saturating_add(health.non_timer) {
+        return false;
+    }
+    if health.dispatch_attempted < health.dispatch_handled {
+        return false;
+    }
+    if health.dropped > health.total {
+        return false;
+    }
+    true
+}
+
+fn extract_u64_kv(line: &str, key: &str) -> Option<u64> {
+    let needle = format!("{}=", key);
+    let start = line.find(&needle)? + needle.len();
+    let rest = &line[start..];
+    let end = rest.find(' ').unwrap_or(rest.len());
+    rest[..end].trim_end_matches(',').parse::<u64>().ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{detect_interrupt_health, validate_interrupt_health, InterruptHealth};
+
+    #[test]
+    fn detects_x86_interrupt_health_from_runtime_line() {
+        let log = "x86_64 irq stats: total=15 timer=10 non_timer=5 dropped=1 dispatch_attempted=14 dispatch_handled=13 timer_dropped=0";
+        let health = detect_interrupt_health(log).expect("x86 health should be parsed");
+
+        assert_eq!(health.total, 15);
+        assert_eq!(health.timer, 10);
+        assert_eq!(health.non_timer, 5);
+        assert_eq!(health.dropped, 1);
+        assert_eq!(health.dispatch_attempted, 14);
+        assert_eq!(health.dispatch_handled, 13);
+        assert!(validate_interrupt_health(health));
+    }
+
+    #[test]
+    fn detects_aarch64_interrupt_health_from_exception_stats_line() {
+        let log = "AArch64 exception stats: sync=0 fiq=0 serror=0 user_abort=0 kernel_abort=0 user_fatal_sync=0 user_fatal_async=0 kernel_fatal_async=0 irq_total=22 irq_spurious=1 irq_storm_windows=0 irq_suppressed=0 timer_irq=11 timer_jitter=0 irq_track_limit=256 irq_hot=30 irq_hot_total=11 irq_hot_storms=0 irq_hot_suppressed=0 gic_pmr=255";
+        let health = detect_interrupt_health(log).expect("aarch64 health should be parsed");
+
+        assert_eq!(health.total, 22);
+        assert_eq!(health.timer, 11);
+        assert_eq!(health.non_timer, 11);
+        assert_eq!(health.dispatch_attempted, 22);
+        assert_eq!(health.dispatch_handled, 22);
+        assert!(validate_interrupt_health(health));
+    }
+
+    #[test]
+    fn rejects_invalid_interrupt_health_relations() {
+        let invalid = InterruptHealth {
+            total: 5,
+            timer: 4,
+            non_timer: 3,
+            dropped: 0,
+            dispatch_attempted: 5,
+            dispatch_handled: 6,
+        };
+        assert!(!validate_interrupt_health(invalid));
+    }
 }
 
 struct AttemptResult {

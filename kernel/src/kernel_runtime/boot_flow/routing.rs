@@ -3,7 +3,7 @@ use aethercore::hal::HAL;
 use aethercore::interfaces::HardwareAbstraction;
 
 #[cfg(target_arch = "x86_64")]
-use aethercore::hal::x86_64::idt;
+use aethercore::hal::idt;
 
 impl KernelRuntime {
     pub(super) fn finalize_runtime_interrupt_routing(self) {

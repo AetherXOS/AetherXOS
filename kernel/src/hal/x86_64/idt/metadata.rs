@@ -1,7 +1,9 @@
 #[cfg(target_os = "none")]
 use crate::hal::common::exception::{classify_exception, ExceptionDescriptor};
 #[cfg(target_os = "none")]
-use crate::hal::common::irq_catalog::{classify_irq_line, IrqLineDescriptor, IrqLineKind};
+use crate::hal::common::irq_catalog::{
+    classify_irq_line, IrqLineDescriptor, IrqLineKind, IrqVector,
+};
 #[cfg(target_os = "none")]
 use crate::kernel::syscalls::syscalls_consts::x86;
 
@@ -9,9 +11,18 @@ use crate::kernel::syscalls::syscalls_consts::x86;
 pub(super) const EXTENDED_IRQ_COUNT: u8 = 15;
 
 #[cfg(target_os = "none")]
+const IRQ_TIMER_VECTOR: IrqVector = IrqVector::new(x86::IRQ_TIMER);
+#[cfg(target_os = "none")]
+const IRQ_TLB_SHOOTDOWN_VECTOR: IrqVector = IrqVector::new(x86::IRQ_TLB_SHOOTDOWN);
+
+#[cfg(target_os = "none")]
 const IRQ_VECTOR_DESCRIPTORS: [IrqLineDescriptor<u8>; 2] = [
-    IrqLineDescriptor::new(x86::IRQ_TIMER, IrqLineKind::Timer, "timer"),
-    IrqLineDescriptor::new(x86::IRQ_TLB_SHOOTDOWN, IrqLineKind::TlbShootdown, "tlb-shootdown"),
+    IrqLineDescriptor::new(IRQ_TIMER_VECTOR.raw(), IrqLineKind::Timer, "timer"),
+    IrqLineDescriptor::new(
+        IRQ_TLB_SHOOTDOWN_VECTOR.raw(),
+        IrqLineKind::TlbShootdown,
+        "tlb-shootdown",
+    ),
 ];
 
 #[cfg(target_os = "none")]

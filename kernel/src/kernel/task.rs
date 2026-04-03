@@ -37,38 +37,38 @@ lazy_static! {
 pub fn register_task(task: KernelTask) {
     let id = task.id;
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] task registry register begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] task registry register begin\n");
     crate::kernel::debug_trace::record_kernel_context("task.registry", "register_begin", Some(id.0 as u64));
     TASK_REGISTRY
         .lock()
         .insert(id, Arc::new(IrqSafeMutex::new(task)));
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] task registry register returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] task registry register returned\n");
     crate::kernel::debug_trace::record_kernel_context("task.registry", "register_returned", Some(id.0 as u64));
 }
 
 pub fn register_task_arc(task: Arc<IrqSafeMutex<KernelTask>>) {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] task registry register_arc lock begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] task registry register_arc lock begin\n");
     let id = task.lock().id;
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] task registry register_arc lock returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] task registry register_arc lock returned\n");
     crate::kernel::debug_trace::record_kernel_context("task.registry", "register_arc_begin", Some(id.0 as u64));
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] task registry register_arc begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] task registry register_arc begin\n");
     TASK_REGISTRY.lock().insert(id, task);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] task registry register_arc returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] task registry register_arc returned\n");
     crate::kernel::debug_trace::record_kernel_context("task.registry", "register_arc_returned", Some(id.0 as u64));
 }
 
 pub fn unregister_task(id: TaskId) {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] task registry unregister begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] task registry unregister begin\n");
     crate::kernel::debug_trace::record_kernel_context("task.registry", "unregister_begin", Some(id.0 as u64));
     TASK_REGISTRY.lock().remove(&id);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] task registry unregister returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] task registry unregister returned\n");
     crate::kernel::debug_trace::record_kernel_context("task.registry", "unregister_returned", Some(id.0 as u64));
 }
 

@@ -22,7 +22,8 @@ pub fn field_at_least_u64(value: u64, shift: u32, mask: u64, minimum: u64) -> bo
 mod tests {
     use super::*;
 
-    #[test_case]
+    #[cfg_attr(all(test, target_os = "none"), test_case)]
+    #[cfg_attr(not(all(test, target_os = "none")), test)]
     fn bit_and_field_helpers_decode_consistently() {
         assert!(has_bit_u32(0b1000, 3));
         assert!(!has_bit_u32(0b1000, 2));

@@ -6,9 +6,11 @@ use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
 pub mod detail;
 mod hooks;
 mod ops;
+mod regions;
 mod support;
 mod svm;
 mod vmx;
+use regions::*;
 pub use hooks::{
     guest_backend_execution, guest_backend_runtime_plan, guest_backend_state_machine,
     guest_entry_intent, guest_entry_operation, guest_exit_hook, guest_launch_hook,
@@ -46,37 +48,6 @@ static VIRT_PREP_FAILURES: AtomicU64 = AtomicU64::new(0);
 const IA32_FEATURE_CONTROL: u32 = 0x3A;
 const IA32_EFER: u32 = 0xC000_0080;
 const IA32_VMX_BASIC: u32 = 0x480;
-
-#[repr(C, align(4096))]
-struct VmxonRegion {
-    revision_id: u32,
-    data: [u8; 4092],
-}
-
-#[repr(C, align(4096))]
-struct VmcsRegion {
-    revision_id: u32,
-    abort_indicator: u32,
-    data: [u8; 4088],
-}
-
-#[repr(C, align(4096))]
-struct VmcbRegion {
-    data: [u8; 4096],
-}
-
-static mut VMXON_REGION: VmxonRegion = VmxonRegion {
-    revision_id: 0,
-    data: [0; 4092],
-};
-
-static mut VMCS_REGION: VmcsRegion = VmcsRegion {
-    revision_id: 0,
-    abort_indicator: 0,
-    data: [0; 4088],
-};
-
-static mut VMCB_REGION: VmcbRegion = VmcbRegion { data: [0; 4096] };
 
 fn prepare_vm_launch_structures(caps: VirtCaps, enabled: VirtEnableState) {
     let vmx_ok = if caps.vmx && enabled.vmx_enabled && enabled.vmxon_active {

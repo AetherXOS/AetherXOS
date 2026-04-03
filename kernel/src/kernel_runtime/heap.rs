@@ -35,15 +35,15 @@ pub(super) fn init_heap(
     // ── x86_64: scan Limine memory map ───────────────────────────────────────
     #[cfg(target_arch = "x86_64")]
     {
-        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init entry\n");
-        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init hhdm query\n");
-        let hhdm = aethercore::hal::x86_64::hhdm_offset().unwrap_or(0);
+        aethercore::hal::serial::write_raw("[EARLY SERIAL] heap init entry\n");
+        aethercore::hal::serial::write_raw("[EARLY SERIAL] heap init hhdm query\n");
+        let hhdm = aethercore::hal::hhdm_offset().unwrap_or(0);
         let _ = hhdm;
-        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init hhdm ready\n");
+        aethercore::hal::serial::write_raw("[EARLY SERIAL] heap init hhdm ready\n");
 
-        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init memmap query\n");
-        if let Some(mmap) = aethercore::hal::x86_64::mem_map() {
-            aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init memmap ready\n");
+        aethercore::hal::serial::write_raw("[EARLY SERIAL] heap init memmap query\n");
+        if let Some(mmap) = aethercore::hal::mem_map() {
+            aethercore::hal::serial::write_raw("[EARLY SERIAL] heap init memmap ready\n");
             // Pick the largest usable region ≥ heap_size.
             let mut best_base: u64 = 0;
             let mut best_len: u64 = 0;
@@ -64,7 +64,7 @@ pub(super) fn init_heap(
                 }
             }
 
-            aethercore::hal::x86_64::serial::write_raw(
+            aethercore::hal::serial::write_raw(
                 "[EARLY SERIAL] heap init memmap scan complete\n",
             );
 
@@ -74,12 +74,12 @@ pub(super) fn init_heap(
                 // Cap the region at the configured heap size so we don't over-commit.
                 let actual_size = (best_len as usize).min(heap_size);
                 #[cfg(target_arch = "x86_64")]
-                aethercore::hal::x86_64::serial::write_raw(
+                aethercore::hal::serial::write_raw(
                     "[EARLY SERIAL] heap allocator init begin\n",
                 );
                 allocator.init(virt_addr as usize, actual_size);
                 #[cfg(target_arch = "x86_64")]
-                aethercore::hal::x86_64::serial::write_raw(
+                aethercore::hal::serial::write_raw(
                     "[EARLY SERIAL] heap allocator init complete\n",
                 );
                 PENDING_HEAP_PHYS_ADDR.store(phys_addr as usize, Ordering::Relaxed);
@@ -100,7 +100,7 @@ pub(super) fn init_heap(
             }
         }
 
-        aethercore::hal::x86_64::serial::write_raw("[EARLY SERIAL] heap init no usable region\n");
+        aethercore::hal::serial::write_raw("[EARLY SERIAL] heap init no usable region\n");
         aethercore::klog_error!("No usable memory region ≥ {} MiB found!", MEM_HEAP_SIZE_MB);
         aethercore::kernel::fatal_halt("out of memory during heap init");
     }

@@ -2,9 +2,9 @@ use super::*;
 
 fn parse_elf(image: &[u8]) -> Result<ElfFile<'_>, ModuleLoadError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader parse begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader parse begin\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader parse elf begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader parse elf begin\n");
     crate::kernel::debug_trace::record_optional(
         "loader.parse",
         "align_mask",
@@ -17,9 +17,9 @@ fn parse_elf(image: &[u8]) -> Result<ElfFile<'_>, ModuleLoadError> {
 
     let elf = ElfFile::new(image).map_err(|_| ModuleLoadError::ParseFailed)?;
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader parse hdr\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader parse hdr\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader parse elf header returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader parse elf header returned\n");
 
     if elf.header.pt1.class() != Class::SixtyFour {
         return Err(ModuleLoadError::UnsupportedClass);
@@ -53,14 +53,14 @@ fn parse_elf(image: &[u8]) -> Result<ElfFile<'_>, ModuleLoadError> {
         return Err(ModuleLoadError::SectionHeaderOutOfBounds);
     }
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader parse tbl\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader parse tbl\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader parse elf tables returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader parse elf tables returned\n");
 
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader parse ok\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader parse ok\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader parse elf returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader parse elf returned\n");
     Ok(elf)
 }
 
@@ -268,7 +268,7 @@ fn build_snapshot_from_parsed(
         false,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader snapshot info returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader snapshot info returned\n");
     let load_plan = build_load_plan_from_parsed(elf, image_len, &info)?;
     crate::kernel::debug_trace::record_optional(
         "loader.snapshot",
@@ -277,7 +277,7 @@ fn build_snapshot_from_parsed(
         false,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader snapshot plan returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader snapshot plan returned\n");
     let mappings = build_virtual_mapping_plan_from_load_plan(&load_plan)?;
     crate::kernel::debug_trace::record_optional(
         "loader.snapshot",
@@ -286,7 +286,7 @@ fn build_snapshot_from_parsed(
         false,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader snapshot mappings returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader snapshot mappings returned\n");
 
     Ok(ModuleImageSnapshot {
         info,
@@ -301,9 +301,9 @@ fn prepare_snapshot_from_parsed(
     image_len: usize,
 ) -> Result<ModuleImageSnapshot, ModuleLoadError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader snap build\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader snap build\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader snapshot build begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader snapshot build begin\n");
     build_snapshot_from_parsed(elf, image_len)
 }
 
@@ -317,9 +317,9 @@ fn prepare_snapshot_parse(image: &[u8]) -> Result<ElfFile<'_>, ModuleLoadError> 
         false,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader snap parsed\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader snap parsed\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader snapshot parsed returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader snapshot parsed returned\n");
     Ok(elf)
 }
 
@@ -329,17 +329,17 @@ fn finish_snapshot_success(snapshot: ModuleImageSnapshot) -> ModuleImageSnapshot
     PLAN_SUCCESS.fetch_add(1, Ordering::Relaxed);
     MAP_PLAN_SUCCESS.fetch_add(1, Ordering::Relaxed);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader snap ok\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader snap ok\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader snapshot returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader snapshot returned\n");
     snapshot
 }
 
 pub fn snapshot_module_image(image: &[u8]) -> Result<ModuleImageSnapshot, ModuleLoadError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader snap begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader snap begin\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader snapshot begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader snapshot begin\n");
     PARSE_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
     PLAN_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
     MAP_PLAN_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
@@ -385,7 +385,7 @@ pub fn snapshot_module_image(image: &[u8]) -> Result<ModuleImageSnapshot, Module
 
 pub fn preflight_module_image(image: &[u8]) -> Result<ModulePreflightReport, ModuleLoadError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader preflight begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader preflight begin\n");
     PREFLIGHT_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
 
     let snapshot = match snapshot_module_image(image) {
@@ -401,7 +401,7 @@ pub fn preflight_module_image(image: &[u8]) -> Result<ModulePreflightReport, Mod
     PREFLIGHT_SUCCESS.fetch_add(1, Ordering::Relaxed);
 
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader preflight returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader preflight returned\n");
     Ok(ModulePreflightReport {
         entry: snapshot.info.entry,
         load_segments: snapshot.load_plan.segments.len(),
@@ -414,7 +414,7 @@ pub fn preflight_module_image(image: &[u8]) -> Result<ModulePreflightReport, Mod
 
 pub fn inspect_elf_image(image: &[u8]) -> Result<ModuleImageInfo, ModuleLoadError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader inspect image begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader inspect image begin\n");
     PARSE_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
     let elf = match parse_elf(image) {
         Ok(elf) => elf,
@@ -427,13 +427,13 @@ pub fn inspect_elf_image(image: &[u8]) -> Result<ModuleImageInfo, ModuleLoadErro
     PARSE_SUCCESS.fetch_add(1, Ordering::Relaxed);
 
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader inspect image returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader inspect image returned\n");
     Ok(inspect_elf_from_parsed(&elf))
 }
 
 pub fn build_load_plan(image: &[u8]) -> Result<ModuleLoadPlan, ModuleLoadError> {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader build load plan body begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader build load plan body begin\n");
     PLAN_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
 
     let elf = match parse_elf(image) {
@@ -452,7 +452,7 @@ pub fn build_load_plan(image: &[u8]) -> Result<ModuleLoadPlan, ModuleLoadError> 
     PLAN_SUCCESS.fetch_add(1, Ordering::Relaxed);
 
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader build load plan body returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader build load plan body returned\n");
     Ok(plan)
 }
 

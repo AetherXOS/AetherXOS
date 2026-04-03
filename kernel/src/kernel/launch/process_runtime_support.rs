@@ -79,7 +79,7 @@ pub(super) fn register_process_with_task_image(
         crate::kernel::debug_trace::TraceCategory::Launch,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] launch registry helper returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] launch registry helper returned\n");
 }
 
 #[cfg(feature = "process_abstraction")]

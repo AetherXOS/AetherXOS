@@ -73,7 +73,7 @@ impl KernelRuntime {
 
         boot.after_hal_early_init();
         #[cfg(target_arch = "x86_64")]
-        aethercore::hal::x86_64::serial::write_raw(
+        aethercore::hal::serial::write_raw(
             "[EARLY SERIAL] after_hal_early_init hook returned\n",
         );
 

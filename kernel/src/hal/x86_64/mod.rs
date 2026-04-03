@@ -54,8 +54,25 @@ impl<T> StaticCell<T> {
 
 static BSP_CPU_LOCAL: StaticCell<crate::kernel::cpu_local::CpuLocal> = StaticCell::uninit();
 #[cfg(feature = "ring_protection")]
-static mut BSP_KERNEL_STACK: [u8; crate::generated_consts::STACK_SIZE_PAGES * 4096] =
-    [0u8; crate::generated_consts::STACK_SIZE_PAGES * 4096];
+struct StaticBytes<const N: usize>(UnsafeCell<[u8; N]>);
+
+#[cfg(feature = "ring_protection")]
+unsafe impl<const N: usize> Sync for StaticBytes<N> {}
+
+#[cfg(feature = "ring_protection")]
+impl<const N: usize> StaticBytes<N> {
+    const fn zeroed() -> Self {
+        Self(UnsafeCell::new([0u8; N]))
+    }
+
+    fn base_addr(&self) -> usize {
+        self.0.get() as *const u8 as usize
+    }
+}
+
+#[cfg(feature = "ring_protection")]
+static BSP_KERNEL_STACK: StaticBytes<{ crate::generated_consts::STACK_SIZE_PAGES * 4096 }> =
+    StaticBytes::zeroed();
 
 #[inline(never)]
 fn early_call_checkpoint() {
@@ -64,8 +81,7 @@ fn early_call_checkpoint() {
 
 #[cfg(feature = "ring_protection")]
 fn bootstrap_bsp_kernel_stack_top() -> usize {
-    let top = (core::ptr::addr_of!(BSP_KERNEL_STACK) as *const u8 as usize)
-        + crate::generated_consts::STACK_SIZE_PAGES * 4096;
+    let top = BSP_KERNEL_STACK.base_addr() + crate::generated_consts::STACK_SIZE_PAGES * 4096;
     top & !0xF
 }
 

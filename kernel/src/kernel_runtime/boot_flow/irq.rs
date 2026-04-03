@@ -12,14 +12,14 @@ impl KernelRuntime {
             self.dispatcher
                 .register_handler(irq_base, interrupts::timer_tick_handler);
 
-            aethercore::hal::x86_64::input::init();
+            aethercore::hal::input::init();
             self.dispatcher.register_handler(
                 irq_base + 1,
-                aethercore::hal::x86_64::input::handle_keyboard_irq,
+                aethercore::hal::input::handle_keyboard_irq,
             );
             self.dispatcher.register_handler(
                 irq_base + 12,
-                aethercore::hal::x86_64::input::handle_mouse_irq,
+                aethercore::hal::input::handle_mouse_irq,
             );
         }
     }

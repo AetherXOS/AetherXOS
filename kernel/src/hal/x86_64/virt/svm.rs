@@ -2,7 +2,7 @@ use super::*;
 
 #[cfg(target_arch = "x86_64")]
 pub(super) fn prepare_vmcb_region() -> bool {
-    let vmcb_phys = support::virt_to_phys((&raw const VMCB_REGION) as usize);
+    let vmcb_phys = support::virt_to_phys(vmcb_region_ptr() as usize);
     let ok = vmcb_phys.unwrap_or(0) != 0;
     SVM_VMCB_READY.store(ok, Ordering::Relaxed);
     support::set_prep_result(ok);

@@ -1,5 +1,8 @@
 use super::*;
 
+static SYSCALL_AFFINITY_TRACE_EVENT_SEQ: core::sync::atomic::AtomicU64 =
+    core::sync::atomic::AtomicU64::new(0);
+
 pub(crate) fn sys_yield() -> usize {
     crate::kernel::rt_preemption::request_forced_reschedule();
     0
@@ -144,7 +147,10 @@ pub(super) fn sys_set_affinity(mask: usize) -> usize {
     task.cpu_affinity_mask = affinity_mask;
 
     if !task.can_run_on_cpu_id(cpu.cpu_id) {
-        if crate::generated_consts::CORE_ENABLE_SCHEDULER_TRACE {
+        let seq = SYSCALL_AFFINITY_TRACE_EVENT_SEQ
+            .fetch_add(1, Ordering::Relaxed)
+            .saturating_add(1);
+        if crate::config::KernelConfig::should_emit_scheduler_trace_sample(seq) {
             crate::klog_trace!(
                 "affinity update requests migration task={} cpu={} mask={:#x}",
                 current_tid,

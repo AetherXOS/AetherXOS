@@ -34,7 +34,8 @@ pub fn wait_for_ready_count(ready: &AtomicU32, expected: u32, timeout_spins: usi
 mod tests {
     use super::*;
 
-    #[test_case]
+    #[cfg_attr(all(test, target_os = "none"), test_case)]
+    #[cfg_attr(not(all(test, target_os = "none")), test)]
     fn ack_wait_and_ready_helpers_report_completion_and_timeout() {
         let pending = AtomicUsize::new(2);
         assert_eq!(wait_for_pending_acks(&pending, 2), Some(2));

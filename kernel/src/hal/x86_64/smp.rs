@@ -9,18 +9,25 @@
 ///   5. Register with the global CPU list
 ///   6. Enable interrupts and enter idle loop
 use alloc::vec::Vec;
-use core::mem::MaybeUninit;
-use core::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use limine::SmpRequest;
 
-use crate::hal::common::ipi::{acknowledge_pending, wait_for_pending_acks, wait_for_ready_count};
+use crate::hal::common::ipi::wait_for_ready_count;
 use crate::hal::common::smp::{wait_stats as build_wait_stats, SmpWaitStats};
 #[cfg(feature = "ring_protection")]
 use crate::hal::x86_64::syscalls;
-use crate::hal::x86_64::{apic, gdt};
+use crate::hal::x86_64::apic;
 use crate::interfaces::task::CpuId;
 use crate::kernel::cpu_local::CpuLocal;
 use crate::kernel::sync::IrqSafeMutex;
+
+mod storage;
+mod tlb;
+
+use storage::{allocate_ap_cpu_local, allocate_ap_gdt_bundle, ap_kernel_stack_top};
+
+#[cfg(feature = "ring_protection")]
+pub(crate) use storage::allocate_kernel_stack_top;
 
 // ── Limine SMP request ────────────────────────────────────────────────────────
 
@@ -38,88 +45,6 @@ static TLB_SHOOTDOWN_TIMEOUTS: AtomicU64 = AtomicU64::new(0);
 const AP_BOOT_TIMEOUT_SPINS: usize = 50_000_000;
 const TLB_SHOOTDOWN_TIMEOUT_SPINS: usize = 2_000_000;
 
-// ── Kernel stack allocation ───────────────────────────────────────────────────
-
-const KERNEL_STACK_BYTES: usize = crate::generated_consts::STACK_SIZE_PAGES * 4096;
-#[cfg(feature = "ring_protection")]
-const BOOTSTRAP_LAUNCH_STACK_SLOTS: usize = 8;
-static AP_CPU_LOCAL_READY_MASK: AtomicU64 = AtomicU64::new(0);
-static mut AP_CPU_LOCAL: [MaybeUninit<CpuLocal>; crate::generated_consts::KERNEL_MAX_CPUS] =
-    [const { MaybeUninit::uninit() }; crate::generated_consts::KERNEL_MAX_CPUS];
-static mut AP_KERNEL_STACKS: [[u8; KERNEL_STACK_BYTES]; crate::generated_consts::KERNEL_MAX_CPUS] =
-    [[0u8; KERNEL_STACK_BYTES]; crate::generated_consts::KERNEL_MAX_CPUS];
-#[cfg(feature = "ring_protection")]
-static mut BOOTSTRAP_LAUNCH_STACKS: [[u8; KERNEL_STACK_BYTES]; BOOTSTRAP_LAUNCH_STACK_SLOTS] =
-    [[0u8; KERNEL_STACK_BYTES]; BOOTSTRAP_LAUNCH_STACK_SLOTS];
-#[cfg(feature = "ring_protection")]
-static NEXT_BOOTSTRAP_LAUNCH_STACK_SLOT: AtomicUsize = AtomicUsize::new(0);
-
-fn ap_kernel_stack_top(slot: usize) -> usize {
-    let top = unsafe {
-        (core::ptr::addr_of!(AP_KERNEL_STACKS[slot]) as *const u8 as usize) + KERNEL_STACK_BYTES
-    };
-    top & !0xF
-}
-
-/// Allocate a 16-byte-aligned kernel interrupt stack and return its top.
-#[cfg(feature = "ring_protection")]
-pub(crate) fn allocate_kernel_stack_top() -> usize {
-    let slot = NEXT_BOOTSTRAP_LAUNCH_STACK_SLOT.fetch_add(1, Ordering::Relaxed);
-    if slot < BOOTSTRAP_LAUNCH_STACK_SLOTS {
-        let top = unsafe {
-            (core::ptr::addr_of!(BOOTSTRAP_LAUNCH_STACKS[slot]) as *const u8 as usize)
-                + KERNEL_STACK_BYTES
-        };
-        return top & !0xF;
-    }
-    let stack = alloc::vec![0u8; KERNEL_STACK_BYTES].into_boxed_slice();
-    let top = stack.as_ptr() as usize + KERNEL_STACK_BYTES;
-    let aligned = top & !0xF;
-    let _ = alloc::boxed::Box::leak(stack);
-    aligned
-}
-
-#[inline(never)]
-fn allocate_ap_gdt_bundle(cpu_id: CpuId) -> &'static mut gdt::GdtTss {
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap gdt heap alloc begin\n");
-    let bundle = unsafe { gdt::ap_gdt_tss(cpu_id) };
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap gdt heap alloc returned\n");
-    bundle
-}
-
-#[inline(never)]
-fn allocate_ap_cpu_local(cpu_id: CpuId) -> &'static CpuLocal {
-    let slot = cpu_id.0;
-    assert!(slot < crate::generated_consts::KERNEL_MAX_CPUS);
-    let bit = 1u64 << slot;
-    if AP_CPU_LOCAL_READY_MASK.load(Ordering::Acquire) & bit != 0 {
-        return unsafe { &*AP_CPU_LOCAL[slot].as_ptr() };
-    }
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap scheduler create begin\n");
-    let scheduler = crate::modules::selector::bootstrap_active_scheduler();
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap scheduler create returned\n");
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap scheduler mutex begin\n");
-    let scheduler = crate::kernel::sync::IrqSafeMutex::new(scheduler);
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap scheduler mutex returned\n");
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap cpu local heap alloc begin\n");
-    unsafe {
-        AP_CPU_LOCAL[slot].write(CpuLocal {
-            cpu_id,
-            #[cfg(feature = "ring_protection")]
-            scratch: 0,
-            #[cfg(feature = "ring_protection")]
-            kernel_stack_top: core::sync::atomic::AtomicUsize::new(ap_kernel_stack_top(slot)),
-            current_task: core::sync::atomic::AtomicUsize::new(0),
-            heartbeat_tick: core::sync::atomic::AtomicU64::new(0),
-            idle_stack_pointer: core::sync::atomic::AtomicUsize::new(0),
-            scheduler,
-        });
-    }
-    AP_CPU_LOCAL_READY_MASK.fetch_or(bit, Ordering::Release);
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap cpu local heap alloc returned\n");
-    unsafe { &*AP_CPU_LOCAL[slot].as_ptr() }
-}
-
 // ── Global CPU registry ───────────────────────────────────────────────────────
 
 /// List of all online CPU locals (BSP + APs).
@@ -135,53 +60,23 @@ pub fn get_cpu_local(index: usize) -> Option<&'static CpuLocal> {
     CPUS.lock().get(index).copied()
 }
 
-static SHOOTDOWN_ADDR: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(0);
-static SHOOTDOWN_PENDING: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
-
-pub const IPI_TLB_SHOOTDOWN_VECTOR: u8 = 253;
+pub const IPI_TLB_SHOOTDOWN_VECTOR: u8 = tlb::IPI_TLB_SHOOTDOWN_VECTOR;
 
 /// Broadcast a TLB shootdown IPI to all other CPUs.
 pub fn broadcast_tlb_shootdown(addr: u64) {
-    use x86_64::VirtAddr;
-    let n_cpus = cpu_count();
-
-    // Always flush locally
-    x86_64::instructions::tlb::flush(VirtAddr::new(addr));
-
-    if n_cpus <= 1 {
-        return;
-    }
-
-    SHOOTDOWN_ADDR.store(addr, Ordering::Release);
-    SHOOTDOWN_PENDING.store(n_cpus - 1, Ordering::Release);
-
-    // SAFETY: Send IPI to all other cores.
-    unsafe {
-        apic::send_ipi_all_excluding_self(IPI_TLB_SHOOTDOWN_VECTOR);
-    }
-
-    // Wait for all CPUs to finish flushing with bounded timeout.
-    if let Some(left) = wait_for_pending_acks(&SHOOTDOWN_PENDING, TLB_SHOOTDOWN_TIMEOUT_SPINS) {
-        TLB_SHOOTDOWN_TIMEOUTS.fetch_add(1, Ordering::Relaxed);
-        crate::klog_warn!(
-            "x86_64 TLB shootdown timeout: {} AP(s) did not respond",
-            left
-        );
-        SHOOTDOWN_PENDING.store(0, Ordering::Release);
-    }
+    tlb::broadcast_tlb_shootdown(
+        addr,
+        cpu_count(),
+        TLB_SHOOTDOWN_TIMEOUT_SPINS,
+        &TLB_SHOOTDOWN_TIMEOUTS,
+    );
 }
 
 /// Handler for the TLB shootdown IPI.
 pub extern "x86-interrupt" fn tlb_shootdown_handler(
     _stack_frame: x86_64::structures::idt::InterruptStackFrame,
 ) {
-    use x86_64::VirtAddr;
-    let addr = SHOOTDOWN_ADDR.load(Ordering::Acquire);
-    unsafe {
-        x86_64::instructions::tlb::flush(VirtAddr::new(addr));
-        apic::eoi();
-    }
-    acknowledge_pending(&SHOOTDOWN_PENDING);
+    tlb::handle_tlb_shootdown();
 }
 
 pub fn cpu_count() -> usize {

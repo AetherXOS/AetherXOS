@@ -62,7 +62,7 @@ fn prepare_bootstrap_runtime_entry(
         crate::kernel::debug_trace::TraceCategory::Loader,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] loader prepare process image entry begin\n",
     );
 
@@ -92,7 +92,7 @@ fn prepare_bootstrap_runtime_entry(
         crate::kernel::debug_trace::TraceCategory::Loader,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] loader prepare process image entry returned\n",
     );
     Ok(entry)
@@ -114,7 +114,7 @@ fn prepare_bootstrap_runtime_entry_from_snapshot(
         crate::kernel::debug_trace::TraceCategory::Loader,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] loader prepare process image entry begin\n",
     );
 
@@ -177,15 +177,15 @@ fn build_bootstrap_task_from_entry(
         crate::kernel::debug_trace::TraceCategory::Loader,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task begin\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task spec begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task spec begin\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task spec returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task spec returned\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task call begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task call begin\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] task.shared direct begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] task.shared direct begin\n");
     let task = crate::interfaces::KernelTask::new_shared_bootstrap(
         task_id,
         priority,
@@ -196,9 +196,9 @@ fn build_bootstrap_task_from_entry(
         entry,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] task.shared direct returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] task.shared direct returned\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task call returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task call returned\n");
     crate::kernel::debug_trace::record_with_metadata(
         "loader.bootstrap_task",
         "returned",
@@ -208,7 +208,7 @@ fn build_bootstrap_task_from_entry(
         crate::kernel::debug_trace::TraceCategory::Loader,
     );
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader.bootstrap_task returned\n");
     task
 }
 
@@ -218,12 +218,12 @@ fn attach_bootstrap_thread(
     task: &alloc::sync::Arc<crate::kernel::sync::IrqSafeMutex<crate::interfaces::KernelTask>>,
 ) {
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] loader bootstrap add thread begin\n",
     );
     process.add_bootstrap_thread(task.lock().id);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] loader bootstrap add thread returned\n",
     );
 }
@@ -244,12 +244,12 @@ pub fn build_process_bootstrap_task(
     BOOTSTRAP_TASK_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
     let entry = prepare_bootstrap_runtime_entry(process, image, task_id)?;
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader bootstrap cr3 begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader bootstrap cr3 begin\n");
     let cr3 = bootstrap_page_table_root(process);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader bootstrap cr3 returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader bootstrap cr3 returned\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] loader bootstrap build task direct begin\n",
     );
     let task = build_bootstrap_task_from_entry(
@@ -284,12 +284,12 @@ pub fn build_process_bootstrap_task_from_snapshot(
     let entry =
         prepare_bootstrap_runtime_entry_from_snapshot(process, image, snapshot, task_id)?;
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader bootstrap cr3 begin\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader bootstrap cr3 begin\n");
     let cr3 = bootstrap_page_table_root(process);
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] loader bootstrap cr3 returned\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] loader bootstrap cr3 returned\n");
     #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::x86_64::serial::write_raw(
+    crate::hal::serial::write_raw(
         "[EARLY SERIAL] loader bootstrap build task direct begin\n",
     );
     let task = build_bootstrap_task_from_entry(

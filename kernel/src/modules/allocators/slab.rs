@@ -460,10 +460,10 @@ use crate::interfaces::memory::HeapAllocator;
 impl HeapAllocator for SlabAllocator {
     fn init(&self, start: usize, size: usize) {
         #[cfg(target_arch = "x86_64")]
-        crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] slab init begin\n");
+        crate::hal::serial::write_raw("[EARLY SERIAL] slab init begin\n");
         self.fallback_allocator.init(start, size);
         #[cfg(target_arch = "x86_64")]
-        crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] slab init returned\n");
+        crate::hal::serial::write_raw("[EARLY SERIAL] slab init returned\n");
     }
 }
 

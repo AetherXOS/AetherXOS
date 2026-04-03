@@ -199,10 +199,7 @@ pub fn dump_kernel_state(reason: &str) {
     let launch_entry_count = crate::kernel::launch::launch_registry_snapshot(&mut launch_entries);
     let mut task_entries = [crate::kernel::task::TaskRegistrySnapshotEntry::default(); 8];
     let task_entry_count = crate::kernel::task::task_registry_snapshot(&mut task_entries);
-    #[cfg(target_arch = "x86_64")]
-    let serial = crate::hal::x86_64::serial::stats();
-    #[cfg(target_arch = "aarch64")]
-    let serial = crate::hal::aarch64::serial::stats();
+    let serial = crate::hal::serial::stats();
 
     klog_error!("\n[KERNEL DUMP] reason={}", reason);
     klog_error!(

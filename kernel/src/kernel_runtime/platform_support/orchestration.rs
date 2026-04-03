@@ -2,6 +2,8 @@
 use super::init_network_bridge_runtime;
 #[cfg(target_arch = "aarch64")]
 use super::log_aarch64_exception_runtime;
+#[cfg(all(target_arch = "x86_64", target_os = "none"))]
+use super::log_x86_irq_runtime;
 #[cfg(feature = "vfs")]
 use super::log_vfs_runtime_sections;
 use super::{
@@ -33,6 +35,10 @@ pub(crate) fn run_platform_runtime_orchestration(telemetry: PlatformTelemetryCon
     #[cfg(target_arch = "aarch64")]
     if telemetry_runtime {
         log_aarch64_exception_runtime();
+    }
+    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
+    if telemetry_runtime {
+        log_x86_irq_runtime();
     }
 
     #[cfg(feature = "networking")]

@@ -65,7 +65,7 @@ pub fn init() {
     // Seed the PRNG from hardware RDRAND where available.
     #[cfg(target_arch = "x86_64")]
     {
-        crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] linux compat seed begin\n");
+        crate::hal::serial::write_raw("[EARLY SERIAL] linux compat seed begin\n");
         let seed: u64 = {
             let mut v: u64 = 0xDEAD_BEEF_CAFE_BABE;
             // SAFETY: rdrand is always present on our minimum target (Haswell+).
@@ -80,17 +80,17 @@ pub fn init() {
             v
         };
         crate::modules::linux_compat::config::set_prng_seed(seed);
-        crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] linux compat seed returned\n");
+        crate::hal::serial::write_raw("[EARLY SERIAL] linux compat seed returned\n");
     }
 
     // Initialise the standards dispatcher index.
     #[cfg(feature = "ring_protection")]
     {
         #[cfg(target_arch = "x86_64")]
-        crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] linux compat dispatch index begin\n");
+        crate::hal::serial::write_raw("[EARLY SERIAL] linux compat dispatch index begin\n");
         crate::modules::linux_compat::sys_dispatcher::init_dispatch_index();
         #[cfg(target_arch = "x86_64")]
-        crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] linux compat dispatch index returned\n");
+        crate::hal::serial::write_raw("[EARLY SERIAL] linux compat dispatch index returned\n");
     }
 
     #[cfg(feature = "vfs")]
@@ -101,7 +101,7 @@ pub fn init() {
 
         if linked_probe_boot {
             #[cfg(target_arch = "x86_64")]
-            crate::hal::x86_64::serial::write_raw(
+            crate::hal::serial::write_raw(
                 "[EARLY SERIAL] linux compat surface deferred for linked probe\n",
             );
             crate::klog_info!(
@@ -109,7 +109,7 @@ pub fn init() {
             );
         } else {
             #[cfg(target_arch = "x86_64")]
-            crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] linux compat surface begin\n");
+            crate::hal::serial::write_raw("[EARLY SERIAL] linux compat surface begin\n");
             match crate::modules::linux_compat::ensure_runtime_compat_surface_state() {
                 Ok(Some(exported)) => {
                     crate::klog_info!(
@@ -126,11 +126,11 @@ pub fn init() {
                 }
             }
             #[cfg(target_arch = "x86_64")]
-            crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] linux compat surface returned\n");
+            crate::hal::serial::write_raw("[EARLY SERIAL] linux compat surface returned\n");
         }
     }
 
     #[cfg(target_arch = "x86_64")]
-    crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] linux compat init complete\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] linux compat init complete\n");
     crate::klog_info!("[linux_compat] init complete");
 }

@@ -345,12 +345,12 @@ impl File for DevTty {
             if self.termios.oflag & 0o000004 != 0 && byte == b'\n' {
                 #[cfg(target_arch = "x86_64")]
                 {
-                    crate::hal::x86_64::serial::SERIAL1.lock().send(b'\r');
+                    crate::hal::serial::SERIAL1.lock().send(b'\r');
                 }
             }
             #[cfg(target_arch = "x86_64")]
             {
-                crate::hal::x86_64::serial::SERIAL1.lock().send(byte);
+                crate::hal::serial::SERIAL1.lock().send(byte);
             }
             #[cfg(not(target_arch = "x86_64"))]
             {

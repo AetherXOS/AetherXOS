@@ -5,6 +5,7 @@
 /// ACPI/DTB discovery and wake each core, directing it to `aarch64_ap_entry`.
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
 use crate::generated_consts::{
@@ -41,8 +42,27 @@ const KERNEL_STACK_BYTES: usize = crate::generated_consts::STACK_SIZE_PAGES * 40
 #[cfg(feature = "ring_protection")]
 const BOOTSTRAP_LAUNCH_STACK_SLOTS: usize = 8;
 #[cfg(feature = "ring_protection")]
-static mut BOOTSTRAP_LAUNCH_STACKS: [[u8; KERNEL_STACK_BYTES]; BOOTSTRAP_LAUNCH_STACK_SLOTS] =
-    [[0u8; KERNEL_STACK_BYTES]; BOOTSTRAP_LAUNCH_STACK_SLOTS];
+struct StaticLaunchStacks(UnsafeCell<[[u8; KERNEL_STACK_BYTES]; BOOTSTRAP_LAUNCH_STACK_SLOTS]>);
+
+#[cfg(feature = "ring_protection")]
+unsafe impl Sync for StaticLaunchStacks {}
+
+#[cfg(feature = "ring_protection")]
+impl StaticLaunchStacks {
+    const fn zeroed() -> Self {
+        Self(UnsafeCell::new(
+            [[0u8; KERNEL_STACK_BYTES]; BOOTSTRAP_LAUNCH_STACK_SLOTS],
+        ))
+    }
+
+    fn slot_base_addr(&self, slot: usize) -> usize {
+        let base = self.0.get() as *const [u8; KERNEL_STACK_BYTES];
+        unsafe { base.add(slot) as *const u8 as usize }
+    }
+}
+
+#[cfg(feature = "ring_protection")]
+static BOOTSTRAP_LAUNCH_STACKS: StaticLaunchStacks = StaticLaunchStacks::zeroed();
 #[cfg(feature = "ring_protection")]
 static NEXT_BOOTSTRAP_LAUNCH_STACK_SLOT: AtomicUsize = AtomicUsize::new(0);
 
@@ -50,10 +70,7 @@ static NEXT_BOOTSTRAP_LAUNCH_STACK_SLOT: AtomicUsize = AtomicUsize::new(0);
 pub fn allocate_kernel_stack_top() -> usize {
     let slot = NEXT_BOOTSTRAP_LAUNCH_STACK_SLOT.fetch_add(1, Ordering::Relaxed);
     if slot < BOOTSTRAP_LAUNCH_STACK_SLOTS {
-        let top = unsafe {
-            (core::ptr::addr_of!(BOOTSTRAP_LAUNCH_STACKS[slot]) as *const u8 as usize)
-                + KERNEL_STACK_BYTES
-        };
+        let top = BOOTSTRAP_LAUNCH_STACKS.slot_base_addr(slot) + KERNEL_STACK_BYTES;
         return top & !0xF;
     }
     let stack = alloc::vec![0u8; KERNEL_STACK_BYTES].into_boxed_slice();

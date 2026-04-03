@@ -48,7 +48,7 @@ impl File for DevStdout {
         for &byte in buf {
             #[cfg(target_arch = "x86_64")]
             {
-                crate::hal::x86_64::serial::SERIAL1.lock().send(byte);
+                crate::hal::serial::SERIAL1.lock().send(byte);
             }
             #[cfg(not(target_arch = "x86_64"))]
             {
@@ -97,7 +97,7 @@ impl File for DevStderr {
         for &byte in buf {
             #[cfg(target_arch = "x86_64")]
             {
-                crate::hal::x86_64::serial::SERIAL1.lock().send(byte);
+                crate::hal::serial::SERIAL1.lock().send(byte);
             }
             #[cfg(not(target_arch = "x86_64"))]
             {

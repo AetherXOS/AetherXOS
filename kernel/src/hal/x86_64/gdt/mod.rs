@@ -34,8 +34,29 @@ impl<T> StaticCell<T> {
 
 static BOOTSTRAP_GDT_TSS: StaticCell<GdtTss> = StaticCell::uninit();
 static AP_GDT_READY_MASK: AtomicU64 = AtomicU64::new(0);
-static mut AP_GDT_TSS: [MaybeUninit<GdtTss>; crate::generated_consts::KERNEL_MAX_CPUS] =
-    [const { MaybeUninit::uninit() }; crate::generated_consts::KERNEL_MAX_CPUS];
+const MAX_CPUS: usize = crate::generated_consts::KERNEL_MAX_CPUS;
+
+struct StaticApGdt(UnsafeCell<[MaybeUninit<GdtTss>; MAX_CPUS]>);
+
+unsafe impl Sync for StaticApGdt {}
+
+impl StaticApGdt {
+    const fn uninit() -> Self {
+        Self(UnsafeCell::new([const { MaybeUninit::uninit() }; MAX_CPUS]))
+    }
+
+    unsafe fn write_slot(&self, slot: usize, value: GdtTss) {
+        unsafe {
+            (*self.0.get())[slot].write(value);
+        }
+    }
+
+    unsafe fn slot_mut_ptr(&self, slot: usize) -> *mut GdtTss {
+        unsafe { (*self.0.get())[slot].as_mut_ptr() }
+    }
+}
+
+static AP_GDT_TSS: StaticApGdt = StaticApGdt::uninit();
 
 /// Bundle holding the GDT and TSS for a specific CPU.
 pub struct GdtTss {
@@ -47,8 +68,8 @@ pub struct GdtTss {
 impl GdtTss {
     pub fn new() -> Self {
         Self::new_with_ist(
-            stack_end_from_static(core::ptr::addr_of!(DOUBLE_FAULT_IST_STACK) as *const u8, IST_STACK_SIZE),
-            stack_end_from_static(core::ptr::addr_of!(PAGE_FAULT_IST_STACK) as *const u8, IST_STACK_SIZE),
+            stack_end_from_static(bootstrap_double_fault_stack_ptr(), IST_STACK_SIZE),
+            stack_end_from_static(bootstrap_page_fault_stack_ptr(), IST_STACK_SIZE),
         )
     }
 
@@ -104,16 +125,16 @@ pub unsafe fn bootstrap_gdt_tss() -> &'static mut GdtTss {
 
 pub unsafe fn ap_gdt_tss(cpu_id: crate::interfaces::task::CpuId) -> &'static mut GdtTss {
     let slot = cpu_id.0;
-    assert!(slot < crate::generated_consts::KERNEL_MAX_CPUS);
+    assert!(slot < MAX_CPUS);
     let bit = 1u64 << slot;
     if AP_GDT_READY_MASK.load(Ordering::Acquire) & bit == 0 {
         unsafe {
-            AP_GDT_TSS[slot].write(GdtTss::new_with_ist(
-                stack_end_from_static(core::ptr::addr_of!(AP_DOUBLE_FAULT_IST_STACKS[slot]) as *const u8, IST_STACK_SIZE),
-                stack_end_from_static(core::ptr::addr_of!(AP_PAGE_FAULT_IST_STACKS[slot]) as *const u8, IST_STACK_SIZE),
+            AP_GDT_TSS.write_slot(slot, GdtTss::new_with_ist(
+                stack_end_from_static(ap_double_fault_stack_ptr(slot), IST_STACK_SIZE),
+                stack_end_from_static(ap_page_fault_stack_ptr(slot), IST_STACK_SIZE),
             ));
         }
         AP_GDT_READY_MASK.fetch_or(bit, Ordering::Release);
     }
-    unsafe { &mut *AP_GDT_TSS[slot].as_mut_ptr() }
+    unsafe { &mut *AP_GDT_TSS.slot_mut_ptr(slot) }
 }

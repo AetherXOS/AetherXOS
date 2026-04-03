@@ -2,7 +2,7 @@
 
 use crate::kernel::bit_utils::apic as bits;
 use crate::hal::x86_64::{pic, cpu};
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use crate::hal::common::mmio::MmioBlock;
 
 #[path = "apic_support.rs"]
@@ -26,7 +26,7 @@ const PIT_CONTROL_PORT: u16 = 0x61;
 const PIT_OUT_STATUS_BIT: u8 = 0x20;
 
 /// Cached APIC timer ticks per 10ms interval
-static mut CALIBRATED_TICKS: u32 = 0;
+static CALIBRATED_TICKS: AtomicU32 = AtomicU32::new(0);
 
 pub unsafe fn init_local_apic() {
     // SAFETY: MMIO LAPIC accesses require privileged execution and a valid mapped LAPIC base.
@@ -52,7 +52,7 @@ pub unsafe fn init_local_apic() {
 
         // 5. Set Initial Count
         block.reg::<u32>(bits::LAPIC_TICR).write(ticks);
-        CALIBRATED_TICKS = ticks;
+        CALIBRATED_TICKS.store(ticks, Ordering::Relaxed);
     }
 }
 
@@ -184,7 +184,7 @@ pub unsafe fn init_x2apic() {
             X2APIC_LVT_TIMER,
             periodic_timer_vector(LAPIC_PERIODIC_TIMER_VECTOR) as u64,
         );
-        let ticks = calibrated_ticks_or_default(CALIBRATED_TICKS);
+        let ticks = calibrated_ticks_or_default(CALIBRATED_TICKS.load(Ordering::Relaxed));
         cpu::write_msr(X2APIC_TICR, ticks as u64);
     }
 }

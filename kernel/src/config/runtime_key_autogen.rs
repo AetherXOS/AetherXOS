@@ -3,7 +3,7 @@
 
 use super::{ConfigKeySpec, ConfigSetError, ConfigValue, ConfigValueKind, KernelConfig};
 
-pub(super) const AUTO_RUNTIME_CONFIG_CATEGORIES: &[&str] = &["ahci", "capability", "cfs", "core", "credential", "debug", "devfs", "diskfs", "driver", "e1000", "edf", "ipc", "irq", "irqsafe", "launch", "libnet", "library", "log", "mlfq", "module", "multi", "network", "nvme", "power", "proc", "rt", "runtime", "sched", "security", "serial", "strict", "syscall", "sysctl", "telemetry", "vfs", "virtualization", "watchdog"];
+pub(super) const AUTO_RUNTIME_CONFIG_CATEGORIES: &[&str] = &["ahci", "capability", "cfs", "core", "credential", "debug", "devfs", "diskfs", "driver", "e1000", "edf", "ipc", "irq", "irqsafe", "launch", "libnet", "library", "log", "mlfq", "module", "multi", "network", "nvme", "power", "proc", "rt", "runtime", "sched", "scheduler", "security", "serial", "strict", "syscall", "sysctl", "telemetry", "vfs", "virtualization", "watchdog"];
 
 pub(super) const AUTO_RUNTIME_CONFIG_KEYS: &[ConfigKeySpec] = &[
     ConfigKeySpec { key: "ahci_io_timeout_spins", value_kind: ConfigValueKind::Usize, description: "auto:set_ahci_io_timeout_spins" },
@@ -101,6 +101,7 @@ pub(super) const AUTO_RUNTIME_CONFIG_KEYS: &[ConfigKeySpec] = &[
     ConfigKeySpec { key: "sched_lottery_lcg_multiplier", value_kind: ConfigValueKind::U64, description: "auto:set_sched_lottery_lcg_multiplier" },
     ConfigKeySpec { key: "sched_lottery_min_tickets_per_task", value_kind: ConfigValueKind::U64, description: "auto:set_sched_lottery_min_tickets_per_task" },
     ConfigKeySpec { key: "sched_lottery_tickets_per_priority_level", value_kind: ConfigValueKind::U64, description: "auto:set_sched_lottery_tickets_per_priority_level" },
+    ConfigKeySpec { key: "scheduler_trace_sample_rate", value_kind: ConfigValueKind::U64, description: "auto:set_scheduler_trace_sample_rate" },
     ConfigKeySpec { key: "security_enforcement_enabled", value_kind: ConfigValueKind::Bool, description: "auto:set_security_enforcement_enabled" },
     ConfigKeySpec { key: "serial_early_debug_enabled", value_kind: ConfigValueKind::Bool, description: "auto:set_serial_early_debug_enabled" },
     ConfigKeySpec { key: "strict_optional_features_enabled", value_kind: ConfigValueKind::Bool, description: "auto:set_strict_optional_features_enabled" },
@@ -239,6 +240,7 @@ pub(super) fn auto_set_by_stem(stem: &str, value: Option<ConfigValue>) -> Result
         "sched_lottery_lcg_multiplier" => super::set_u64(value, KernelConfig::set_sched_lottery_lcg_multiplier),
         "sched_lottery_min_tickets_per_task" => super::set_u64(value, KernelConfig::set_sched_lottery_min_tickets_per_task),
         "sched_lottery_tickets_per_priority_level" => super::set_u64(value, KernelConfig::set_sched_lottery_tickets_per_priority_level),
+        "scheduler_trace_sample_rate" => super::set_u64(value, KernelConfig::set_scheduler_trace_sample_rate),
         "security_enforcement_enabled" => super::set_bool(value, KernelConfig::set_security_enforcement_enabled),
         "serial_early_debug_enabled" => super::set_bool(value, KernelConfig::set_serial_early_debug_enabled),
         "strict_optional_features_enabled" => super::set_bool(value, KernelConfig::set_strict_optional_features_enabled),
