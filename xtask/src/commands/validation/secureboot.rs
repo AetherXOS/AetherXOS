@@ -761,22 +761,21 @@ fn run_ovmf_case(
         .with_context(|| format!("Failed to launch QEMU case {}", case_name))?;
 
     let start = Instant::now();
-    let (rc, timeout, output) =
-        match process::wait_child_with_timeout(
-            &mut child,
-            std::time::Duration::from_secs(timeout_sec),
-            std::time::Duration::from_millis(100),
-        ) {
-            Ok(Some(status)) => {
-                let out = process::read_optional_pipe_to_string(child.stdout.take());
-                (status.code().unwrap_or(-1), false, out)
-            }
-            Ok(None) | Err(_) => {
-                let _ = child.kill();
-                let out = process::read_optional_pipe_to_string(child.stdout.take());
-                (-1, true, out)
-            }
-        };
+    let (rc, timeout, output) = match process::wait_child_with_timeout(
+        &mut child,
+        std::time::Duration::from_secs(timeout_sec),
+        std::time::Duration::from_millis(100),
+    ) {
+        Ok(Some(status)) => {
+            let out = process::read_optional_pipe_to_string(child.stdout.take());
+            (status.code().unwrap_or(-1), false, out)
+        }
+        Ok(None) | Err(_) => {
+            let _ = child.kill();
+            let out = process::read_optional_pipe_to_string(child.stdout.take());
+            (-1, true, out)
+        }
+    };
     let duration_sec = start.elapsed().as_secs_f64();
 
     report::write_text_report(&log_path, &output)
@@ -810,8 +809,10 @@ mod tests {
         let summary = ovmf_dry_run_summary("2026-04-02T00:00:00Z".to_string());
         let json =
             serde_json::to_string_pretty(&summary).expect("ovmf dry-run summary must serialize");
-        let expected = fs::read_to_string(paths::xtask_test_fixture("secureboot_ovmf_dry_run_summary.json"))
-            .expect("fixture must be readable");
+        let expected = fs::read_to_string(paths::xtask_test_fixture(
+            "secureboot_ovmf_dry_run_summary.json",
+        ))
+        .expect("fixture must be readable");
         let expected = expected.replace("\r\n", "\n");
         assert_eq!(json, expected.trim_end());
     }

@@ -224,7 +224,8 @@ pub fn find_qemu_system_x86_64() -> Option<String> {
         return Some(binary.to_string());
     }
 
-    let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".to_string());
+    let program_files =
+        std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".to_string());
     let candidate = std::path::PathBuf::from(program_files)
         .join("qemu")
         .join("qemu-system-x86_64.exe");
@@ -239,7 +240,6 @@ pub fn find_qemu_img() -> Option<&'static str> {
     first_available_binary(&["qemu-img", "qemu-img.exe"])
 }
 
-#[cfg(unix)]
 pub fn run_first_success(candidates: &[(&str, &[&str])]) -> bool {
     candidates
         .iter()
