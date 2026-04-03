@@ -80,12 +80,13 @@ pub(crate) fn ensure_tool_with_plan(
         plan.tool
     );
 
-    if platform == HostPlatform::Windows
-        && windows_preflight.is_some_and(|(binary, _)| !process::which(binary))
-    {
-        let (_, warning_message) = windows_preflight.expect("checked by is_some_and");
-        println!("{}", warning_message);
-        return;
+    if platform == HostPlatform::Windows {
+        if let Some((binary, warning_message)) = windows_preflight {
+            if !process::which(binary) {
+                println!("{}", warning_message);
+                return;
+            }
+        }
     }
 
     run_provision_plan(plan, platform);
