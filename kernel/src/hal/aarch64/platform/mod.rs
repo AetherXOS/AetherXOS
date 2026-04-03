@@ -1,6 +1,7 @@
 mod server;
 mod support;
 mod virt;
+pub mod irq;
 use support::classify_platform;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -106,7 +106,7 @@ pub(super) fn prepare_scheduler_switch(
         })
     };
 
-    #[cfg(feature = "ring_protection")]
+    #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
     let (next_kernel_sp, next_tls, next_cr3) = scheduler
         .get_task_mut(next_tid)
         .map(|task| {
@@ -118,7 +118,7 @@ pub(super) fn prepare_scheduler_switch(
             )
         })
         .unwrap_or((0, 0, 0));
-    #[cfg(not(feature = "ring_protection"))]
+    #[cfg(not(all(feature = "ring_protection", target_arch = "x86_64")))]
     let (next_kernel_sp, next_tls, next_cr3) = (0usize, 0u64, 0u64);
 
     if current_tid.0 == 0 {
@@ -145,8 +145,11 @@ pub(super) fn prepare_scheduler_switch(
             Some(SwitchInfo {
                 next_sp,
                 current_sp_ptr,
+                #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
                 next_tls,
+                #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
                 next_cr3,
+                #[cfg(all(feature = "ring_protection", target_arch = "x86_64"))]
                 next_kernel_sp,
             })
         }

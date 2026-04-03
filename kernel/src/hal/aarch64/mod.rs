@@ -52,9 +52,11 @@ impl HAL {
     }
 
     pub fn init_interrupts() {
+        let mut gic = gic::GIC.lock();
         unsafe {
-            gic::GIC.lock().init();
+            gic.init();
         }
+        platform::irq::enable_platform_irq_lines(&mut *gic);
     }
 
     pub fn init_timer() {

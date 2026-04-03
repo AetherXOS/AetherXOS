@@ -1,7 +1,10 @@
 pub mod boot;
 pub mod cpu_features;
+pub mod exception;
 pub mod ipi;
 pub mod irq;
+pub mod irq_catalog;
+pub mod irq_registration;
 pub mod mmio;
 pub mod smp;
 pub mod timer;

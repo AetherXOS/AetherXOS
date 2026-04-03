@@ -1,15 +1,25 @@
 use super::*;
 
+const SPSR_MODE_MASK: u64 = 0b1111;
+
 #[inline(always)]
 pub(super) fn is_lower_el_exception(frame: &ExceptionFrame) -> bool {
-    (frame.spsr & 0b1111) == 0
+    (frame.spsr & SPSR_MODE_MASK) == 0
+}
+
+#[cfg(feature = "process_abstraction")]
+#[inline(always)]
+fn current_task_id() -> Option<crate::interfaces::task::TaskId> {
+    let cpu = unsafe { crate::kernel::cpu_local::CpuLocal::try_get() }?;
+    Some(crate::interfaces::task::TaskId(
+        cpu.current_task.load(Ordering::Relaxed),
+    ))
 }
 
 fn terminate_current_task_and_halt(reason: &str, ec: u64, far: u64, elr: u64) -> ! {
     #[cfg(feature = "process_abstraction")]
     {
-        if let Some(cpu) = unsafe { crate::kernel::cpu_local::CpuLocal::try_get() } {
-            let tid = crate::interfaces::task::TaskId(cpu.current_task.load(Ordering::Relaxed));
+        if let Some(tid) = current_task_id() {
             if tid.0 != 0 {
                 let terminated = crate::kernel::launch::terminate_task(tid);
                 if terminated {
@@ -42,10 +52,7 @@ fn terminate_current_task_and_halt(reason: &str, ec: u64, far: u64, elr: u64) ->
                 elr
             );
         }
-
-        loop {
-            crate::hal::HAL::halt();
-        }
+        halt_current_core()
     }
 
     #[cfg(not(feature = "process_abstraction"))]
@@ -63,7 +70,7 @@ fn terminate_current_task_and_halt(reason: &str, ec: u64, far: u64, elr: u64) ->
 #[inline(always)]
 fn halt_current_core() -> ! {
     loop {
-        crate::hal::HAL::halt();
+        <crate::hal::HAL as crate::interfaces::HardwareAbstraction>::halt();
     }
 }
 
