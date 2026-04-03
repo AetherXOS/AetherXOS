@@ -285,7 +285,7 @@ pub fn wait_stats() -> SmpWaitStats {
 
 /// Entry point jumped to by every Application Processor.
 /// Must be `extern "C"` and at a known physical address.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn aarch64_ap_entry() -> ! {
     // Read our MPIDR to derive a logical CPU ID.
     let mpidr: u64;

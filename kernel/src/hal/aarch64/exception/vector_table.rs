@@ -131,7 +131,7 @@ aarch64_vector_table:
 "#
 );
 
-extern "C" {
+unsafe extern "C" {
     fn aarch64_vector_table();
 }
 

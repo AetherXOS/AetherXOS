@@ -8,6 +8,9 @@ hyper_config.toml
 .vscode/
 .vs/
 reports/
+!tests/reports/
+!tests/reports/nextest/
+!tests/reports/nextest/.gitkeep
 artifacts/
 __pycache__/
 dashboard-ui/node_modules/

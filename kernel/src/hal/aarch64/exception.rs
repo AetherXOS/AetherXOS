@@ -153,7 +153,7 @@ pub fn stats() -> ExceptionStats {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn handle_sync(frame: &mut ExceptionFrame) {
     SYNC_EXCEPTIONS.fetch_add(1, Ordering::Relaxed);
 
@@ -267,7 +267,7 @@ pub extern "C" fn handle_sync(frame: &mut ExceptionFrame) {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn handle_irq(_frame: &mut ExceptionFrame) {
     IRQ_TOTAL_EXCEPTIONS.fetch_add(1, Ordering::Relaxed);
 
@@ -379,7 +379,7 @@ pub extern "C" fn handle_irq(_frame: &mut ExceptionFrame) {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn handle_fiq(frame: &mut ExceptionFrame) {
     FIQ_EXCEPTIONS.fetch_add(1, Ordering::Relaxed);
 
@@ -411,7 +411,7 @@ pub extern "C" fn handle_fiq(frame: &mut ExceptionFrame) {
     );
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn handle_serror(frame: &mut ExceptionFrame) {
     SERROR_EXCEPTIONS.fetch_add(1, Ordering::Relaxed);
 

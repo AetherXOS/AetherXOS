@@ -109,7 +109,7 @@ pub(super) fn handle_kernel_fault(
     halt_current_core()
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn unhandled_exception() {
     panic!("Unhandled AArch64 Exception!");
 }

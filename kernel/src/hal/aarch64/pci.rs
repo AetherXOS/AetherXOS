@@ -5,6 +5,18 @@ use crate::generated_consts::{
 use alloc::vec::Vec;
 use core::ptr::read_volatile;
 
+// Common Device Classes
+pub const CLASS_MASS_STORAGE: u8 = 0x01;
+pub const CLASS_NETWORK: u8 = 0x02;
+pub const CLASS_DISPLAY: u8 = 0x03;
+
+pub const VENDOR_INTEL: u16 = 0x8086;
+pub const VENDOR_REDHAT: u16 = 0x1AF4; // VirtIO
+
+pub const VIRTIO_DEV_BLK_LEGACY: u16 = 0x1001;
+pub const VIRTIO_DEV_BLK_MODERN: u16 = 0x1042;
+pub const VIRTIO_DEV_NET_LEGACY: u16 = 0x1000;
+
 #[derive(Debug, Clone, Copy)]
 pub struct PciAddress {
     pub bus: u8,

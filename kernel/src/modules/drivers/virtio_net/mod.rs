@@ -15,6 +15,29 @@ mod regs;
 use queue::{VirtControlQueue, VirtQueue, VirtQueueRole};
 use regs::*;
 
+#[cfg(target_arch = "x86_64")]
+use x86_64::instructions::port::Port;
+
+#[cfg(not(target_arch = "x86_64"))]
+struct Port<T> {
+    _phantom: core::marker::PhantomData<T>,
+}
+
+#[cfg(not(target_arch = "x86_64"))]
+impl<T: Default + Copy> Port<T> {
+    fn new(_port: u16) -> Self {
+        Self {
+            _phantom: core::marker::PhantomData,
+        }
+    }
+
+    unsafe fn read(&mut self) -> T {
+        T::default()
+    }
+
+    unsafe fn write(&mut self, _value: T) {}
+}
+
 /// VirtIO Network Driver (Legacy)
 ///
 /// Implements a baseline legacy virtio-net dataplane with RX/TX virtqueue support
@@ -72,8 +95,6 @@ impl VirtIoNet {
         role: VirtQueueRole,
         hhdm: u64,
     ) -> Result<VirtQueue, &'static str> {
-        use x86_64::instructions::port::Port;
-
         let mut queue_select_port = Port::<u16>::new(self.io_base + VIRTIO_REG_QUEUE_SELECT);
         let mut queue_size_port = Port::<u16>::new(self.io_base + VIRTIO_REG_QUEUE_SIZE);
         let mut queue_address_port = Port::<u32>::new(self.io_base + VIRTIO_REG_QUEUE_ADDRESS);
@@ -102,8 +123,6 @@ impl VirtIoNet {
     }
 
     fn setup_control_queue(&self, hhdm: u64) -> Result<VirtControlQueue, &'static str> {
-        use x86_64::instructions::port::Port;
-
         let mut queue_select_port = Port::<u16>::new(self.io_base + VIRTIO_REG_QUEUE_SELECT);
         let mut queue_size_port = Port::<u16>::new(self.io_base + VIRTIO_REG_QUEUE_SIZE);
         let mut queue_address_port = Port::<u32>::new(self.io_base + VIRTIO_REG_QUEUE_ADDRESS);
@@ -127,7 +146,6 @@ impl VirtIoNet {
     }
 
     fn read_config_mac(&self) -> [u8; 6] {
-        use x86_64::instructions::port::Port;
         let mut mac = [0u8; 6];
         for (i, byte) in mac.iter_mut().enumerate() {
             let mut port = Port::<u8>::new(self.io_base + VIRTIO_NET_CONFIG_MAC_OFFSET + i as u16);
@@ -218,7 +236,6 @@ impl VirtIoNet {
     }
 
     fn queue_notify(&self, queue_index: u16) {
-        use x86_64::instructions::port::Port;
         let mut notify_port = Port::<u16>::new(self.io_base + VIRTIO_REG_QUEUE_NOTIFY);
         unsafe {
             notify_port.write(queue_index);
@@ -226,14 +243,11 @@ impl VirtIoNet {
     }
 
     fn read_isr_status(&self) -> u8 {
-        use x86_64::instructions::port::Port;
         let mut isr_port = Port::<u8>::new(self.io_base + VIRTIO_REG_ISR_STATUS);
         unsafe { isr_port.read() }
     }
 
     pub fn init(&mut self) -> Result<(), &'static str> {
-        use x86_64::instructions::port::Port;
-
         self.lifecycle.on_init_start();
         self.control_queue = None;
         self.control_queue_ops = 0;
