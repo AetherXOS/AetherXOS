@@ -1,6 +1,8 @@
 use alloc::vec::Vec;
 
 use crate::modules::drivers::hybrid::driverkit::DriverKitHealthSnapshot;
+use crate::modules::drivers::hybrid::liblinux::LibLinuxTelemetryStore;
+use crate::modules::drivers::hybrid::sidecar::SideCarTelemetryStore;
 
 use super::shared::{
     adaptive_threshold, composite_quality_score, performance_score_for, request_family,
@@ -11,9 +13,20 @@ use crate::modules::drivers::hybrid::orchestrator::{
     HybridRequestFamily, HybridRuntimeConfidence, HybridSecurityPosture,
 };
 use super::super::routing::fallback_order;
-use super::support::{runtime_assessment, support_report};
+use super::support::{
+    runtime_assessment, runtime_assessment_with_telemetry, support_report,
+    support_report_with_telemetry,
+};
 
 pub fn fleet_report(driverkit_health: Option<DriverKitHealthSnapshot>) -> HybridFleetReport {
+    fleet_report_with_telemetry(driverkit_health, None, None)
+}
+
+pub fn fleet_report_with_telemetry(
+    driverkit_health: Option<DriverKitHealthSnapshot>,
+    sidecar_telemetry: Option<&SideCarTelemetryStore>,
+    liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+) -> HybridFleetReport {
     let mut backends = Vec::new();
     let mut families = Vec::new();
 
@@ -42,8 +55,26 @@ pub fn fleet_report(driverkit_health: Option<DriverKitHealthSnapshot>) -> Hybrid
 
             family_requests += 1;
             let request = synthetic_coverage_request(request_kind, index);
-            let report = support_report(&request, driverkit_health);
-            let runtime = runtime_assessment(&request, driverkit_health);
+            let report = if sidecar_telemetry.is_some() || liblinux_telemetry.is_some() {
+                support_report_with_telemetry(
+                    &request,
+                    driverkit_health,
+                    sidecar_telemetry,
+                    liblinux_telemetry,
+                )
+            } else {
+                support_report(&request, driverkit_health)
+            };
+            let runtime = if sidecar_telemetry.is_some() || liblinux_telemetry.is_some() {
+                runtime_assessment_with_telemetry(
+                    &request,
+                    driverkit_health,
+                    sidecar_telemetry,
+                    liblinux_telemetry,
+                )
+            } else {
+                runtime_assessment(&request, driverkit_health)
+            };
             let assessment = runtime
                 .assessments
                 .iter()
@@ -104,14 +135,32 @@ pub fn fleet_report(driverkit_health: Option<DriverKitHealthSnapshot>) -> Hybrid
 
         for (index, request_kind) in ALL_REQUEST_KINDS.iter().copied().enumerate() {
             let request = synthetic_coverage_request(request_kind, index);
-            let support = support_report(&request, driverkit_health);
+            let support = if sidecar_telemetry.is_some() || liblinux_telemetry.is_some() {
+                support_report_with_telemetry(
+                    &request,
+                    driverkit_health,
+                    sidecar_telemetry,
+                    liblinux_telemetry,
+                )
+            } else {
+                support_report(&request, driverkit_health)
+            };
             let support_entry = support
                 .entries
                 .iter()
                 .find(|entry| entry.backend == backend)
                 .copied()
                 .expect("support entry should exist for every backend");
-            let runtime = runtime_assessment(&request, driverkit_health);
+            let runtime = if sidecar_telemetry.is_some() || liblinux_telemetry.is_some() {
+                runtime_assessment_with_telemetry(
+                    &request,
+                    driverkit_health,
+                    sidecar_telemetry,
+                    liblinux_telemetry,
+                )
+            } else {
+                runtime_assessment(&request, driverkit_health)
+            };
             let assessment = runtime
                 .assessments
                 .iter()

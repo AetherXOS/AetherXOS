@@ -3,7 +3,8 @@ use alloc::vec::Vec;
 use super::driverkit::{DriverKitHealthSnapshot, UserModeDriverContext};
 use super::liblinux::{
     summarize_bridge_records, LibLinuxConformanceReport, LibLinuxDispatchSample,
-    LibLinuxTelemetryStore, LinuxBridgeDispatchRecord, LinuxSyscallQueue, LinuxSyscallRequest,
+    LibLinuxTelemetryStore, LinuxBridgeDispatchRecord, LinuxSyscallQueue,
+    LinuxSyscallRequest,
 };
 use super::linux::{LinuxResourcePlan, LinuxShimDeviceKind};
 use super::reactos::{
@@ -11,8 +12,8 @@ use super::reactos::{
     NtSymbolTable, PeImageInfo, PeLoadError,
 };
 use super::sidecar::{
-    SideCarBootstrapState, SideCarPayload, SideCarTelemetrySample, SideCarTelemetryStore,
-    SideCarTransport,
+    SideCarBootstrapState, SideCarPayload, SideCarSaturationLevel, SideCarTelemetrySample,
+    SideCarTelemetrySnapshot, SideCarTelemetryStore, SideCarTransport,
     SideCarVmConfig, SideCarVmPlan, SideCarWireHeader,
 };
 
@@ -664,7 +665,83 @@ pub struct HybridReadinessGap {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HybridReadinessReport {
     pub coverage: HybridCoverageAudit,
+    pub userspace_abi: HybridUserspaceAbiReport,
+    pub virtualization: HybridVirtualizationReadinessReport,
     pub gaps: Vec<HybridReadinessGap>,
+    pub release_ready: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HybridReleaseGateStatus {
+    Pass,
+    Warning,
+    Block,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HybridReleaseGateFamilyRow {
+    pub family: HybridRequestFamily,
+    pub min_coverage: u8,
+    pub min_performance: u8,
+    pub min_security: u8,
+    pub high_risk_budget: usize,
+    pub actual_coverage: u8,
+    pub actual_performance: u8,
+    pub actual_security: u8,
+    pub high_risk_paths: usize,
+    pub status: HybridReleaseGateStatus,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HybridReleaseGateMatrix {
+    pub version: &'static str,
+    pub rows: Vec<HybridReleaseGateFamilyRow>,
+    pub release_blocked: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HybridUserspaceAbiReport {
+    pub readiness_score: u8,
+    pub compile_linux_compat: bool,
+    pub compile_vfs: bool,
+    pub boundary_allows_compat: bool,
+    pub expose_linux_compat_surface: bool,
+    pub attack_surface_budget: u8,
+    pub attack_surface_target: u8,
+    pub critical_blockers: usize,
+    pub high_blockers: usize,
+    pub medium_blockers: usize,
+    pub effective_surface_enabled: bool,
+    pub blockers: Vec<&'static str>,
+    pub next_action: &'static str,
+    pub release_ready: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HybridVirtualizationReadinessReport {
+    pub readiness_score: u8,
+    pub policy_scope: &'static str,
+    pub core_path_scope: &'static str,
+    pub advanced_path_scope: &'static str,
+    pub execution_class: crate::config::VirtualizationExecutionClass,
+    pub governor_class: crate::config::VirtualizationGovernorClass,
+    pub entry_enabled: bool,
+    pub resume_enabled: bool,
+    pub trap_dispatch_enabled: bool,
+    pub nested_enabled: bool,
+    pub time_virtualization_enabled: bool,
+    pub device_passthrough_enabled: bool,
+    pub snapshot_enabled: bool,
+    pub dirty_logging_enabled: bool,
+    pub live_migration_enabled: bool,
+    pub trap_tracing_enabled: bool,
+    pub enabled_feature_count: usize,
+    pub runtime_limited_features: usize,
+    pub compiletime_limited_features: usize,
+    pub fully_disabled_features: usize,
+    pub can_launch_guests: bool,
+    pub advanced_ops_ready: bool,
+    pub blockers: Vec<&'static str>,
     pub release_ready: bool,
 }
 
@@ -697,8 +774,44 @@ impl HybridOrchestratorSession {
         &self.sidecar_telemetry
     }
 
+    pub fn export_sidecar_telemetry_bytes(&self) -> Vec<u8> {
+        self.sidecar_telemetry.snapshot().to_bytes()
+    }
+
+    pub fn import_sidecar_telemetry_bytes(
+        &mut self,
+        bytes: &[u8],
+        max_devices: usize,
+        max_samples_per_device: usize,
+    ) -> bool {
+        let Some(snapshot) = SideCarTelemetrySnapshot::from_bytes(bytes) else {
+            return false;
+        };
+        self.sidecar_telemetry =
+            SideCarTelemetryStore::from_snapshot(snapshot, max_devices, max_samples_per_device);
+        true
+    }
+
+    pub fn sidecar_fallback_aggressiveness(&self, device_kind: LinuxShimDeviceKind) -> u8 {
+        match self.sidecar_telemetry.saturation_level_for(device_kind) {
+            SideCarSaturationLevel::Low => 20,
+            SideCarSaturationLevel::Nominal => 40,
+            SideCarSaturationLevel::High => 70,
+            SideCarSaturationLevel::Critical => 90,
+        }
+    }
+
     pub fn record_liblinux_dispatch_sample(&mut self, sample: LibLinuxDispatchSample) {
         self.liblinux_telemetry.record_dispatch_sample(sample);
+    }
+
+    pub fn record_liblinux_dispatch_sample_for_syscall(
+        &mut self,
+        syscall: super::LinuxSyscall,
+        sample: LibLinuxDispatchSample,
+    ) {
+        self.liblinux_telemetry
+            .record_dispatch_sample_for_syscall(syscall, sample);
     }
 
     pub fn liblinux_telemetry(&self) -> &LibLinuxTelemetryStore {
@@ -711,19 +824,26 @@ impl HybridOrchestratorSession {
         requested_max_batch: usize,
     ) -> Vec<LinuxBridgeDispatchRecord> {
         let queue_depth = queue.len();
-        let batch_size = self
-            .liblinux_telemetry
-            .recommended_batch_size(queue_depth, requested_max_batch);
+        let first_syscall = queue.requests.first().map(|request| request.syscall);
+        let batch_size = match first_syscall {
+            Some(syscall) => self.liblinux_telemetry.recommended_batch_size_for_syscall(
+                syscall,
+                queue_depth,
+                requested_max_batch,
+            ),
+            None => self
+                .liblinux_telemetry
+                .recommended_batch_size(queue_depth, requested_max_batch),
+        };
         let records = HybridOrchestrator::dispatch_liblinux_queue_to_bridge(queue, batch_size);
         let (success, partial, failure) = summarize_bridge_records(&records);
-        self.liblinux_telemetry
-            .record_dispatch_sample(LibLinuxDispatchSample::new(
-                queue_depth,
-                batch_size,
-                success,
-                partial,
-                failure,
-            ));
+        let sample = LibLinuxDispatchSample::new(queue_depth, batch_size, success, partial, failure);
+        match first_syscall {
+            Some(syscall) => self
+                .liblinux_telemetry
+                .record_dispatch_sample_for_syscall(syscall, sample),
+            None => self.liblinux_telemetry.record_dispatch_sample(sample),
+        }
         records
     }
 
@@ -747,11 +867,29 @@ impl HybridOrchestratorSession {
         preference: BackendPreference,
         sidecar_cfg: SideCarVmConfig,
     ) -> Option<HybridExecutionPlan> {
-        HybridOrchestrator::plan_with_fallbacks_and_telemetry(
+        HybridOrchestrator::plan_with_fallbacks_and_dual_telemetry(
             request,
             preference,
             sidecar_cfg,
             Some(&self.sidecar_telemetry),
+            Some(&self.liblinux_telemetry),
+        )
+    }
+
+    pub fn plan_with_fallbacks_with_health(
+        &self,
+        request: &HybridRequest,
+        preference: BackendPreference,
+        sidecar_cfg: SideCarVmConfig,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+    ) -> Option<HybridExecutionPlan> {
+        HybridOrchestrator::plan_with_fallbacks_with_full_context(
+            request,
+            preference,
+            sidecar_cfg,
+            Some(&self.sidecar_telemetry),
+            Some(&self.liblinux_telemetry),
+            driverkit_health,
         )
     }
 
@@ -761,11 +899,115 @@ impl HybridOrchestratorSession {
         preference: BackendPreference,
         sidecar_cfg: SideCarVmConfig,
     ) -> HybridPlanDiagnostics {
-        HybridOrchestrator::plan_with_diagnostics_and_telemetry(
+        HybridOrchestrator::plan_with_diagnostics_and_dual_telemetry(
             request,
             preference,
             sidecar_cfg,
             Some(&self.sidecar_telemetry),
+            Some(&self.liblinux_telemetry),
+        )
+    }
+
+    pub fn support_report(
+        &self,
+        request: &HybridRequest,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+    ) -> HybridSupportReport {
+        HybridOrchestrator::support_report_with_telemetry(
+            request,
+            driverkit_health,
+            Some(&self.sidecar_telemetry),
+            Some(&self.liblinux_telemetry),
+        )
+    }
+
+    pub fn runtime_assessment(
+        &self,
+        request: &HybridRequest,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+    ) -> HybridRuntimeAssessmentReport {
+        HybridOrchestrator::runtime_assessment_with_telemetry(
+            request,
+            driverkit_health,
+            Some(&self.sidecar_telemetry),
+            Some(&self.liblinux_telemetry),
+        )
+    }
+
+    pub fn coverage_audit(
+        &self,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+    ) -> HybridCoverageAudit {
+        HybridOrchestrator::coverage_audit_with_telemetry(
+            driverkit_health,
+            Some(&self.sidecar_telemetry),
+            Some(&self.liblinux_telemetry),
+        )
+    }
+
+    pub fn fleet_report(&self, driverkit_health: Option<DriverKitHealthSnapshot>) -> HybridFleetReport {
+        HybridOrchestrator::fleet_report_with_telemetry(
+            driverkit_health,
+            Some(&self.sidecar_telemetry),
+            Some(&self.liblinux_telemetry),
+        )
+    }
+
+    pub fn readiness_report(
+        &self,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+    ) -> HybridReadinessReport {
+        HybridOrchestrator::readiness_report_with_telemetry(
+            driverkit_health,
+            Some(&self.sidecar_telemetry),
+            Some(&self.liblinux_telemetry),
+        )
+    }
+
+    pub fn maturity_report(
+        &self,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+    ) -> HybridMaturityReport {
+        HybridOrchestrator::maturity_report_with_telemetry(
+            driverkit_health,
+            Some(&self.sidecar_telemetry),
+            Some(&self.liblinux_telemetry),
+        )
+    }
+
+    pub fn release_gate_matrix(
+        &self,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+    ) -> HybridReleaseGateMatrix {
+        HybridOrchestrator::release_gate_matrix_with_telemetry(
+            driverkit_health,
+            Some(&self.sidecar_telemetry),
+            Some(&self.liblinux_telemetry),
+        )
+    }
+
+    pub fn userspace_abi_report(&self) -> HybridUserspaceAbiReport {
+        HybridOrchestrator::userspace_abi_report()
+    }
+
+    pub fn virtualization_readiness_report(&self) -> HybridVirtualizationReadinessReport {
+        HybridOrchestrator::virtualization_readiness_report()
+    }
+
+    pub fn plan_with_diagnostics_with_health(
+        &self,
+        request: &HybridRequest,
+        preference: BackendPreference,
+        sidecar_cfg: SideCarVmConfig,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+    ) -> HybridPlanDiagnostics {
+        HybridOrchestrator::plan_with_diagnostics_with_full_context(
+            request,
+            preference,
+            sidecar_cfg,
+            Some(&self.sidecar_telemetry),
+            Some(&self.liblinux_telemetry),
+            driverkit_health,
         )
     }
 }
@@ -822,6 +1064,40 @@ impl HybridOrchestrator {
         planner::plan_with_fallbacks_and_telemetry(request, preference, sidecar_cfg, telemetry)
     }
 
+    pub fn plan_with_fallbacks_and_dual_telemetry(
+        request: &HybridRequest,
+        preference: BackendPreference,
+        sidecar_cfg: SideCarVmConfig,
+        sidecar_telemetry: Option<&SideCarTelemetryStore>,
+        liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+    ) -> Option<HybridExecutionPlan> {
+        planner::plan_with_fallbacks_and_dual_telemetry(
+            request,
+            preference,
+            sidecar_cfg,
+            sidecar_telemetry,
+            liblinux_telemetry,
+        )
+    }
+
+    pub fn plan_with_fallbacks_with_full_context(
+        request: &HybridRequest,
+        preference: BackendPreference,
+        sidecar_cfg: SideCarVmConfig,
+        sidecar_telemetry: Option<&SideCarTelemetryStore>,
+        liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+    ) -> Option<HybridExecutionPlan> {
+        planner::plan_with_fallbacks_with_full_context(
+            request,
+            preference,
+            sidecar_cfg,
+            sidecar_telemetry,
+            liblinux_telemetry,
+            driverkit_health,
+        )
+    }
+
     pub fn plan_with_diagnostics(
         request: &HybridRequest,
         preference: BackendPreference,
@@ -837,6 +1113,40 @@ impl HybridOrchestrator {
         telemetry: Option<&SideCarTelemetryStore>,
     ) -> HybridPlanDiagnostics {
         planner::plan_with_diagnostics_and_telemetry(request, preference, sidecar_cfg, telemetry)
+    }
+
+    pub fn plan_with_diagnostics_and_dual_telemetry(
+        request: &HybridRequest,
+        preference: BackendPreference,
+        sidecar_cfg: SideCarVmConfig,
+        sidecar_telemetry: Option<&SideCarTelemetryStore>,
+        liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+    ) -> HybridPlanDiagnostics {
+        planner::plan_with_diagnostics_and_dual_telemetry(
+            request,
+            preference,
+            sidecar_cfg,
+            sidecar_telemetry,
+            liblinux_telemetry,
+        )
+    }
+
+    pub fn plan_with_diagnostics_with_full_context(
+        request: &HybridRequest,
+        preference: BackendPreference,
+        sidecar_cfg: SideCarVmConfig,
+        sidecar_telemetry: Option<&SideCarTelemetryStore>,
+        liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+    ) -> HybridPlanDiagnostics {
+        planner::plan_with_diagnostics_with_full_context(
+            request,
+            preference,
+            sidecar_cfg,
+            sidecar_telemetry,
+            liblinux_telemetry,
+            driverkit_health,
+        )
     }
 
     pub fn plan_windows_pe(
@@ -916,6 +1226,20 @@ impl HybridOrchestrator {
         planner::support_report(request, driverkit_health)
     }
 
+    pub fn support_report_with_telemetry(
+        request: &HybridRequest,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+        sidecar_telemetry: Option<&SideCarTelemetryStore>,
+        liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+    ) -> HybridSupportReport {
+        planner::support_report_with_telemetry(
+            request,
+            driverkit_health,
+            sidecar_telemetry,
+            liblinux_telemetry,
+        )
+    }
+
     pub fn runtime_assessment(
         request: &HybridRequest,
         driverkit_health: Option<DriverKitHealthSnapshot>,
@@ -923,10 +1247,36 @@ impl HybridOrchestrator {
         planner::runtime_assessment(request, driverkit_health)
     }
 
+    pub fn runtime_assessment_with_telemetry(
+        request: &HybridRequest,
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+        sidecar_telemetry: Option<&SideCarTelemetryStore>,
+        liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+    ) -> HybridRuntimeAssessmentReport {
+        planner::runtime_assessment_with_telemetry(
+            request,
+            driverkit_health,
+            sidecar_telemetry,
+            liblinux_telemetry,
+        )
+    }
+
     pub fn coverage_audit(
         driverkit_health: Option<DriverKitHealthSnapshot>,
     ) -> HybridCoverageAudit {
         planner::coverage_audit(driverkit_health)
+    }
+
+    pub fn coverage_audit_with_telemetry(
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+        sidecar_telemetry: Option<&SideCarTelemetryStore>,
+        liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+    ) -> HybridCoverageAudit {
+        planner::coverage_audit_with_telemetry(
+            driverkit_health,
+            sidecar_telemetry,
+            liblinux_telemetry,
+        )
     }
 
     pub fn feature_audit(
@@ -941,16 +1291,74 @@ impl HybridOrchestrator {
         planner::readiness_report(driverkit_health)
     }
 
+    pub fn readiness_report_with_telemetry(
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+        sidecar_telemetry: Option<&SideCarTelemetryStore>,
+        liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+    ) -> HybridReadinessReport {
+        planner::readiness_report_with_telemetry(
+            driverkit_health,
+            sidecar_telemetry,
+            liblinux_telemetry,
+        )
+    }
+
     pub fn fleet_report(
         driverkit_health: Option<DriverKitHealthSnapshot>,
     ) -> HybridFleetReport {
         planner::fleet_report(driverkit_health)
     }
 
+    pub fn fleet_report_with_telemetry(
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+        sidecar_telemetry: Option<&SideCarTelemetryStore>,
+        liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+    ) -> HybridFleetReport {
+        planner::fleet_report_with_telemetry(driverkit_health, sidecar_telemetry, liblinux_telemetry)
+    }
+
     pub fn maturity_report(
         driverkit_health: Option<DriverKitHealthSnapshot>,
     ) -> HybridMaturityReport {
         planner::maturity_report(driverkit_health)
+    }
+
+    pub fn maturity_report_with_telemetry(
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+        sidecar_telemetry: Option<&SideCarTelemetryStore>,
+        liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+    ) -> HybridMaturityReport {
+        planner::maturity_report_with_telemetry(
+            driverkit_health,
+            sidecar_telemetry,
+            liblinux_telemetry,
+        )
+    }
+
+    pub fn release_gate_matrix(
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+    ) -> HybridReleaseGateMatrix {
+        planner::release_gate_matrix(driverkit_health)
+    }
+
+    pub fn release_gate_matrix_with_telemetry(
+        driverkit_health: Option<DriverKitHealthSnapshot>,
+        sidecar_telemetry: Option<&SideCarTelemetryStore>,
+        liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+    ) -> HybridReleaseGateMatrix {
+        planner::release_gate_matrix_with_telemetry(
+            driverkit_health,
+            sidecar_telemetry,
+            liblinux_telemetry,
+        )
+    }
+
+    pub fn userspace_abi_report() -> HybridUserspaceAbiReport {
+        planner::userspace_abi_report()
+    }
+
+    pub fn virtualization_readiness_report() -> HybridVirtualizationReadinessReport {
+        planner::virtualization_readiness_report()
     }
 }
 

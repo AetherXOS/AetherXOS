@@ -3,10 +3,12 @@ use crate::modules::drivers::hybrid::liblinux::LibLinuxBridge;
 use crate::modules::drivers::hybrid::linux::{build_block_plan, build_network_plan, LinuxShimDeviceKind};
 use crate::modules::drivers::hybrid::reactos::{
     bind_import_names, build_import_resolution_report, parse_import_directory, parse_import_names,
-    parse_pe_image, NtExecutionPolicy, NtImportResolutionReport, NtSymbolTable, PeLoadError,
+    parse_pe_image, NtExecutionPolicy, NtImportResolutionReport, NtSymbolTable, PeImageInfo,
+    PeLoadError,
 };
 use crate::modules::drivers::hybrid::sidecar::{
-    SideCarTelemetryStore, SideCarVmConfig, SideCarVmPlan, SideCarWorkloadProfile,
+    SideCarSaturationLevel, SideCarTelemetryStore, SideCarVmConfig, SideCarVmPlan,
+    SideCarWorkloadProfile,
 };
 use crate::modules::drivers::{DriverTransportKind, IrqGrant, MmioGrant};
 use super::super::{BackendPreference, HybridExecutionPlan, HybridPlanAttempt, HybridPlanDiagnostics,
@@ -39,6 +41,94 @@ pub fn fallback_order(preference: BackendPreference) -> [BackendPreference; 4] {
             BackendPreference::DriverKitFirst,
         ],
     }
+}
+
+pub fn adaptive_fallback_order(
+    preference: BackendPreference,
+    request_kind: HybridRequestKind,
+    sidecar_telemetry: Option<&SideCarTelemetryStore>,
+    liblinux_telemetry: Option<&crate::modules::drivers::hybrid::liblinux::LibLinuxTelemetryStore>,
+) -> [BackendPreference; 4] {
+    adaptive_fallback_order_with_health(
+        preference,
+        request_kind,
+        sidecar_telemetry,
+        liblinux_telemetry,
+        None,
+    )
+}
+
+pub fn adaptive_fallback_order_with_health(
+    preference: BackendPreference,
+    request_kind: HybridRequestKind,
+    sidecar_telemetry: Option<&SideCarTelemetryStore>,
+    liblinux_telemetry: Option<&crate::modules::drivers::hybrid::liblinux::LibLinuxTelemetryStore>,
+    driverkit_health: Option<DriverKitHealthSnapshot>,
+) -> [BackendPreference; 4] {
+    let mut order = fallback_order(preference).to_vec();
+    let sidecar_kind = request_kind_to_linux_device_kind(request_kind);
+
+    let sidecar_penalty = sidecar_telemetry
+        .map(|telemetry| match telemetry.saturation_level_for(sidecar_kind) {
+            SideCarSaturationLevel::Low => -2,
+            SideCarSaturationLevel::Nominal => 0,
+            SideCarSaturationLevel::High => 6,
+            SideCarSaturationLevel::Critical => 12,
+        })
+        .unwrap_or(0);
+    let liblinux_penalty = liblinux_telemetry
+        .map(|telemetry| telemetry.family_failure_pressure_for_request_kind(request_kind))
+        .unwrap_or(0) as i16;
+    let driverkit_penalty = driverkit_health
+        .map(|health| {
+            let mut penalty = 0i16;
+            if health.quarantined_count > 0 {
+                penalty += 16;
+            }
+            if health.dispatch_failure_count > health.dispatch_success_count.saturating_add(2) {
+                penalty += 12;
+            }
+            if health.faulted_count > health.started_count.saturating_add(health.binding_count) {
+                penalty += 8;
+            }
+            penalty
+        })
+        .unwrap_or(0);
+
+    order.sort_by_key(|backend| {
+        let base_position = fallback_order(preference)
+            .iter()
+            .position(|candidate| candidate == backend)
+            .unwrap_or(3) as i16;
+
+        let mut score = base_position * 10;
+
+        match backend {
+            BackendPreference::SideCarFirst => {
+                score += sidecar_penalty * 5;
+                if request_kind == HybridRequestKind::WindowsPe {
+                    score += 40;
+                }
+            }
+            BackendPreference::LibLinuxFirst => {
+                score += liblinux_penalty / 2;
+                if liblinux_penalty >= 35 {
+                    score += 16;
+                }
+            }
+            BackendPreference::DriverKitFirst => {
+                score += if sidecar_penalty >= 2 && liblinux_penalty >= 25 { -2 } else { 1 };
+                score += driverkit_penalty;
+            }
+            BackendPreference::ReactOsFirst => {
+                score += if request_kind == HybridRequestKind::WindowsPe { -30 } else { 5 };
+            }
+        }
+
+        score
+    });
+
+    [order[0], order[1], order[2], order[3]]
 }
 
 pub fn adapt_preference_with_driverkit_health(
@@ -91,8 +181,35 @@ fn plan_internal(
         BackendPreference::SideCarFirst => plan_sidecar(request, sidecar_cfg, telemetry),
         BackendPreference::LibLinuxFirst => plan_liblinux(request),
         BackendPreference::DriverKitFirst => plan_driverkit(request),
-        BackendPreference::ReactOsFirst => None,
+        BackendPreference::ReactOsFirst => plan_reactos(request),
     }
+}
+
+fn reactos_pilot_image_info_for_request(request: &HybridRequest) -> PeImageInfo {
+    PeImageInfo {
+        machine: 0x8664,
+        image_base: request.mmio_base as u64,
+        entry_rva: 0,
+        size_of_image: request.mmio_length as u32,
+        size_of_headers: 0,
+        number_of_sections: 0,
+        sections: Vec::new(),
+        import_directory_rva: 0,
+        import_directory_size: 0,
+        relocation_directory_rva: 0,
+        relocation_directory_size: 0,
+    }
+}
+
+fn plan_reactos(request: &HybridRequest) -> Option<HybridExecutionPlan> {
+    if !supports_reactos_pilot(request.kind) {
+        return None;
+    }
+
+    Some(HybridExecutionPlan::ReactOs {
+        policy: NtExecutionPolicy::wine_bridge(),
+        image_info: reactos_pilot_image_info_for_request(request),
+    })
 }
 
 fn plan_sidecar(
@@ -181,6 +298,17 @@ fn supports_driverkit(kind: HybridRequestKind) -> bool {
     !matches!(kind, HybridRequestKind::WindowsPe)
 }
 
+fn supports_reactos_pilot(kind: HybridRequestKind) -> bool {
+    matches!(
+        kind,
+        HybridRequestKind::WindowsPe
+            | HybridRequestKind::Firmware
+            | HybridRequestKind::Input
+            | HybridRequestKind::Touch
+            | HybridRequestKind::Gamepad
+    )
+}
+
 fn has_valid_resources(request: &HybridRequest) -> bool {
     if request.kind == HybridRequestKind::WindowsPe {
         return true;
@@ -247,8 +375,53 @@ pub fn plan_with_fallbacks_and_telemetry(
     sidecar_cfg: SideCarVmConfig,
     telemetry: Option<&SideCarTelemetryStore>,
 ) -> Option<HybridExecutionPlan> {
-    for candidate in fallback_order(preference) {
-        if let Some(plan) = plan_internal(request, candidate, sidecar_cfg, telemetry) {
+    plan_with_fallbacks_and_dual_telemetry(request, preference, sidecar_cfg, telemetry, None)
+}
+
+pub fn plan_with_fallbacks_and_dual_telemetry(
+    request: &HybridRequest,
+    preference: BackendPreference,
+    sidecar_cfg: SideCarVmConfig,
+    sidecar_telemetry: Option<&SideCarTelemetryStore>,
+    liblinux_telemetry: Option<&crate::modules::drivers::hybrid::liblinux::LibLinuxTelemetryStore>,
+) -> Option<HybridExecutionPlan> {
+    plan_with_fallbacks_with_full_context(
+        request,
+        preference,
+        sidecar_cfg,
+        sidecar_telemetry,
+        liblinux_telemetry,
+        None,
+    )
+}
+
+pub fn plan_with_fallbacks_with_full_context(
+    request: &HybridRequest,
+    preference: BackendPreference,
+    sidecar_cfg: SideCarVmConfig,
+    sidecar_telemetry: Option<&SideCarTelemetryStore>,
+    liblinux_telemetry: Option<&crate::modules::drivers::hybrid::liblinux::LibLinuxTelemetryStore>,
+    driverkit_health: Option<DriverKitHealthSnapshot>,
+) -> Option<HybridExecutionPlan> {
+    let order = adaptive_fallback_order(
+        preference,
+        request.kind,
+        sidecar_telemetry,
+        liblinux_telemetry,
+    );
+    let order = if driverkit_health.is_some() {
+        adaptive_fallback_order_with_health(
+            preference,
+            request.kind,
+            sidecar_telemetry,
+            liblinux_telemetry,
+            driverkit_health,
+        )
+    } else {
+        order
+    };
+    for candidate in order {
+        if let Some(plan) = plan_internal(request, candidate, sidecar_cfg, sidecar_telemetry) {
             return Some(plan);
         }
     }
@@ -269,9 +442,44 @@ pub fn plan_with_diagnostics_and_telemetry(
     sidecar_cfg: SideCarVmConfig,
     telemetry: Option<&SideCarTelemetryStore>,
 ) -> HybridPlanDiagnostics {
+    plan_with_diagnostics_and_dual_telemetry(request, preference, sidecar_cfg, telemetry, None)
+}
+
+pub fn plan_with_diagnostics_and_dual_telemetry(
+    request: &HybridRequest,
+    preference: BackendPreference,
+    sidecar_cfg: SideCarVmConfig,
+    sidecar_telemetry: Option<&SideCarTelemetryStore>,
+    liblinux_telemetry: Option<&crate::modules::drivers::hybrid::liblinux::LibLinuxTelemetryStore>,
+) -> HybridPlanDiagnostics {
+    plan_with_diagnostics_with_full_context(
+        request,
+        preference,
+        sidecar_cfg,
+        sidecar_telemetry,
+        liblinux_telemetry,
+        None,
+    )
+}
+
+pub fn plan_with_diagnostics_with_full_context(
+    request: &HybridRequest,
+    preference: BackendPreference,
+    sidecar_cfg: SideCarVmConfig,
+    sidecar_telemetry: Option<&SideCarTelemetryStore>,
+    liblinux_telemetry: Option<&crate::modules::drivers::hybrid::liblinux::LibLinuxTelemetryStore>,
+    driverkit_health: Option<DriverKitHealthSnapshot>,
+) -> HybridPlanDiagnostics {
+    let order = adaptive_fallback_order_with_health(
+        preference,
+        request.kind,
+        sidecar_telemetry,
+        liblinux_telemetry,
+        driverkit_health,
+    );
     let mut attempts = Vec::new();
-    for candidate in fallback_order(preference) {
-        let plan = plan_internal(request, candidate, sidecar_cfg, telemetry);
+    for candidate in order {
+        let plan = plan_internal(request, candidate, sidecar_cfg, sidecar_telemetry);
         attempts.push(HybridPlanAttempt {
             backend: candidate,
             matched: plan.is_some(),

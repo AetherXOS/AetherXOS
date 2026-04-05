@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use super::*;
 use crate::modules::drivers::hybrid::linux::LinuxShimDeviceKind;
 use crate::modules::drivers::hybrid::reactos::{NtSymbol, NtSymbolTable};
+use crate::modules::drivers::hybrid::liblinux::LibLinuxDispatchSample;
 use crate::modules::drivers::hybrid::sidecar::{
     SideCarTelemetrySample, SideCarTelemetryStore,
 };
@@ -63,6 +64,31 @@ fn parses_windows_pe_plan() {
         }
         _ => panic!("expected reactos plan"),
     }
+}
+
+#[test_case]
+fn reactos_pilot_plans_firmware_request_family() {
+    let request = HybridRequest::firmware(0x4100, 0x100, 0x5100, 0x1000, 38);
+    let cfg = SideCarVmConfig::new(41, 1, 64 * 1024 * 1024);
+    let plan = HybridOrchestrator::plan(&request, BackendPreference::ReactOsFirst, cfg)
+        .expect("reactos pilot should plan firmware path");
+
+    match plan {
+        HybridExecutionPlan::ReactOs { policy, .. } => {
+            assert_eq!(policy.mode, super::super::reactos::NtBinaryExecutionMode::WineHostBridge)
+        }
+        _ => panic!("expected reactos pilot plan"),
+    }
+}
+
+#[test_case]
+fn reactos_pilot_plans_input_request_family() {
+    let request = HybridRequest::input(0x4200, 0x80, 0x5200, 0x800, 39);
+    let cfg = SideCarVmConfig::new(42, 1, 64 * 1024 * 1024);
+    let plan = HybridOrchestrator::plan(&request, BackendPreference::ReactOsFirst, cfg)
+        .expect("reactos pilot should plan input path");
+
+    assert!(matches!(plan, HybridExecutionPlan::ReactOs { .. }));
 }
 
 #[test_case]
@@ -375,6 +401,58 @@ fn coverage_recommended_backend_is_always_supported() {
 }
 
 #[test_case]
+fn telemetry_aware_coverage_and_fleet_adjust_network_family_scores() {
+    let baseline_coverage = HybridOrchestrator::coverage_audit(None);
+    let baseline_fleet = HybridOrchestrator::fleet_report(None);
+
+    let mut sidecar_telemetry = SideCarTelemetryStore::new(8);
+    sidecar_telemetry.record(
+        LinuxShimDeviceKind::Network,
+        SideCarTelemetrySample::new(95, 4, 3_500, 91),
+    );
+
+    let tuned_coverage = HybridOrchestrator::coverage_audit_with_telemetry(
+        None,
+        Some(&sidecar_telemetry),
+        None,
+    );
+    let tuned_fleet = HybridOrchestrator::fleet_report_with_telemetry(
+        None,
+        Some(&sidecar_telemetry),
+        None,
+    );
+
+    let baseline_network = baseline_coverage
+        .rows
+        .iter()
+        .find(|row| row.request_kind == HybridRequestKind::Network)
+        .expect("baseline network row should exist")
+        .coverage_score;
+    let tuned_network = tuned_coverage
+        .rows
+        .iter()
+        .find(|row| row.request_kind == HybridRequestKind::Network)
+        .expect("tuned network row should exist")
+        .coverage_score;
+
+    let baseline_family = baseline_fleet
+        .families
+        .iter()
+        .find(|row| row.family == HybridRequestFamily::Network)
+        .expect("baseline network family should exist")
+        .coverage_score;
+    let tuned_family = tuned_fleet
+        .families
+        .iter()
+        .find(|row| row.family == HybridRequestFamily::Network)
+        .expect("tuned network family should exist")
+        .coverage_score;
+
+    assert!(tuned_network <= baseline_network);
+    assert!(tuned_family <= baseline_family);
+}
+
+#[test_case]
 fn support_report_keeps_top_score_supported_under_adaptive_cutoff() {
     let report = HybridOrchestrator::support_report(&HybridRequest::windows_pe(), None);
     let top_score = report
@@ -413,6 +491,44 @@ fn support_report_recommended_backend_matches_top_supported_score() {
 
     assert!(recommended.supported);
     assert_eq!(recommended.score, top_supported);
+}
+
+#[test_case]
+fn support_report_with_telemetry_penalizes_sidecar_under_pressure() {
+    let request = HybridRequest::network(0xA500, 0x100, 0xB500, 0x1000, 51);
+    let baseline = HybridOrchestrator::support_report(&request, None);
+
+    let mut sidecar_telemetry = SideCarTelemetryStore::new(8);
+    sidecar_telemetry.record(
+        LinuxShimDeviceKind::Network,
+        SideCarTelemetrySample::new(96, 4, 4_000, 95),
+    );
+    sidecar_telemetry.record(
+        LinuxShimDeviceKind::Network,
+        SideCarTelemetrySample::new(94, 3, 3_800, 92),
+    );
+
+    let tuned = HybridOrchestrator::support_report_with_telemetry(
+        &request,
+        None,
+        Some(&sidecar_telemetry),
+        None,
+    );
+
+    let baseline_sidecar = baseline
+        .entries
+        .iter()
+        .find(|entry| entry.backend == BackendPreference::SideCarFirst)
+        .expect("baseline sidecar entry should exist")
+        .score;
+    let tuned_sidecar = tuned
+        .entries
+        .iter()
+        .find(|entry| entry.backend == BackendPreference::SideCarFirst)
+        .expect("tuned sidecar entry should exist")
+        .score;
+
+    assert!(tuned_sidecar < baseline_sidecar);
 }
 
 #[test_case]
@@ -895,6 +1011,171 @@ fn maturity_report_exposes_the_five_missing_dimensions() {
 }
 
 #[test_case]
+fn telemetry_aware_readiness_report_adjusts_network_path_score() {
+    let baseline = HybridOrchestrator::readiness_report(None);
+
+    let mut sidecar_telemetry = SideCarTelemetryStore::new(8);
+    sidecar_telemetry.record(
+        LinuxShimDeviceKind::Network,
+        SideCarTelemetrySample::new(97, 4, 4_100, 94),
+    );
+
+    let tuned = HybridOrchestrator::readiness_report_with_telemetry(
+        None,
+        Some(&sidecar_telemetry),
+        None,
+    );
+
+    let baseline_network = baseline
+        .coverage
+        .rows
+        .iter()
+        .find(|row| row.request_kind == HybridRequestKind::Network)
+        .expect("baseline network row should exist")
+        .coverage_score;
+    let tuned_network = tuned
+        .coverage
+        .rows
+        .iter()
+        .find(|row| row.request_kind == HybridRequestKind::Network)
+        .expect("tuned network row should exist")
+        .coverage_score;
+
+    assert!(tuned_network <= baseline_network);
+}
+
+#[test_case]
+fn session_telemetry_aware_maturity_report_is_reachable() {
+    let mut session = HybridOrchestratorSession::new(8);
+    session.record_sidecar_sample(
+        LinuxShimDeviceKind::Network,
+        SideCarTelemetrySample::new(88, 2, 2_600, 79),
+    );
+    session.record_liblinux_dispatch_sample(LibLinuxDispatchSample::new(8, 4, 2, 1, 1));
+
+    let report = session.maturity_report(None);
+    assert_eq!(report.findings.len(), 5);
+    assert!(report.overall_score <= 100);
+}
+
+#[test_case]
+fn release_gate_matrix_is_versioned_and_family_complete() {
+    let matrix = HybridOrchestrator::release_gate_matrix(None);
+
+    assert_eq!(matrix.version, "2026.04-r1");
+    assert_eq!(matrix.rows.len(), 8);
+    assert!(matrix.rows.iter().any(|row| row.family == HybridRequestFamily::Network));
+    assert!(matrix.rows.iter().any(|row| row.family == HybridRequestFamily::Storage));
+}
+
+#[test_case]
+fn telemetry_aware_release_gate_matrix_can_downgrade_network_status() {
+    let baseline = HybridOrchestrator::release_gate_matrix(None);
+
+    let mut sidecar_telemetry = SideCarTelemetryStore::new(8);
+    sidecar_telemetry.record(
+        LinuxShimDeviceKind::Network,
+        SideCarTelemetrySample::new(98, 4, 4_500, 96),
+    );
+
+    let tuned = HybridOrchestrator::release_gate_matrix_with_telemetry(
+        None,
+        Some(&sidecar_telemetry),
+        None,
+    );
+
+    let baseline_network = baseline
+        .rows
+        .iter()
+        .find(|row| row.family == HybridRequestFamily::Network)
+        .expect("baseline network gate row should exist")
+        .status;
+    let tuned_network = tuned
+        .rows
+        .iter()
+        .find(|row| row.family == HybridRequestFamily::Network)
+        .expect("tuned network gate row should exist")
+        .status;
+
+    let baseline_rank = match baseline_network {
+        HybridReleaseGateStatus::Pass => 2,
+        HybridReleaseGateStatus::Warning => 1,
+        HybridReleaseGateStatus::Block => 0,
+    };
+    let tuned_rank = match tuned_network {
+        HybridReleaseGateStatus::Pass => 2,
+        HybridReleaseGateStatus::Warning => 1,
+        HybridReleaseGateStatus::Block => 0,
+    };
+
+    assert!(tuned_rank <= baseline_rank);
+}
+
+#[test_case]
+fn userspace_abi_report_consistency_invariants_hold() {
+    let report = HybridOrchestrator::userspace_abi_report();
+
+    assert!(report.readiness_score <= 100);
+    assert!(report.attack_surface_budget <= 10);
+    assert!(report.attack_surface_target <= 10);
+    assert_eq!(
+        report.critical_blockers + report.high_blockers + report.medium_blockers,
+        report.blockers.len()
+    );
+    assert_eq!(
+        report.release_ready,
+        report.effective_surface_enabled
+            && report.expose_linux_compat_surface
+            && report.critical_blockers == 0
+            && report.blockers.is_empty()
+    );
+    assert!(!report.next_action.is_empty());
+}
+
+#[test_case]
+fn virtualization_readiness_report_consistency_invariants_hold() {
+    let report = HybridOrchestrator::virtualization_readiness_report();
+
+    assert!(report.readiness_score <= 100);
+    assert!(
+        report.enabled_feature_count + report.fully_disabled_features >= 10,
+        "all virtualization feature scopes should be classified"
+    );
+    assert_eq!(
+        report.can_launch_guests,
+        report.entry_enabled && report.resume_enabled && report.trap_dispatch_enabled
+    );
+    if report.can_launch_guests {
+        assert_eq!(report.core_path_scope, "core-ready");
+    }
+    if report.advanced_ops_ready {
+        assert!(report.snapshot_enabled);
+        assert!(report.dirty_logging_enabled);
+        assert!(report.live_migration_enabled);
+        assert!(report.time_virtualization_enabled);
+        assert_eq!(report.advanced_path_scope, "advanced-ready");
+    }
+}
+
+#[test_case]
+fn readiness_report_embeds_userspace_abi_and_virtualization_snapshots() {
+    let readiness = HybridOrchestrator::readiness_report(None);
+    let userspace = HybridOrchestrator::userspace_abi_report();
+    let virtualization = HybridOrchestrator::virtualization_readiness_report();
+
+    assert_eq!(readiness.userspace_abi.readiness_score, userspace.readiness_score);
+    assert_eq!(readiness.userspace_abi.release_ready, userspace.release_ready);
+    assert_eq!(
+        readiness.virtualization.readiness_score,
+        virtualization.readiness_score
+    );
+    assert_eq!(
+        readiness.virtualization.can_launch_guests,
+        virtualization.can_launch_guests
+    );
+}
+
+#[test_case]
 fn orchestrator_session_persists_sidecar_telemetry_and_tunes_plan() {
     let request = HybridRequest::network(0x6000, 0x100, 0x9000, 0x1000, 52);
     let cfg = SideCarVmConfig::new(31, 2, 256 * 1024 * 1024);
@@ -983,4 +1264,146 @@ fn orchestrator_session_liblinux_recommendation_shrinks_after_failures() {
         .liblinux_telemetry()
         .recommended_batch_size(8, 8);
     assert!(recommended < 8);
+}
+
+#[test_case]
+fn orchestrator_session_sidecar_snapshot_bytes_import_export_roundtrip() {
+    let mut source = HybridOrchestratorSession::new(8);
+    source.record_sidecar_sample(
+        LinuxShimDeviceKind::Network,
+        SideCarTelemetrySample::new(91, 3, 3200, 88),
+    );
+
+    let bytes = source.export_sidecar_telemetry_bytes();
+    let mut target = HybridOrchestratorSession::new(8);
+    assert!(target.import_sidecar_telemetry_bytes(&bytes, 8, 8));
+
+    assert!(target
+        .sidecar_telemetry()
+        .summary_for(LinuxShimDeviceKind::Network)
+        .is_some());
+}
+
+#[test_case]
+fn orchestrator_session_sidecar_fallback_aggressiveness_increases_with_saturation() {
+    let mut session = HybridOrchestratorSession::new(8);
+    session.record_sidecar_sample(
+        LinuxShimDeviceKind::Network,
+        SideCarTelemetrySample::new(22, 0, 800, 10),
+    );
+    let low = session.sidecar_fallback_aggressiveness(LinuxShimDeviceKind::Network);
+
+    session.record_sidecar_sample(
+        LinuxShimDeviceKind::Network,
+        SideCarTelemetrySample::new(95, 4, 4000, 120),
+    );
+    let high = session.sidecar_fallback_aggressiveness(LinuxShimDeviceKind::Network);
+
+    assert!(high > low);
+}
+
+#[test_case]
+fn orchestrator_session_liblinux_family_aware_policy_uses_first_syscall_class() {
+    let mut session = HybridOrchestratorSession::new(8);
+    session.record_liblinux_dispatch_sample(
+        LibLinuxDispatchSample::new(8, 8, 7, 1, 0),
+    );
+    session
+        .liblinux_telemetry()
+        .recommended_batch_size_for_syscall(LinuxSyscall::Write, 8, 8);
+
+    let mut queue = LinuxSyscallQueue::new(8);
+    for id in 1..=4u64 {
+        queue
+            .push(LinuxSyscallRequest::new(id, LinuxSyscall::Ioctl))
+            .expect("queue push should work");
+    }
+
+    session.record_liblinux_dispatch_sample(
+        LibLinuxDispatchSample::new(8, 8, 2, 1, 4),
+    );
+    let records = session.dispatch_liblinux_queue_to_bridge_adaptive(&mut queue, 8);
+    assert!(!records.is_empty());
+
+    let recommended_ioctl = session
+        .liblinux_telemetry()
+        .recommended_batch_size_for_syscall(LinuxSyscall::Ioctl, 8, 8);
+    let recommended_write = session
+        .liblinux_telemetry()
+        .recommended_batch_size_for_syscall(LinuxSyscall::Write, 8, 8);
+    assert!(recommended_ioctl <= recommended_write);
+}
+
+#[test_case]
+fn orchestrator_session_prefers_driverkit_when_sidecar_and_liblinux_are_under_pressure() {
+    let request = HybridRequest::network(0x1000, 0x200, 0x3000, 0x3000, 45);
+    let cfg = SideCarVmConfig::new(3, 2, 128 * 1024 * 1024);
+
+    let mut sidecar_telemetry = SideCarTelemetryStore::new(4);
+    sidecar_telemetry.record(
+        LinuxShimDeviceKind::Network,
+        SideCarTelemetrySample::new(96, 5, 4096, 130),
+    );
+
+    let mut liblinux_telemetry = HybridOrchestratorSession::new(8);
+    liblinux_telemetry.record_liblinux_dispatch_sample_for_syscall(
+        LinuxSyscall::Write,
+        LibLinuxDispatchSample::new(8, 8, 0, 0, 8),
+    );
+
+    let diagnostics = HybridOrchestrator::plan_with_diagnostics_and_dual_telemetry(
+        &request,
+        BackendPreference::SideCarFirst,
+        cfg,
+        Some(&sidecar_telemetry),
+        Some(liblinux_telemetry.liblinux_telemetry()),
+    );
+
+    assert_eq!(
+        diagnostics.attempts.first().map(|attempt| attempt.backend),
+        Some(BackendPreference::DriverKitFirst)
+    );
+    assert!(matches!(diagnostics.selected, Some(HybridExecutionPlan::DriverKit(_))));
+}
+
+#[test_case]
+fn full_context_diagnostics_demote_unhealthy_driverkit_under_pressure() {
+    let request = HybridRequest::network(0x1100, 0x200, 0x3100, 0x3000, 46);
+    let cfg = SideCarVmConfig::new(4, 2, 128 * 1024 * 1024);
+
+    let mut sidecar_telemetry = SideCarTelemetryStore::new(4);
+    sidecar_telemetry.record(
+        LinuxShimDeviceKind::Network,
+        SideCarTelemetrySample::new(96, 5, 4096, 130),
+    );
+
+    let mut liblinux_session = HybridOrchestratorSession::new(8);
+    liblinux_session.record_liblinux_dispatch_sample_for_syscall(
+        LinuxSyscall::Write,
+        LibLinuxDispatchSample::new(8, 8, 0, 0, 8),
+    );
+
+    let health = DriverKitHealthSnapshot {
+        class_count: 1,
+        binding_count: 1,
+        started_count: 0,
+        faulted_count: 2,
+        quarantined_count: 1,
+        dispatch_success_count: 0,
+        dispatch_failure_count: 9,
+    };
+
+    let diagnostics = HybridOrchestrator::plan_with_diagnostics_with_full_context(
+        &request,
+        BackendPreference::SideCarFirst,
+        cfg,
+        Some(&sidecar_telemetry),
+        Some(liblinux_session.liblinux_telemetry()),
+        Some(health),
+    );
+
+    assert_ne!(
+        diagnostics.attempts.first().map(|attempt| attempt.backend),
+        Some(BackendPreference::DriverKitFirst)
+    );
 }

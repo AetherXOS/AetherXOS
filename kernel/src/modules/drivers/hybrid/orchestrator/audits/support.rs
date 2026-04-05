@@ -1,6 +1,8 @@
 use alloc::vec::Vec;
 
 use crate::modules::drivers::hybrid::driverkit::DriverKitHealthSnapshot;
+use crate::modules::drivers::hybrid::liblinux::LibLinuxTelemetryStore;
+use crate::modules::drivers::hybrid::sidecar::SideCarTelemetryStore;
 
 use super::shared::{
     classify_confidence, classify_performance, classify_security, confidence_cutoffs_for_scores,
@@ -12,17 +14,74 @@ use crate::modules::drivers::hybrid::orchestrator::{
     HybridRequest,
     HybridBackendSupport,
 };
-use super::super::routing::fallback_order;
+use super::super::routing::{
+    adaptive_fallback_order_with_health,
+    fallback_order,
+};
+
+fn fallback_rank_delta(order: [BackendPreference; 4], backend: BackendPreference) -> i16 {
+    match order.iter().position(|candidate| *candidate == backend).unwrap_or(3) {
+        0 => 3,
+        1 => 1,
+        2 => -1,
+        _ => -3,
+    }
+}
+
+fn telemetry_adjusted_support_score(
+    backend: BackendPreference,
+    base_score: u8,
+    request: &HybridRequest,
+    driverkit_health: Option<DriverKitHealthSnapshot>,
+    sidecar_telemetry: Option<&SideCarTelemetryStore>,
+    liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+) -> u8 {
+    let order = adaptive_fallback_order_with_health(
+        BackendPreference::SideCarFirst,
+        request.kind,
+        sidecar_telemetry,
+        liblinux_telemetry,
+        driverkit_health,
+    );
+    (base_score as i16 + fallback_rank_delta(order, backend)).clamp(0, 100) as u8
+}
 
 pub fn support_report(
     request: &HybridRequest,
     driverkit_health: Option<DriverKitHealthSnapshot>,
 ) -> HybridSupportReport {
-    let order = fallback_order(BackendPreference::SideCarFirst);
+    support_report_with_telemetry(request, driverkit_health, None, None)
+}
+
+pub fn support_report_with_telemetry(
+    request: &HybridRequest,
+    driverkit_health: Option<DriverKitHealthSnapshot>,
+    sidecar_telemetry: Option<&SideCarTelemetryStore>,
+    liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+) -> HybridSupportReport {
+    let order = if sidecar_telemetry.is_some() || liblinux_telemetry.is_some() {
+        adaptive_fallback_order_with_health(
+            BackendPreference::SideCarFirst,
+            request.kind,
+            sidecar_telemetry,
+            liblinux_telemetry,
+            driverkit_health,
+        )
+    } else {
+        fallback_order(BackendPreference::SideCarFirst)
+    };
     let mut raw = Vec::new();
 
     for backend in order {
         let (score, degraded, reason) = score_backend_support_raw(request, backend, driverkit_health);
+        let score = telemetry_adjusted_support_score(
+            backend,
+            score,
+            request,
+            driverkit_health,
+            sidecar_telemetry,
+            liblinux_telemetry,
+        );
         raw.push((backend, score, degraded, reason));
     }
 
@@ -74,7 +133,21 @@ pub fn runtime_assessment(
     request: &HybridRequest,
     driverkit_health: Option<DriverKitHealthSnapshot>,
 ) -> HybridRuntimeAssessmentReport {
-    let support = support_report(request, driverkit_health);
+    runtime_assessment_with_telemetry(request, driverkit_health, None, None)
+}
+
+pub fn runtime_assessment_with_telemetry(
+    request: &HybridRequest,
+    driverkit_health: Option<DriverKitHealthSnapshot>,
+    sidecar_telemetry: Option<&SideCarTelemetryStore>,
+    liblinux_telemetry: Option<&LibLinuxTelemetryStore>,
+) -> HybridRuntimeAssessmentReport {
+    let support = support_report_with_telemetry(
+        request,
+        driverkit_health,
+        sidecar_telemetry,
+        liblinux_telemetry,
+    );
     let mut assessments = Vec::new();
     let scores = support
         .entries

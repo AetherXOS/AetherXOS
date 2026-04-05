@@ -255,6 +255,9 @@ pub struct LibLinuxTelemetrySummary {
 pub struct LibLinuxTelemetryStore {
     max_samples: usize,
     samples: Vec<LibLinuxDispatchSample>,
+    data_path_samples: Vec<LibLinuxDispatchSample>,
+    control_path_samples: Vec<LibLinuxDispatchSample>,
+    memory_map_samples: Vec<LibLinuxDispatchSample>,
 }
 
 impl LibLinuxTelemetryStore {
@@ -262,6 +265,9 @@ impl LibLinuxTelemetryStore {
         Self {
             max_samples: max_samples.max(8),
             samples: Vec::new(),
+            data_path_samples: Vec::new(),
+            control_path_samples: Vec::new(),
+            memory_map_samples: Vec::new(),
         }
     }
 
@@ -272,33 +278,25 @@ impl LibLinuxTelemetryStore {
         self.samples.push(sample);
     }
 
+    pub fn record_dispatch_sample_for_syscall(
+        &mut self,
+        syscall: LinuxSyscall,
+        sample: LibLinuxDispatchSample,
+    ) {
+        self.record_dispatch_sample(sample);
+        let family_samples = match classify_syscall_semantics(syscall) {
+            LibLinuxSemanticClass::DataPath => &mut self.data_path_samples,
+            LibLinuxSemanticClass::ControlPath => &mut self.control_path_samples,
+            LibLinuxSemanticClass::MemoryMap => &mut self.memory_map_samples,
+        };
+        if family_samples.len() >= self.max_samples {
+            family_samples.remove(0);
+        }
+        family_samples.push(sample);
+    }
+
     pub fn summary(&self) -> Option<LibLinuxTelemetrySummary> {
-        if self.samples.is_empty() {
-            return None;
-        }
-
-        let mut queue_sum = 0usize;
-        let mut batch_sum = 0usize;
-        let mut total_success = 0usize;
-        let mut total_partial = 0usize;
-        let mut total_failure = 0usize;
-
-        for sample in &self.samples {
-            queue_sum += sample.queue_depth;
-            batch_sum += sample.batch_size;
-            total_success += sample.success;
-            total_partial += sample.partial;
-            total_failure += sample.failure;
-        }
-
-        Some(LibLinuxTelemetrySummary {
-            sample_count: self.samples.len(),
-            avg_queue_depth: queue_sum / self.samples.len(),
-            avg_batch_size: batch_sum / self.samples.len(),
-            total_success,
-            total_partial,
-            total_failure,
-        })
+        summarize_dispatch_samples(&self.samples)
     }
 
     pub fn recommended_batch_size(&self, queue_depth: usize, requested_max: usize) -> usize {
@@ -309,26 +307,133 @@ impl LibLinuxTelemetryStore {
             return queue_target;
         };
 
+        recommended_batch_size_from_summary(summary, queue_target, requested_max)
+    }
+
+    pub fn recommended_batch_size_for_syscall(
+        &self,
+        syscall: LinuxSyscall,
+        queue_depth: usize,
+        requested_max: usize,
+    ) -> usize {
+        let requested_max = requested_max.max(1);
+        let queue_target = queue_depth.max(1).min(requested_max);
+
+        let family_summary = match classify_syscall_semantics(syscall) {
+            LibLinuxSemanticClass::DataPath => summarize_dispatch_samples(&self.data_path_samples),
+            LibLinuxSemanticClass::ControlPath => {
+                summarize_dispatch_samples(&self.control_path_samples)
+            }
+            LibLinuxSemanticClass::MemoryMap => summarize_dispatch_samples(&self.memory_map_samples),
+        };
+
+        if let Some(summary) = family_summary {
+            return recommended_batch_size_from_summary(summary, queue_target, requested_max);
+        }
+
+        self.recommended_batch_size(queue_depth, requested_max)
+    }
+
+    pub fn recommended_batch_size_for_request_kind(
+        &self,
+        kind: super::HybridRequestKind,
+        queue_depth: usize,
+        requested_max: usize,
+    ) -> usize {
+        let requested_max = requested_max.max(1);
+        let queue_target = queue_depth.max(1).min(requested_max);
+        let family_summary = match semantic_class_for_request_kind(kind) {
+            LibLinuxSemanticClass::DataPath => summarize_dispatch_samples(&self.data_path_samples),
+            LibLinuxSemanticClass::ControlPath => {
+                summarize_dispatch_samples(&self.control_path_samples)
+            }
+            LibLinuxSemanticClass::MemoryMap => summarize_dispatch_samples(&self.memory_map_samples),
+        };
+
+        family_summary
+            .map(|summary| recommended_batch_size_from_summary(summary, queue_target, requested_max))
+            .unwrap_or_else(|| self.recommended_batch_size(queue_depth, requested_max))
+    }
+
+    pub fn family_failure_pressure_for_request_kind(&self, kind: super::HybridRequestKind) -> u8 {
+        let summary = match semantic_class_for_request_kind(kind) {
+            LibLinuxSemanticClass::DataPath => summarize_dispatch_samples(&self.data_path_samples),
+            LibLinuxSemanticClass::ControlPath => {
+                summarize_dispatch_samples(&self.control_path_samples)
+            }
+            LibLinuxSemanticClass::MemoryMap => summarize_dispatch_samples(&self.memory_map_samples),
+        };
+
+        let Some(summary) = summary else {
+            return 0;
+        };
+
         let observed_total = summary
             .total_success
             .saturating_add(summary.total_partial)
             .saturating_add(summary.total_failure)
             .max(1);
-        let failure_ratio_pct = (summary.total_failure * 100) / observed_total;
-        let partial_ratio_pct = (summary.total_partial * 100) / observed_total;
-
-        let mut suggested = queue_target.min(summary.avg_batch_size.max(1));
-
-        if failure_ratio_pct >= 25 {
-            suggested = suggested.saturating_sub(2).max(1);
-        } else if partial_ratio_pct >= 35 {
-            suggested = suggested.saturating_sub(1).max(1);
-        } else if summary.avg_queue_depth >= summary.avg_batch_size.saturating_mul(2) {
-            suggested = suggested.saturating_add(1).min(requested_max);
-        }
-
-        suggested.clamp(1, requested_max)
+        ((summary.total_failure * 100) / observed_total) as u8
     }
+
+    pub fn family_pressure_is_high(&self, kind: super::HybridRequestKind, threshold_pct: u8) -> bool {
+        self.family_failure_pressure_for_request_kind(kind) >= threshold_pct
+    }
+}
+
+fn summarize_dispatch_samples(samples: &[LibLinuxDispatchSample]) -> Option<LibLinuxTelemetrySummary> {
+    if samples.is_empty() {
+        return None;
+    }
+
+    let mut queue_sum = 0usize;
+    let mut batch_sum = 0usize;
+    let mut total_success = 0usize;
+    let mut total_partial = 0usize;
+    let mut total_failure = 0usize;
+
+    for sample in samples {
+        queue_sum += sample.queue_depth;
+        batch_sum += sample.batch_size;
+        total_success += sample.success;
+        total_partial += sample.partial;
+        total_failure += sample.failure;
+    }
+
+    Some(LibLinuxTelemetrySummary {
+        sample_count: samples.len(),
+        avg_queue_depth: queue_sum / samples.len(),
+        avg_batch_size: batch_sum / samples.len(),
+        total_success,
+        total_partial,
+        total_failure,
+    })
+}
+
+fn recommended_batch_size_from_summary(
+    summary: LibLinuxTelemetrySummary,
+    queue_target: usize,
+    requested_max: usize,
+) -> usize {
+    let observed_total = summary
+        .total_success
+        .saturating_add(summary.total_partial)
+        .saturating_add(summary.total_failure)
+        .max(1);
+    let failure_ratio_pct = (summary.total_failure * 100) / observed_total;
+    let partial_ratio_pct = (summary.total_partial * 100) / observed_total;
+
+    let mut suggested = queue_target.min(summary.avg_batch_size.max(1));
+
+    if failure_ratio_pct >= 25 {
+        suggested = suggested.saturating_sub(2).max(1);
+    } else if partial_ratio_pct >= 35 {
+        suggested = suggested.saturating_sub(1).max(1);
+    } else if summary.avg_queue_depth >= summary.avg_batch_size.saturating_mul(2) {
+        suggested = suggested.saturating_add(1).min(requested_max);
+    }
+
+    suggested.clamp(1, requested_max)
 }
 
 pub fn classify_syscall_semantics(syscall: LinuxSyscall) -> LibLinuxSemanticClass {
@@ -344,6 +449,40 @@ pub fn classify_syscall_semantics(syscall: LinuxSyscall) -> LibLinuxSemanticClas
         | LinuxSyscall::Poll
         | LinuxSyscall::EpollWait
         | LinuxSyscall::Fsync => LibLinuxSemanticClass::DataPath,
+    }
+}
+
+pub fn semantic_class_for_request_kind(kind: super::HybridRequestKind) -> LibLinuxSemanticClass {
+    match kind {
+        super::HybridRequestKind::Network
+        | super::HybridRequestKind::Ethernet
+        | super::HybridRequestKind::WiFi
+        | super::HybridRequestKind::Bluetooth
+        | super::HybridRequestKind::Nfc
+        | super::HybridRequestKind::Modem
+        | super::HybridRequestKind::Can
+        | super::HybridRequestKind::Gpu
+        | super::HybridRequestKind::Camera
+        | super::HybridRequestKind::Audio
+        | super::HybridRequestKind::Display
+        | super::HybridRequestKind::Touch
+        | super::HybridRequestKind::Gamepad
+        | super::HybridRequestKind::Input
+        | super::HybridRequestKind::Sensor
+        | super::HybridRequestKind::SensorHub
+        | super::HybridRequestKind::Rtc => LibLinuxSemanticClass::DataPath,
+        super::HybridRequestKind::Block
+        | super::HybridRequestKind::Storage
+        | super::HybridRequestKind::Nvme
+        | super::HybridRequestKind::Printer
+        | super::HybridRequestKind::Usb
+        | super::HybridRequestKind::Serial => LibLinuxSemanticClass::MemoryMap,
+        super::HybridRequestKind::Tpm
+        | super::HybridRequestKind::SmartCard
+        | super::HybridRequestKind::UserModeDevice
+        | super::HybridRequestKind::Dock
+        | super::HybridRequestKind::Firmware
+        | super::HybridRequestKind::WindowsPe => LibLinuxSemanticClass::ControlPath,
     }
 }
 
@@ -590,5 +729,165 @@ mod tests {
 
         let recommended = telemetry.recommended_batch_size(12, 12);
         assert!(recommended >= 5);
+    }
+
+    #[test_case]
+    fn liblinux_family_policy_uses_control_path_history_for_ioctl() {
+        let mut telemetry = LibLinuxTelemetryStore::new(16);
+        telemetry.record_dispatch_sample_for_syscall(
+            LinuxSyscall::Ioctl,
+            LibLinuxDispatchSample::new(8, 8, 2, 1, 4),
+        );
+        telemetry.record_dispatch_sample_for_syscall(
+            LinuxSyscall::Write,
+            LibLinuxDispatchSample::new(8, 8, 7, 1, 0),
+        );
+
+        let control_recommended = telemetry.recommended_batch_size_for_syscall(LinuxSyscall::Ioctl, 8, 8);
+        let data_recommended = telemetry.recommended_batch_size_for_syscall(LinuxSyscall::Write, 8, 8);
+        assert!(control_recommended < data_recommended);
+    }
+
+    #[test_case]
+    fn conformance_report_class_counts_partition_total_requests() {
+        let requests = vec![
+            LinuxSyscallRequest::new(11, LinuxSyscall::Write),
+            LinuxSyscallRequest::new(12, LinuxSyscall::Ioctl),
+            LinuxSyscallRequest::new(13, LinuxSyscall::Mmap),
+            LinuxSyscallRequest::new(14, LinuxSyscall::RecvMsg),
+            LinuxSyscallRequest::new(15, LinuxSyscall::OpenAt),
+        ];
+
+        let report = conformance_report_for_requests(&requests);
+        assert_eq!(
+            report.data_ops + report.control_ops + report.memory_mapping_ops,
+            report.total_requests
+        );
+    }
+
+    #[test_case]
+    fn syscall_semantic_classification_is_exhaustive_and_stable() {
+        let all = [
+            LinuxSyscall::OpenAt,
+            LinuxSyscall::Read,
+            LinuxSyscall::Write,
+            LinuxSyscall::Ioctl,
+            LinuxSyscall::Mmap,
+            LinuxSyscall::Munmap,
+            LinuxSyscall::Socket,
+            LinuxSyscall::SendMsg,
+            LinuxSyscall::RecvMsg,
+            LinuxSyscall::Poll,
+            LinuxSyscall::EpollWait,
+            LinuxSyscall::Fsync,
+        ];
+
+        let mut data = 0usize;
+        let mut control = 0usize;
+        let mut memory = 0usize;
+        for syscall in all {
+            match classify_syscall_semantics(syscall) {
+                LibLinuxSemanticClass::DataPath => data += 1,
+                LibLinuxSemanticClass::ControlPath => control += 1,
+                LibLinuxSemanticClass::MemoryMap => memory += 1,
+            }
+        }
+
+        assert_eq!(data + control + memory, 12);
+        assert!(data >= 4);
+        assert!(control >= 4);
+        assert_eq!(memory, 2);
+    }
+
+    fn risk_rank(risk: LibLinuxConformanceRisk) -> u8 {
+        match risk {
+            LibLinuxConformanceRisk::Low => 0,
+            LibLinuxConformanceRisk::Medium => 1,
+            LibLinuxConformanceRisk::High => 2,
+        }
+    }
+
+    #[test_case]
+    fn conformance_report_is_order_invariant_for_same_requests() {
+        let a = vec![
+            LinuxSyscallRequest::new(21, LinuxSyscall::Ioctl)
+                .with_policy(ZeroCopyIoPolicy::Required),
+            LinuxSyscallRequest::new(22, LinuxSyscall::Write)
+                .with_policy(ZeroCopyIoPolicy::Required)
+                .with_payload(vec![SharedBufferDescriptor::new(2, 128)]),
+            LinuxSyscallRequest::new(23, LinuxSyscall::Mmap)
+                .with_policy(ZeroCopyIoPolicy::Required),
+            LinuxSyscallRequest::new(24, LinuxSyscall::RecvMsg)
+                .with_policy(ZeroCopyIoPolicy::Preferred)
+                .with_payload(vec![SharedBufferDescriptor::new(3, 64)]),
+        ];
+        let b = vec![
+            a[3].clone(),
+            a[1].clone(),
+            a[0].clone(),
+            a[2].clone(),
+        ];
+
+        let report_a = conformance_report_for_requests(&a);
+        let report_b = conformance_report_for_requests(&b);
+
+        assert_eq!(report_a.total_requests, report_b.total_requests);
+        assert_eq!(report_a.zero_copy_required, report_b.zero_copy_required);
+        assert_eq!(report_a.zero_copy_eligible, report_b.zero_copy_eligible);
+        assert_eq!(report_a.memory_mapping_ops, report_b.memory_mapping_ops);
+        assert_eq!(report_a.control_ops, report_b.control_ops);
+        assert_eq!(report_a.data_ops, report_b.data_ops);
+        assert_eq!(report_a.high_risk_ops, report_b.high_risk_ops);
+        assert_eq!(report_a.supported_ratio_pct, report_b.supported_ratio_pct);
+        assert_eq!(report_a.risk, report_b.risk);
+    }
+
+    #[test_case]
+    fn conformance_risk_is_monotonic_when_adding_payloadless_required_control_ops() {
+        let baseline = vec![
+            LinuxSyscallRequest::new(31, LinuxSyscall::Write)
+                .with_policy(ZeroCopyIoPolicy::Required)
+                .with_payload(vec![SharedBufferDescriptor::new(1, 256)]),
+            LinuxSyscallRequest::new(32, LinuxSyscall::RecvMsg)
+                .with_policy(ZeroCopyIoPolicy::Preferred)
+                .with_payload(vec![SharedBufferDescriptor::new(2, 128)]),
+        ];
+        let mut stressed = baseline.clone();
+        stressed.push(
+            LinuxSyscallRequest::new(33, LinuxSyscall::Ioctl)
+                .with_policy(ZeroCopyIoPolicy::Required),
+        );
+        stressed.push(
+            LinuxSyscallRequest::new(34, LinuxSyscall::Mmap)
+                .with_policy(ZeroCopyIoPolicy::Required),
+        );
+
+        let base_report = conformance_report_for_requests(&baseline);
+        let stressed_report = conformance_report_for_requests(&stressed);
+
+        assert!(stressed_report.high_risk_ops >= base_report.high_risk_ops);
+        assert!(risk_rank(stressed_report.risk) >= risk_rank(base_report.risk));
+    }
+
+    #[test_case]
+    fn syscall_to_io_kind_contract_matrix_is_stable() {
+        let matrix = [
+            (LinuxSyscall::OpenAt, LinuxIoRequestKind::Control),
+            (LinuxSyscall::Read, LinuxIoRequestKind::NetRx),
+            (LinuxSyscall::Write, LinuxIoRequestKind::NetTx),
+            (LinuxSyscall::Ioctl, LinuxIoRequestKind::Control),
+            (LinuxSyscall::Mmap, LinuxIoRequestKind::BlockRead),
+            (LinuxSyscall::Munmap, LinuxIoRequestKind::BlockWrite),
+            (LinuxSyscall::Socket, LinuxIoRequestKind::Control),
+            (LinuxSyscall::SendMsg, LinuxIoRequestKind::NetTx),
+            (LinuxSyscall::RecvMsg, LinuxIoRequestKind::NetRx),
+            (LinuxSyscall::Poll, LinuxIoRequestKind::NetRx),
+            (LinuxSyscall::EpollWait, LinuxIoRequestKind::NetRx),
+            (LinuxSyscall::Fsync, LinuxIoRequestKind::NetTx),
+        ];
+
+        for (syscall, expected_kind) in matrix {
+            assert_eq!(map_syscall_to_io_kind(syscall), expected_kind);
+        }
     }
 }
