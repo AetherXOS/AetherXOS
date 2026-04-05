@@ -1,6 +1,6 @@
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_time"))]
 use crate::kernel::syscalls::linux_shim::util::read_user_pod;
-#[cfg(all(not(feature = "linux_compat"), feature = "posix_time"))]
+#[cfg(not(feature = "linux_compat"))]
 use crate::kernel::syscalls::linux_errno;
 #[cfg(not(feature = "linux_compat"))]
 use crate::kernel::syscalls::linux_shim::util::write_user_pod;
@@ -29,9 +29,10 @@ pub(crate) fn sys_linux_clock_gettime(clock_id: usize, ts_ptr: usize) -> usize {
             tv_sec: spec.sec,
             tv_nsec: spec.nsec as i64,
         };
-        write_user_pod(ts_ptr, &src)
-            .map(|_| 0usize)
-            .unwrap_or_else(|err| err)
+        match write_user_pod(ts_ptr, &src) {
+            Ok(_) => 0usize,
+            Err(_) => linux_errno(crate::modules::posix_consts::errno::EFAULT),
+        }
     }
     #[cfg(not(feature = "posix_time"))]
     {
@@ -40,9 +41,10 @@ pub(crate) fn sys_linux_clock_gettime(clock_id: usize, ts_ptr: usize) -> usize {
             tv_sec: 0,
             tv_nsec: 0,
         };
-        write_user_pod(ts_ptr, &src)
-            .map(|_| 0usize)
-            .unwrap_or_else(|err| err)
+        match write_user_pod(ts_ptr, &src) {
+            Ok(_) => 0usize,
+            Err(_) => linux_errno(crate::modules::posix_consts::errno::EFAULT),
+        }
     }
 }
 

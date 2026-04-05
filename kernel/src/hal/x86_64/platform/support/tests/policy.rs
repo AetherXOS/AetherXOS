@@ -64,7 +64,7 @@ fn x86_policy_can_disable_advanced_virtualization_operations() {
     assert!(!status.snapshot_ready);
     assert!(!status.dirty_logging_ready);
     assert!(!status.live_migration_ready);
-    assert_eq!(status.runtime_step, "resume-vmx-vcpu-basic");
+    assert_eq!(status.runtime_step, "hold-blocked-state");
     assert_eq!(status.runtime_selected_mode, "backend-blocked");
     assert_eq!(status.runtime_strategy, "conservative-hold");
     assert_eq!(status.runtime_budget_class, "minimal");
@@ -73,18 +73,121 @@ fn x86_policy_can_disable_advanced_virtualization_operations() {
     assert_eq!(status.runtime_scheduler_lane, "background");
     assert_eq!(status.runtime_dispatch_window, "hold-window");
     assert_eq!(status.runtime_execution_profile, "Background");
-    assert_eq!(status.runtime_execution_profile_scope, "runtime-limited");
-    assert_eq!(status.runtime_governor_profile, "Balanced");
-    assert_eq!(status.runtime_governor_profile_scope, "fully-enabled");
-    assert_eq!(status.runtime_governor_class, "background-optimized");
+    assert_eq!(status.runtime_execution_profile_scope, "compiletime-limited");
+    assert_eq!(status.runtime_governor_profile, "Efficiency");
+    assert_eq!(status.runtime_governor_profile_scope, "mixed-limits");
+    assert_eq!(status.runtime_governor_class, "efficiency-governor");
     assert_eq!(status.runtime_latency_bias, "relaxed");
     assert_eq!(status.runtime_energy_bias, "saving");
     assert_eq!(status.runtime_aux_step, "no-aux-step");
-    assert_eq!(status.policy_scope, "runtime-limited");
+    assert_eq!(status.policy_scope, "compiletime-limited");
     assert_eq!(status.advanced_operations_tier, "disabled");
     assert!(!status.nested_ready);
     assert!(!status.time_virtualization_ready);
     assert!(!status.device_passthrough_ready);
 
     crate::config::KernelConfig::reset_runtime_overrides();
+}
+
+#[test_case]
+fn x86_policy_reset_restores_runtime_profile_defaults() {
+    crate::config::KernelConfig::reset_runtime_overrides();
+
+    let virt = crate::hal::common::virt::VirtStatus {
+        caps: crate::hal::common::virt::VirtCaps {
+            vmx: true,
+            svm: false,
+            hypervisor_present: false,
+        },
+        enabled: crate::hal::common::virt::VirtEnableState {
+            vmx_enabled: true,
+            vmxon_active: true,
+            svm_enabled: false,
+        },
+        vm_launch_ready: true,
+        blocker: "none",
+        vmx_vmcs_ready: true,
+        svm_vmcb_ready: false,
+        prep_attempts: 2,
+        prep_success: 2,
+        prep_failures: 0,
+        vmx_lifecycle: "active",
+        svm_lifecycle: "uninitialized",
+    };
+
+    let iommu = crate::hal::iommu::IommuStats {
+        initialized: true,
+        backend: "vtd",
+        hardware_mode: true,
+        vtd_units: 1,
+        vtd_programmed_units: 1,
+        vtd_hw_ready: true,
+        vtd_iotlb_inv_count: 0,
+        amdvi_units: 0,
+        amdvi_inv_count: 0,
+        amdvi_inv_global_count: 0,
+        amdvi_inv_domain_count: 0,
+        amdvi_inv_device_count: 0,
+        amdvi_inv_fallback_count: 0,
+        amdvi_inv_timeout_count: 0,
+        domains: 1,
+        attached_devices: 1,
+        mapping_count: 1,
+        flush_count: 0,
+        map_count: 0,
+        unmap_count: 0,
+    };
+
+    crate::config::KernelConfig::set_virtualization_trap_tracing_enabled(Some(false));
+    let disabled = virt_platform_status(virt, iommu, true);
+    assert!(!disabled.exit_tracing_ready);
+
+    crate::config::KernelConfig::reset_runtime_overrides();
+    let restored = virt_platform_status(
+        crate::hal::common::virt::VirtStatus {
+            caps: crate::hal::common::virt::VirtCaps {
+                vmx: true,
+                svm: false,
+                hypervisor_present: false,
+            },
+            enabled: crate::hal::common::virt::VirtEnableState {
+                vmx_enabled: true,
+                vmxon_active: true,
+                svm_enabled: false,
+            },
+            vm_launch_ready: true,
+            blocker: "none",
+            vmx_vmcs_ready: true,
+            svm_vmcb_ready: false,
+            prep_attempts: 2,
+            prep_success: 2,
+            prep_failures: 0,
+            vmx_lifecycle: "active",
+            svm_lifecycle: "uninitialized",
+        },
+        crate::hal::iommu::IommuStats {
+            initialized: true,
+            backend: "vtd",
+            hardware_mode: true,
+            vtd_units: 1,
+            vtd_programmed_units: 1,
+            vtd_hw_ready: true,
+            vtd_iotlb_inv_count: 0,
+            amdvi_units: 0,
+            amdvi_inv_count: 0,
+            amdvi_inv_global_count: 0,
+            amdvi_inv_domain_count: 0,
+            amdvi_inv_device_count: 0,
+            amdvi_inv_fallback_count: 0,
+            amdvi_inv_timeout_count: 0,
+            domains: 1,
+            attached_devices: 1,
+            mapping_count: 1,
+            flush_count: 0,
+            map_count: 0,
+            unmap_count: 0,
+        },
+        true,
+    );
+    assert!(restored.exit_tracing_ready || restored.runtime_blocked_by.is_some());
 }

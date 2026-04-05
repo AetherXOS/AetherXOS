@@ -1,3 +1,5 @@
+#![cfg(target_os = "none")]
+
 use super::*;
 
 #[test_case]

@@ -5,6 +5,7 @@
 // Remaining blockers: remap_file_pages (deprecated), clone namespaces, statx extended attrs.
 
 use crate::cli::GlibcAction;
+use crate::commands::validation::reports::glibc as glibc_reports;
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -35,18 +36,18 @@ pub struct GlibcSyscall {
 }
 
 /// Single syscall definition for inline data
-struct SyscallDef {
-    name: &'static str,
-    family: &'static str,
-    status: SyscallStatus,
-    location: &'static str,
-    issues: &'static [&'static str],
-    tests: &'static [&'static str],
-    dependencies: &'static [&'static str],
+pub(super) struct SyscallDef {
+    pub(super) name: &'static str,
+    pub(super) family: &'static str,
+    pub(super) status: SyscallStatus,
+    pub(super) location: &'static str,
+    pub(super) issues: &'static [&'static str],
+    pub(super) tests: &'static [&'static str],
+    pub(super) dependencies: &'static [&'static str],
 }
 
 /// Static inventory of all 50 critical glibc syscalls
-fn get_glibc_inventory() -> Vec<SyscallDef> {
+pub(super) fn get_glibc_inventory() -> Vec<SyscallDef> {
     vec![
         // CRITICAL_FILE_IO (12)
         SyscallDef {
@@ -425,8 +426,9 @@ pub fn execute(action: &GlibcAction) -> Result<()> {
         } => {
             execute_closure_gate(*quick, *strict, family.as_deref(), format, out)?;
         }
-        GlibcAction::Scorecard { format, out } => {
-            execute_scorecard(format, out)?;
+        GlibcAction::Scorecard { format, out } => glibc_reports::execute_scorecard(format, out)?,
+        GlibcAction::CompatibilitySplit { strict } => {
+            glibc_reports::execute_compatibility_split(*strict)?;
         }
     };
     Ok(())
@@ -522,75 +524,11 @@ fn execute_closure_gate(
     Ok(())
 }
 
-fn execute_scorecard(_format: &str, out: &Option<String>) -> Result<()> {
-    let inventory = get_glibc_inventory();
-    let mut by_family: HashMap<String, (usize, usize, usize)> = HashMap::new();
-    let mut total_full = 0;
-    let mut total_partial = 0;
-    let mut total_stub = 0;
-
-    for item in &inventory {
-        let entry = by_family
-            .entry(item.family.to_string())
-            .or_insert((0, 0, 0));
-        match item.status {
-            SyscallStatus::Full => {
-                entry.0 += 1;
-                total_full += 1;
-            }
-            SyscallStatus::Partial => {
-                entry.1 += 1;
-                total_partial += 1;
-            }
-            SyscallStatus::Stub => {
-                entry.2 += 1;
-                total_stub += 1;
-            }
-        }
-    }
-
-    let scorecard = GlibcScorecard {
-        total_syscalls: inventory.len(),
-        full: total_full,
-        partial: total_partial,
-        stub: total_stub,
-        completion_percent: (total_full as f64 / inventory.len() as f64 * 100.0) as u32,
-        by_family,
-        blockers: vec![
-            "remap_file_pages: Deprecated (Linux 5.6+); unimplemented".to_string(),
-            "clone CLONE_NEW* flags: Container isolation not supported".to_string(),
-            "statx extended attributes: Only basic STATX_BASIC_STATS supported".to_string(),
-        ],
-    };
-
-    let output = serde_json::to_string_pretty(&scorecard)?;
-
-    if let Some(path) = out {
-        fs::write(path, &output)?;
-        eprintln!("✓ Glibc scorecard written to {}", path);
-    } else {
-        println!("{}", output);
-    }
-
-    Ok(())
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 struct ClosureTestResult {
     family: String,
     passed: usize,
     failed: usize,
-    blockers: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct GlibcScorecard {
-    total_syscalls: usize,
-    full: usize,
-    partial: usize,
-    stub: usize,
-    completion_percent: u32,
-    by_family: HashMap<String, (usize, usize, usize)>,
     blockers: Vec<String>,
 }
 

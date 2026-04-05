@@ -33,17 +33,7 @@ const PS2_CMD_PORT1_TEST: u8 = 0xAB;
 
 /// Keyboard commands (sent to data port).
 const KB_CMD_SET_LEDS: u8 = 0xED;
-const KB_CMD_ECHO: u8 = 0xEE;
-const KB_CMD_SCANCODE_SET: u8 = 0xF0;
-const KB_CMD_IDENTIFY: u8 = 0xF2;
 const KB_CMD_ENABLE_SCANNING: u8 = 0xF4;
-const KB_CMD_DISABLE_SCANNING: u8 = 0xF5;
-const KB_CMD_RESET: u8 = 0xFF;
-
-/// Keyboard responses.
-const KB_ACK: u8 = 0xFA;
-const KB_RESEND: u8 = 0xFE;
-const KB_SELF_TEST_PASS: u8 = 0xAA;
 
 // ─── Key Event Types ────────────────────────────────────────────────
 
@@ -188,14 +178,18 @@ static EXTENDED_KEY: AtomicBool = AtomicBool::new(false);
 #[inline]
 unsafe fn inb(port: u16) -> u8 {
     let val: u8;
-    core::arch::asm!("in al, dx", out("al") val, in("dx") port, options(nomem, nostack));
+    unsafe {
+        core::arch::asm!("in al, dx", out("al") val, in("dx") port, options(nomem, nostack));
+    }
     val
 }
 
 #[cfg(target_arch = "x86_64")]
 #[inline]
 unsafe fn outb(port: u16, val: u8) {
-    core::arch::asm!("out dx, al", in("al") val, in("dx") port, options(nomem, nostack));
+    unsafe {
+        core::arch::asm!("out dx, al", in("al") val, in("dx") port, options(nomem, nostack));
+    }
 }
 
 #[cfg(target_arch = "x86_64")]

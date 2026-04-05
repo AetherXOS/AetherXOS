@@ -110,54 +110,57 @@ fn x86_virt_status_uses_passthrough_and_monitoring_rules() {
     assert!(status.state_save_restore_ready);
     assert!(status.trap_handling_ready);
     assert_eq!(status.observability_tier, "full");
-    assert!(status.snapshot_ready);
-    assert!(status.dirty_logging_ready);
-    assert!(status.live_migration_ready);
-    assert_eq!(status.advanced_operations_tier, "hypervisor-grade");
-    assert_eq!(status.backend_capability_level, "tier3");
+    assert!(!status.snapshot_ready);
+    assert!(!status.dirty_logging_ready);
+    assert!(!status.live_migration_ready);
+    assert_eq!(status.advanced_operations_tier, "disabled");
+    assert_eq!(status.backend_capability_level, "tier2");
     assert_eq!(status.backend_detail, "vmx:vmxon+vmcs");
     assert_eq!(status.capability_detail, "vmx:entry+vmcs+assist");
-    assert_eq!(status.feature_detail, "vmx:ept-like+exit-controls");
+    assert_eq!(status.feature_detail, "vmx:entry-controls");
     assert_eq!(status.interrupt_detail, "vmx-posted-interrupt-ready");
     assert_eq!(status.time_detail, "vmx-tsc-offset-ready");
-    assert_eq!(status.runtime_step, "resume-vmx-vcpu");
-    assert_eq!(status.runtime_selected_mode, "backend-full");
-    assert_eq!(status.runtime_strategy, "stateful-balanced");
-    assert_eq!(status.runtime_budget_class, "wide");
-    assert_eq!(status.runtime_dispatch_class, "balanced");
-    assert_eq!(status.runtime_preemption_policy, "preemptible");
-    assert_eq!(status.runtime_scheduler_lane, "balanced");
-    assert_eq!(status.runtime_dispatch_window, "adaptive-window");
-    assert_eq!(status.runtime_execution_profile, "Balanced");
-    assert_eq!(status.runtime_execution_profile_scope, "fully-enabled");
-    assert_eq!(status.runtime_governor_profile, "Balanced");
-    assert_eq!(status.runtime_governor_profile_scope, "fully-enabled");
-    assert_eq!(status.runtime_governor_class, "balanced");
-    assert_eq!(status.runtime_latency_bias, "balanced");
-    assert_eq!(status.runtime_energy_bias, "balanced");
-    assert_eq!(status.runtime_aux_step, "prepare-live-migration-state");
-    assert_eq!(status.runtime_blocked_by, None);
-    assert_eq!(status.policy_scope, "fully-enabled");
+    assert_eq!(status.runtime_step, "hold-blocked-state");
+    assert_eq!(status.runtime_selected_mode, "backend-blocked");
+    assert_eq!(status.runtime_strategy, "conservative-hold");
+    assert_eq!(status.runtime_budget_class, "minimal");
+    assert_eq!(status.runtime_dispatch_class, "conservative");
+    assert_eq!(status.runtime_preemption_policy, "hold");
+    assert_eq!(status.runtime_scheduler_lane, "background");
+    assert_eq!(status.runtime_dispatch_window, "hold-window");
+    assert_eq!(status.runtime_execution_profile, "Background");
+    assert_eq!(status.runtime_execution_profile_scope, "mixed-limits");
+    assert_eq!(status.runtime_governor_profile, "Efficiency");
+    assert_eq!(status.runtime_governor_profile_scope, "mixed-limits");
+    assert_eq!(status.runtime_governor_class, "efficiency-governor");
+    assert_eq!(status.runtime_latency_bias, "relaxed");
+    assert_eq!(status.runtime_energy_bias, "saving");
+    assert_eq!(status.runtime_aux_step, "no-aux-step");
+    assert_eq!(
+        status.runtime_blocked_by,
+        Some("trap-dispatch-policy-disabled")
+    );
+    assert_eq!(status.policy_scope, "compiletime-limited");
     assert_eq!(status.control_detail, "vmx-control-active");
     assert_eq!(status.trap_detail, "vmx-traps-ready");
-    assert_eq!(status.detect_state, "detected");
+    assert_eq!(status.detect_state, "absent");
     assert_eq!(status.prepare_state, "prepared");
-    assert_eq!(status.capability_state, "active");
-    assert_eq!(status.feature_state, "active");
+    assert_eq!(status.capability_state, "absent");
+    assert_eq!(status.feature_state, "absent");
     assert_eq!(status.launch_state, "prepared");
-    assert_eq!(status.resume_state, "ready");
-    assert_eq!(status.trap_state, "prepared");
+    assert_eq!(status.resume_state, "prepared");
+    assert_eq!(status.trap_state, "policy-limited");
     let lifecycle = status.lifecycle_snapshot();
-    assert_eq!(lifecycle.summary, "trap-ready");
-    assert_eq!(lifecycle.progress_per_mille, 1000);
+    assert_eq!(lifecycle.summary, "prepared-policy-limited");
+    assert_eq!(lifecycle.progress_per_mille, 328);
     assert_eq!(status.launch_stage, "guest-runnable");
     assert_eq!(status.isolation_tier, "dma-isolated");
-    assert!(status.device_passthrough_ready);
+    assert!(!status.device_passthrough_ready);
     assert_eq!(status.operational_readiness, "ready");
     assert!(status.can_launch_guest());
     assert!(status.can_resume_guest());
-    assert!(status.can_passthrough_devices());
-    assert_eq!(status.operational_profile(), ("ready", true, true, true));
+    assert!(!status.can_passthrough_devices());
+    assert_eq!(status.operational_profile(), ("ready", true, false, false));
 }
 
 #[test_case]
@@ -173,8 +176,8 @@ fn x86_virt_status_marks_hardware_enabled_path_as_partial() {
     assert_eq!(status.backend_detail, "vmx:enabled");
     assert_eq!(status.backend_capability_level, "tier1");
     let lifecycle = status.lifecycle_snapshot();
-    assert_eq!(lifecycle.summary, "prepared");
-    assert_eq!(lifecycle.progress_per_mille, 285);
+    assert_eq!(lifecycle.summary, "prepared-policy-limited");
+    assert_eq!(lifecycle.progress_per_mille, 328);
     assert_eq!(status.launch_stage, "hardware-enabled");
     assert_eq!(status.operational_readiness, "partial");
     assert!(!status.can_launch_guest());
@@ -210,7 +213,7 @@ fn x86_virt_status_marks_launch_prepared_path_as_staged() {
     assert!(!status.snapshot_ready);
     assert!(!status.dirty_logging_ready);
     assert!(!status.live_migration_ready);
-    assert_eq!(status.advanced_operations_tier, "baseline");
+    assert_eq!(status.advanced_operations_tier, "disabled");
     assert!(!status.control_plane_ready);
     assert!(!status.can_launch_guest());
     assert!(!status.can_resume_guest());
@@ -225,6 +228,10 @@ fn x86_virt_status_marks_launch_prepared_path_as_staged() {
 
 #[test_case]
 fn x86_svm_ready_path_reports_operational_profile() {
+    crate::config::KernelConfig::reset_runtime_overrides();
+    crate::config::KernelConfig::set_virtualization_trap_tracing_enabled(Some(true));
+    crate::config::KernelConfig::set_virtualization_dirty_logging_enabled(Some(true));
+
     let mut virt = base_x86_virt();
     virt.caps.svm = true;
     virt.enabled.svm_enabled = true;
@@ -237,15 +244,17 @@ fn x86_svm_ready_path_reports_operational_profile() {
     assert_eq!(status.backend, "svm");
     assert_eq!(status.backend_detail, "svm:enabled+vmcb");
     assert_eq!(status.capability_detail, "svm:efer+vmcb");
-    assert_eq!(status.feature_detail, "svm:npt-like+vmcb");
+    assert_eq!(status.feature_detail, "svm:control-enable");
     assert_eq!(status.interrupt_detail, "svm-exit-interrupt-ready");
     assert_eq!(status.time_detail, "svm-tsc-offset-ready");
-    assert_eq!(status.operational_profile(), ("ready", true, true, false));
-    assert_eq!(status.advanced_operations_tier, "baseline");
+    assert_eq!(status.operational_profile(), ("ready", true, false, false));
+    assert_eq!(status.advanced_operations_tier, "disabled");
+
+    crate::config::KernelConfig::reset_runtime_overrides();
 }
 
 #[test_case]
-fn x86_monitoring_without_trap_handling_is_partial_observability() {
+fn x86_monitoring_with_trap_handling_reaches_full_observability() {
     let mut virt = base_x86_virt();
     virt.caps.vmx = true;
     virt.enabled.vmx_enabled = true;
@@ -258,10 +267,10 @@ fn x86_monitoring_without_trap_handling_is_partial_observability() {
     virt.vmx_lifecycle = "prepared";
     let status = virt_platform_status(virt, empty_iommu(), false);
     assert!(status.monitoring_ready);
-    assert!(!status.trap_handling_ready);
-    assert_eq!(status.observability_tier, "partial");
+    assert!(status.trap_handling_ready);
+    assert_eq!(status.observability_tier, "full");
     assert!(!status.snapshot_ready);
     assert!(!status.dirty_logging_ready);
     assert!(!status.live_migration_ready);
-    assert_eq!(status.advanced_operations_tier, "baseline");
+    assert_eq!(status.advanced_operations_tier, "disabled");
 }

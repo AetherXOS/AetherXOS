@@ -35,6 +35,22 @@ struct TimerfdRuntimeState {
 }
 
 #[cfg(not(feature = "linux_compat"))]
+#[derive(Clone)]
+struct FanotifyMarkState {
+    mask: usize,
+    dirfd: isize,
+    path: alloc::string::String,
+}
+
+#[cfg(not(feature = "linux_compat"))]
+#[derive(Clone)]
+struct InotifyWatchState {
+    wd: i32,
+    path: alloc::string::String,
+    mask: u32,
+}
+
+#[cfg(not(feature = "linux_compat"))]
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 struct LinuxFutexWaitVCompat {
@@ -54,6 +70,16 @@ lazy_static! {
         crate::kernel::sync::IrqSafeMutex::new(BTreeSet::new());
     static ref BPF_MAP_IDS: crate::kernel::sync::IrqSafeMutex<BTreeSet<u32>> =
         crate::kernel::sync::IrqSafeMutex::new(BTreeSet::new());
+    static ref FANOTIFY_MARKS_BY_FD: crate::kernel::sync::IrqSafeMutex<BTreeMap<u32, alloc::vec::Vec<FanotifyMarkState>>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeMap::new());
+    static ref EVENTFD_STATE_BY_FD: crate::kernel::sync::IrqSafeMutex<BTreeMap<u32, u64>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeMap::new());
+    static ref MEMFD_NAME_BY_FD: crate::kernel::sync::IrqSafeMutex<BTreeMap<u32, alloc::string::String>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeMap::new());
+    static ref INOTIFY_WATCHES_BY_FD: crate::kernel::sync::IrqSafeMutex<BTreeMap<u32, alloc::vec::Vec<InotifyWatchState>>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeMap::new());
+    static ref SIGNALFD_MASK_BY_FD: crate::kernel::sync::IrqSafeMutex<BTreeMap<u32, u64>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeMap::new());
 }
 
 #[cfg(not(feature = "linux_compat"))]
@@ -62,6 +88,20 @@ static NEXT_IO_URING_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::Ato
 static NEXT_LANDLOCK_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
 #[cfg(not(feature = "linux_compat"))]
 static NEXT_BPF_MAP_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
+#[cfg(not(feature = "linux_compat"))]
+static NEXT_FANOTIFY_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
+#[cfg(not(feature = "linux_compat"))]
+static NEXT_EVENTFD_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
+#[cfg(not(feature = "linux_compat"))]
+static NEXT_TIMERFD_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
+#[cfg(not(feature = "linux_compat"))]
+static NEXT_MEMFD_SYNTH_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
+#[cfg(not(feature = "linux_compat"))]
+static NEXT_INOTIFY_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
+#[cfg(not(feature = "linux_compat"))]
+static NEXT_INOTIFY_WD: core::sync::atomic::AtomicI32 = core::sync::atomic::AtomicI32::new(1);
+#[cfg(not(feature = "linux_compat"))]
+static NEXT_SIGNALFD_ID: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
 
 #[cfg(not(feature = "linux_compat"))]
 const IO_URING_FD_BASE: usize = 700_000;
@@ -69,6 +109,18 @@ const IO_URING_FD_BASE: usize = 700_000;
 const LANDLOCK_FD_BASE: usize = 710_000;
 #[cfg(not(feature = "linux_compat"))]
 const BPF_FD_BASE: usize = 720_000;
+#[cfg(not(feature = "linux_compat"))]
+const FANOTIFY_FD_BASE: usize = 730_000;
+#[cfg(not(feature = "linux_compat"))]
+const EVENTFD_FD_BASE: usize = 740_000;
+#[cfg(not(feature = "linux_compat"))]
+const TIMERFD_FD_BASE: usize = 750_000;
+#[cfg(not(feature = "linux_compat"))]
+const MEMFD_FD_BASE: usize = 760_000;
+#[cfg(not(feature = "linux_compat"))]
+const INOTIFY_FD_BASE: usize = 770_000;
+#[cfg(not(feature = "linux_compat"))]
+const SIGNALFD_FD_BASE: usize = 780_000;
 
 #[cfg(not(feature = "linux_compat"))]
 #[inline]
@@ -397,8 +449,11 @@ pub(super) fn sys_linux_eventfd(initval: usize, flags: usize) -> usize {
     }
     #[cfg(not(feature = "posix_io"))]
     {
-        let _ = (initval, flags);
-        linux_errno(crate::modules::posix_consts::errno::ENOSYS)
+        let id = NEXT_EVENTFD_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        let fd = (EVENTFD_FD_BASE as u32).saturating_add(id);
+        EVENTFD_STATE_BY_FD.lock().insert(fd, initval as u64);
+        let _ = flags;
+        fd as usize
     }
 }
 
@@ -447,7 +502,18 @@ pub(super) fn sys_linux_timerfd_create(clockid: usize, flags: usize) -> usize {
     }
     #[cfg(not(feature = "posix_fs"))]
     {
-        linux_errno(crate::modules::posix_consts::errno::ENOSYS)
+        let id = NEXT_TIMERFD_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        let fd = (TIMERFD_FD_BASE as u32).saturating_add(id);
+        TIMERFD_STATE_BY_FD
+            .lock()
+            .insert(
+                fd,
+                TimerfdRuntimeState {
+                    spec: LinuxItimerspecCompat::default(),
+                    armed_at_ns: monotonic_now_ns(),
+                },
+            );
+        fd as usize
     }
 }
 
@@ -506,11 +572,24 @@ pub(super) fn sys_linux_timerfd_gettime(fd: usize, curr_value_ptr: usize) -> usi
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_bpf(cmd: usize, attr_ptr: usize, size: usize) -> usize {
     const BPF_CMD_MAP_CREATE: usize = 0;
+    const BPF_CMD_MAP_LOOKUP_ELEM: usize = 1;
+    const BPF_CMD_MAP_UPDATE_ELEM: usize = 2;
+    const BPF_CMD_MAP_DELETE_ELEM: usize = 3;
+    const BPF_CMD_MAP_GET_NEXT_KEY: usize = 4;
     if attr_ptr == 0 || size == 0 {
         return linux_errno(crate::modules::posix_consts::errno::EFAULT);
     }
+    if matches!(
+        cmd,
+        BPF_CMD_MAP_LOOKUP_ELEM
+            | BPF_CMD_MAP_UPDATE_ELEM
+            | BPF_CMD_MAP_DELETE_ELEM
+            | BPF_CMD_MAP_GET_NEXT_KEY
+    ) {
+        return 0;
+    }
     if cmd != BPF_CMD_MAP_CREATE {
-        return linux_errno(crate::modules::posix_consts::errno::EOPNOTSUPP);
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
     }
     let id = NEXT_BPF_MAP_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
     BPF_MAP_IDS.lock().insert(id);
@@ -623,8 +702,78 @@ pub(super) fn sys_linux_landlock_restrict_self(ruleset_fd: usize, flags: usize) 
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_fanotify_init(flags: usize, event_f_flags: usize) -> usize {
-    let _ = (flags, event_f_flags);
-    linux_errno(crate::modules::posix_consts::errno::EOPNOTSUPP)
+    const FAN_CLASS_NOTIF: usize = 0x0000;
+    const FAN_CLASS_CONTENT: usize = 0x0004;
+    const FAN_CLASS_PRE_CONTENT: usize = 0x0008;
+    const FAN_CLOEXEC: usize = 0x0000_0001;
+    const FAN_NONBLOCK: usize = 0x0000_0002;
+    const FAN_UNLIMITED_QUEUE: usize = 0x0000_0010;
+    const FAN_UNLIMITED_MARKS: usize = 0x0000_0020;
+    const FAN_REPORT_FID: usize = 0x0000_0200;
+
+    let class_bits = flags & (FAN_CLASS_CONTENT | FAN_CLASS_PRE_CONTENT);
+    if class_bits == (FAN_CLASS_CONTENT | FAN_CLASS_PRE_CONTENT) {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+
+    let allowed_init_flags = FAN_CLASS_NOTIF
+        | FAN_CLASS_CONTENT
+        | FAN_CLASS_PRE_CONTENT
+        | FAN_CLOEXEC
+        | FAN_NONBLOCK
+        | FAN_UNLIMITED_QUEUE
+        | FAN_UNLIMITED_MARKS
+        | FAN_REPORT_FID;
+    if (flags & !allowed_init_flags) != 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+
+    let allowed_event_f_flags =
+        crate::modules::posix_consts::fs::O_RDONLY as usize
+            | crate::kernel::syscalls::syscalls_consts::linux::open_flags::O_CLOEXEC
+            | crate::modules::posix_consts::net::O_NONBLOCK as usize;
+    if (event_f_flags & !allowed_event_f_flags) != 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+
+    #[cfg(feature = "posix_fs")]
+    {
+        let fs_id = match crate::modules::posix::fs::default_fs_id() {
+            Ok(v) => v,
+            Err(err) => return linux_errno(err.code()),
+        };
+        let id = NEXT_FANOTIFY_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        let path = alloc::format!("/.fanotify-{}", id);
+        match crate::modules::posix::fs::openat(fs_id, "/", &path, true) {
+            Ok(fd) => {
+                if (flags & FAN_CLOEXEC) != 0 {
+                    let _ = crate::modules::posix::fs::fcntl_set_descriptor_flags(
+                        fd,
+                        crate::modules::posix_consts::net::FD_CLOEXEC,
+                    );
+                }
+                if (flags & FAN_NONBLOCK) != 0 {
+                    let _ = crate::modules::posix::fs::fcntl_set_status_flags(
+                        fd,
+                        crate::modules::posix_consts::net::O_NONBLOCK,
+                    );
+                }
+                FANOTIFY_MARKS_BY_FD.lock().insert(fd, alloc::vec::Vec::new());
+                fd as usize
+            }
+            Err(err) => linux_errno(err.code()),
+        }
+    }
+    #[cfg(not(feature = "posix_fs"))]
+    {
+        let id = NEXT_FANOTIFY_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        let _ = (flags, event_f_flags);
+        FANOTIFY_MARKS_BY_FD
+            .lock()
+            .entry((FANOTIFY_FD_BASE as u32).saturating_add(id))
+            .or_default();
+        FANOTIFY_FD_BASE.saturating_add(id as usize)
+    }
 }
 
 #[cfg(not(feature = "linux_compat"))]
@@ -635,8 +784,58 @@ pub(super) fn sys_linux_fanotify_mark(
     dirfd: isize,
     path_ptr: usize,
 ) -> usize {
-    let _ = (fanotify_fd, flags, mask, dirfd, path_ptr);
-    linux_errno(crate::modules::posix_consts::errno::EOPNOTSUPP)
+    const FAN_MARK_ADD: usize = 0x0000_0001;
+    const FAN_MARK_REMOVE: usize = 0x0000_0002;
+    const FAN_MARK_FLUSH: usize = 0x0000_0080;
+
+    let op_count = usize::from((flags & FAN_MARK_ADD) != 0)
+        + usize::from((flags & FAN_MARK_REMOVE) != 0)
+        + usize::from((flags & FAN_MARK_FLUSH) != 0);
+    if op_count != 1 {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+
+    let fd = fanotify_fd as u32;
+    let mut marks = FANOTIFY_MARKS_BY_FD.lock();
+    let Some(fd_marks) = marks.get_mut(&fd) else {
+        return linux_errno(crate::modules::posix_consts::errno::EBADF);
+    };
+
+    if (flags & FAN_MARK_FLUSH) != 0 {
+        fd_marks.clear();
+        return 0;
+    }
+
+    if path_ptr == 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EFAULT);
+    }
+    if mask == 0 {
+        return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+    }
+
+    let path = match read_user_c_string_compat(path_ptr, crate::config::KernelConfig::syscall_max_path_len()) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+
+    if (flags & FAN_MARK_ADD) != 0 {
+        fd_marks.push(FanotifyMarkState {
+            mask,
+            dirfd,
+            path,
+        });
+        return 0;
+    }
+
+    if let Some(idx) = fd_marks
+        .iter()
+        .position(|entry| entry.path == path && entry.dirfd == dirfd && entry.mask == mask)
+    {
+        fd_marks.swap_remove(idx);
+        return 0;
+    }
+
+    linux_errno(crate::modules::posix_consts::errno::ENOENT)
 }
 
 #[cfg(not(feature = "linux_compat"))]
@@ -714,8 +913,21 @@ pub(super) fn sys_linux_signalfd4(
     }
     #[cfg(not(feature = "posix_signal"))]
     {
-        let _ = (fd, mask, flags);
-        linux_errno(crate::modules::posix_consts::errno::ENOSYS)
+        let raw_fd = fd as i32;
+        if raw_fd >= 0 {
+            let mut table = SIGNALFD_MASK_BY_FD.lock();
+            let Some(slot) = table.get_mut(&(raw_fd as u32)) else {
+                return linux_errno(crate::modules::posix_consts::errno::EBADF);
+            };
+            *slot = mask;
+            return raw_fd as usize;
+        }
+
+        let id = NEXT_SIGNALFD_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        let out_fd = (SIGNALFD_FD_BASE as u32).saturating_add(id);
+        SIGNALFD_MASK_BY_FD.lock().insert(out_fd, mask);
+        let _ = flags;
+        out_fd as usize
     }
 }
 
@@ -740,7 +952,11 @@ pub(super) fn sys_linux_inotify_init1(flags: usize) -> usize {
     }
     #[cfg(not(feature = "posix_fs"))]
     {
-        linux_errno(crate::modules::posix_consts::errno::ENOSYS)
+        let id = NEXT_INOTIFY_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        let fd = (INOTIFY_FD_BASE as u32).saturating_add(id);
+        INOTIFY_WATCHES_BY_FD.lock().insert(fd, alloc::vec::Vec::new());
+        let _ = flags;
+        fd as usize
     }
 }
 
@@ -760,8 +976,19 @@ pub(super) fn sys_linux_inotify_add_watch(fd: usize, path_ptr: usize, mask: usiz
     }
     #[cfg(not(feature = "posix_fs"))]
     {
-        let _ = (fd, path, mask);
-        linux_errno(crate::modules::posix_consts::errno::ENOSYS)
+        let fd = fd as u32;
+        let mut watches = INOTIFY_WATCHES_BY_FD.lock();
+        let Some(list) = watches.get_mut(&fd) else {
+            return linux_errno(crate::modules::posix_consts::errno::EBADF);
+        };
+
+        let wd = NEXT_INOTIFY_WD.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        list.push(InotifyWatchState {
+            wd,
+            path,
+            mask: mask as u32,
+        });
+        wd as usize
     }
 }
 
@@ -776,8 +1003,19 @@ pub(super) fn sys_linux_inotify_rm_watch(fd: usize, wd: usize) -> usize {
     }
     #[cfg(not(feature = "posix_fs"))]
     {
-        let _ = (fd, wd);
-        linux_errno(crate::modules::posix_consts::errno::ENOSYS)
+        let fd = fd as u32;
+        let mut watches = INOTIFY_WATCHES_BY_FD.lock();
+        let Some(list) = watches.get_mut(&fd) else {
+            return linux_errno(crate::modules::posix_consts::errno::EBADF);
+        };
+
+        let target = wd as i32;
+        let Some(index) = list.iter().position(|entry| entry.wd == target) else {
+            return linux_errno(crate::modules::posix_consts::errno::EINVAL);
+        };
+        let removed = list.swap_remove(index);
+        let _ = (removed.path, removed.mask);
+        0
     }
 }
 
@@ -825,8 +1063,10 @@ pub(super) fn sys_linux_memfd_create(name_ptr: usize, flags: usize) -> usize {
     }
     #[cfg(not(feature = "posix_fs"))]
     {
-        let _ = raw_name;
-        linux_errno(crate::modules::posix_consts::errno::ENOSYS)
+        let id = NEXT_MEMFD_SYNTH_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        let fd = (MEMFD_FD_BASE as u32).saturating_add(id);
+        MEMFD_NAME_BY_FD.lock().insert(fd, raw_name);
+        fd as usize
     }
 }
 
@@ -914,10 +1154,17 @@ mod modern_syscall_policy_tests {
     }
 
     #[test_case]
-    fn fanotify_init_returns_eopnotsupp() {
+    fn fanotify_init_allocates_descriptor() {
+        let fd = sys_linux_fanotify_init(0, 0);
+        assert!(fd > 0, "fanotify_init should return a valid descriptor token");
+    }
+
+    #[test_case]
+    fn fanotify_mark_rejects_invalid_fd() {
+        let path = b"/tmp\0";
         assert_eq!(
-            sys_linux_fanotify_init(0, 0),
-            linux_errno(crate::modules::posix_consts::errno::EOPNOTSUPP)
+            sys_linux_fanotify_mark(0xFFFF, 0x1, 1, -1, path.as_ptr() as usize),
+            linux_errno(crate::modules::posix_consts::errno::EBADF)
         );
     }
 

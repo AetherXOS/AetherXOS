@@ -51,6 +51,12 @@ pub fn write_raw(s: &str) {
 }
 
 #[inline(always)]
+pub fn write_line(s: &str) {
+    write_raw(s);
+    write_raw("\n");
+}
+
+#[inline(always)]
 pub fn write_hex(label: &str, value: u64) {
     if !crate::config::KernelConfig::serial_early_debug_enabled() {
         return;
@@ -80,6 +86,12 @@ pub fn write_trace(scope: &str, stage: &str) {
     {
         crate::hal::aarch64::serial::write_trace(scope, stage);
     }
+}
+
+#[inline(always)]
+pub fn write_trace_line(scope: &str, stage: &str) {
+    write_trace(scope, stage);
+    write_raw("\n");
 }
 
 #[inline(always)]

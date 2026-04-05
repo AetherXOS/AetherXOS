@@ -53,7 +53,7 @@ pub(super) fn virt_to_phys_local(addr: usize) -> Option<u64> {
     virt_to_phys(addr)
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod tests {
     use super::*;
 

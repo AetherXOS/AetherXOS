@@ -1,3 +1,5 @@
+#![cfg(target_os = "none")]
+
 use super::*;
 use crate::hal::common::virt::{
     BACKEND_MODE_BASIC, BACKEND_MODE_BLOCKED, BACKEND_MODE_FULL, OPERATION_CLASS_BASIC,

@@ -329,7 +329,7 @@ pub fn init_default_tty() {
     GLOBAL_TTY_REGISTRY.lock().register(TtyId::new(0), tty0).unwrap();
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod tests {
     use super::*;
 

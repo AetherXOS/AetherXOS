@@ -20,6 +20,7 @@ struct VirtqDesc {
 
 /// Available ring (driver -> device).
 #[repr(C)]
+#[allow(dead_code)]
 struct VirtqAvail {
     flags: u16,
     idx: u16,
@@ -35,6 +36,7 @@ struct VirtqUsedElem {
 
 /// Used ring (device -> driver).
 #[repr(C)]
+#[allow(dead_code)]
 struct VirtqUsed {
     flags: u16,
     idx: u16,

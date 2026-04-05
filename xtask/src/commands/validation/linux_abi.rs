@@ -1,8 +1,56 @@
 use crate::cli::LinuxAbiAction;
+use crate::commands::validation::reports::linux_abi as linux_abi_reports;
+use crate::config;
 use crate::utils::logging;
 use anyhow::{Context, Result};
 use regex::Regex;
+use serde::Serialize;
 use std::fs;
+
+#[derive(Serialize)]
+struct ShimErrnoResult {
+    requirement: &'static str,
+    file: String,
+    function: &'static str,
+    ok: bool,
+    detail: &'static str,
+}
+
+#[derive(Serialize)]
+struct ShimErrnoSummary {
+    checks: usize,
+    passed: usize,
+    failed: usize,
+    ok: bool,
+}
+
+#[derive(Serialize)]
+struct ShimErrnoReport {
+    results: Vec<ShimErrnoResult>,
+    summary: ShimErrnoSummary,
+}
+
+#[derive(Clone, Copy)]
+struct ShimCheckSpec {
+    rel_path: &'static str,
+    function: &'static str,
+}
+
+const SHIM_ERRNO_REQUIREMENT: &str = "uses EFAULT-only mapping";
+
+const SHIM_ERRNO_CHECKS: &[ShimCheckSpec] = &[
+    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs", function: "read_linux_msghdr_compat" },
+    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs", function: "read_linux_iovec_compat" },
+    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs", function: "read_sockaddr_in_compat" },
+    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs", function: "write_sockaddr_in_compat" },
+    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/task_time/time_ops.rs", function: "sys_linux_clock_gettime" },
+    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/socket/addr.rs", function: "read_sockaddr_in" },
+    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/socket/addr.rs", function: "write_sockaddr_in" },
+    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs", function: "timeout_ptr_to_retries" },
+    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs", function: "parse_sigmask" },
+    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs", function: "sys_linux_epoll_pwait" },
+    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs", function: "sys_linux_epoll_pwait2" },
+];
 
 pub fn execute(action: &LinuxAbiAction) -> Result<()> {
     match action {
@@ -32,6 +80,7 @@ pub fn execute(action: &LinuxAbiAction) -> Result<()> {
                 "Testing Linux compatibility shim errno mappings...",
                 &[],
             );
+            refresh_shim_errno_conformance_report()?;
         }
         LinuxAbiAction::ReadinessScore => {
             logging::info("abi", "Calculating global ABI readiness score...", &[]);
@@ -42,8 +91,92 @@ pub fn execute(action: &LinuxAbiAction) -> Result<()> {
         LinuxAbiAction::P2GapGate => {
             logging::info("abi", "Evaluating Tier-2 ABI gap gate constraints...", &[]);
         }
+        LinuxAbiAction::SemanticMatrix => {
+            logging::info("abi", "Building Linux ABI semantic matrix...", &[]);
+            linux_abi_reports::semantic_matrix()?;
+        }
+        LinuxAbiAction::TrendDashboard { limit, strict } => {
+            logging::info("abi", "Updating Linux ABI trend dashboard...", &[]);
+            linux_abi_reports::trend_dashboard(*limit, *strict)?;
+        }
+        LinuxAbiAction::WorkloadCatalog { limit, strict } => {
+            logging::info("abi", "Building Linux userspace workload catalog...", &[]);
+            linux_abi_reports::workload_catalog(*limit, *strict)?;
+        }
     }
     Ok(())
+}
+
+pub(crate) fn refresh_shim_errno_conformance_report() -> Result<()> {
+    let root = crate::utils::paths::repo_root();
+    let mut results = Vec::with_capacity(SHIM_ERRNO_CHECKS.len());
+
+    for spec in SHIM_ERRNO_CHECKS {
+        let abs = root.join(spec.rel_path);
+        let file_text = fs::read_to_string(&abs)
+            .with_context(|| format!("failed reading shim source file: {}", abs.display()))?;
+
+        let body = extract_fn_body(&file_text, spec.function).unwrap_or_default();
+        let has_explicit_efault = body.contains("linux_errno(crate::modules::posix_consts::errno::EFAULT)");
+        results.push(ShimErrnoResult {
+            requirement: SHIM_ERRNO_REQUIREMENT,
+            file: normalize_report_path(spec.rel_path),
+            function: spec.function,
+            ok: has_explicit_efault,
+            detail: if has_explicit_efault {
+                "correctly uses EFAULT mapping"
+            } else {
+                "missing EFAULT mapping"
+            },
+        });
+    }
+
+    let passed = results.iter().filter(|item| item.ok).count();
+    let failed = results.len().saturating_sub(passed);
+    let report_obj = ShimErrnoReport {
+        summary: ShimErrnoSummary {
+            checks: results.len(),
+            passed,
+            failed,
+            ok: failed == 0,
+        },
+        results,
+    };
+
+    let out_path = root.join(config::repo_paths::SHIM_ERRNO_SUMMARY);
+    crate::utils::report::write_json_report(&out_path, &report_obj)?;
+    Ok(())
+}
+
+fn normalize_report_path(rel_path: &str) -> String {
+    rel_path.replacen("kernel/src/", "src/", 1)
+}
+
+fn extract_fn_body(text: &str, function_name: &str) -> Option<String> {
+    let marker = format!("fn {}", function_name);
+    let start = text.find(&marker)?;
+    let rest = text.get(start..)?;
+    let open_rel = rest.find('{')?;
+    let open_abs = start + open_rel;
+
+    let mut depth = 0usize;
+    let mut close_abs = None;
+    for (idx, ch) in text[open_abs..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    close_abs = Some(open_abs + idx + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let end = close_abs?;
+    text.get(open_abs..end).map(|s| s.to_string())
 }
 
 fn audit_syscalls() -> Result<()> {
@@ -135,3 +268,5 @@ fn audit_syscalls() -> Result<()> {
 
     Ok(())
 }
+
+

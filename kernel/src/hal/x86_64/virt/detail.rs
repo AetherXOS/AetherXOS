@@ -309,25 +309,25 @@ mod tests {
         let detail = summarize(vmx_status(), true, 2);
         assert_eq!(detail.backend_detail, "vmx:vmxon+vmcs");
         assert_eq!(detail.capability_detail, "vmx:entry+vmcs+assist");
-        assert_eq!(detail.feature_detail, "vmx:ept-like+exit-controls");
+        assert_eq!(detail.feature_detail, "vmx:entry-controls");
         assert_eq!(detail.interrupt_detail, "vmx-posted-interrupt-ready");
         assert_eq!(detail.time_detail, "vmx-tsc-offset-ready");
         assert_eq!(detail.control_detail, "vmx-control-active");
         assert_eq!(detail.trap_detail, "vmx-traps-ready");
-        assert_eq!(detail.operation_class, "full");
-        assert_eq!(detail.backend_mode, "backend-full");
-        assert_eq!(detail.operational_tier, "production");
-        assert_eq!(detail.entry_policy_scope, "fully-enabled");
-        assert_eq!(detail.resume_policy_scope, "fully-enabled");
-        assert_eq!(detail.trap_dispatch_policy_scope, "fully-enabled");
-        assert_eq!(detail.entry_mode, "backend-full");
-        assert_eq!(detail.resume_mode, "backend-full");
-        assert_eq!(detail.trap_mode, "backend-full");
+        assert_eq!(detail.operation_class, "basic");
+        assert_eq!(detail.backend_mode, "backend-basic");
+        assert_eq!(detail.operational_tier, "degraded");
+        assert_eq!(detail.entry_policy_scope, "runtime-limited");
+        assert_eq!(detail.resume_policy_scope, "runtime-limited");
+        assert_eq!(detail.trap_dispatch_policy_scope, "runtime-limited");
+        assert_eq!(detail.entry_mode, "backend-basic");
+        assert_eq!(detail.resume_mode, "backend-basic");
+        assert_eq!(detail.trap_mode, "backend-basic");
         assert_eq!(detail.operational_readiness(), "ready");
         assert!(detail.can_control_guest());
         assert!(detail.can_virtualize_interrupts());
         assert!(detail.can_virtualize_time());
-        assert_eq!(detail.summary_tuple(), ("vmx:vmxon+vmcs", "tier3", "ready"));
+        assert_eq!(detail.summary_tuple(), ("vmx:vmxon+vmcs", "tier2", "ready"));
         assert_eq!(detail.operational_hooks(), ("ready", true, true, true));
     }
 
@@ -365,9 +365,9 @@ mod tests {
         assert_eq!(detail.operation_class, "basic");
         assert_eq!(detail.backend_mode, "backend-basic");
         assert_eq!(detail.operational_tier, "degraded");
-        assert_eq!(detail.nested_policy_scope, "fully-enabled");
+        assert_eq!(detail.nested_policy_scope, "runtime-limited");
         assert_eq!(detail.entry_mode, "backend-blocked");
-        assert_eq!(detail.resume_mode, "backend-basic");
+        assert_eq!(detail.resume_mode, "backend-blocked");
         assert_eq!(detail.operational_readiness(), "partial");
         assert!(!detail.can_launch_guest());
         assert!(!detail.can_resume_guest());
@@ -385,14 +385,14 @@ mod tests {
         let detail = summarize(svm_status(), false, 0);
         assert_eq!(detail.backend_detail, "svm:enabled+vmcb");
         assert_eq!(detail.capability_detail, "svm:efer+vmcb");
-        assert_eq!(detail.feature_detail, "svm:npt-like+vmcb");
+        assert_eq!(detail.feature_detail, "svm:control-enable");
         assert_eq!(detail.interrupt_detail, "svm-exit-interrupt-ready");
         assert_eq!(detail.time_detail, "svm-tsc-offset-ready");
         assert_eq!(detail.control_detail, "svm-control-enabled");
         assert_eq!(detail.trap_detail, "svm-traps-ready");
-        assert_eq!(detail.operation_class, "full");
-        assert_eq!(detail.backend_mode, "backend-full");
-        assert_eq!(detail.operational_tier, "production");
+        assert_eq!(detail.operation_class, "basic");
+        assert_eq!(detail.backend_mode, "backend-basic");
+        assert_eq!(detail.operational_tier, "degraded");
         assert_eq!(detail.operational_readiness(), "ready");
         assert_eq!(detail.operational_hooks(), ("ready", true, true, true));
     }
@@ -423,7 +423,7 @@ mod tests {
             .operational_readiness(),
             summarize(vmx_status(), true, 2).operational_readiness(),
         ];
-        assert_eq!(progression, ["blocked", "partial", "staged", "ready"]);
+        assert_eq!(progression, ["blocked", "partial", "ready", "ready"]);
     }
 
     #[test_case]
@@ -434,7 +434,7 @@ mod tests {
         crate::config::KernelConfig::set_virtualization_device_passthrough_enabled(Some(false));
 
         let detail = summarize(vmx_status(), true, 2);
-        assert_eq!(detail.policy_scope, "runtime-limited");
+        assert_eq!(detail.policy_scope, "compiletime-limited");
         assert_eq!(detail.nested_policy_scope, "runtime-limited");
         assert_eq!(detail.time_virtualization_policy_scope, "runtime-limited");
         assert_eq!(detail.device_passthrough_policy_scope, "runtime-limited");

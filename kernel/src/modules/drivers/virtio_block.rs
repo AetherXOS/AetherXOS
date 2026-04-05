@@ -36,7 +36,6 @@ pub struct VirtIoBlock {
     is_mmio: bool,
     lifecycle: DriverStateMachine,
     queue: Option<VirtQueue>,
-    nsid: u32,
 }
 
 impl VirtIoBlock {
@@ -62,20 +61,7 @@ impl VirtIoBlock {
             is_mmio,
             lifecycle: DriverStateMachine::new_discovered(),
             queue: None,
-            nsid: 1,
         })
-    }
-
-    // ── Legacy I/O port helpers ──────────────────────────────────────────────
-    #[cfg(target_arch = "x86_64")]
-    fn read8(&self, offset: u16) -> u8 {
-        unsafe {
-            x86_64::instructions::port::PortReadOnly::<u8>::new(self.io_base as u16 + offset).read()
-        }
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    fn read8(&self, _offset: u16) -> u8 {
-        0
     }
 
     #[cfg(target_arch = "x86_64")]
@@ -160,7 +146,7 @@ impl VirtIoBlock {
             return Err("virtio-block: queue size 0");
         }
 
-        let mut q = VirtQueue::new();
+        let q = VirtQueue::new();
 
         // Compute the page-frame number: legacy virtio expects the queue page-aligned
         // and provided as a PFN (physical address >> 12)
@@ -229,7 +215,7 @@ impl VirtIoBlock {
         // d2: status byte (always device-writeable)
         q.desc_write(
             d2 as usize,
-            &status as *const u8 as u64,
+            &mut status as *mut u8 as u64,
             1,
             VIRTQ_DESC_F_WRITE,
             0,

@@ -30,7 +30,15 @@ use super::exec_stack::prepare_execve_user_stack as prepare_execve_user_stack_im
     ),
     test
 ))]
-use super::exec_stack::{ExecveAuxEntry, ExecveAuxValue};
+use super::exec_stack::ExecveAuxEntry;
+#[cfg(all(
+    not(feature = "linux_compat"),
+    feature = "posix_process",
+    feature = "process_abstraction",
+    feature = "vfs",
+    feature = "posix_mman"
+))]
+use super::exec_stack::ExecveAuxValue;
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_process"))]
 use core::sync::atomic::Ordering;
 

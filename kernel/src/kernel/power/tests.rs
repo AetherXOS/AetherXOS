@@ -54,3 +54,4 @@ fn idle_runqueue_hint_is_clamped() {
     let s = stats();
     assert!(s.runqueue_clamp_events >= 1);
 }
+

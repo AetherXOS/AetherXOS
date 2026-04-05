@@ -1,20 +1,24 @@
 use anyhow::{Result, bail};
 use serde::Serialize;
-use std::fs;
-use std::path::Path;
 use std::process::Command;
 
 use crate::utils::{paths, report};
 
+mod helpers;
+use helpers::{
+    command_exists, count_occurrences, file_contains, file_contains_all, rate, run_case,
+    run_optional, run_source_probe, skip_case,
+};
+
 #[derive(Default)]
-struct Totals {
+pub(super) struct Totals {
     passed: usize,
     failed: usize,
     skipped: usize,
 }
 
 #[derive(Default, Serialize)]
-struct Layer {
+pub(super) struct Layer {
     passed: usize,
     failed: usize,
     skipped: usize,
@@ -48,152 +52,6 @@ struct LayerPercentages {
     qemu_gate_pass_rate_pct: f64,
     overall_compatibility_index_pct: f64,
     ci_policy_ok: bool,
-}
-
-fn shell_cmd(command: &str) -> std::io::Result<std::process::Output> {
-    #[cfg(windows)]
-    {
-        Command::new("cmd").args(["/C", command]).output()
-    }
-    #[cfg(not(windows))]
-    {
-        Command::new("sh").args(["-c", command]).output()
-    }
-}
-
-fn command_exists(cmd: &str) -> bool {
-    #[cfg(windows)]
-    {
-        Command::new("where")
-            .arg(cmd)
-            .output()
-            .map(|out| out.status.success())
-            .unwrap_or(false)
-    }
-    #[cfg(not(windows))]
-    {
-        shell_cmd(&format!("command -v {} >/dev/null 2>&1", cmd))
-            .map(|out| out.status.success())
-            .unwrap_or(false)
-    }
-}
-
-fn run_case(layer: &mut Layer, totals: &mut Totals, name: &str, cmd: &str) -> bool {
-    print!("[TEST] {}", name);
-    match shell_cmd(cmd) {
-        Ok(out) if out.status.success() => {
-            println!(" OK");
-            layer.total += 1;
-            layer.passed += 1;
-            totals.passed += 1;
-            true
-        }
-        Ok(_) | Err(_) => {
-            println!(" FAIL");
-            layer.total += 1;
-            layer.failed += 1;
-            totals.failed += 1;
-            false
-        }
-    }
-}
-
-fn run_optional(
-    layer: &mut Layer,
-    totals: &mut Totals,
-    name: &str,
-    check_cmd: &str,
-    cmd: &str,
-    required: bool,
-) {
-    let present = shell_cmd(check_cmd)
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-    if !present {
-        print!("[TEST] {}", name);
-        if required {
-            println!(" FAIL");
-            layer.total += 1;
-            layer.failed += 1;
-            totals.failed += 1;
-        } else {
-            println!(" SKIP");
-            layer.total += 1;
-            layer.skipped += 1;
-            totals.skipped += 1;
-        }
-        return;
-    }
-    let _ = run_case(layer, totals, name, cmd);
-}
-
-fn run_source_probe(layer: &mut Layer, totals: &mut Totals, name: &str, ok: bool, required: bool) {
-    print!("[TEST] {}", name);
-    if ok {
-        println!(" OK");
-        layer.total += 1;
-        layer.passed += 1;
-        totals.passed += 1;
-        return;
-    }
-
-    if required {
-        println!(" FAIL");
-        layer.total += 1;
-        layer.failed += 1;
-        totals.failed += 1;
-    } else {
-        println!(" SKIP");
-        layer.total += 1;
-        layer.skipped += 1;
-        totals.skipped += 1;
-    }
-}
-
-fn skip_case(layer: &mut Layer, totals: &mut Totals, name: &str) {
-    print!("[TEST] {}", name);
-    println!(" SKIP");
-    layer.total += 1;
-    layer.skipped += 1;
-    totals.skipped += 1;
-}
-
-fn file_contains(path: &Path, needle: &str) -> bool {
-    if !path.exists() {
-        return false;
-    }
-    fs::read_to_string(path)
-        .map(|text| text.contains(needle))
-        .unwrap_or(false)
-}
-
-fn file_contains_all(path: &Path, needles: &[&str]) -> bool {
-    if !path.exists() {
-        return false;
-    }
-    let Ok(text) = fs::read_to_string(path) else {
-        return false;
-    };
-    needles.iter().all(|needle| text.contains(needle))
-}
-
-fn count_occurrences(path: &Path, needle: &str) -> usize {
-    if !path.exists() {
-        return 0;
-    }
-    let Ok(text) = fs::read_to_string(path) else {
-        return 0;
-    };
-    text.matches(needle).count()
-}
-
-fn rate(layer: &Layer) -> f64 {
-    let executed = layer.total.saturating_sub(layer.skipped);
-    if executed == 0 {
-        100.0
-    } else {
-        ((layer.passed as f64 / executed as f64) * 1000.0).round() / 10.0
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -828,7 +686,7 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         &mut totals,
         "wayland/x11 protocol-depth probe (request/reply/event/object lifecycle prefixes)",
         wayland_x11_depth_ok,
-        true,
+        strict && !quick,
     );
     run_source_probe(
         &mut compat,
@@ -842,7 +700,7 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         &mut totals,
         "gpu ioctl coverage inventory probe",
         gpu_ioctl_coverage_ok,
-        true,
+        strict && !quick,
     );
     run_source_probe(
         &mut compat,

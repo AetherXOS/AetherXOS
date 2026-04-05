@@ -12,6 +12,8 @@ use spin::Mutex;
 static LINUX_FD_FLAGS: Mutex<BTreeMap<u32, usize>> = Mutex::new(BTreeMap::new());
 #[cfg(not(feature = "linux_compat"))]
 static LINUX_PIDFD_MAP: Mutex<BTreeMap<u32, LinuxPidFdEntry>> = Mutex::new(BTreeMap::new());
+#[cfg(not(feature = "linux_compat"))]
+static NEXT_SYNTH_PIDFD: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(1);
 
 #[cfg(not(feature = "linux_compat"))]
 #[derive(Clone, Copy)]
@@ -22,6 +24,8 @@ struct LinuxPidFdEntry {
 
 #[cfg(not(feature = "linux_compat"))]
 const LINUX_FD_CLOEXEC: usize = 0x1;
+#[cfg(not(feature = "linux_compat"))]
+const SYNTH_PIDFD_BASE: usize = 790_000;
 
 #[cfg(not(feature = "linux_compat"))]
 fn linux_fd_get_descriptor_flags(fd: u32) -> usize {
@@ -423,8 +427,18 @@ pub(crate) fn sys_linux_pidfd_open(pid: usize, flags: usize) -> usize {
     }
     #[cfg(not(feature = "posix_fs"))]
     {
-        let _ = (pid, flags);
-        linux_errno(crate::modules::posix_consts::errno::ENOSYS)
+        let fd = (SYNTH_PIDFD_BASE as u32).saturating_add(
+            NEXT_SYNTH_PIDFD.fetch_add(1, core::sync::atomic::Ordering::Relaxed),
+        );
+        LINUX_PIDFD_MAP.lock().insert(
+            fd,
+            LinuxPidFdEntry {
+                target_pid: pid,
+                owner_tid: caller,
+            },
+        );
+        let _ = flags;
+        fd as usize
     }
 }
 

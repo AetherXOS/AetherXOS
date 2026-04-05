@@ -10,9 +10,9 @@ fn virtualization_rebalance_tuning_prefers_latency_profile() {
             "low-latency"
         ),
         VirtualizationRebalanceTuning {
-            threshold_divisor: 2,
-            batch_multiplier: 2,
-            prefer_local_skip_budget_divisor: 2,
+            threshold_divisor: 1,
+            batch_multiplier: 1,
+            prefer_local_skip_budget_divisor: 1,
         }
     );
     assert_eq!(

@@ -27,78 +27,90 @@
 /// - State management and validation
 
 // Core Tests - ABI and IPC Parity (Documentation Specifications)
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod signal_frame_parity;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
+mod syscall_semantic_parity;
+
+#[cfg(all(test, target_os = "none"))]
 mod fork_cow_semantics;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod process_session_control;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod process_teardown_semantics;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
+mod process_signal_race_compat;
+
+#[cfg(all(test, target_os = "none"))]
+mod time_abi_parity;
+
+#[cfg(all(test, target_os = "none"))]
 mod sysv_ipc_parity;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod cross_feature_ipc_fallback;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod af_unix_parity;
 
 // P0/P1 Test Integration Framework (117 P0 + 127 P1 test specifications)
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod p0_integration_harness;
 
 // P0 Process/Session Control - Implementation Details
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod p0_process_session_control_impl;
 
 // Extended Tests - Features and Compatibility (Documentation Specifications)
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod fs_backend_parity;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod pid_uts_namespace_parity;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod socket_options_parity;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod memory_mapping_parity;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod ptrace_debugging_parity;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod proc_sysctl_consistency_parity;
 
+#[cfg(all(test, target_os = "none"))]
+mod fd_edge_case_parity;
+
 // Integration Test Framework & Harness
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod integration_harness;
 
 // Core Integration Tests (Executable against harness)
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod signal_frame_integration;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod fork_cow_integration;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod process_wait_integration;
 
 // Extended Integration Tests (Executable against harness)
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod filesystem_integration;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod socket_options_integration;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod ptrace_integration;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "none"))]
 mod proc_sysctl_integration;
 

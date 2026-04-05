@@ -60,7 +60,10 @@ pub(super) struct LinuxSockAddrInCompat {
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn read_linux_msghdr_compat(msg: usize) -> Result<(usize, usize, usize, usize), usize> {
-    let hdr = read_linux_msghdr_pod(msg)?;
+    let hdr = match read_linux_msghdr_pod(msg) {
+        Ok(v) => v,
+        Err(_) => return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT)),
+    };
     Ok((
         hdr.name_ptr,
         hdr.name_len as usize,
@@ -71,7 +74,10 @@ pub(super) fn read_linux_msghdr_compat(msg: usize) -> Result<(usize, usize, usiz
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn read_linux_iovec_compat(ptr: usize) -> Result<(usize, usize), usize> {
-    let iov = read_linux_iovec_pod(ptr)?;
+    let iov = match read_linux_iovec_pod(ptr) {
+        Ok(v) => v,
+        Err(_) => return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT)),
+    };
     Ok((iov.base, iov.len))
 }
 
@@ -84,7 +90,10 @@ pub(super) fn read_sockaddr_in_compat(
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
     }
 
-    let tmp = read_user_pod::<LinuxSockAddrInCompat>(ptr)?;
+    let tmp = match read_user_pod::<LinuxSockAddrInCompat>(ptr) {
+        Ok(v) => v,
+        Err(_) => return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT)),
+    };
 
     if i32::from(tmp.sin_family) != crate::modules::posix_consts::net::AF_INET {
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
@@ -107,9 +116,10 @@ pub(super) fn write_sockaddr_in_compat(
         sin_addr: addr.addr,
         sin_zero: [0; 8],
     };
-    write_user_pod(ptr, &sa)
-        .map(|_| 0usize)
-        .unwrap_or_else(|err| err)
+    match write_user_pod(ptr, &sa) {
+        Ok(_) => 0,
+        Err(_) => linux_errno(crate::modules::posix_consts::errno::EFAULT),
+    }
 }
 
 #[cfg(not(feature = "linux_compat"))]

@@ -1,3 +1,5 @@
+#![cfg(target_os = "none")]
+
 use super::*;
 use crate::hal::common::virt::{
     GOVERNOR_BIAS_AGGRESSIVE, GOVERNOR_BIAS_BALANCED, GOVERNOR_BIAS_RELAXED,

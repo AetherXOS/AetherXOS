@@ -168,7 +168,10 @@ fn timeout_ptr_to_retries(timeout_ptr: usize) -> Result<usize, usize> {
         return Ok(crate::config::KernelConfig::libnet_posix_blocking_recv_retries());
     }
 
-    let ts = read_linux_timespec_pod(timeout_ptr)?;
+    let ts = match read_linux_timespec_pod(timeout_ptr) {
+        Ok(v) => v,
+        Err(_) => return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT)),
+    };
 
     if ts.tv_sec < 0 || ts.tv_nsec < 0 || ts.tv_nsec >= 1_000_000_000 {
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
@@ -190,7 +193,10 @@ fn parse_sigmask(sigmask_ptr: usize, sigset_size: usize) -> Result<Option<u64>, 
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
     }
 
-    let mask = read_user_pod::<u64>(sigmask_ptr)?;
+    let mask = match read_user_pod::<u64>(sigmask_ptr) {
+        Ok(v) => v,
+        Err(_) => return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT)),
+    };
 
     Ok(Some(sanitize_wait_sigmask(mask)))
 }
@@ -332,6 +338,10 @@ pub(super) fn sys_linux_epoll_pwait(
 ) -> usize {
     #[cfg(feature = "posix_net")]
     {
+        if events_ptr == 0 {
+            return linux_errno(crate::modules::posix_consts::errno::EFAULT);
+        }
+
         let maxevents = match validate_maxevents(maxevents) {
             Ok(v) => v,
             Err(err) => return err,
@@ -379,6 +389,10 @@ pub(super) fn sys_linux_epoll_pwait2(
 ) -> usize {
     #[cfg(feature = "posix_net")]
     {
+        if events_ptr == 0 {
+            return linux_errno(crate::modules::posix_consts::errno::EFAULT);
+        }
+
         let maxevents = match validate_maxevents(maxevents) {
             Ok(v) => v,
             Err(err) => return err,

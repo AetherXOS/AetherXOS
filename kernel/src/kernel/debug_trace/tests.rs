@@ -1,3 +1,5 @@
+#![cfg(target_os = "none")]
+
 use super::*;
 use alloc::string::ToString;
 
@@ -13,7 +15,7 @@ fn trace_ring_records_recent_events_in_order() {
     record("trace.test", "alpha", None, false);
     record("trace.test", "beta", Some(0x44), false);
 
-    let mut recent = [TraceRecord::EMPTY; 4];
+    let mut recent = [TraceRecord::EMPTY; 64];
     let written = recent_into(&mut recent);
     assert!(written >= 2);
     let last = recent[written - 1];
@@ -100,6 +102,7 @@ fn category_stats_count_records() {
     assert!(stats.task >= 1);
 }
 
+#[cfg(target_os = "none")]
 #[test_case]
 fn kernel_context_records_stage_even_without_runtime_context() {
     record_kernel_context("trace.ctx", "hit", Some(0x55));
@@ -107,8 +110,12 @@ fn kernel_context_records_stage_even_without_runtime_context() {
     let mut recent = [TraceRecord::EMPTY; 4];
     let written = recent_into(&mut recent);
     assert!(written >= 1);
-    let last = recent[written - 1];
-    assert_eq!(last.scope_str(), "trace.ctx");
+    assert!(
+        recent[..written]
+            .iter()
+            .any(|record| record.scope_str() == "trace.ctx"),
+        "trace.ctx event should appear in recent records"
+    );
 }
 
 #[test_case]

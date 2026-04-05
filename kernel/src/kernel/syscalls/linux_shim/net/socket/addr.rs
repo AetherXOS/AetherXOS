@@ -26,7 +26,10 @@ pub(super) fn read_sockaddr_in(
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
     }
 
-    let tmp = read_user_pod::<LinuxSockAddrIn>(ptr)?;
+    let tmp = match read_user_pod::<LinuxSockAddrIn>(ptr) {
+        Ok(v) => v,
+        Err(_) => return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT)),
+    };
 
     if i32::from(tmp.sin_family) != crate::modules::posix_consts::net::AF_INET {
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
@@ -63,9 +66,10 @@ pub(super) fn write_sockaddr_in(
         sin_zero: [0; 8],
     };
 
-    let rc = write_user_pod(ptr, &sa)
-        .map(|_| 0usize)
-        .unwrap_or_else(|err| err);
+    let rc = match write_user_pod(ptr, &sa) {
+        Ok(_) => 0usize,
+        Err(_) => linux_errno(crate::modules::posix_consts::errno::EFAULT),
+    };
 
     if rc != 0 {
         return rc;

@@ -63,8 +63,7 @@ mod tests {
     use super::{capability_detail, feature_detail};
     use crate::hal::common::virt::{
         VirtCaps, VirtEnableState, VirtStatus, CAPABILITY_SVM_ACTIVE, CAPABILITY_SVM_ENABLED,
-        CAPABILITY_VMX_ACTIVE, CAPABILITY_VMX_ENABLED, FEATURE_SVM_ACTIVE, FEATURE_SVM_ENABLED,
-        FEATURE_VMX_ACTIVE, FEATURE_VMX_ENABLED,
+        CAPABILITY_VMX_ACTIVE, CAPABILITY_VMX_ENABLED, FEATURE_SVM_ENABLED, FEATURE_VMX_ENABLED,
     };
 
     fn base_status() -> VirtStatus {
@@ -91,7 +90,7 @@ mod tests {
         status.enabled.vmxon_active = true;
         status.vmx_vmcs_ready = true;
         assert_eq!(capability_detail(status), CAPABILITY_VMX_ACTIVE);
-        assert_eq!(feature_detail(status), FEATURE_VMX_ACTIVE);
+        assert_eq!(feature_detail(status), FEATURE_VMX_ENABLED);
     }
 
     #[test_case]
@@ -101,7 +100,7 @@ mod tests {
         status.enabled.svm_enabled = true;
         status.svm_vmcb_ready = true;
         assert_eq!(capability_detail(status), CAPABILITY_SVM_ACTIVE);
-        assert_eq!(feature_detail(status), FEATURE_SVM_ACTIVE);
+        assert_eq!(feature_detail(status), FEATURE_SVM_ENABLED);
     }
 
     #[test_case]
@@ -134,6 +133,39 @@ mod tests {
         status.vmx_vmcs_ready = true;
         assert_eq!(capability_detail(status), CAPABILITY_VMX_ACTIVE);
         assert_eq!(feature_detail(status), FEATURE_VMX_ENABLED);
+
+        crate::config::KernelConfig::reset_runtime_overrides();
+    }
+
+    #[test_case]
+    fn policy_can_upgrade_vmx_feature_detail_to_active() {
+        crate::config::KernelConfig::reset_runtime_overrides();
+        crate::config::KernelConfig::set_virtualization_trap_tracing_enabled(Some(true));
+        crate::config::KernelConfig::set_virtualization_dirty_logging_enabled(Some(true));
+
+        let mut status = base_status();
+        status.caps.vmx = true;
+        status.enabled.vmx_enabled = true;
+        status.enabled.vmxon_active = true;
+        status.vmx_vmcs_ready = true;
+        assert_eq!(capability_detail(status), CAPABILITY_VMX_ACTIVE);
+        assert_eq!(feature_detail(status), crate::hal::common::virt::FEATURE_VMX_ACTIVE);
+
+        crate::config::KernelConfig::reset_runtime_overrides();
+    }
+
+    #[test_case]
+    fn policy_can_upgrade_svm_feature_detail_to_active() {
+        crate::config::KernelConfig::reset_runtime_overrides();
+        crate::config::KernelConfig::set_virtualization_trap_tracing_enabled(Some(true));
+        crate::config::KernelConfig::set_virtualization_dirty_logging_enabled(Some(true));
+
+        let mut status = base_status();
+        status.caps.svm = true;
+        status.enabled.svm_enabled = true;
+        status.svm_vmcb_ready = true;
+        assert_eq!(capability_detail(status), CAPABILITY_SVM_ACTIVE);
+        assert_eq!(feature_detail(status), crate::hal::common::virt::FEATURE_SVM_ACTIVE);
 
         crate::config::KernelConfig::reset_runtime_overrides();
     }

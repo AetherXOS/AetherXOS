@@ -55,3 +55,8 @@ pub fn on_irq(vector: u8) -> bool {
 pub fn dropped(vector: u8) -> u64 {
     IRQ_DROPPED[vector as usize].load(Ordering::Relaxed)
 }
+
+#[inline(always)]
+pub fn dropped_for(vector: u8) -> u64 {
+    dropped(vector)
+}

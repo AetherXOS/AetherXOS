@@ -1,0 +1,5 @@
+{
+  "min_perf_engineering_score": 90.0,
+  "min_normalized_gate_score": 94.0,
+  "max_failed_checks": 1
+}

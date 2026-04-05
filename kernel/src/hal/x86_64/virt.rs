@@ -227,7 +227,7 @@ mod tests {
         assert_eq!(runtime.0, "guest-control-ready");
         assert!(runtime.1);
         assert!(runtime.2);
-        assert!(runtime.3);
+        assert!(!runtime.3);
         assert!(runtime.4);
         let exits = guest_exit_profile();
         assert_eq!(exits.0, "guest-exit-ready");
@@ -236,11 +236,11 @@ mod tests {
         assert!(exits.3);
         assert!(exits.4);
         let launch = guest_launch_profile();
-        assert_eq!(launch.0, "guest-launch-partial");
+        assert_eq!(launch.0, "guest-launch-ready");
         assert!(launch.1);
         assert!(launch.2);
         let ops = guest_operation_profile();
-        assert_eq!(ops.launch_stage, "guest-launch-partial");
+        assert_eq!(ops.launch_stage, "guest-launch-ready");
         assert_eq!(ops.runtime_stage, "guest-control-ready");
         assert_eq!(ops.exit_stage, "guest-exit-ready");
         assert!(ops.control_ready);

@@ -6,6 +6,7 @@ pub mod e1000;
 pub mod families;
 pub mod framebuffer;
 pub mod gpu;
+pub mod hybrid;
 pub mod lifecycle;
 pub mod network;
 pub mod network_io_health;
@@ -48,6 +49,34 @@ pub use gpu::{
     gpu_stack_snapshot, init_gpu_stack, is_desktop_session_ready, mark_input_ready,
     mark_kms_ready, note_gpu_heartbeat, set_gpu_backend, GpuBackend, GpuStackSnapshot,
     GpuStackState,
+};
+pub use hybrid::{
+    DriverCapabilitySet, DriverCompletion, DriverOp, DriverProvider, DriverResources,
+    DriverTransportKind, DmaGrant, IrqGrant, LinuxBridgeMessage, LinuxBridgeMessageKind,
+    LinuxDataPlaneHint, LinuxIoRequest, LinuxIoRequestKind, MmioGrant, ScatterGatherList,
+    SharedBufferDescriptor, SharedMemoryGrant,
+};
+pub use hybrid::linux::{
+    LinuxBridgeChannel, LinuxBridgeQueue, LinuxMemoryWindow, LinuxPageGrant,
+    LinuxResourcePlan, LinuxShimDeviceKind, LinuxShimDriverContext, LinuxSyscallBridge,
+    LinuxZeroCopyHint,
+};
+pub use hybrid::{
+    DriverBindingRecord, DriverKitClass, DriverKitEvent, DriverKitEventQueue,
+    DriverKitHealthSnapshot, DriverKitRecoveryPolicy, DriverKitRegistry, DriverLifecycleState, Irql, LibLinuxBackendKind, LibLinuxBridge,
+    LinuxBridgeDispatchRecord, LinuxSyscall, LinuxSyscallDispatcher, LinuxSyscallMapper, LinuxSyscallQueue,
+    LinuxSyscallRequest, LinuxSyscallResponse, NtBinaryExecutionMode, NtExecutionPolicy,
+    NtDomainImportBinding, NtImportBinding, NtImportDomain, NtImportDomainCounts,
+    NtImportResolutionReport, NtIrqlGuard, NtSpinLock, NtSymbol, NtSymbolTable, PeImageInfo,
+    PeImportDescriptor, PeImportName, PeLoadError, PeRelocationBlock, PeSectionInfo,
+    RelocationPatch,
+    BackendPreference, HybridExecutionPlan, HybridOrchestrator, HybridRequest, HybridRequestKind,
+    ReactOsImportResolution, SideCarWireFrame,
+    InMemorySideCarTransport, SideCarInterruptRoute, SideCarOpcode, SideCarPayload,
+    SideCarBootstrapPhase, SideCarBootstrapState, SideCarBootstrapSummary, SideCarPayloadTag,
+    SideCarQueueClass, SideCarRetryPolicy, SideCarTransport, SideCarVmConfig, SideCarVmPlan,
+    SideCarWireError, SideCarWireHeader, UserModeDriverContext, VirtioQueueSelector,
+    ZeroCopyIoPolicy,
 };
 pub use lifecycle::{
     DriverClass, DriverErrorKind, DriverHealth, DriverIoGate, DriverLifecycle,

@@ -75,6 +75,7 @@ pub mod net {
     pub const SHUT_RDWR: i32 = 2;
 
     pub const O_NONBLOCK: u32 = 0x0000_0800;
+    pub const FD_CLOEXEC: u32 = 0x0000_0001;
 
     pub const MSG_PEEK: u32 = 0x0000_0002;
     pub const MSG_DONTWAIT: u32 = 0x0000_0040;

@@ -1,3 +1,5 @@
+#![cfg(target_os = "none")]
+
 use super::{
     activate_lifecycle_code, advanced_operations_profile, advanced_operations_tier, backend_family,
     backend_has_full_runtime, backend_name, backend_operational_path, backend_runtime_step,

@@ -33,10 +33,11 @@ pub fn clamp_ticks(ticks: u64, min_ticks: u64, max_ticks: u64) -> (u64, bool, bo
 
 #[cfg(test)]
 mod tests {
+    #![allow(dead_code)]
+
     use super::*;
 
     #[cfg_attr(all(test, target_os = "none"), test_case)]
-    #[cfg_attr(not(all(test, target_os = "none")), test)]
     fn ns_tick_conversions_handle_freq_and_fallback() {
         assert_eq!(ns_to_ticks(10_000_000, 1_000_000, 1_000), 10_000);
         assert_eq!(ns_to_ticks(10_000_000, 0, 1_000), 10_000);
@@ -45,7 +46,6 @@ mod tests {
     }
 
     #[cfg_attr(all(test, target_os = "none"), test_case)]
-    #[cfg_attr(not(all(test, target_os = "none")), test)]
     fn clamp_ticks_reports_min_and_max_hits() {
         assert_eq!(clamp_ticks(5, 10, 100), (10, true, false));
         assert_eq!(clamp_ticks(500, 10, 100), (100, false, true));

@@ -1,6 +1,6 @@
 use crate::config::KernelConfig;
 use crate::hal::pci::{PciDevice, CLASS_MASS_STORAGE};
-use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicU64, Ordering};
 
 use super::block::{mark_init, mark_io, mark_probe, BlockDevice, BlockDeviceInfo, BlockDriverKind};
 use super::lifecycle::{
@@ -135,19 +135,19 @@ impl Nvme {
     // ── MMIO helpers ──────────────────────────────────────────────────────────
 
     unsafe fn read32(&self, offset: u64) -> u32 {
-        core::ptr::read_volatile((self.mmio_base + offset) as *const u32)
+        unsafe { core::ptr::read_volatile((self.mmio_base + offset) as *const u32) }
     }
 
     unsafe fn write32(&self, offset: u64, val: u32) {
-        core::ptr::write_volatile((self.mmio_base + offset) as *mut u32, val);
+        unsafe { core::ptr::write_volatile((self.mmio_base + offset) as *mut u32, val) };
     }
 
     unsafe fn read64(&self, offset: u64) -> u64 {
-        core::ptr::read_volatile((self.mmio_base + offset) as *const u64)
+        unsafe { core::ptr::read_volatile((self.mmio_base + offset) as *const u64) }
     }
 
     unsafe fn write64(&self, offset: u64, val: u64) {
-        core::ptr::write_volatile((self.mmio_base + offset) as *mut u64, val);
+        unsafe { core::ptr::write_volatile((self.mmio_base + offset) as *mut u64, val) };
     }
 
     // ── Controller init ───────────────────────────────────────────────────────
@@ -273,22 +273,24 @@ impl Nvme {
         let slot = self.admin_sq_tail as usize % 2; // Size is 2
         let sqe_ptr = (sq_virt + slot * 64) as *mut u32;
         for (i, &dw) in sqe.iter().enumerate() {
-            core::ptr::write_volatile(sqe_ptr.add(i), dw);
+            unsafe { core::ptr::write_volatile(sqe_ptr.add(i), dw) };
         }
 
         self.admin_sq_tail = self.admin_sq_tail.wrapping_add(1);
         core::sync::atomic::fence(Ordering::SeqCst);
-        self.write32(
-            sq_doorbell_offset(0, self.doorbell_stride),
-            self.admin_sq_tail as u32,
-        );
+        unsafe {
+            self.write32(
+                sq_doorbell_offset(0, self.doorbell_stride),
+                self.admin_sq_tail as u32,
+            )
+        };
 
         let expected_cid = (sqe[0] >> 16) as u16;
         let poll_slot = self.admin_cq_head as usize % 2;
         let cqe_dw3_ptr = (cq_virt + poll_slot * 16 + 12) as *const u32;
 
         for _ in 0..KernelConfig::nvme_poll_timeout_spins() {
-            let dw3 = core::ptr::read_volatile(cqe_dw3_ptr);
+            let dw3 = unsafe { core::ptr::read_volatile(cqe_dw3_ptr) };
             let phase = ((dw3 & CQE_DW3_PHASE_BIT) >> 16) as u8;
             let cid = (dw3 & CQE_DW3_CID_MASK) as u16;
 
@@ -297,10 +299,12 @@ impl Nvme {
                 if self.admin_cq_head % 2 == 0 {
                     self.admin_cq_phase ^= 1;
                 }
-                self.write32(
-                    cq_doorbell_offset(0, self.doorbell_stride),
-                    self.admin_cq_head as u32,
-                );
+                unsafe {
+                    self.write32(
+                        cq_doorbell_offset(0, self.doorbell_stride),
+                        self.admin_cq_head as u32,
+                    )
+                };
 
                 let sf = (dw3 >> CQE_DW3_SF_SHIFT) & CQE_DW3_SF_MASK;
                 if sf != 0 {
@@ -322,22 +326,24 @@ impl Nvme {
         let slot = self.io_sq_tail as usize % 16; // Use size 16 for IO
         let sqe_ptr = (sq_virt + slot * 64) as *mut u32;
         for (i, &dw) in sqe.iter().enumerate() {
-            core::ptr::write_volatile(sqe_ptr.add(i), dw);
+            unsafe { core::ptr::write_volatile(sqe_ptr.add(i), dw) };
         }
 
         self.io_sq_tail = self.io_sq_tail.wrapping_add(1);
         core::sync::atomic::fence(Ordering::SeqCst);
-        self.write32(
-            sq_doorbell_offset(1, self.doorbell_stride),
-            self.io_sq_tail as u32,
-        );
+        unsafe {
+            self.write32(
+                sq_doorbell_offset(1, self.doorbell_stride),
+                self.io_sq_tail as u32,
+            )
+        };
 
         let expected_cid = (sqe[0] >> 16) as u16;
 
         for _ in 0..KernelConfig::nvme_io_timeout_spins() {
             let poll_slot = self.io_cq_head as usize % 16;
             let cqe_dw3_ptr = (cq_virt + poll_slot * 16 + 12) as *const u32;
-            let dw3 = core::ptr::read_volatile(cqe_dw3_ptr);
+            let dw3 = unsafe { core::ptr::read_volatile(cqe_dw3_ptr) };
             let phase = ((dw3 & CQE_DW3_PHASE_BIT) >> 16) as u8;
             let cid = (dw3 & CQE_DW3_CID_MASK) as u16;
 
@@ -346,10 +352,12 @@ impl Nvme {
                 if self.io_cq_head % 16 == 0 {
                     self.io_cq_phase ^= 1;
                 }
-                self.write32(
-                    cq_doorbell_offset(1, self.doorbell_stride),
-                    self.io_cq_head as u32,
-                );
+                unsafe {
+                    self.write32(
+                        cq_doorbell_offset(1, self.doorbell_stride),
+                        self.io_cq_head as u32,
+                    )
+                };
 
                 let sf = (dw3 >> CQE_DW3_SF_SHIFT) & CQE_DW3_SF_MASK;
                 if sf != 0 {

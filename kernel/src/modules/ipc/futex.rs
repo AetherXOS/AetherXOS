@@ -173,7 +173,7 @@ impl Futex {
 mod tests {
     use super::{global, stats, take_stats, FutexWaitResult};
 
-    #[test]
+    #[test_case]
     fn futex_stats_take_resets_counters() {
         let futex = global();
 
