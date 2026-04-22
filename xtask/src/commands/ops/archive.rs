@@ -72,7 +72,7 @@ pub fn execute(run_id: &Option<String>) -> Result<()> {
     logging::ready(
         "ops::archive",
         "Archive completed",
-        &dest.display().to_string(),
+        dest.display().to_string(),
     );
     Ok(())
 }

@@ -107,7 +107,7 @@ pub fn smoke_test() -> Result<()> {
     let boot_marker_seen = BOOT_SUCCESS_MARKERS.iter().any(|m| stream.contains(m));
     let interrupt_health = detect_interrupt_health(&stream);
     let interrupt_health_ok = interrupt_health
-        .map(|health| validate_interrupt_health(health))
+        .map(validate_interrupt_health)
         .unwrap_or(false);
     let pass = !panic_seen
         && interrupt_health_ok
