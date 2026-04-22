@@ -38,9 +38,6 @@ fn read_exec_image(path: &str) -> Result<alloc::vec::Vec<u8>, PosixErrno> {
 #[cfg(all(feature = "vfs", feature = "posix_fs"))]
 fn validate_interp_for_image(image: &[u8], fs_id: u32) -> Result<(), PosixErrno> {
     if let Some(interp_path) = resolve_interp_path(image)? {
-        if !interp_path.starts_with('/') {
-            return Err(PosixErrno::Invalid);
-        }
         crate::klog_info!("exec: detected PT_INTERP '{}', validating interpreter", interp_path);
         let interp_image = read_exec_image_from_fs(fs_id, &interp_path)?;
         crate::kernel::module_loader::inspect_elf_image(&interp_image)
@@ -54,22 +51,7 @@ fn validate_interp_for_image(image: &[u8], fs_id: u32) -> Result<(), PosixErrno>
 fn read_exec_image_with_validated_interp(path: &str) -> Result<alloc::vec::Vec<u8>, PosixErrno> {
     let fs_id = (*EXEC_FS_ID.lock()).ok_or(PosixErrno::BadFileDescriptor)?;
     let image = read_exec_image_from_fs(fs_id, path)?;
-    // If the image declares a PT_INTERP, prefer to load the interpreter
-    // as the initial process image (kernel hands off to userland ld.so).
-    if let Ok(Some(interp_path)) = resolve_interp_path(&image) {
-        if !interp_path.starts_with('/') {
-            return Err(PosixErrno::Invalid);
-        }
-        crate::klog_info!("exec: PT_INTERP '{}' detected, loading interpreter first", interp_path);
-        // Read and validate the interpreter image from the same fs.
-        let interp_image = read_exec_image_from_fs(fs_id, &interp_path)?;
-        crate::kernel::module_loader::inspect_elf_image(&interp_image)
-            .map_err(|_| PosixErrno::Invalid)?;
-        crate::klog_info!("exec: PT_INTERP '{}' validated; interpreter will be started first", interp_path);
-        return Ok(interp_image);
-    }
-
-    // No interpreter present — validate/return the original image.
+    // Keep the original executable image as exec target and validate PT_INTERP separately.
     validate_interp_for_image(&image, fs_id)?;
     Ok(image)
 }
@@ -157,6 +139,38 @@ pub(super) fn resolve_interp_path(image: &[u8]) -> Result<Option<String>, PosixE
 
     use xmas_elf::program::Type;
     const MAX_INTERP_PATH_BYTES: usize = 4096;
+    let require_absolute = crate::config::KernelConfig::exec_elf_require_absolute_interp_path();
+    let enforce_path_sanitization =
+        crate::config::KernelConfig::exec_elf_enforce_interp_path_sanitization();
+    let enforce_system_loader_paths =
+        crate::config::KernelConfig::exec_elf_enforce_system_loader_paths();
+
+    fn has_disallowed_path_segments(path: &str) -> bool {
+        path.contains("//")
+            || path.contains("/./")
+            || path.contains("/../")
+            || path.ends_with("/.")
+            || path.ends_with("/..")
+            || path.contains('\\')
+    }
+
+    fn is_supported_dynamic_loader_path(path: &str) -> bool {
+        let is_system_loader_prefix = path.starts_with("/lib/")
+            || path.starts_with("/lib64/")
+            || path.starts_with("/usr/lib/")
+            || path.starts_with("/usr/lib64/");
+        if !is_system_loader_prefix {
+            return false;
+        }
+
+        let file_name = path.rsplit('/').next().unwrap_or("");
+        file_name.starts_with("ld-linux") || file_name.starts_with("ld-musl")
+    }
+
+    fn is_supported_dynamic_loader_name(path: &str) -> bool {
+        let file_name = path.rsplit('/').next().unwrap_or(path);
+        file_name.starts_with("ld-linux") || file_name.starts_with("ld-musl")
+    }
 
     let elf_file = xmas_elf::ElfFile::new(image).map_err(|_| PosixErrno::Invalid)?;
     for ph in elf_file.program_iter() {
@@ -186,6 +200,22 @@ pub(super) fn resolve_interp_path(image: &[u8]) -> Result<Option<String>, PosixE
             .map_err(|_| PosixErrno::Invalid)?;
         if interp_path.is_empty() {
             return Err(PosixErrno::Invalid);
+        }
+        if require_absolute && !interp_path.starts_with('/') {
+            return Err(PosixErrno::Invalid);
+        }
+        if enforce_path_sanitization && has_disallowed_path_segments(interp_path) {
+            return Err(PosixErrno::Invalid);
+        }
+        if enforce_system_loader_paths {
+            let supported = if interp_path.starts_with('/') {
+                is_supported_dynamic_loader_path(interp_path)
+            } else {
+                is_supported_dynamic_loader_name(interp_path)
+            };
+            if !supported {
+                return Err(PosixErrno::Invalid);
+            }
         }
         return Ok(Some(String::from(interp_path)));
     }
@@ -243,7 +273,9 @@ pub(super) fn posix_spawn_from_image(
         #[cfg(all(feature = "vfs", feature = "posix_fs"))]
         {
             if let Some(interp_path) = resolve_interp_path(image)? {
-                if !interp_path.starts_with('/') {
+                if crate::config::KernelConfig::exec_elf_require_absolute_interp_path()
+                    && !interp_path.starts_with('/')
+                {
                     return Err(PosixErrno::Invalid);
                 }
             }

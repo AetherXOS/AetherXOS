@@ -146,6 +146,8 @@ impl KernelConfig {
             "runtime" => "runtime",
             "policy" => "policy",
             "core" => "core",
+            "exec" => "exec",
+            "userspace" => "userspace",
             "debug" => "debug",
             "serial" => "serial",
             _ => "other",

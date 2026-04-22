@@ -4,3 +4,4 @@ pub mod logging;
 pub mod paths;
 pub mod process;
 pub mod report;
+pub mod parser;

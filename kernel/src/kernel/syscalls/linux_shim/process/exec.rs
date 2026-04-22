@@ -65,6 +65,40 @@ fn sanitized_phdr_aux_values(
     Some((phdr_addr, phent_size, phnum))
 }
 
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_process"))]
+fn validate_exec_handoff_contract(
+    entry_val: usize,
+    base_addr: usize,
+    phdr_addr: usize,
+    phent_size: usize,
+    phnum: usize,
+) -> Result<(), usize> {
+    if !crate::config::KernelConfig::exec_auxv_enforce_handoff_contract() {
+        return Ok(());
+    }
+
+    if entry_val == 0 || base_addr == 0 {
+        return Err(linux_errno(crate::modules::posix_consts::errno::ENOEXEC));
+    }
+
+    let require_phdr_triplet = crate::config::KernelConfig::exec_auxv_require_phdr_triplet();
+    let has_phdr_triplet = phdr_addr != 0 && phent_size != 0 && phnum != 0;
+    if require_phdr_triplet && !has_phdr_triplet {
+        return Err(linux_errno(crate::modules::posix_consts::errno::ENOEXEC));
+    }
+
+    if has_phdr_triplet {
+        if !(16..=4096).contains(&phent_size) || phnum > 4096 {
+            return Err(linux_errno(crate::modules::posix_consts::errno::ENOEXEC));
+        }
+        if phdr_addr < base_addr {
+            return Err(linux_errno(crate::modules::posix_consts::errno::ENOEXEC));
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(any(
     all(
         not(feature = "linux_compat"),
@@ -167,6 +201,15 @@ fn execve_with_path(path: alloc::string::String, argv_ptr: usize, envp_ptr: usiz
                                         if let Err(errno) = validate_exec_entry_point(entry_val) {
                                             return errno;
                                         }
+                                        if let Err(errno) = validate_exec_handoff_contract(
+                                            entry_val,
+                                            base_addr,
+                                            phdr_addr,
+                                            phent_size,
+                                            phnum,
+                                        ) {
+                                            return errno;
+                                        }
                                         let phdr_aux =
                                             sanitized_phdr_aux_values(phdr_addr, phent_size, phnum);
                                         let execfn = proc.exec_path_snapshot();
@@ -247,7 +290,22 @@ fn execve_with_path(path: alloc::string::String, argv_ptr: usize, envp_ptr: usiz
                                             key: EXECVE_AUXV_AT_HWCAP2,
                                             value: ExecveAuxValue::Word(hwcap2),
                                         });
-                                        if let Some((phdr_addr, phent_size, phnum)) = phdr_aux {
+                                        if crate::config::KernelConfig::exec_auxv_require_phdr_triplet() {
+                                            if let Some((phdr_addr, phent_size, phnum)) = phdr_aux {
+                                                auxv_entries.push(ExecveAuxEntry {
+                                                    key: EXECVE_AUXV_AT_PHDR,
+                                                    value: ExecveAuxValue::Word(phdr_addr),
+                                                });
+                                                auxv_entries.push(ExecveAuxEntry {
+                                                    key: EXECVE_AUXV_AT_PHENT,
+                                                    value: ExecveAuxValue::Word(phent_size),
+                                                });
+                                                auxv_entries.push(ExecveAuxEntry {
+                                                    key: EXECVE_AUXV_AT_PHNUM,
+                                                    value: ExecveAuxValue::Word(phnum),
+                                                });
+                                            }
+                                        } else if let Some((phdr_addr, phent_size, phnum)) = phdr_aux {
                                             auxv_entries.push(ExecveAuxEntry {
                                                 key: EXECVE_AUXV_AT_PHDR,
                                                 value: ExecveAuxValue::Word(phdr_addr),

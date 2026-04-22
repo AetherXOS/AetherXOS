@@ -84,3 +84,31 @@ fn sanitized_phdr_aux_values_accepts_only_sane_tuple() {
         Some((0x4000, 56, 9))
     );
 }
+
+#[cfg(feature = "posix_process")]
+#[test_case]
+fn validate_exec_handoff_contract_rejects_missing_required_phdr_triplet() {
+    crate::config::KernelConfig::reset_runtime_overrides();
+    crate::config::KernelConfig::set_exec_auxv_require_phdr_triplet(Some(true));
+
+    assert_eq!(
+        validate_exec_handoff_contract(0x401000, 0x400000, 0, 0, 0),
+        Err(linux_errno(crate::modules::posix_consts::errno::ENOEXEC))
+    );
+
+    crate::config::KernelConfig::reset_runtime_overrides();
+}
+
+#[cfg(feature = "posix_process")]
+#[test_case]
+fn validate_exec_handoff_contract_allows_missing_phdr_triplet_when_relaxed() {
+    crate::config::KernelConfig::reset_runtime_overrides();
+    crate::config::KernelConfig::set_exec_auxv_require_phdr_triplet(Some(false));
+
+    assert_eq!(
+        validate_exec_handoff_contract(0x401000, 0x400000, 0, 0, 0),
+        Ok(())
+    );
+
+    crate::config::KernelConfig::reset_runtime_overrides();
+}

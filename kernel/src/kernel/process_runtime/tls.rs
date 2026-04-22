@@ -18,6 +18,30 @@ fn publish_tls_header(process: &Process, plan: &crate::kernel::module_loader::Mo
     trace::early_serial("[EARLY SERIAL] tls header publish returned\n");
 }
 
+fn validate_tls_contract(
+    plan: &crate::kernel::module_loader::ModuleLoadPlan,
+    template: &[u8],
+) -> Result<(), &'static str> {
+    if plan.tls_mem_size == 0 {
+        return if plan.tls_file_size == 0 && template.is_empty() {
+            Ok(())
+        } else {
+            Err("tls empty plan mismatch")
+        };
+    }
+
+    if plan.tls_file_size > plan.tls_mem_size {
+        return Err("tls file size exceeds memory size");
+    }
+    if plan.tls_align > 1 && !plan.tls_align.is_power_of_two() {
+        return Err("tls alignment must be power of two");
+    }
+    if usize::try_from(plan.tls_file_size).ok() != Some(template.len()) {
+        return Err("tls template length mismatch");
+    }
+    Ok(())
+}
+
 fn clear_tls_template(process: &Process) {
     trace::early_serial("[EARLY SERIAL] tls bootstrap borrow begin\n");
     let tls = tls_template_mut(process);
@@ -119,7 +143,6 @@ pub(super) fn bind_tls_template(
         false,
     );
     trace::early_serial("[EARLY SERIAL] bind tls template begin\n");
-    publish_tls_header(process, plan);
 
     if plan.tls_mem_size == 0 {
         clear_tls_template(process);
@@ -137,7 +160,75 @@ pub(super) fn bind_tls_template(
 
     let next_tls = build_tls_template_bytes(image, plan)?;
 
+    validate_tls_contract(plan, &next_tls)?;
+    publish_tls_header(process, plan);
+
     publish_tls_template_bytes(process, next_tls, plan.tls_mem_size);
     trace::early_serial("[EARLY SERIAL] bind tls template returned\n");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_process() -> Process {
+        Process::new(
+            b"tls-test",
+            #[cfg(feature = "paging_enable")]
+            x86_64::PhysAddr::new(0),
+        )
+    }
+
+    fn test_plan(
+        tls_file_size: u64,
+        tls_mem_size: u64,
+        tls_align: u64,
+    ) -> crate::kernel::module_loader::ModuleLoadPlan {
+        crate::kernel::module_loader::ModuleLoadPlan {
+            entry: 0x401000,
+            segments: alloc::vec![crate::kernel::module_loader::LoadSegmentPlan {
+                virtual_addr: 0x1000,
+                file_offset: 0,
+                file_size: tls_file_size,
+                mem_size: tls_mem_size,
+                align: tls_align,
+            }],
+            total_file_bytes: tls_file_size,
+            total_mem_bytes: tls_mem_size,
+            aslr_base: 0,
+            tls_virtual_addr: 0x1000,
+            tls_file_size,
+            tls_mem_size,
+            tls_align,
+            program_header_addr: 0,
+            program_header_entry_size: 0,
+            program_headers: 0,
+        }
+    }
+
+    #[test_case]
+    fn validate_tls_contract_accepts_power_of_two_alignment() {
+        let plan = test_plan(4, 8, 8);
+        let template = alloc::vec![1, 2, 3, 4];
+
+        assert!(validate_tls_contract(&plan, &template).is_ok());
+    }
+
+    #[test_case]
+    fn validate_tls_contract_rejects_file_size_overflow() {
+        let plan = test_plan(8, 4, 8);
+        let template = alloc::vec![1, 2, 3, 4, 5, 6, 7, 8];
+
+        assert_eq!(validate_tls_contract(&plan, &template), Err("tls file size exceeds memory size"));
+    }
+
+    #[test_case]
+    fn bind_tls_template_rejects_invalid_alignment() {
+        let process = test_process();
+        let plan = test_plan(4, 8, 3);
+        let image = alloc::vec![0u8; 4];
+
+        assert_eq!(bind_tls_template(&process, &image, &plan), Err("tls alignment must be power of two"));
+    }
 }

@@ -10,7 +10,6 @@ use super::{
 
 #[derive(Clone, Copy)]
 struct SupportProfile {
-    base_score: u8,
     reason: &'static str,
 }
 
@@ -292,11 +291,6 @@ fn request_kind_hint(kind: HybridRequestKind) -> &'static str {
     }
 }
 
-fn shape_fit_score(backend: BackendPreference, shape: RequestShape) -> i16 {
-    let caps = backend_capabilities(backend);
-    shape_fit_score_with_caps(caps, shape)
-}
-
 fn shape_fit_score_with_caps(caps: BackendCapabilities, shape: RequestShape) -> i16 {
     caps.isolation * shape.security_sensitivity
         + caps.native_semantics * shape.compatibility_pressure
@@ -309,7 +303,7 @@ fn shape_fit_score_with_caps(caps: BackendCapabilities, shape: RequestShape) -> 
 }
 
 fn score_from_fit(raw_fit: i16) -> u8 {
-    ((raw_fit / 20) + 20).clamp(0, 100) as u8
+    ((raw_fit + 120).clamp(0, 240) * 100 / 240) as u8
 }
 
 fn family_demand(family: HybridRequestFamily) -> (RequestShape, &'static str) {
@@ -405,11 +399,9 @@ fn family_demand(family: HybridRequestFamily) -> (RequestShape, &'static str) {
     }
 }
 
-fn family_support_profile(backend: BackendPreference, family: HybridRequestFamily) -> SupportProfile {
-    let (demand, reason) = family_demand(family);
-    let raw_fit = shape_fit_score(backend, demand);
+fn family_support_profile(_backend: BackendPreference, family: HybridRequestFamily) -> SupportProfile {
+    let (_demand, reason) = family_demand(family);
     SupportProfile {
-        base_score: score_from_fit(raw_fit),
         reason,
     }
 }
@@ -538,9 +530,9 @@ pub(crate) fn score_backend_support_raw(
     driverkit_health: Option<DriverKitHealthSnapshot>,
 ) -> (u8, bool, &'static str) {
     let family = request_family(request.kind);
-    let profile = family_support_profile(backend, family);
     let shape = observed_request_shape(request);
-    let mut score = profile.base_score;
+    let observed_caps = observed_backend_capabilities(request.kind, backend, driverkit_health);
+    let mut score = score_from_fit(shape_fit_score_with_caps(observed_caps, shape));
     let mut degraded = false;
     let fallback_reason = family_reason(backend, family);
 
@@ -565,7 +557,6 @@ pub(crate) fn score_backend_support_raw(
 
     score = apply_delta(score, fit_adjustment);
 
-    let observed_caps = observed_backend_capabilities(request.kind, backend, driverkit_health);
     let capability_fit = shape_fit_score_with_caps(observed_caps, shape) / 8;
     score = apply_delta(score, capability_fit as i16);
 

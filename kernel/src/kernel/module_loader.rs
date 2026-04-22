@@ -89,6 +89,7 @@ pub enum ModuleLoadError {
     SegmentFileExceedsMem,
     SegmentAddressOverflow,
     SegmentOverlap,
+    SegmentAlignmentMismatch,
     TooManyLoadSegments,
     ImageTooLarge,
     EntryOutsideLoadSegments,

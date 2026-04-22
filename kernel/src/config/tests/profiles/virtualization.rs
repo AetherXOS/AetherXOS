@@ -265,3 +265,40 @@ fn virtualization_governor_profile_accepts_runtime_key_string_updates() {
         crate::config::VirtualizationGovernorClass::Balanced
     );
 }
+
+#[test_case]
+fn virtualization_runtime_smoke_restricts_effective_launch_and_advanced_ops() {
+    KernelConfig::reset_runtime_overrides();
+    KernelConfig::set_virtualization_runtime_profile(Some(super::VirtualizationRuntimeProfile {
+        telemetry: true,
+        platform_lifecycle: true,
+        entry: true,
+        resume: true,
+        trap_dispatch: true,
+        nested: false,
+        time_virtualization: false,
+        device_passthrough: true,
+        snapshot: false,
+        dirty_logging: true,
+        live_migration: false,
+        trap_tracing: true,
+    }));
+
+    let policy = KernelConfig::virtualization_policy_profile();
+    let scope = KernelConfig::virtualization_policy_scope_profile();
+
+    assert!(policy.effective.entry);
+    assert!(policy.effective.resume);
+    assert!(policy.effective.trap_dispatch);
+    assert!(!policy.effective.nested);
+    assert!(!policy.effective.time_virtualization);
+    assert!(!policy.effective.snapshot);
+    assert!(!policy.effective.live_migration);
+    assert_eq!(scope.overall, "runtime-limited");
+    assert_eq!(scope.nested, "runtime-limited");
+    assert_eq!(scope.time_virtualization, "runtime-limited");
+    assert_eq!(scope.snapshot, "runtime-limited");
+    assert_eq!(scope.live_migration, "runtime-limited");
+
+    KernelConfig::reset_runtime_overrides();
+}

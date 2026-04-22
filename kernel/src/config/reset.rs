@@ -163,6 +163,16 @@ impl KernelConfig {
         LIBRARY_EXPOSE_IPC_API_OVERRIDE.store(0, Ordering::Relaxed);
         LIBRARY_EXPOSE_PROC_CONFIG_API_OVERRIDE.store(0, Ordering::Relaxed);
         LIBRARY_EXPOSE_SYSCTL_API_OVERRIDE.store(0, Ordering::Relaxed);
+        EXEC_ELF_REQUIRE_ABSOLUTE_INTERP_PATH_OVERRIDE.store(0, Ordering::Relaxed);
+        EXEC_ELF_ENFORCE_INTERP_PATH_SANITIZATION_OVERRIDE.store(0, Ordering::Relaxed);
+        EXEC_ELF_ENFORCE_SYSTEM_LOADER_PATHS_OVERRIDE.store(0, Ordering::Relaxed);
+        EXEC_ELF_ENFORCE_SEGMENT_CONGRUENCE_OVERRIDE.store(0, Ordering::Relaxed);
+        EXEC_AUXV_ENFORCE_HANDOFF_CONTRACT_OVERRIDE.store(0, Ordering::Relaxed);
+        EXEC_AUXV_REQUIRE_PHDR_TRIPLET_OVERRIDE.store(0, Ordering::Relaxed);
+        USERSPACE_ABI_REQUIRE_GLIBC_VFS_SURFACE_OVERRIDE.store(0, Ordering::Relaxed);
+        USERSPACE_ABI_REQUIRE_GLIBC_NETWORK_SURFACE_OVERRIDE.store(0, Ordering::Relaxed);
+        USERSPACE_ABI_REQUIRE_GLIBC_IPC_SURFACE_OVERRIDE.store(0, Ordering::Relaxed);
+        USERSPACE_ABI_LIBC_SURFACE_WEIGHT_PERCENT_OVERRIDE.store(0, Ordering::Relaxed);
         SECURITY_ENFORCEMENT_ENABLED_OVERRIDE.store(0, Ordering::Relaxed);
         CAPABILITY_ENFORCEMENT_ENABLED_OVERRIDE.store(0, Ordering::Relaxed);
         MULTI_USER_ENABLED_OVERRIDE.store(0, Ordering::Relaxed);

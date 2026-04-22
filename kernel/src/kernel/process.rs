@@ -396,11 +396,19 @@ impl Process {
     ) -> Result<(), &'static str> {
         let page_size = crate::interfaces::memory::PAGE_SIZE_4K as usize;
         let vdso_page = build_minimal_vdso_page(page_size, vdso_base, vvar_base);
+        let vvar_page = build_minimal_vvar_page(page_size, self.image_entry.load(Ordering::Relaxed) as usize);
+        if !process_vdso::validate_linux_runtime_pages(
+            &vdso_page,
+            &vvar_page,
+            vdso_base,
+            vvar_base,
+            self.image_entry.load(Ordering::Relaxed) as usize,
+        ) {
+            return Err("linux runtime page contract failed");
+        }
+
         crate::modules::posix::mman::mmap_write(vdso_map_id, &vdso_page, 0)
             .map_err(|_| "vdso populate failed")?;
-
-        let vvar_page =
-            build_minimal_vvar_page(page_size, self.image_entry.load(Ordering::Relaxed));
         crate::modules::posix::mman::mmap_write(vvar_map_id, &vvar_page, 0)
             .map_err(|_| "vvar populate failed")?;
         Ok(())

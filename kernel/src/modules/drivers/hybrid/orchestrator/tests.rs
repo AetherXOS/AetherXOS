@@ -957,6 +957,29 @@ fn readiness_report_flags_driverkit_health_regression() {
         .gaps
         .iter()
         .any(|gap| gap.severity == HybridGapSeverity::Critical && gap.issue == "driverkit has quarantined bindings"));
+    assert!(report
+        .gaps
+        .iter()
+        .any(|gap| gap.issue == "driverkit dispatch failure rate is elevated"));
+}
+
+#[test_case]
+fn readiness_report_ignores_short_driverkit_failure_bursts() {
+    let health = DriverKitHealthSnapshot {
+        class_count: 1,
+        binding_count: 1,
+        started_count: 1,
+        faulted_count: 0,
+        quarantined_count: 0,
+        dispatch_success_count: 1,
+        dispatch_failure_count: 2,
+    };
+
+    let report = HybridOrchestrator::readiness_report(Some(health));
+    assert!(!report
+        .gaps
+        .iter()
+        .any(|gap| gap.issue == "driverkit dispatch failure rate is elevated"));
 }
 
 #[test_case]
@@ -1064,8 +1087,17 @@ fn release_gate_matrix_is_versioned_and_family_complete() {
 
     assert_eq!(matrix.version, "2026.04-r1");
     assert_eq!(matrix.rows.len(), 8);
+    assert_eq!(matrix.system_rows.len(), 2);
     assert!(matrix.rows.iter().any(|row| row.family == HybridRequestFamily::Network));
     assert!(matrix.rows.iter().any(|row| row.family == HybridRequestFamily::Storage));
+    assert!(matrix
+        .system_rows
+        .iter()
+        .any(|row| row.name == "userspace-abi"));
+    assert!(matrix
+        .system_rows
+        .iter()
+        .any(|row| row.name == "virtualization"));
 }
 
 #[test_case]
@@ -1116,12 +1148,32 @@ fn userspace_abi_report_consistency_invariants_hold() {
     let report = HybridOrchestrator::userspace_abi_report();
 
     assert!(report.readiness_score <= 100);
+    assert!(report.confidence_score <= 100);
+    assert!(report.telemetry_shape_score <= 100);
+    assert_eq!(report.telemetry_samples, 0);
+    assert_eq!(
+        report.tail_pressure_level,
+        HybridUserspaceAbiTailPressureLevel::Insufficient
+    );
     assert!(report.attack_surface_budget <= 10);
     assert!(report.attack_surface_target <= 10);
     assert_eq!(
         report.critical_blockers + report.high_blockers + report.medium_blockers,
         report.blockers.len()
     );
+    assert_eq!(report.contract_matrix.rows.len(), 12);
+    assert_eq!(report.contract_matrix.data_path_rows + report.contract_matrix.control_path_rows + report.contract_matrix.memory_map_rows, 12);
+    assert!(report.contract_matrix.supported_ratio <= 100);
+    assert_eq!(
+        report.contract_matrix.full_depth_rows
+            + report.contract_matrix.partial_depth_rows
+            + report.contract_matrix.stub_depth_rows,
+        12
+    );
+    assert!(report.contract_matrix.behavior_depth_ratio <= 100);
+    assert!(report.contract_matrix.full_depth_rows > 0);
+    assert!(report.contract_matrix.partial_depth_rows > 0);
+    assert!(report.contract_matrix.stub_depth_rows > 0);
     assert_eq!(
         report.release_ready,
         report.effective_surface_enabled
@@ -1129,6 +1181,7 @@ fn userspace_abi_report_consistency_invariants_hold() {
             && report.critical_blockers == 0
             && report.blockers.is_empty()
     );
+    assert_eq!(report.contract_matrix.release_ready, report.release_ready);
     assert!(!report.next_action.is_empty());
 }
 
@@ -1173,6 +1226,73 @@ fn readiness_report_embeds_userspace_abi_and_virtualization_snapshots() {
         readiness.virtualization.can_launch_guests,
         virtualization.can_launch_guests
     );
+    assert_eq!(
+        readiness.release_ready,
+        userspace.release_ready
+            && virtualization.release_ready
+            && !readiness
+                .gaps
+                .iter()
+                .any(|gap| gap.severity == HybridGapSeverity::Critical)
+    );
+}
+
+#[test_case]
+fn release_gate_readiness_requires_subsystem_release_readiness() {
+    let readiness = HybridOrchestrator::readiness_report(None);
+
+    if !readiness.userspace_abi.release_ready || !readiness.virtualization.release_ready {
+        assert!(!readiness.release_ready);
+    }
+}
+
+#[test_case]
+fn release_gate_matrix_surfaces_system_rows_for_subsystems() {
+    let matrix = HybridOrchestrator::release_gate_matrix(None);
+    let userspace = matrix
+        .system_rows
+        .iter()
+        .find(|row| row.name == "userspace-abi")
+        .expect("userspace ABI system row should exist");
+    let virtualization = matrix
+        .system_rows
+        .iter()
+        .find(|row| row.name == "virtualization")
+        .expect("virtualization system row should exist");
+
+    assert!(userspace.min_score <= 100);
+    assert!(virtualization.min_score <= 100);
+    let subsystem_mean =
+        ((userspace.actual_score as u16 + virtualization.actual_score as u16) / 2) as u8;
+    let subsystem_spread = userspace
+        .actual_score
+        .max(virtualization.actual_score)
+        .saturating_sub(userspace.actual_score.min(virtualization.actual_score));
+    let subsystem_floor = subsystem_mean.saturating_add(subsystem_spread / 8).min(100);
+
+    let virtualization_report = HybridOrchestrator::virtualization_readiness_report();
+    let weighted_limits = virtualization_report.runtime_limited_features * 2
+        + virtualization_report.compiletime_limited_features * 3
+        + virtualization_report.fully_disabled_features * 4;
+    let virtualization_pressure = ((weighted_limits * 100) / (10 * 4)).min(100) as u8;
+    let cross_pressure = virtualization_pressure / 2;
+    let userspace_pressure = cross_pressure;
+    let virtualization_row_pressure = virtualization_pressure.max(cross_pressure);
+
+    assert_eq!(
+        userspace.min_score,
+        (((subsystem_floor as u16 + userspace.actual_score as u16) / 2) as u8)
+            .saturating_add(userspace_pressure / 10)
+            .min(100)
+    );
+    assert_eq!(
+        virtualization.min_score,
+        (((subsystem_floor as u16 + virtualization.actual_score as u16) / 2) as u8)
+            .saturating_add(virtualization_row_pressure / 10)
+            .min(100)
+    );
+    assert_eq!(userspace.release_ready, HybridOrchestrator::userspace_abi_report().release_ready);
+    assert_eq!(virtualization.release_ready, HybridOrchestrator::virtualization_readiness_report().release_ready);
 }
 
 #[test_case]
@@ -1406,4 +1526,50 @@ fn full_context_diagnostics_demote_unhealthy_driverkit_under_pressure() {
         diagnostics.attempts.first().map(|attempt| attempt.backend),
         Some(BackendPreference::DriverKitFirst)
     );
+}
+
+#[test_case]
+fn session_userspace_abi_report_reflects_liblinux_tail_pressure() {
+    let baseline = HybridOrchestrator::userspace_abi_report();
+    let mut session = HybridOrchestratorSession::new(8);
+    for _ in 0..12 {
+        session.record_liblinux_dispatch_sample(LibLinuxDispatchSample::new(16, 4, 0, 1, 7));
+    }
+
+    let pressured = session.userspace_abi_report();
+    assert!(pressured.readiness_score <= baseline.readiness_score);
+    assert!(pressured.confidence_score <= baseline.confidence_score);
+    assert!(pressured.telemetry_shape_score <= baseline.telemetry_shape_score);
+    assert!(pressured.telemetry_samples >= 8);
+    assert_ne!(
+        pressured.tail_pressure_level,
+        HybridUserspaceAbiTailPressureLevel::Insufficient
+    );
+}
+
+#[test_case]
+fn session_userspace_abi_report_rewards_balanced_telemetry() {
+    let baseline = HybridOrchestrator::userspace_abi_report();
+    let mut session = HybridOrchestratorSession::new(8);
+    for _ in 0..16 {
+        session.record_liblinux_dispatch_sample(LibLinuxDispatchSample::new(16, 16, 0, 0, 16));
+    }
+
+    let balanced = session.userspace_abi_report();
+    assert!(balanced.telemetry_samples >= 16);
+    assert!(balanced.confidence_score >= baseline.confidence_score);
+    assert!(balanced.contract_matrix.behavior_depth_ratio >= baseline.contract_matrix.behavior_depth_ratio);
+    assert!(balanced.telemetry_shape_score >= baseline.telemetry_shape_score);
+}
+
+#[test_case]
+fn session_userspace_abi_report_penalizes_skewed_telemetry_shape() {
+    let mut session = HybridOrchestratorSession::new(8);
+    for _ in 0..14 {
+        session.record_liblinux_dispatch_sample(LibLinuxDispatchSample::new(64, 1, 0, 0, 12));
+    }
+
+    let skewed = session.userspace_abi_report();
+    assert!(skewed.telemetry_samples >= 8);
+    assert!(skewed.telemetry_shape_score < 50);
 }

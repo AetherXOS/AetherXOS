@@ -105,7 +105,7 @@ fn build_load_plan_from_parsed(
     image_len: usize,
     info: &ModuleImageInfo,
 ) -> Result<ModuleLoadPlan, ModuleLoadError> {
-    let mut segments = Vec::new();
+    let mut segments: Vec<LoadSegmentPlan> = Vec::new();
     let mut total_file_bytes = 0u64;
     let mut total_mem_bytes = 0u64;
     let mut tls_virtual_addr = 0u64;
@@ -118,6 +118,7 @@ fn build_load_plan_from_parsed(
         let mask: u64 = 0x7fff_0000;
         crate::kernel::syscalls::syscalls_consts::linux::BRK_START as u64 + (tsc & mask)
     };
+    let enforce_segment_congruence = crate::config::KernelConfig::exec_elf_enforce_segment_congruence();
 
     crate::kernel::debug_trace::record_optional(
         "loader.plan",
@@ -146,6 +147,12 @@ fn build_load_plan_from_parsed(
         let virtual_addr = ph.virtual_addr();
         let align = ph.align();
 
+        if enforce_segment_congruence && align > 1 {
+            if (virtual_addr % align) != (file_offset % align) {
+                return Err(ModuleLoadError::SegmentAlignmentMismatch);
+            }
+        }
+
         if file_size > mem_size {
             return Err(ModuleLoadError::SegmentFileExceedsMem);
         }
@@ -161,8 +168,25 @@ fn build_load_plan_from_parsed(
             return Err(ModuleLoadError::ImageTooLarge);
         }
 
+        let segment_virtual_addr = virtual_addr
+            .checked_add(aslr_base)
+            .ok_or(ModuleLoadError::SegmentAddressOverflow)?;
+        let segment_virtual_end = segment_virtual_addr
+            .checked_add(mem_size)
+            .ok_or(ModuleLoadError::SegmentAddressOverflow)?;
+
+        for existing in &segments {
+            let existing_end = existing
+                .virtual_addr
+                .checked_add(existing.mem_size)
+                .ok_or(ModuleLoadError::SegmentAddressOverflow)?;
+            if segment_virtual_addr < existing_end && existing.virtual_addr < segment_virtual_end {
+                return Err(ModuleLoadError::SegmentOverlap);
+            }
+        }
+
         segments.push(LoadSegmentPlan {
-            virtual_addr: virtual_addr + aslr_base,
+            virtual_addr: segment_virtual_addr,
             file_offset,
             file_size,
             mem_size,
@@ -367,6 +391,7 @@ pub fn snapshot_module_image(image: &[u8]) -> Result<ModuleImageSnapshot, Module
                 | ModuleLoadError::NoLoadSegments
                 | ModuleLoadError::SegmentOutOfBounds
                 | ModuleLoadError::SegmentFileExceedsMem
+                | ModuleLoadError::SegmentAlignmentMismatch
                 | ModuleLoadError::SegmentAddressOverflow => {
                     PLAN_FAILURES.fetch_add(1, Ordering::Relaxed);
                     MAP_PLAN_FAILURES.fetch_add(1, Ordering::Relaxed);

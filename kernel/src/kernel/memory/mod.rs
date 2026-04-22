@@ -7,6 +7,7 @@ pub mod paging;
 mod paging_support;
 pub mod slab;
 pub mod swap;
+pub mod rt_pools;
 
 pub use compaction::{CompactionResult, PageMobility, Zone};
 pub use lru::{LruPage, LruReclaimer, PageFlags, ReclaimConfig, ReclaimResult};

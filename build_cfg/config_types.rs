@@ -38,6 +38,8 @@ pub struct Config {
     #[serde(rename = "scheduler.lottery")]
     #[serde(default)]
     pub lottery: LotteryConfig,
+    #[serde(default)]
+    pub rtos: RtosConfig,
 }
 
 // ── Cargo manifest wrappers ───────────────────────────────────────────────────
@@ -773,5 +775,27 @@ where
     match Value::deserialize(deserializer)? {
         Value::Integer(value) => Ok(value),
         Value::String(value) => value.parse::<u64>().map_err(de::Error::custom),
+    }
+}
+
+// ── RtosConfig ────────────────────────────────────────────────────────────────
+
+#[derive(Deserialize, Debug)]
+#[serde(default)]
+pub struct RtosConfig {
+    pub strict_profile_enabled: bool,
+    pub enforce_o1_scheduler_bounds: bool,
+    pub disable_fast_path_alloc: bool,
+    pub posix_compat_enabled: bool,
+}
+
+impl Default for RtosConfig {
+    fn default() -> Self {
+        Self {
+            strict_profile_enabled: false,
+            enforce_o1_scheduler_bounds: false,
+            disable_fast_path_alloc: false,
+            posix_compat_enabled: false,
+        }
     }
 }

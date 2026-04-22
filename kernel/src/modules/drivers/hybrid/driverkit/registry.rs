@@ -287,19 +287,28 @@ impl DriverKitRegistry {
     }
 
     pub fn health_score_from_snapshot(snapshot: &DriverKitHealthSnapshot) -> u8 {
-        let bindings = snapshot.binding_count.max(1) as i32;
-        let total_dispatch = snapshot
+        let bindings = snapshot.binding_count.max(1) as u32;
+        let classes = snapshot.class_count.max(1) as u32;
+        let dispatch_total = snapshot
             .dispatch_success_count
             .saturating_add(snapshot.dispatch_failure_count)
-            .max(1) as i32;
+            .max(1);
 
-        let started_bonus = (snapshot.started_count as i32 * 25) / bindings;
-        let fault_penalty = (snapshot.faulted_count as i32 * 20) / bindings;
-        let quarantine_penalty = (snapshot.quarantined_count as i32 * 35) / bindings;
-        let dispatch_penalty = (snapshot.dispatch_failure_count as i32 * 45) / total_dispatch;
+        let started_ratio = (snapshot.started_count as u32 * 100) / bindings;
+        let fault_ratio = (snapshot.faulted_count as u32 * 100) / bindings;
+        let quarantine_ratio = (snapshot.quarantined_count as u32 * 100) / bindings;
+        let dispatch_success_ratio = (snapshot.dispatch_success_count.saturating_mul(100) / dispatch_total)
+            .min(100) as u32;
+        let fleet_coverage_ratio = ((snapshot.started_count + snapshot.faulted_count + snapshot.quarantined_count)
+            as u32
+            * 100)
+            / classes.max(snapshot.binding_count.max(1) as u32);
 
-        let score = 70 + started_bonus - fault_penalty - quarantine_penalty - dispatch_penalty;
-        score.clamp(0, 100) as u8
+        let positive_signal = started_ratio * 2 + dispatch_success_ratio + fleet_coverage_ratio;
+        let negative_signal = fault_ratio * 2 + quarantine_ratio * 3;
+
+        let score = positive_signal.saturating_sub(negative_signal).min(100);
+        score as u8
     }
 }
 

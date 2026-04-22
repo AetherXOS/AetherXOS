@@ -139,15 +139,8 @@ fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
         compiler_args.push(cargo_consts::ARG_RELEASE);
     }
 
-    let status = std::process::Command::new("cargo")
-        .args(&compiler_args)
-        .current_dir(&app_dir)
-        .status()
+    crate::utils::cargo::cargo_in_dir(&compiler_args, &app_dir)
         .context("Userspace cargo sub-process execution unexpectedly collapsed")?;
-
-    if !status.success() {
-        bail!("Compilation context failed for userspace target: {}", name);
-    }
 
     let target_profile = if is_release { "release" } else { "debug" };
     let compiled_elf = app_dir.join(format!(
@@ -271,6 +264,19 @@ fn generate_raw_image(iso_src: &Path, img_dest: &Path) -> Result<()> {
         bail!("Source ISO object unavailable for requested RAW conversion operation.");
     }
 
+    if img_dest.exists() {
+        let src_meta = fs::metadata(iso_src).ok();
+        let dest_meta = fs::metadata(img_dest).ok();
+        if let (Some(s), Some(d)) = (src_meta, dest_meta) {
+            if let (Ok(s_time), Ok(d_time)) = (s.modified(), d.modified()) {
+                if s_time <= d_time {
+                    logging::info("image", "RAW conversion skipped (already up to date)", &[]);
+                    return Ok(());
+                }
+            }
+        }
+    }
+
     // Prefer QEMU-IMG binary translations if available on host. Fallback to 1-to-1 ISOHybrid block copy natively.
     if let Some(qemu_img) = qemu_img_binary() {
         logging::info("image", "relying on qemu-img translation sub-system", &[]);
@@ -301,6 +307,19 @@ fn generate_raw_image(iso_src: &Path, img_dest: &Path) -> Result<()> {
 fn generate_vhd_image(iso_src: &Path, vhd_dest: &Path) -> Result<()> {
     if !iso_src.exists() {
         bail!("Source ISO object unavailable for requested VHD conversion operation.");
+    }
+
+    if vhd_dest.exists() {
+        let src_meta = fs::metadata(iso_src).ok();
+        let dest_meta = fs::metadata(vhd_dest).ok();
+        if let (Some(s), Some(d)) = (src_meta, dest_meta) {
+            if let (Ok(s_time), Ok(d_time)) = (s.modified(), d.modified()) {
+                if s_time <= d_time {
+                    logging::info("image", "VHD conversion skipped (already up to date)", &[]);
+                    return Ok(());
+                }
+            }
+        }
     }
 
     // Explicit hard dependency requirement for hypervisor-level translations (VirtualPC formatting)

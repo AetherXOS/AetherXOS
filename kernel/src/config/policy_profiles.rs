@@ -202,6 +202,57 @@ impl KernelConfig {
         LIBRARY_EXPOSE_SYSCTL_API_OVERRIDE.store(encode_bool_override(value), Ordering::Relaxed);
     }
 
+    pub fn set_exec_elf_require_absolute_interp_path(value: Option<bool>) {
+        EXEC_ELF_REQUIRE_ABSOLUTE_INTERP_PATH_OVERRIDE
+            .store(encode_bool_override(value), Ordering::Relaxed);
+    }
+
+    pub fn set_exec_elf_enforce_interp_path_sanitization(value: Option<bool>) {
+        EXEC_ELF_ENFORCE_INTERP_PATH_SANITIZATION_OVERRIDE
+            .store(encode_bool_override(value), Ordering::Relaxed);
+    }
+
+    pub fn set_exec_elf_enforce_system_loader_paths(value: Option<bool>) {
+        EXEC_ELF_ENFORCE_SYSTEM_LOADER_PATHS_OVERRIDE
+            .store(encode_bool_override(value), Ordering::Relaxed);
+    }
+
+    pub fn set_exec_elf_enforce_segment_congruence(value: Option<bool>) {
+        EXEC_ELF_ENFORCE_SEGMENT_CONGRUENCE_OVERRIDE
+            .store(encode_bool_override(value), Ordering::Relaxed);
+    }
+
+    pub fn set_exec_auxv_enforce_handoff_contract(value: Option<bool>) {
+        EXEC_AUXV_ENFORCE_HANDOFF_CONTRACT_OVERRIDE
+            .store(encode_bool_override(value), Ordering::Relaxed);
+    }
+
+    pub fn set_exec_auxv_require_phdr_triplet(value: Option<bool>) {
+        EXEC_AUXV_REQUIRE_PHDR_TRIPLET_OVERRIDE.store(encode_bool_override(value), Ordering::Relaxed);
+    }
+
+    pub fn set_userspace_abi_require_glibc_vfs_surface(value: Option<bool>) {
+        USERSPACE_ABI_REQUIRE_GLIBC_VFS_SURFACE_OVERRIDE
+            .store(encode_bool_override(value), Ordering::Relaxed);
+    }
+
+    pub fn set_userspace_abi_require_glibc_network_surface(value: Option<bool>) {
+        USERSPACE_ABI_REQUIRE_GLIBC_NETWORK_SURFACE_OVERRIDE
+            .store(encode_bool_override(value), Ordering::Relaxed);
+    }
+
+    pub fn set_userspace_abi_require_glibc_ipc_surface(value: Option<bool>) {
+        USERSPACE_ABI_REQUIRE_GLIBC_IPC_SURFACE_OVERRIDE
+            .store(encode_bool_override(value), Ordering::Relaxed);
+    }
+
+    pub fn set_userspace_abi_libc_surface_weight_percent(value: Option<u8>) {
+        store_usize_override(
+            &USERSPACE_ABI_LIBC_SURFACE_WEIGHT_PERCENT_OVERRIDE,
+            value.map(|v| v as usize),
+        );
+    }
+
     pub fn set_security_enforcement_enabled(value: Option<bool>) {
         SECURITY_ENFORCEMENT_ENABLED_OVERRIDE.store(encode_bool_override(value), Ordering::Relaxed);
     }

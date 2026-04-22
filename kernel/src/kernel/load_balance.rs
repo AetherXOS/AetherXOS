@@ -3,6 +3,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use spin::Mutex;
 
 use crate::config::{AffinityPolicy, KernelConfig};
+use crate::kernel::debug_trace::{TraceCategory, TraceSeverity};
 use crate::hal::common::virt::current_virtualization_rebalance_tuning;
 #[cfg(test)]
 use crate::hal::common::virt::virtualization_rebalance_tuning;
@@ -25,9 +26,18 @@ static REBALANCE_IMBALANCE_BIN_8_15: AtomicU64 = AtomicU64::new(0);
 static REBALANCE_IMBALANCE_BIN_GE16: AtomicU64 = AtomicU64::new(0);
 static REBALANCE_IMBALANCE_SEQ: AtomicU64 = AtomicU64::new(0);
 static REBALANCE_TRACE_EVENT_SEQ: AtomicU64 = AtomicU64::new(0);
+static REBALANCE_LAST_REASON: AtomicU64 = AtomicU64::new(0);
+static REBALANCE_LAST_SOURCE_LOAD: AtomicU64 = AtomicU64::new(0);
+static REBALANCE_LAST_TARGET_LOAD: AtomicU64 = AtomicU64::new(0);
+static REBALANCE_LAST_IMBALANCE: AtomicU64 = AtomicU64::new(0);
+static REBALANCE_LAST_THRESHOLD: AtomicU64 = AtomicU64::new(0);
+static REBALANCE_LAST_BATCH: AtomicU64 = AtomicU64::new(0);
+static REBALANCE_LAST_MOVED: AtomicU64 = AtomicU64::new(0);
 
 const IMBALANCE_WINDOW: usize = crate::generated_consts::GOVERNOR_LOAD_BALANCE_PERCENTILE_WINDOW;
 static REBALANCE_IMBALANCE_RING: Mutex<[u32; IMBALANCE_WINDOW]> = Mutex::new([0; IMBALANCE_WINDOW]);
+const IMBALANCE_DECAY_DENOM: usize = 8;
+const IMBALANCE_DECAY_OLDEST_NUM: usize = 4;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RebalanceStats {
@@ -45,6 +55,51 @@ pub struct RebalanceStats {
     pub imbalance_p50: usize,
     pub imbalance_p90: usize,
     pub imbalance_p99: usize,
+    pub last_reason: RebalanceDecisionReason,
+    pub last_source_load: usize,
+    pub last_target_load: usize,
+    pub last_imbalance: usize,
+    pub last_threshold: usize,
+    pub last_batch: usize,
+    pub last_moved: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum RebalanceDecisionReason {
+    Unknown = 0,
+    InsufficientCpus = 1,
+    NoCandidates = 2,
+    SameCpu = 3,
+    BelowThreshold = 4,
+    NoEligibleTasks = 5,
+    Rebalanced = 6,
+}
+
+impl RebalanceDecisionReason {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RebalanceDecisionReason::Unknown => "unknown",
+            RebalanceDecisionReason::InsufficientCpus => "insufficient_cpus",
+            RebalanceDecisionReason::NoCandidates => "no_candidates",
+            RebalanceDecisionReason::SameCpu => "same_cpu",
+            RebalanceDecisionReason::BelowThreshold => "below_threshold",
+            RebalanceDecisionReason::NoEligibleTasks => "no_eligible_tasks",
+            RebalanceDecisionReason::Rebalanced => "rebalanced",
+        }
+    }
+
+    fn from_raw(raw: u64) -> Self {
+        match raw {
+            1 => RebalanceDecisionReason::InsufficientCpus,
+            2 => RebalanceDecisionReason::NoCandidates,
+            3 => RebalanceDecisionReason::SameCpu,
+            4 => RebalanceDecisionReason::BelowThreshold,
+            5 => RebalanceDecisionReason::NoEligibleTasks,
+            6 => RebalanceDecisionReason::Rebalanced,
+            _ => RebalanceDecisionReason::Unknown,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -73,6 +128,13 @@ pub fn stats_snapshot() -> RebalanceStats {
         imbalance_p50: p.p50,
         imbalance_p90: p.p90,
         imbalance_p99: p.p99,
+        last_reason: RebalanceDecisionReason::from_raw(REBALANCE_LAST_REASON.load(Ordering::Relaxed)),
+        last_source_load: REBALANCE_LAST_SOURCE_LOAD.load(Ordering::Relaxed) as usize,
+        last_target_load: REBALANCE_LAST_TARGET_LOAD.load(Ordering::Relaxed) as usize,
+        last_imbalance: REBALANCE_LAST_IMBALANCE.load(Ordering::Relaxed) as usize,
+        last_threshold: REBALANCE_LAST_THRESHOLD.load(Ordering::Relaxed) as usize,
+        last_batch: REBALANCE_LAST_BATCH.load(Ordering::Relaxed) as usize,
+        last_moved: REBALANCE_LAST_MOVED.load(Ordering::Relaxed) as usize,
     }
 }
 
@@ -105,8 +167,12 @@ fn imbalance_percentiles_snapshot() -> RebalancePercentiles {
     let ring = REBALANCE_IMBALANCE_RING.lock();
     let mut samples = Vec::with_capacity(total);
     let mut cursor = oldest;
-    for _ in 0..total {
-        samples.push(ring[cursor] as usize);
+    let decay_span = total.saturating_sub(1).max(1);
+    for age_index in 0..total {
+        let raw = ring[cursor] as usize;
+        let decay_num = IMBALANCE_DECAY_OLDEST_NUM
+            + ((IMBALANCE_DECAY_DENOM - IMBALANCE_DECAY_OLDEST_NUM) * age_index) / decay_span;
+        samples.push(raw.saturating_mul(decay_num) / IMBALANCE_DECAY_DENOM);
         cursor = (cursor + 1) % IMBALANCE_WINDOW;
     }
     drop(ring);
@@ -153,24 +219,72 @@ fn record_imbalance_histogram(imbalance: usize) {
 
 #[inline(always)]
 fn rebalance_threshold(tuning: crate::hal::common::virt::VirtualizationRebalanceTuning) -> usize {
-    KernelConfig::rebalance_imbalance_threshold()
+    let base = KernelConfig::rebalance_imbalance_threshold()
         .saturating_div(tuning.threshold_divisor.max(1))
-        .max(1)
+        .max(1);
+    let p = imbalance_percentiles_snapshot();
+    if p.samples < 8 {
+        return base;
+    }
+
+    let tail = ((p.p90 + p.p99) / 2).max(1);
+    let adaptive_floor = tail
+        .saturating_div(tuning.threshold_divisor.max(1))
+        .max(1);
+    base.max(adaptive_floor)
 }
 
 #[inline(always)]
 fn rebalance_batch_size(tuning: crate::hal::common::virt::VirtualizationRebalanceTuning) -> usize {
-    KernelConfig::rebalance_batch_size()
+    let base = KernelConfig::rebalance_batch_size()
         .saturating_mul(tuning.batch_multiplier.max(1))
-        .max(1)
+        .max(1);
+    let p = imbalance_percentiles_snapshot();
+    if p.samples < 8 {
+        return base;
+    }
+
+    let spread = p.p99.saturating_sub(p.p50);
+    let bonus = (spread / 8).saturating_mul(tuning.batch_multiplier.max(1));
+    base.saturating_add(bonus).max(1)
 }
 
 #[inline(always)]
 fn prefer_local_skip_budget(
     tuning: crate::hal::common::virt::VirtualizationRebalanceTuning,
 ) -> usize {
-    KernelConfig::rebalance_prefer_local_skip_budget()
+    let base = KernelConfig::rebalance_prefer_local_skip_budget()
         .saturating_div(tuning.prefer_local_skip_budget_divisor.max(1))
+        .max(1);
+    let p = imbalance_percentiles_snapshot();
+    if p.samples < 8 {
+        return base;
+    }
+
+    let tail_pressure = p.p90.saturating_sub(p.p50);
+    let adaptive_add = (tail_pressure / 8).min(4);
+    base.saturating_add(adaptive_add)
+}
+
+#[cfg(test)]
+pub(super) fn reset_rebalance_adaptive_state() {
+    REBALANCE_IMBALANCE_SEQ.store(0, Ordering::Relaxed);
+    REBALANCE_IMBALANCE_BIN_LT2.store(0, Ordering::Relaxed);
+    REBALANCE_IMBALANCE_BIN_2_3.store(0, Ordering::Relaxed);
+    REBALANCE_IMBALANCE_BIN_4_7.store(0, Ordering::Relaxed);
+    REBALANCE_IMBALANCE_BIN_8_15.store(0, Ordering::Relaxed);
+    REBALANCE_IMBALANCE_BIN_GE16.store(0, Ordering::Relaxed);
+    let mut ring = REBALANCE_IMBALANCE_RING.lock();
+    for value in ring.iter_mut() {
+        *value = 0;
+    }
+    REBALANCE_LAST_REASON.store(RebalanceDecisionReason::Unknown as u64, Ordering::Relaxed);
+    REBALANCE_LAST_SOURCE_LOAD.store(0, Ordering::Relaxed);
+    REBALANCE_LAST_TARGET_LOAD.store(0, Ordering::Relaxed);
+    REBALANCE_LAST_IMBALANCE.store(0, Ordering::Relaxed);
+    REBALANCE_LAST_THRESHOLD.store(0, Ordering::Relaxed);
+    REBALANCE_LAST_BATCH.store(0, Ordering::Relaxed);
+    REBALANCE_LAST_MOVED.store(0, Ordering::Relaxed);
 }
 
 #[inline(always)]
@@ -179,6 +293,36 @@ fn should_emit_rebalance_trace() -> bool {
         .fetch_add(1, Ordering::Relaxed)
         .saturating_add(1);
     KernelConfig::should_emit_scheduler_trace_sample(seq)
+}
+
+#[inline(always)]
+fn record_rebalance_decision(
+    reason: RebalanceDecisionReason,
+    source_load: usize,
+    target_load: usize,
+    imbalance: usize,
+    threshold: usize,
+    batch: usize,
+    moved: usize,
+) {
+    REBALANCE_LAST_REASON.store(reason as u64, Ordering::Relaxed);
+    REBALANCE_LAST_SOURCE_LOAD.store(source_load as u64, Ordering::Relaxed);
+    REBALANCE_LAST_TARGET_LOAD.store(target_load as u64, Ordering::Relaxed);
+    REBALANCE_LAST_IMBALANCE.store(imbalance as u64, Ordering::Relaxed);
+    REBALANCE_LAST_THRESHOLD.store(threshold as u64, Ordering::Relaxed);
+    REBALANCE_LAST_BATCH.store(batch as u64, Ordering::Relaxed);
+    REBALANCE_LAST_MOVED.store(moved as u64, Ordering::Relaxed);
+
+    if should_emit_rebalance_trace() {
+        crate::kernel::debug_trace::record_with_metadata(
+            "scheduler",
+            reason.as_str(),
+            Some(reason as u64),
+            false,
+            TraceSeverity::Trace,
+            TraceCategory::Scheduler,
+        );
+    }
 }
 
 #[inline(always)]
@@ -257,6 +401,15 @@ fn rebalance_once() {
     let (source_cpu, source_load, target_cpu, target_load) = {
         let cpus = crate::hal::smp::CPUS.lock();
         if cpus.len() < 2 {
+            record_rebalance_decision(
+                RebalanceDecisionReason::InsufficientCpus,
+                0,
+                0,
+                0,
+                threshold,
+                batch,
+                0,
+            );
             return;
         }
 
@@ -276,9 +429,27 @@ fn rebalance_once() {
         }
 
         let Some((b_cpu, b_load)) = busiest else {
+            record_rebalance_decision(
+                RebalanceDecisionReason::NoCandidates,
+                0,
+                0,
+                0,
+                threshold,
+                batch,
+                0,
+            );
             return;
         };
         let Some((i_cpu, i_load)) = idlest else {
+            record_rebalance_decision(
+                RebalanceDecisionReason::NoCandidates,
+                0,
+                0,
+                0,
+                threshold,
+                batch,
+                0,
+            );
             return;
         };
 
@@ -286,6 +457,15 @@ fn rebalance_once() {
     };
 
     if source_cpu.cpu_id == target_cpu.cpu_id {
+        record_rebalance_decision(
+            RebalanceDecisionReason::SameCpu,
+            source_load,
+            target_load,
+            0,
+            threshold,
+            batch,
+            0,
+        );
         return;
     }
 
@@ -293,6 +473,15 @@ fn rebalance_once() {
     record_imbalance_histogram(imbalance);
 
     if source_load <= target_load.saturating_add(threshold) {
+        record_rebalance_decision(
+            RebalanceDecisionReason::BelowThreshold,
+            source_load,
+            target_load,
+            imbalance,
+            threshold,
+            batch,
+            0,
+        );
         return;
     }
 
@@ -340,9 +529,25 @@ fn rebalance_once() {
         REBALANCE_MOVED.fetch_add(moved as u64, Ordering::Relaxed);
     }
 
+    let reason = if moved > 0 {
+        RebalanceDecisionReason::Rebalanced
+    } else {
+        RebalanceDecisionReason::NoEligibleTasks
+    };
+    record_rebalance_decision(
+        reason,
+        source_load,
+        target_load,
+        imbalance,
+        threshold,
+        batch,
+        moved,
+    );
+
     if moved > 0 && should_emit_rebalance_trace() {
         crate::klog_trace!(
-            "rebalance moved={} from cpu={} to cpu={} load {}->{} policy={}",
+            "rebalance reason={} moved={} from cpu={} to cpu={} load {}->{} policy={}",
+            reason.as_str(),
             moved,
             source_cpu.cpu_id,
             target_cpu.cpu_id,

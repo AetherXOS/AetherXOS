@@ -57,6 +57,64 @@ fn build_governor(
 }
 
 #[inline(always)]
+fn scope_limited_feature_counts() -> (usize, usize) {
+    let scope = crate::config::KernelConfig::virtualization_policy_scope_profile();
+    let states = [
+        scope.entry,
+        scope.resume,
+        scope.trap_dispatch,
+        scope.nested,
+        scope.time_virtualization,
+        scope.device_passthrough,
+        scope.snapshot,
+        scope.dirty_logging,
+        scope.live_migration,
+        scope.trap_tracing,
+    ];
+
+    let runtime_limited = states
+        .iter()
+        .filter(|state| **state == "runtime-limited")
+        .count();
+    let compiletime_limited = states
+        .iter()
+        .filter(|state| **state == "compiletime-limited")
+        .count();
+    (runtime_limited, compiletime_limited)
+}
+
+#[inline(always)]
+fn adapt_governor_by_runtime_signals(
+    mut governor: VirtualizationRuntimeGovernor,
+) -> VirtualizationRuntimeGovernor {
+    let cpu_count = crate::hal::smp::cpu_count().max(1);
+    let (runtime_limited, compiletime_limited) = scope_limited_feature_counts();
+
+    // Wider SMP topologies benefit from stronger rebalance pressure and larger migration windows.
+    if cpu_count >= 8 {
+        governor.scheduler.threshold_divisor = governor.scheduler.threshold_divisor.saturating_add(1);
+        governor.rebalance.batch_multiplier = governor.rebalance.batch_multiplier.saturating_add(1);
+        governor.rebalance.threshold_divisor = governor.rebalance.threshold_divisor.saturating_add(1);
+    }
+
+    // If runtime policy limits are active, reduce migration aggressiveness until features are re-enabled.
+    if runtime_limited > 0 {
+        governor.scheduler.threshold_divisor = governor.scheduler.threshold_divisor.saturating_sub(1).max(1);
+        governor.rebalance.threshold_divisor = governor.rebalance.threshold_divisor.saturating_sub(1).max(1);
+        governor.rebalance.batch_multiplier = governor.rebalance.batch_multiplier.saturating_sub(1).max(1);
+    }
+
+    // Compile-time limits imply missing capabilities, so keep policy conservative to avoid oscillation.
+    if compiletime_limited > 0 {
+        governor.scheduler.burst_multiplier = 1;
+        governor.rebalance.batch_multiplier = 1;
+        governor.power.prefer_active_pstate = false;
+    }
+
+    governor
+}
+
+#[inline(always)]
 pub fn virtualization_runtime_governor(
     execution_profile: &'static str,
     scheduler_lane: &'static str,
@@ -68,7 +126,7 @@ pub fn virtualization_runtime_governor(
         governor_profile.governor_class,
         crate::config::VirtualizationGovernorClass::Performance
     ) {
-        return build_governor(
+        return adapt_governor_by_runtime_signals(build_governor(
             GOVERNOR_CLASS_PERFORMANCE,
             GOVERNOR_BIAS_AGGRESSIVE,
             GOVERNOR_ENERGY_PERFORMANCE,
@@ -87,13 +145,13 @@ pub fn virtualization_runtime_governor(
                 prefer_active_pstate: true,
                 prefer_shallow_idle: true,
             },
-        );
+        ));
     }
     if matches!(
         governor_profile.governor_class,
         crate::config::VirtualizationGovernorClass::Efficiency
     ) {
-        return build_governor(
+        return adapt_governor_by_runtime_signals(build_governor(
             GOVERNOR_CLASS_EFFICIENCY,
             GOVERNOR_BIAS_RELAXED,
             GOVERNOR_ENERGY_SAVING,
@@ -112,7 +170,7 @@ pub fn virtualization_runtime_governor(
                 prefer_active_pstate: false,
                 prefer_shallow_idle: false,
             },
-        );
+        ));
     }
 
     let latency_critical = execution_profile.eq_ignore_ascii_case("LatencyCritical")
@@ -123,7 +181,7 @@ pub fn virtualization_runtime_governor(
         || selected_mode == BACKEND_MODE_BLOCKED;
 
     if latency_critical {
-        build_governor(
+        adapt_governor_by_runtime_signals(build_governor(
             GOVERNOR_CLASS_LATENCY_FOCUSED,
             GOVERNOR_BIAS_AGGRESSIVE,
             GOVERNOR_ENERGY_PERFORMANCE,
@@ -142,9 +200,9 @@ pub fn virtualization_runtime_governor(
                 prefer_active_pstate: true,
                 prefer_shallow_idle: true,
             },
-        )
+        ))
     } else if background {
-        build_governor(
+        adapt_governor_by_runtime_signals(build_governor(
             GOVERNOR_CLASS_BACKGROUND_OPTIMIZED,
             GOVERNOR_BIAS_RELAXED,
             GOVERNOR_ENERGY_SAVING,
@@ -163,9 +221,9 @@ pub fn virtualization_runtime_governor(
                 prefer_active_pstate: false,
                 prefer_shallow_idle: false,
             },
-        )
+        ))
     } else {
-        build_governor(
+        adapt_governor_by_runtime_signals(build_governor(
             GOVERNOR_CLASS_BALANCED,
             GOVERNOR_BIAS_BALANCED,
             GOVERNOR_ENERGY_BALANCED,
@@ -184,7 +242,7 @@ pub fn virtualization_runtime_governor(
                 prefer_active_pstate: false,
                 prefer_shallow_idle: true,
             },
-        )
+        ))
     }
 }
 

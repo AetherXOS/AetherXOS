@@ -270,6 +270,12 @@ replay_trace_capacity = 128
 lcg_multiplier = "6364136223846793005"
 lcg_increment = 1
 
+[package.metadata.aethercore.config.rtos]
+strict_profile_enabled = true
+enforce_o1_scheduler_bounds = true
+disable_fast_path_alloc = true
+posix_compat_enabled = true
+
 [dependencies]
 limine = "0.1.12"
 volatile = "0.5.4"

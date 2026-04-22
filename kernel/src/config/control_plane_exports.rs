@@ -2,7 +2,9 @@ use super::*;
 #[cfg(feature = "vfs")]
 use super::support::{
     build_feature_report, build_feature_summary_report, build_linux_compat_readiness_report,
-    build_runtime_keys_report, build_snapshot_report, normalize_export_dir,
+    build_runtime_keys_report, build_security_posture_report, build_snapshot_report,
+    build_vfs_behavior_report, build_vfs_focus_report, build_vfs_matrix_report,
+    normalize_export_dir,
 };
 
 impl KernelConfig {
@@ -26,6 +28,9 @@ impl KernelConfig {
         let next_action = Self::linux_compat_next_action();
         let keys = Self::runtime_override_template();
         let audit = Self::audit_stats();
+        let security_snapshot = crate::kernel::security_posture::current_snapshot();
+        let security_gate = crate::kernel::security_posture::strict_profile_gate_report();
+        let security_release_gate = crate::kernel::security_posture::release_gate_decision();
 
         let files = [
             ("snapshot.txt", build_snapshot_report(&snapshot, &audit)),
@@ -38,6 +43,17 @@ impl KernelConfig {
                 "linux_compat_readiness.txt",
                 build_linux_compat_readiness_report(&readiness, blockers.as_slice(), next_action),
             ),
+            (
+                "security_posture.txt",
+                build_security_posture_report(
+                    &security_snapshot,
+                    &security_gate,
+                    &security_release_gate,
+                ),
+            ),
+            ("vfs_behavior.txt", build_vfs_behavior_report()),
+            ("vfs_matrix.txt", build_vfs_matrix_report()),
+            ("vfs_focus.txt", build_vfs_focus_report()),
             ("runtime_keys.txt", build_runtime_keys_report(&keys)),
         ];
 

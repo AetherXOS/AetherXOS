@@ -73,7 +73,7 @@ pub fn log(level: &str, module: &str, message: &str, kv: &[(&str, &str)]) {
         "ERROR" => (BG_RED, FG_WHITE),
         "WARN" => (BG_YELLOW, FG_BLACK),
         "EXEC" => (BG_MAGENTA, FG_WHITE),
-        "READY" => (BG_GREEN, FG_BLACK),
+        "READY" | "SUCCESS" => (BG_GREEN, FG_BLACK),
         _ => (BG_BLUE, FG_WHITE),
     };
 
@@ -112,6 +112,10 @@ pub fn exec(module: &str, command: &str) {
 #[allow(dead_code)]
 pub fn error(module: &str, message: &str, kv: &[(&str, &str)]) {
     log("ERROR", module, message, kv);
+}
+
+pub fn success(module: &str, message: &str, kv: &[(&str, &str)]) {
+    log("SUCCESS", module, message, kv);
 }
 
 pub trait ReadyDetails {

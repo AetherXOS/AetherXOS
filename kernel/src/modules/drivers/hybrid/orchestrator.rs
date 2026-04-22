@@ -6,6 +6,8 @@ use super::liblinux::{
     LibLinuxTelemetryStore, LinuxBridgeDispatchRecord, LinuxSyscallQueue,
     LinuxSyscallRequest,
 };
+use super::LinuxIoRequestKind;
+use super::liblinux::{LibLinuxConformanceRisk, LibLinuxSemanticClass, LinuxSyscall};
 use super::linux::{LinuxResourcePlan, LinuxShimDeviceKind};
 use super::reactos::{
     NtDomainImportBinding, NtExecutionPolicy, NtImportBinding, NtImportDomainCounts,
@@ -696,12 +698,69 @@ pub struct HybridReleaseGateFamilyRow {
 pub struct HybridReleaseGateMatrix {
     pub version: &'static str,
     pub rows: Vec<HybridReleaseGateFamilyRow>,
+    pub system_rows: Vec<HybridReleaseGateSystemRow>,
     pub release_blocked: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HybridReleaseGateSystemRow {
+    pub name: &'static str,
+    pub min_score: u8,
+    pub actual_score: u8,
+    pub blocker_count: usize,
+    pub release_ready: bool,
+    pub status: HybridReleaseGateStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HybridUserspaceAbiContractRow {
+    pub syscall: LinuxSyscall,
+    pub io_kind: LinuxIoRequestKind,
+    pub semantic_class: LibLinuxSemanticClass,
+    pub zero_copy_eligible: bool,
+    pub supported: bool,
+    pub behavior_depth: HybridUserspaceAbiBehaviorDepth,
+    pub risk: LibLinuxConformanceRisk,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HybridUserspaceAbiContractMatrix {
+    pub rows: Vec<HybridUserspaceAbiContractRow>,
+    pub supported_ratio: u8,
+    pub behavior_depth_ratio: u8,
+    pub data_path_rows: usize,
+    pub control_path_rows: usize,
+    pub memory_map_rows: usize,
+    pub full_depth_rows: usize,
+    pub partial_depth_rows: usize,
+    pub stub_depth_rows: usize,
+    pub high_risk_ops: usize,
+    pub release_ready: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HybridUserspaceAbiBehaviorDepth {
+    Full,
+    Partial,
+    Stub,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HybridUserspaceAbiTailPressureLevel {
+    Insufficient,
+    Stable,
+    Observe,
+    Warn,
+    Block,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HybridUserspaceAbiReport {
     pub readiness_score: u8,
+    pub confidence_score: u8,
+    pub telemetry_shape_score: u8,
+    pub tail_pressure_level: HybridUserspaceAbiTailPressureLevel,
+    pub telemetry_samples: usize,
     pub compile_linux_compat: bool,
     pub compile_vfs: bool,
     pub boundary_allows_compat: bool,
@@ -712,6 +771,7 @@ pub struct HybridUserspaceAbiReport {
     pub high_blockers: usize,
     pub medium_blockers: usize,
     pub effective_surface_enabled: bool,
+    pub contract_matrix: HybridUserspaceAbiContractMatrix,
     pub blockers: Vec<&'static str>,
     pub next_action: &'static str,
     pub release_ready: bool,
@@ -987,7 +1047,7 @@ impl HybridOrchestratorSession {
     }
 
     pub fn userspace_abi_report(&self) -> HybridUserspaceAbiReport {
-        HybridOrchestrator::userspace_abi_report()
+        planner::userspace_abi_report_with_telemetry(Some(&self.liblinux_telemetry))
     }
 
     pub fn virtualization_readiness_report(&self) -> HybridVirtualizationReadinessReport {

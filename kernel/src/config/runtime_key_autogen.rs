@@ -3,7 +3,7 @@
 
 use super::{ConfigKeySpec, ConfigSetError, ConfigValue, ConfigValueKind, KernelConfig};
 
-pub(super) const AUTO_RUNTIME_CONFIG_CATEGORIES: &[&str] = &["ahci", "capability", "cfs", "core", "credential", "debug", "devfs", "diskfs", "driver", "e1000", "edf", "ipc", "irq", "irqsafe", "launch", "libnet", "library", "log", "mlfq", "module", "multi", "network", "nvme", "power", "proc", "rt", "runtime", "sched", "scheduler", "security", "serial", "strict", "syscall", "sysctl", "telemetry", "vfs", "virtualization", "watchdog"];
+pub(super) const AUTO_RUNTIME_CONFIG_CATEGORIES: &[&str] = &["ahci", "capability", "cfs", "core", "credential", "debug", "devfs", "diskfs", "driver", "e1000", "edf", "exec", "ipc", "irq", "irqsafe", "launch", "libnet", "library", "log", "mlfq", "module", "multi", "network", "nvme", "power", "proc", "rt", "runtime", "sched", "scheduler", "security", "serial", "strict", "syscall", "sysctl", "telemetry", "userspace", "vfs", "virtualization", "watchdog"];
 
 pub(super) const AUTO_RUNTIME_CONFIG_KEYS: &[ConfigKeySpec] = &[
     ConfigKeySpec { key: "ahci_io_timeout_spins", value_kind: ConfigValueKind::Usize, description: "auto:set_ahci_io_timeout_spins" },
@@ -45,6 +45,12 @@ pub(super) const AUTO_RUNTIME_CONFIG_KEYS: &[ConfigKeySpec] = &[
     ConfigKeySpec { key: "e1000_tx_desc_count", value_kind: ConfigValueKind::Usize, description: "auto:set_e1000_tx_desc_count" },
     ConfigKeySpec { key: "edf_default_relative_deadline_ns", value_kind: ConfigValueKind::U64, description: "auto:set_edf_default_relative_deadline_ns" },
     ConfigKeySpec { key: "edf_enforce_deadline", value_kind: ConfigValueKind::Bool, description: "auto:set_edf_enforce_deadline" },
+    ConfigKeySpec { key: "exec_auxv_enforce_handoff_contract", value_kind: ConfigValueKind::Bool, description: "auto:set_exec_auxv_enforce_handoff_contract" },
+    ConfigKeySpec { key: "exec_auxv_require_phdr_triplet", value_kind: ConfigValueKind::Bool, description: "auto:set_exec_auxv_require_phdr_triplet" },
+    ConfigKeySpec { key: "exec_elf_enforce_interp_path_sanitization", value_kind: ConfigValueKind::Bool, description: "auto:set_exec_elf_enforce_interp_path_sanitization" },
+    ConfigKeySpec { key: "exec_elf_enforce_segment_congruence", value_kind: ConfigValueKind::Bool, description: "auto:set_exec_elf_enforce_segment_congruence" },
+    ConfigKeySpec { key: "exec_elf_enforce_system_loader_paths", value_kind: ConfigValueKind::Bool, description: "auto:set_exec_elf_enforce_system_loader_paths" },
+    ConfigKeySpec { key: "exec_elf_require_absolute_interp_path", value_kind: ConfigValueKind::Bool, description: "auto:set_exec_elf_require_absolute_interp_path" },
     ConfigKeySpec { key: "ipc_library_api_exposed", value_kind: ConfigValueKind::Bool, description: "auto:set_ipc_library_api_exposed" },
     ConfigKeySpec { key: "irq_vector_base", value_kind: ConfigValueKind::U8, description: "auto:set_irq_vector_base" },
     ConfigKeySpec { key: "irqsafe_mutex_deadlock_spin_limit", value_kind: ConfigValueKind::Usize, description: "auto:set_irqsafe_mutex_deadlock_spin_limit" },
@@ -119,6 +125,10 @@ pub(super) const AUTO_RUNTIME_CONFIG_KEYS: &[ConfigKeySpec] = &[
     ConfigKeySpec { key: "telemetry_security_enabled", value_kind: ConfigValueKind::Bool, description: "auto:set_telemetry_security_enabled" },
     ConfigKeySpec { key: "telemetry_vfs_enabled", value_kind: ConfigValueKind::Bool, description: "auto:set_telemetry_vfs_enabled" },
     ConfigKeySpec { key: "telemetry_virtualization_enabled", value_kind: ConfigValueKind::Bool, description: "auto:set_telemetry_virtualization_enabled" },
+    ConfigKeySpec { key: "userspace_abi_libc_surface_weight_percent", value_kind: ConfigValueKind::U8, description: "auto:set_userspace_abi_libc_surface_weight_percent" },
+    ConfigKeySpec { key: "userspace_abi_require_glibc_ipc_surface", value_kind: ConfigValueKind::Bool, description: "auto:set_userspace_abi_require_glibc_ipc_surface" },
+    ConfigKeySpec { key: "userspace_abi_require_glibc_network_surface", value_kind: ConfigValueKind::Bool, description: "auto:set_userspace_abi_require_glibc_network_surface" },
+    ConfigKeySpec { key: "userspace_abi_require_glibc_vfs_surface", value_kind: ConfigValueKind::Bool, description: "auto:set_userspace_abi_require_glibc_vfs_surface" },
     ConfigKeySpec { key: "vfs_enable_buffered_io", value_kind: ConfigValueKind::Bool, description: "auto:set_vfs_enable_buffered_io" },
     ConfigKeySpec { key: "vfs_health_max_mount_capacity_percent", value_kind: ConfigValueKind::Usize, description: "auto:set_vfs_health_max_mount_capacity_percent" },
     ConfigKeySpec { key: "vfs_health_max_mount_failure_rate_per_mille", value_kind: ConfigValueKind::U64, description: "auto:set_vfs_health_max_mount_failure_rate_per_mille" },
@@ -184,6 +194,12 @@ pub(super) fn auto_set_by_stem(stem: &str, value: Option<ConfigValue>) -> Result
         "e1000_tx_desc_count" => super::set_usize(value, KernelConfig::set_e1000_tx_desc_count),
         "edf_default_relative_deadline_ns" => super::set_u64(value, KernelConfig::set_edf_default_relative_deadline_ns),
         "edf_enforce_deadline" => super::set_bool(value, KernelConfig::set_edf_enforce_deadline),
+        "exec_auxv_enforce_handoff_contract" => super::set_bool(value, KernelConfig::set_exec_auxv_enforce_handoff_contract),
+        "exec_auxv_require_phdr_triplet" => super::set_bool(value, KernelConfig::set_exec_auxv_require_phdr_triplet),
+        "exec_elf_enforce_interp_path_sanitization" => super::set_bool(value, KernelConfig::set_exec_elf_enforce_interp_path_sanitization),
+        "exec_elf_enforce_segment_congruence" => super::set_bool(value, KernelConfig::set_exec_elf_enforce_segment_congruence),
+        "exec_elf_enforce_system_loader_paths" => super::set_bool(value, KernelConfig::set_exec_elf_enforce_system_loader_paths),
+        "exec_elf_require_absolute_interp_path" => super::set_bool(value, KernelConfig::set_exec_elf_require_absolute_interp_path),
         "ipc_library_api_exposed" => super::set_bool(value, KernelConfig::set_ipc_library_api_exposed),
         "irq_vector_base" => super::set_u8(value, KernelConfig::set_irq_vector_base),
         "irqsafe_mutex_deadlock_spin_limit" => super::set_usize(value, KernelConfig::set_irqsafe_mutex_deadlock_spin_limit),
@@ -258,6 +274,10 @@ pub(super) fn auto_set_by_stem(stem: &str, value: Option<ConfigValue>) -> Result
         "telemetry_security_enabled" => super::set_bool(value, KernelConfig::set_telemetry_security_enabled),
         "telemetry_vfs_enabled" => super::set_bool(value, KernelConfig::set_telemetry_vfs_enabled),
         "telemetry_virtualization_enabled" => super::set_bool(value, KernelConfig::set_telemetry_virtualization_enabled),
+        "userspace_abi_libc_surface_weight_percent" => super::set_u8(value, KernelConfig::set_userspace_abi_libc_surface_weight_percent),
+        "userspace_abi_require_glibc_ipc_surface" => super::set_bool(value, KernelConfig::set_userspace_abi_require_glibc_ipc_surface),
+        "userspace_abi_require_glibc_network_surface" => super::set_bool(value, KernelConfig::set_userspace_abi_require_glibc_network_surface),
+        "userspace_abi_require_glibc_vfs_surface" => super::set_bool(value, KernelConfig::set_userspace_abi_require_glibc_vfs_surface),
         "vfs_enable_buffered_io" => super::set_bool(value, KernelConfig::set_vfs_enable_buffered_io),
         "vfs_health_max_mount_capacity_percent" => super::set_usize(value, KernelConfig::set_vfs_health_max_mount_capacity_percent),
         "vfs_health_max_mount_failure_rate_per_mille" => super::set_u64(value, KernelConfig::set_vfs_health_max_mount_failure_rate_per_mille),

@@ -72,6 +72,78 @@ impl KernelConfig {
         ) && Self::is_vfs_library_api_exposed()
     }
 
+    pub fn exec_elf_require_absolute_interp_path() -> bool {
+        decode_bool_override(
+            EXEC_ELF_REQUIRE_ABSOLUTE_INTERP_PATH_OVERRIDE.load(Ordering::Relaxed),
+            true,
+        )
+    }
+
+    pub fn exec_elf_enforce_interp_path_sanitization() -> bool {
+        decode_bool_override(
+            EXEC_ELF_ENFORCE_INTERP_PATH_SANITIZATION_OVERRIDE.load(Ordering::Relaxed),
+            true,
+        )
+    }
+
+    pub fn exec_elf_enforce_system_loader_paths() -> bool {
+        decode_bool_override(
+            EXEC_ELF_ENFORCE_SYSTEM_LOADER_PATHS_OVERRIDE.load(Ordering::Relaxed),
+            true,
+        )
+    }
+
+    pub fn exec_elf_enforce_segment_congruence() -> bool {
+        decode_bool_override(
+            EXEC_ELF_ENFORCE_SEGMENT_CONGRUENCE_OVERRIDE.load(Ordering::Relaxed),
+            true,
+        )
+    }
+
+    pub fn exec_auxv_enforce_handoff_contract() -> bool {
+        decode_bool_override(
+            EXEC_AUXV_ENFORCE_HANDOFF_CONTRACT_OVERRIDE.load(Ordering::Relaxed),
+            true,
+        )
+    }
+
+    pub fn exec_auxv_require_phdr_triplet() -> bool {
+        decode_bool_override(
+            EXEC_AUXV_REQUIRE_PHDR_TRIPLET_OVERRIDE.load(Ordering::Relaxed),
+            true,
+        )
+    }
+
+    pub fn userspace_abi_require_glibc_vfs_surface() -> bool {
+        decode_bool_override(
+            USERSPACE_ABI_REQUIRE_GLIBC_VFS_SURFACE_OVERRIDE.load(Ordering::Relaxed),
+            true,
+        )
+    }
+
+    pub fn userspace_abi_require_glibc_network_surface() -> bool {
+        decode_bool_override(
+            USERSPACE_ABI_REQUIRE_GLIBC_NETWORK_SURFACE_OVERRIDE.load(Ordering::Relaxed),
+            true,
+        )
+    }
+
+    pub fn userspace_abi_require_glibc_ipc_surface() -> bool {
+        decode_bool_override(
+            USERSPACE_ABI_REQUIRE_GLIBC_IPC_SURFACE_OVERRIDE.load(Ordering::Relaxed),
+            true,
+        )
+    }
+
+    pub fn userspace_abi_libc_surface_weight_percent() -> u8 {
+        load_u8_from_usize_override_clamped(
+            &USERSPACE_ABI_LIBC_SURFACE_WEIGHT_PERCENT_OVERRIDE,
+            50,
+            0,
+            100,
+        )
+    }
+
     pub fn security_enforcement_enabled() -> bool {
         let default_enabled = cfg!(any(
             feature = "security",

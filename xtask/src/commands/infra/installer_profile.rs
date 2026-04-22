@@ -20,6 +20,7 @@ pub struct InstallerSelection {
     pub profile: String,
     pub package_manager: PackageManager,
     pub mirror: Option<String>,
+    pub mirror_fallbacks: Vec<String>,
     pub selected_apps: Vec<String>,
     pub packages: Vec<String>,
     pub download_artifacts: Vec<InstallerDownloadArtifact>,
@@ -41,6 +42,8 @@ pub struct InstallerPreset {
     pub description: String,
     pub package_manager: PackageManager,
     pub default_packages: Vec<String>,
+    #[serde(default)]
+    pub mirror_fallbacks: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -116,6 +119,7 @@ pub fn resolve_selection(
         profile: preset.id.clone(),
         package_manager: preset.package_manager,
         mirror: mirror.map(|m| m.trim().to_string()).filter(|m| !m.is_empty()),
+        mirror_fallbacks: preset.mirror_fallbacks.clone(),
         selected_apps,
         packages: selected.into_iter().collect(),
         download_artifacts: artifacts.into_values().collect(),
@@ -223,6 +227,11 @@ fn validate_catalog(catalog: &InstallerPresetCatalog) -> Result<()> {
         }
         if preset.default_packages.is_empty() {
             bail!("installer profile '{}' has no default packages", preset.id)
+        }
+        for mirror in &preset.mirror_fallbacks {
+            if mirror.trim().is_empty() {
+                bail!("installer profile '{}' has empty mirror_fallbacks entry", preset.id)
+            }
         }
         let normalized = preset.id.to_ascii_lowercase();
         if !ids.insert(normalized) {
@@ -346,44 +355,5 @@ pub fn write_preset_catalog(out_path: &Path) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn include_exclude_overrides_defaults() {
-        let selection = resolve_selection(
-            "debian",
-            None,
-            None,
-            Some("vlc, git"),
-            Some("xfce4"),
-            Some("https://deb.debian.org/debian"),
-        )
-        .expect("selection");
-
-        assert_eq!(selection.profile, "debian");
-        assert_eq!(selection.package_manager, PackageManager::Apt);
-        assert!(selection.packages.iter().any(|p| p == "vlc"));
-        assert!(selection.packages.iter().any(|p| p == "git"));
-        assert!(!selection.packages.iter().any(|p| p == "xfce4"));
-        assert_eq!(selection.mirror.as_deref(), Some("https://deb.debian.org/debian"));
-    }
-
-    #[test]
-    fn app_targets_expand_package_set() {
-        let selection = resolve_selection(
-            "debian",
-            Some("python,chrome"),
-            None,
-            None,
-            None,
-            None,
-        )
-        .expect("selection");
-
-        assert!(selection.selected_apps.iter().any(|a| a == "python"));
-        assert!(selection.selected_apps.iter().any(|a| a == "chrome"));
-        assert!(selection.packages.iter().any(|p| p == "python3-pip"));
-        assert!(!selection.smoke_commands.is_empty());
-    }
-}
+#[path = "installer_profile/tests.rs"]
+mod tests;

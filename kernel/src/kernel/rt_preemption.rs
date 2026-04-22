@@ -155,15 +155,23 @@ pub fn on_scheduler_tick(action: &SchedulerAction, runqueue_len: usize) -> bool 
     update_max_continue_streak(streak);
 
     let base_threshold = force_threshold_ticks();
-    let tuning = current_virtualization_scheduler_tuning();
-    let mut threshold = (base_threshold / edf_deadline_pressure_divisor())
-        .max(2)
-        .saturating_div(tuning.threshold_divisor.max(1))
-        .saturating_mul(tuning.threshold_multiplier.max(1))
-        .max(2);
-    if DEADLINE_ALERT_ACTIVE.load(Ordering::Relaxed) {
-        threshold = (threshold / 2).max(2);
-    }
+    
+    #[cfg(feature = "rtos_strict")]
+    let threshold = base_threshold; // Strict determinism
+
+    #[cfg(not(feature = "rtos_strict"))]
+    let threshold = {
+        let tuning = current_virtualization_scheduler_tuning();
+        let mut t = (base_threshold / edf_deadline_pressure_divisor())
+            .max(2)
+            .saturating_div(tuning.threshold_divisor.max(1))
+            .saturating_mul(tuning.threshold_multiplier.max(1))
+            .max(2);
+        if DEADLINE_ALERT_ACTIVE.load(Ordering::Relaxed) {
+            t = (t / 2).max(2);
+        }
+        t
+    };
 
     if runqueue_len > 1 && streak >= threshold {
         FORCED_RESCHEDULES.fetch_add(1, Ordering::Relaxed);

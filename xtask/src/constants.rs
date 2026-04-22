@@ -277,6 +277,7 @@ pub mod defaults {
     pub mod audit {
         pub const MAX_LINES: usize = 500;
         pub const MAGIC_REPEAT_THRESHOLD: usize = 3;
+        pub const TOTAL_POSIX_SYSCALL_ESTIMATE: usize = 380;
     }
 
     pub mod ab_slot {

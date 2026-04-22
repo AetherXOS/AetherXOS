@@ -26,7 +26,7 @@ pub fn emit_check_cfgs() {
         "cargo:rustc-check-cfg=cfg(param_boundary_mode, values(\"Strict\", \"Balanced\", \"Compat\"))"
     );
     println!(
-        "cargo:rustc-check-cfg=cfg(feature, values(\"paging\", \"guardian_pages\", \"smap_smep\", \"nx_bit\", \"telemetry\", \"security_null\", \"security_acl\", \"security_capabilities\", \"security_sel4\"))"
+        "cargo:rustc-check-cfg=cfg(feature, values(\"paging\", \"guardian_pages\", \"smap_smep\", \"nx_bit\", \"telemetry\", \"security_null\", \"security_acl\", \"security_capabilities\", \"security_sel4\", \"rtos_strict\", \"rtos_posix\"))"
     );
 }
 
@@ -92,5 +92,12 @@ pub fn emit_compile_cfgs(config: &Config) {
             );
             println!("cargo:rustc-cfg=feature=\"security_null\"");
         }
+    }
+
+    if config.rtos.strict_profile_enabled {
+        println!("cargo:rustc-cfg=feature=\"rtos_strict\"");
+    }
+    if config.rtos.posix_compat_enabled {
+        println!("cargo:rustc-cfg=feature=\"rtos_posix\"");
     }
 }

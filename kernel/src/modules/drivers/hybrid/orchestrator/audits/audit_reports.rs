@@ -20,5 +20,5 @@ pub use readiness::{
 	release_gate_matrix,
 	release_gate_matrix_with_telemetry,
 };
-pub use userspace_abi::userspace_abi_report;
+pub use userspace_abi::{userspace_abi_report, userspace_abi_report_with_telemetry};
 pub use virtualization::virtualization_readiness_report;

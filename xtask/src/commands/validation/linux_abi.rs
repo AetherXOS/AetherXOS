@@ -116,7 +116,7 @@ pub(crate) fn refresh_shim_errno_conformance_report() -> Result<()> {
         let file_text = fs::read_to_string(&abs)
             .with_context(|| format!("failed reading shim source file: {}", abs.display()))?;
 
-        let body = extract_fn_body(&file_text, spec.function).unwrap_or_default();
+        let body = crate::utils::parser::extract_fn_body(&file_text, spec.function).unwrap_or_default();
         let has_explicit_efault = body.contains("linux_errno(crate::modules::posix_consts::errno::EFAULT)");
         results.push(ShimErrnoResult {
             requirement: SHIM_ERRNO_REQUIREMENT,
@@ -150,33 +150,6 @@ pub(crate) fn refresh_shim_errno_conformance_report() -> Result<()> {
 
 fn normalize_report_path(rel_path: &str) -> String {
     rel_path.replacen("kernel/src/", "src/", 1)
-}
-
-fn extract_fn_body(text: &str, function_name: &str) -> Option<String> {
-    let marker = format!("fn {}", function_name);
-    let start = text.find(&marker)?;
-    let rest = text.get(start..)?;
-    let open_rel = rest.find('{')?;
-    let open_abs = start + open_rel;
-
-    let mut depth = 0usize;
-    let mut close_abs = None;
-    for (idx, ch) in text[open_abs..].char_indices() {
-        match ch {
-            '{' => depth += 1,
-            '}' => {
-                depth = depth.saturating_sub(1);
-                if depth == 0 {
-                    close_abs = Some(open_abs + idx + 1);
-                    break;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let end = close_abs?;
-    text.get(open_abs..end).map(|s| s.to_string())
 }
 
 fn audit_syscalls() -> Result<()> {
@@ -219,7 +192,7 @@ fn audit_syscalls() -> Result<()> {
     implemented_calls.sort();
     implemented_calls.dedup();
 
-    let total_posix = 380; // Hard estimated x86_64 ABI footprint boundary
+    let total_posix = crate::constants::defaults::audit::TOTAL_POSIX_SYSCALL_ESTIMATE;
     let implemented = implemented_calls.len();
     let percentage = (implemented as f32 / total_posix as f32) * 100.0;
 

@@ -29,25 +29,18 @@ pub struct UserspaceGraphicsReadiness {
 }
 
 pub fn readiness_snapshot() -> UserspaceGraphicsReadiness {
-    // Keep scoring conservative but tie progress to concrete protocol pieces.
     let wayland = {
         #[cfg(feature = "linux_userspace_wayland")]
         {
             if wayland_runtime_enabled() {
-                let mut score = 25u8;
-                if crate::modules::userspace_graphics::wayland::protocol_socket_supported() {
-                    score = score.saturating_add(10);
-                }
-                if crate::modules::userspace_graphics::wayland::shm_path_supported() {
-                    score = score.saturating_add(5);
-                }
-                if crate::modules::userspace_graphics::wayland::has_wire_header_parser() {
-                    score = score.saturating_add(5);
-                }
-                if crate::modules::userspace_graphics::wayland::wayland_protocol_semantics_supported() {
-                    score = score.saturating_add(10);
-                }
-                score.min(100)
+                let checks = [
+                    crate::modules::userspace_graphics::wayland::protocol_socket_supported(),
+                    crate::modules::userspace_graphics::wayland::shm_path_supported(),
+                    crate::modules::userspace_graphics::wayland::has_wire_header_parser(),
+                    crate::modules::userspace_graphics::wayland::wayland_protocol_semantics_supported(),
+                ];
+                let supported = checks.into_iter().filter(|check| *check).count() as u8;
+                ((supported as u16 * 100) / 4) as u8
             } else {
                 0
             }
@@ -62,26 +55,16 @@ pub fn readiness_snapshot() -> UserspaceGraphicsReadiness {
         #[cfg(feature = "linux_userspace_x11")]
         {
             if x11_runtime_enabled() {
-                let mut score = 22u8;
-                if crate::modules::userspace_graphics::x11::unix_display_socket_supported() {
-                    score = score.saturating_add(8);
-                }
-                if crate::modules::userspace_graphics::x11::has_setup_parser() {
-                    score = score.saturating_add(6);
-                }
-                if crate::modules::userspace_graphics::x11::has_reply_parser() {
-                    score = score.saturating_add(6);
-                }
-                if crate::modules::userspace_graphics::x11::has_server_packet_parser() {
-                    score = score.saturating_add(4);
-                }
-                if crate::modules::userspace_graphics::x11::x11_core_protocol_supported() {
-                    score = score.saturating_add(10);
-                }
-                if crate::modules::userspace_graphics::x11::x11_reply_event_semantics_supported() {
-                    score = score.saturating_add(10);
-                }
-                score.min(100)
+                let checks = [
+                    crate::modules::userspace_graphics::x11::unix_display_socket_supported(),
+                    crate::modules::userspace_graphics::x11::has_setup_parser(),
+                    crate::modules::userspace_graphics::x11::has_reply_parser(),
+                    crate::modules::userspace_graphics::x11::has_server_packet_parser(),
+                    crate::modules::userspace_graphics::x11::x11_core_protocol_supported(),
+                    crate::modules::userspace_graphics::x11::x11_reply_event_semantics_supported(),
+                ];
+                let supported = checks.into_iter().filter(|check| *check).count() as u8;
+                ((supported as u16 * 100) / 6) as u8
             } else {
                 0
             }

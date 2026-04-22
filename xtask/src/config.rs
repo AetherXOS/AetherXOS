@@ -50,6 +50,14 @@ pub mod repo_paths {
     #[allow(dead_code)]
     pub const REPRO_BUILD_EVIDENCE_MD: &str = "reports/tooling/reproducible_build_evidence.md";
     #[allow(dead_code)]
+    pub const REPRO_COMPARE_JSON: &str = "reports/tooling/reproducibility_compare.json";
+    #[allow(dead_code)]
+    pub const REPRO_COMPARE_MD: &str = "reports/tooling/reproducibility_compare.md";
+    #[allow(dead_code)]
+    pub const DOCS_COMMAND_AUDIT_JSON: &str = "reports/tooling/docs_command_audit.json";
+    #[allow(dead_code)]
+    pub const DOCS_COMMAND_AUDIT_MD: &str = "reports/tooling/docs_command_audit.md";
+    #[allow(dead_code)]
     pub const RELEASE_EVIDENCE_BUNDLE_JSON: &str = "reports/tooling/release_evidence_bundle.json";
     #[allow(dead_code)]
     pub const RELEASE_EVIDENCE_BUNDLE_MD: &str = "reports/tooling/release_evidence_bundle.md";

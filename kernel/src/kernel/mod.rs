@@ -31,6 +31,7 @@ pub mod pressure;
 pub mod rcu;
 pub mod rt_preemption;
 pub mod scheduler_contract;
+pub mod security_posture;
 pub mod signal;
 pub mod startup;
 pub mod sync;
@@ -208,7 +209,7 @@ pub fn dump_kernel_state(reason: &str) {
         online_cpus
     );
     klog_error!(
-        "[KERNEL DUMP] rebalance attempts={} moved={} affinity_skips={} prefer_local_skips={} prefer_local_forced={} p50={} p90={} p99={} samples={}",
+        "[KERNEL DUMP] rebalance attempts={} moved={} affinity_skips={} prefer_local_skips={} prefer_local_forced={} p50={} p90={} p99={} samples={} last_reason={} last_reason_load={} last_target_load={} last_imbalance={} last_threshold={} last_batch={} last_moved={}",
         lb.attempts,
         lb.moved,
         lb.affinity_skips,
@@ -217,7 +218,14 @@ pub fn dump_kernel_state(reason: &str) {
         lb.imbalance_p50,
         lb.imbalance_p90,
         lb.imbalance_p99,
-        lb.imbalance_samples
+        lb.imbalance_samples,
+        lb.last_reason.as_str(),
+        lb.last_source_load,
+        lb.last_target_load,
+        lb.last_imbalance,
+        lb.last_threshold,
+        lb.last_batch,
+        lb.last_moved
     );
     klog_error!(
         "[KERNEL DUMP] watchdog tick={} checks={} stalls={} hard_panics={} hard_ticks={}",

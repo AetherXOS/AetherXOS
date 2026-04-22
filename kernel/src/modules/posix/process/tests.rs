@@ -50,6 +50,14 @@ fn resolve_interp_path_accepts_absolute_interp() {
 
 #[cfg(all(feature = "vfs", feature = "posix_fs"))]
 #[test_case]
+fn resolve_interp_path_accepts_lib64_glibc_loader() {
+    let image = elf64_with_interp(b"/lib64/ld-linux-x86-64.so.2\0");
+    let interp = resolve_interp_path(&image).expect("resolve interp");
+    assert_eq!(interp.as_deref(), Some("/lib64/ld-linux-x86-64.so.2"));
+}
+
+#[cfg(all(feature = "vfs", feature = "posix_fs"))]
+#[test_case]
 fn resolve_interp_path_rejects_oversized_interp_segment() {
     let image = elf64_with_interp(&alloc::vec![b'a'; 4097]);
     assert_eq!(resolve_interp_path(&image), Err(PosixErrno::Invalid));
@@ -67,6 +75,47 @@ fn resolve_interp_path_rejects_non_nul_terminated_interp() {
 fn resolve_interp_path_rejects_non_zero_padding_after_nul() {
     let image = elf64_with_interp(b"/lib/ld.so\0garbage");
     assert_eq!(resolve_interp_path(&image), Err(PosixErrno::Invalid));
+}
+
+#[cfg(all(feature = "vfs", feature = "posix_fs"))]
+#[test_case]
+fn resolve_interp_path_rejects_non_loader_interp() {
+    let image = elf64_with_interp(b"/tmp/custom-loader.so\0");
+    assert_eq!(resolve_interp_path(&image), Err(PosixErrno::Invalid));
+}
+
+#[cfg(all(feature = "vfs", feature = "posix_fs"))]
+#[test_case]
+fn resolve_interp_path_allows_non_system_loader_when_policy_relaxed() {
+    crate::config::KernelConfig::reset_runtime_overrides();
+    crate::config::KernelConfig::set_exec_elf_enforce_system_loader_paths(Some(false));
+
+    let image = elf64_with_interp(b"/tmp/custom-loader.so\0");
+    let interp = resolve_interp_path(&image).expect("resolve interp");
+    assert_eq!(interp.as_deref(), Some("/tmp/custom-loader.so"));
+
+    crate::config::KernelConfig::reset_runtime_overrides();
+}
+
+#[cfg(all(feature = "vfs", feature = "posix_fs"))]
+#[test_case]
+fn resolve_interp_path_rejects_parent_traversal_segments() {
+    let image = elf64_with_interp(b"/lib/../ld-linux-x86-64.so.2\0");
+    assert_eq!(resolve_interp_path(&image), Err(PosixErrno::Invalid));
+}
+
+#[cfg(all(feature = "vfs", feature = "posix_fs"))]
+#[test_case]
+fn resolve_interp_path_allows_relative_interp_when_absolute_policy_relaxed() {
+    crate::config::KernelConfig::reset_runtime_overrides();
+    crate::config::KernelConfig::set_exec_elf_require_absolute_interp_path(Some(false));
+    crate::config::KernelConfig::set_exec_elf_enforce_system_loader_paths(Some(false));
+
+    let image = elf64_with_interp(b"ld-linux-x86-64.so.2\0");
+    let interp = resolve_interp_path(&image).expect("resolve interp");
+    assert_eq!(interp.as_deref(), Some("ld-linux-x86-64.so.2"));
+
+    crate::config::KernelConfig::reset_runtime_overrides();
 }
 
 #[cfg(all(feature = "process_abstraction", feature = "vfs", feature = "posix_fs"))]

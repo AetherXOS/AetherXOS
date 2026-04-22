@@ -193,12 +193,16 @@ fn export_snapshot_to_mount_writes_expected_schema_files() {
     let mount_id = crate::kernel::vfs_control::mount_ramfs(b"/cfg_export_test").expect("mount");
     let exported = KernelConfig::export_snapshot_to_mount("/cfg_export_test", "/config_dump")
         .expect("export snapshot");
-    assert!(exported >= 5);
+    assert!(exported >= 9);
 
     let snapshot = read_ramfs_text_file(mount_id, "/config_dump/snapshot.txt");
     let features = read_ramfs_text_file(mount_id, "/config_dump/features.txt");
     let summary = read_ramfs_text_file(mount_id, "/config_dump/feature_summary.txt");
     let readiness = read_ramfs_text_file(mount_id, "/config_dump/linux_compat_readiness.txt");
+    let security = read_ramfs_text_file(mount_id, "/config_dump/security_posture.txt");
+    let vfs_behavior = read_ramfs_text_file(mount_id, "/config_dump/vfs_behavior.txt");
+    let vfs_matrix = read_ramfs_text_file(mount_id, "/config_dump/vfs_matrix.txt");
+    let vfs_focus = read_ramfs_text_file(mount_id, "/config_dump/vfs_focus.txt");
     let keys = read_ramfs_text_file(mount_id, "/config_dump/runtime_keys.txt");
 
     assert!(snapshot.contains("audit.apply_attempts="));
@@ -206,6 +210,44 @@ fn export_snapshot_to_mount_writes_expected_schema_files() {
     assert!(features.contains("category="));
     assert!(summary.contains("feature_runtime_drift_count="));
     assert!(readiness.contains("recommended_next_action="));
+    assert!(security.contains("strict_gate_passed="));
+    assert!(security.contains("syscall_contract_passed="));
+    assert!(security.contains("deployment_context="));
+    assert!(security.contains("strict_gate_deployment_context="));
+    assert!(security.contains("namespace_policy_passed="));
+    assert!(security.contains("namespace_lifecycle_sane="));
+    assert!(security.contains("release_gate_blocked="));
+    assert!(security.contains("release_gate_deployment_context="));
+    assert!(security.contains("release_gate_reason_count="));
+    assert!(vfs_behavior.contains("mount_attempts="));
+    assert!(vfs_behavior.contains("path_validation_failures="));
+    assert!(vfs_matrix.contains("operation_matrix:"));
+    assert!(vfs_matrix.contains("op=rename default=optional"));
+    assert!(vfs_matrix.contains("feature_inventory_total="));
+    assert!(vfs_matrix.contains("matrix_scores:"));
+    assert!(vfs_matrix.contains("operation_scores:"));
+    assert!(vfs_matrix.contains("matrix_overall_score="));
+    assert!(vfs_matrix.contains("required_operation_gap_count="));
+    assert!(vfs_matrix.contains("matrix_gate="));
+    assert!(vfs_matrix.contains("matrix_gate_reason="));
+    assert!(vfs_matrix.contains("required_gaps_by_fs:"));
+    assert!(vfs_matrix.contains("fs=ramfs required_gap_count="));
+    assert!(vfs_matrix.contains("operation_hotspots_count="));
+    assert!(vfs_matrix.contains("operation_hotspot="));
+    assert!(vfs_matrix.contains("next_focus_count="));
+    assert!(vfs_matrix.contains("next_focus="));
+    assert!(vfs_matrix.contains("weak_filesystems_count="));
+    assert!(vfs_matrix.contains("strong_filesystems_count="));
+    assert!(vfs_matrix.contains("weak_filesystem="));
+    assert!(vfs_matrix.contains("weakest_filesystem="));
+    assert!(vfs_matrix.contains("recommended_action="));
+    assert!(vfs_focus.contains("matrix_gate="));
+    assert!(vfs_focus.contains("matrix_gate_reason="));
+    assert!(vfs_focus.contains("matrix_overall_score="));
+    assert!(vfs_focus.contains("next_focus_count="));
+    assert!(vfs_focus.contains("next_focus="));
+    assert!(vfs_focus.contains("weakest_filesystem="));
+    assert!(vfs_focus.contains("recommended_action="));
     assert!(keys.contains("critical="));
 
     crate::kernel::vfs_control::unmount(mount_id).expect("unmount");

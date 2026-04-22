@@ -36,16 +36,22 @@ pub fn on_irq(vector: u8) -> bool {
 
     let count = IRQ_COUNT[idx].fetch_add(1, Ordering::Relaxed) + 1;
     if count > crate::generated_consts::CORE_IRQ_STORM_THRESHOLD {
-        IRQ_DROPPED[idx].fetch_add(1, Ordering::Relaxed);
-        if count == crate::generated_consts::CORE_IRQ_STORM_THRESHOLD + 1 {
-            crate::klog_warn!(
-                "irq storm detected vector={} threshold={} window_ticks={}",
-                vector,
-                crate::generated_consts::CORE_IRQ_STORM_THRESHOLD,
-                crate::generated_consts::CORE_IRQ_STORM_WINDOW_TICKS
-            );
+        #[cfg(feature = "rtos_strict")]
+        panic!("RTOS Strict Violation: Interrupt execution threshold exceeded on vector {}. Potential deterministic breach.", vector);
+
+        #[cfg(not(feature = "rtos_strict"))]
+        {
+            IRQ_DROPPED[idx].fetch_add(1, Ordering::Relaxed);
+            if count == crate::generated_consts::CORE_IRQ_STORM_THRESHOLD + 1 {
+                crate::klog_warn!(
+                    "irq storm detected vector={} threshold={} window_ticks={}",
+                    vector,
+                    crate::generated_consts::CORE_IRQ_STORM_THRESHOLD,
+                    crate::generated_consts::CORE_IRQ_STORM_WINDOW_TICKS
+                );
+            }
+            return false;
         }
-        return false;
     }
 
     true

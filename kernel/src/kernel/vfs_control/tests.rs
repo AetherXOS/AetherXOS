@@ -75,3 +75,36 @@ fn initrd_loader_rejects_invalid_paths_and_tracks_failures() {
     assert_eq!(after.initrd_load_failures, before.initrd_load_failures + 1);
     unmount(mount_id).expect("unmount");
 }
+
+#[test_case]
+fn mount_registry_differential_behavior_tracks_core_operations() {
+    let before = stats();
+
+    let mount_a = mount_ramfs(b"/matrix-a").expect("mount a");
+    assert_eq!(mount_id_by_path(b"/matrix-a"), Some(mount_a));
+    assert!(mount_ramfs(b"/matrix-a").is_err());
+
+    let mount_b = mount_ramfs(b"/matrix-b").expect("mount b");
+    relocate_mount(mount_b, b"/matrix-c").expect("relocate b");
+    assert_eq!(mount_id_by_path(b"/matrix-b"), None);
+    assert_eq!(mount_id_by_path(b"/matrix-c"), Some(mount_b));
+
+    load_initrd_entries(
+        mount_a,
+        &[("/matrix-a/init.txt", b"alpha"), ("/matrix-a/trace.txt", b"beta")],
+    )
+    .expect("load initrd entries");
+
+    unmount_by_path(b"/matrix-c").expect("unmount relocated mount");
+    unmount(mount_a).expect("unmount mount a");
+
+    let after = stats();
+    assert!(after.mount_attempts >= before.mount_attempts + 3);
+    assert!(after.mount_success >= before.mount_success + 2);
+    assert!(after.mount_failures >= before.mount_failures + 1);
+    assert!(after.unmount_success >= before.unmount_success + 2);
+    assert!(after.unmount_by_path_success >= before.unmount_by_path_success + 1);
+    assert!(after.initrd_load_calls >= before.initrd_load_calls + 1);
+    assert!(after.initrd_load_files >= before.initrd_load_files + 2);
+    assert!(after.initrd_load_bytes >= before.initrd_load_bytes + 9);
+}

@@ -67,7 +67,14 @@ pub(super) fn sanitize_search_paths(
             continue;
         }
         // Keep linker search scope deterministic and avoid relative traversal paths.
-        if !trimmed.starts_with('/') || trimmed.contains("..") {
+        if !trimmed.starts_with('/') || trimmed.contains("..") || trimmed.contains("//") {
+            continue;
+        }
+        if trimmed.ends_with('/') {
+            continue;
+        }
+        let path_depth = trimmed.split('/').filter(|segment| !segment.is_empty()).count();
+        if path_depth == 0 || path_depth > 16 {
             continue;
         }
         if sanitized
@@ -103,7 +110,41 @@ pub(super) fn resolve_runtime_search_paths(
             resolved.push(default_path.to_string());
         }
     }
+    // If sanitization removes everything, keep the deterministic fallback set.
+    if resolved.is_empty() {
+        return defaults.iter().map(|path| path.to_string()).collect();
+    }
     resolved
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn sanitize_search_paths_rejects_relative_and_duplicate_entries() {
+        let raw = alloc::vec![
+            alloc::string::String::from("/lib64"),
+            alloc::string::String::from("/lib64/"),
+            alloc::string::String::from("/lib64"),
+            alloc::string::String::from("../lib"),
+            alloc::string::String::from("/usr/lib64/ld-linux.so.2"),
+        ];
+
+        let sanitized = sanitize_search_paths(&raw);
+        assert_eq!(sanitized, alloc::vec!["/lib64".to_string(), "/usr/lib64/ld-linux.so.2".to_string()]);
+    }
+
+    #[test_case]
+    fn resolve_runtime_search_paths_keeps_deterministic_defaults_when_empty() {
+        let resolved = resolve_runtime_search_paths(Some("../bad:/tmp/../../bad"), None);
+        assert_eq!(resolved, alloc::vec![
+            "/lib".to_string(),
+            "/usr/lib".to_string(),
+            "/lib64".to_string(),
+            "/usr/lib64".to_string(),
+        ]);
+    }
 }
 
 #[inline]

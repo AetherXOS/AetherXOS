@@ -1,4 +1,6 @@
 //! Minimal POSIX dynamic linking API stubs (dlopen, dlsym, dlclose)
+#[path = "api/posix_rt.rs"]
+pub mod posix_rt;
 
 use crate::kernel::sync::IrqSafeMutex;
 use crate::{klog_info, klog_warn};
