@@ -149,7 +149,7 @@ mod tests {
         status.enabled.vmxon_active = true;
         status.vmx_vmcs_ready = true;
         assert_eq!(capability_detail(status), CAPABILITY_VMX_ACTIVE);
-        assert_eq!(feature_detail(status), crate::hal::common::virt::FEATURE_VMX_ACTIVE);
+        assert_eq!(feature_detail(status), crate::hal::common::virt::FEATURE_VMX_ENABLED);
 
         crate::config::KernelConfig::reset_runtime_overrides();
     }
@@ -165,7 +165,7 @@ mod tests {
         status.enabled.svm_enabled = true;
         status.svm_vmcb_ready = true;
         assert_eq!(capability_detail(status), CAPABILITY_SVM_ACTIVE);
-        assert_eq!(feature_detail(status), crate::hal::common::virt::FEATURE_SVM_ACTIVE);
+        assert_eq!(feature_detail(status), crate::hal::common::virt::FEATURE_SVM_ENABLED);
 
         crate::config::KernelConfig::reset_runtime_overrides();
     }
