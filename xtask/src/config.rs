@@ -138,7 +138,8 @@ pub mod repo_paths {
     #[allow(dead_code)]
     pub const SUPPORT_DIAGNOSTICS_MD: &str = "reports/tooling/support_diagnostics.md";
     #[allow(dead_code)]
-    pub const LINUX_ABI_SEMANTIC_MATRIX_JSON: &str = "reports/linux_abi_semantic_matrix/summary.json";
+    pub const LINUX_ABI_SEMANTIC_MATRIX_JSON: &str =
+        "reports/linux_abi_semantic_matrix/summary.json";
     #[allow(dead_code)]
     pub const LINUX_ABI_SEMANTIC_MATRIX_MD: &str = "reports/linux_abi_semantic_matrix/summary.md";
     #[allow(dead_code)]
@@ -163,14 +164,11 @@ pub mod repo_paths {
     pub const LINUX_ABI_WORKLOAD_CATALOG_JSON: &str =
         "reports/linux_abi_workload_catalog/catalog.json";
     #[allow(dead_code)]
-    pub const LINUX_ABI_WORKLOAD_CATALOG_MD: &str =
-        "reports/linux_abi_workload_catalog/catalog.md";
+    pub const LINUX_ABI_WORKLOAD_CATALOG_MD: &str = "reports/linux_abi_workload_catalog/catalog.md";
     #[allow(dead_code)]
-    pub const LINUX_ABI_WORKLOAD_TREND_JSON: &str =
-        "reports/linux_abi_workload_catalog/trend.json";
+    pub const LINUX_ABI_WORKLOAD_TREND_JSON: &str = "reports/linux_abi_workload_catalog/trend.json";
     #[allow(dead_code)]
-    pub const LINUX_ABI_WORKLOAD_TREND_MD: &str =
-        "reports/linux_abi_workload_catalog/trend.md";
+    pub const LINUX_ABI_WORKLOAD_TREND_MD: &str = "reports/linux_abi_workload_catalog/trend.md";
     #[allow(dead_code)]
     pub const GLIBC_COMPAT_SPLIT_JSON: &str = "reports/glibc_compat_split/summary.json";
     #[allow(dead_code)]

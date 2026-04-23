@@ -43,10 +43,19 @@ pub(super) fn run(strict: bool, host_matrix: Option<&str>, inputs: Option<&str>)
     reproducible_evidence()?;
 
     let baseline_path = root.join(config::repo_paths::REPRO_BUILD_EVIDENCE_JSON);
-    let baseline_text = fs::read_to_string(&baseline_path)
-        .with_context(|| format!("failed reading baseline evidence: {}", baseline_path.display()))?;
-    let baseline: ReproducibleBuildEvidence = serde_json::from_str(&baseline_text)
-        .with_context(|| format!("failed parsing baseline evidence: {}", baseline_path.display()))?;
+    let baseline_text = fs::read_to_string(&baseline_path).with_context(|| {
+        format!(
+            "failed reading baseline evidence: {}",
+            baseline_path.display()
+        )
+    })?;
+    let baseline: ReproducibleBuildEvidence =
+        serde_json::from_str(&baseline_text).with_context(|| {
+            format!(
+                "failed parsing baseline evidence: {}",
+                baseline_path.display()
+            )
+        })?;
 
     let candidate_paths = collect_inputs(&root, inputs)?;
     let mut parse_errors = Vec::new();
@@ -174,7 +183,10 @@ fn collect_inputs(root: &Path, inputs: Option<&str>) -> Result<Vec<PathBuf>> {
     let mut found = Vec::new();
     let nightly_root = root.join("artifacts/nightly_runs");
     if nightly_root.exists() {
-        for entry in WalkDir::new(&nightly_root).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(&nightly_root)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             let path = entry.path();
             if path.is_file()
                 && path

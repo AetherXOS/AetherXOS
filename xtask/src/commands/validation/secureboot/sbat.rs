@@ -4,8 +4,8 @@ use std::fs;
 use crate::constants;
 use crate::utils::report;
 
-use super::models::{SbatReport, SbatRow};
 use super::REPORT_SCHEMA_VERSION;
+use super::models::{SbatReport, SbatRow};
 
 pub fn sbat_validate(strict: bool) -> Result<()> {
     println!(

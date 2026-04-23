@@ -12,7 +12,10 @@ pub(super) fn run(strict: bool) -> Result<()> {
     let root = paths::repo_root();
     let specs = [
         (config::repo_paths::P_TIER_STATUS_JSON, true),
-        (config::repo_paths::PRODUCTION_ACCEPTANCE_SCORECARD_JSON, true),
+        (
+            config::repo_paths::PRODUCTION_ACCEPTANCE_SCORECARD_JSON,
+            true,
+        ),
         (config::repo_paths::REPRO_BUILD_EVIDENCE_JSON, true),
         (config::repo_paths::SYSCALL_COVERAGE_SUMMARY, true),
         (config::repo_paths::HOST_TOOL_VERIFY_JSON, true),
@@ -32,10 +35,8 @@ pub(super) fn run(strict: bool) -> Result<()> {
     for entry in &mut entries {
         if entry.exists && entry.path.ends_with(".json") {
             let json_path = root.join(&entry.path);
-            let text = std::fs::read_to_string(&json_path)
-                .map_err(anyhow::Error::from)?;
-            let doc: Value = serde_json::from_str(&text)
-                .map_err(anyhow::Error::from)?;
+            let text = std::fs::read_to_string(&json_path).map_err(anyhow::Error::from)?;
+            let doc: Value = serde_json::from_str(&text).map_err(anyhow::Error::from)?;
             if let Some((ok, detail)) = evaluate_gate(&entry.path, &doc) {
                 entry.gate_ok = Some(ok);
                 entry.gate_detail = Some(detail);
@@ -55,7 +56,10 @@ pub(super) fn run(strict: bool) -> Result<()> {
             format!(
                 "{} ({})",
                 entry.path,
-                entry.gate_detail.clone().unwrap_or_else(|| "gate failed".to_string())
+                entry
+                    .gate_detail
+                    .clone()
+                    .unwrap_or_else(|| "gate failed".to_string())
             )
         })
         .collect::<Vec<_>>();

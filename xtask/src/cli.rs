@@ -1,30 +1,29 @@
 pub mod build;
-pub mod run;
-pub mod test;
-pub mod setup;
 pub mod dashboard;
-pub mod linux;
-pub mod secureboot;
-pub mod release;
-pub mod runtime;
 pub mod glibc;
+pub mod linux;
+pub mod release;
+pub mod run;
+pub mod runtime;
+pub mod secureboot;
+pub mod setup;
+pub mod test;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 pub use crate::types::{Bootloader, ImageFormat};
 
-
 pub use build::BuildAction;
-pub use run::RunAction;
-pub use test::TestAction;
-pub use setup::SetupAction;
 pub use dashboard::DashboardAction;
-pub use linux::LinuxAbiAction;
-pub use secureboot::SecurebootAction;
-pub use release::ReleaseAction;
-pub use runtime::AbSlotAction;
 pub use glibc::GlibcAction;
+pub use linux::LinuxAbiAction;
+pub use release::ReleaseAction;
+pub use run::RunAction;
+pub use runtime::AbSlotAction;
+pub use secureboot::SecurebootAction;
+pub use setup::SetupAction;
+pub use test::TestAction;
 
 /// The central automation tool for the Aether X OS pipeline.
 /// Designed to streamline development, testing, image creation, and validation operations.

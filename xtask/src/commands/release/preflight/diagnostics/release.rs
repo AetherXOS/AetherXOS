@@ -160,7 +160,10 @@ fn collect_p_tier_issues(root: &Path, out: &mut Vec<ReleaseDiagnosticIssue>) -> 
     Ok(())
 }
 
-fn collect_evidence_bundle_issues(root: &Path, out: &mut Vec<ReleaseDiagnosticIssue>) -> Result<()> {
+fn collect_evidence_bundle_issues(
+    root: &Path,
+    out: &mut Vec<ReleaseDiagnosticIssue>,
+) -> Result<()> {
     let path = root.join(config::repo_paths::RELEASE_EVIDENCE_BUNDLE_JSON);
     if !path.exists() {
         out.push(ReleaseDiagnosticIssue {

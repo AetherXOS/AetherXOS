@@ -8,8 +8,8 @@ use crate::utils::paths;
 use crate::utils::process;
 use crate::utils::report;
 
-use super::models::{SignReport, SignRow};
 use super::REPORT_SCHEMA_VERSION;
+use super::models::{SignReport, SignRow};
 
 pub fn sign(dry_run: bool, strict_verify: bool) -> Result<()> {
     println!(

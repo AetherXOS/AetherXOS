@@ -77,7 +77,7 @@ fn cargo_test_targets_and_nextest_profiles_stay_aligned() {
 fn xtask_tier_runner_is_the_single_ci_entrypoint() {
     fs::file("xtask/src/commands/validation/test/tier.rs");
     fs::ordered(
-        "xtask/src/cli.rs",
+        "xtask/src/cli/test.rs",
         &["pub enum TestAction", "Tier {", "tier: String", "ci: bool"],
     );
     fs::ordered(

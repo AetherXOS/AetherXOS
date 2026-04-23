@@ -49,7 +49,10 @@ pub(crate) fn execute(out: Option<&str>) -> Result<()> {
     notes.push_str(&format!("- overall_ok: {}\n\n", overall_ok));
     notes.push_str("## Gate Summary\n\n");
     for check in checks {
-        let id = check.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let id = check
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
         let ok = check.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
         notes.push_str(&format!("- [{}] {}\n", if ok { "x" } else { " " }, id));
     }

@@ -108,10 +108,11 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
             for m in fn_def_re.find_iter(&text) {
                 let fn_name_match = fn_def_re.captures(&text[m.start()..]).unwrap();
                 let fn_name = fn_name_match[1].to_string();
-                
+
                 // Need to find the brace offset starting from m.start()
                 let body = if let Some(brace_offset) = text[m.start()..].find('{') {
-                    crate::utils::parser::extract_body(&text, m.start() + brace_offset).unwrap_or_default()
+                    crate::utils::parser::extract_body(&text, m.start() + brace_offset)
+                        .unwrap_or_default()
                 } else {
                     String::new()
                 };

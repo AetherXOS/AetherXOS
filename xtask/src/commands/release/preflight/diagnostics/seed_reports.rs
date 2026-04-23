@@ -65,8 +65,10 @@ pub fn execute() -> Result<()> {
         }),
     )?;
 
-    let qemu_junit_text = fs::read_to_string(root.join("artifacts/qemu_smoke_junit.xml")).unwrap_or_default();
-    let qemu_smoke_ok = qemu_junit_text.contains("failures=\"0\"") && qemu_junit_text.contains("errors=\"0\"");
+    let qemu_junit_text =
+        fs::read_to_string(root.join("artifacts/qemu_smoke_junit.xml")).unwrap_or_default();
+    let qemu_smoke_ok =
+        qemu_junit_text.contains("failures=\"0\"") && qemu_junit_text.contains("errors=\"0\"");
     let soak_path = root.join("reports/soak_stress_chaos.json");
     report::write_json_report(
         &soak_path,
