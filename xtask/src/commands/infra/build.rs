@@ -227,7 +227,7 @@ fn bundle_image(arch: TargetArch, bootloader: &Bootloader, format: &ImageFormat)
             let iso_out = cli_outdir.join("aethercore.iso");
             crate::commands::infra::iso::assemble(&stage_dir, &iso_out)
                 .context("Native ISO xorriso manipulation failed")?;
-            logging::ready("image", "ISO image ready", &iso_out.to_string_lossy());
+            logging::ready("image", "ISO image ready", iso_out.to_string_lossy());
         }
         ImageFormat::Img => {
             let base_iso = cli_outdir.join("aethercore-img-intermediate.iso");
@@ -237,7 +237,7 @@ fn bundle_image(arch: TargetArch, bootloader: &Bootloader, format: &ImageFormat)
             logging::info("image", "converting target to block RAW format", &[]);
             generate_raw_image(&base_iso, &img_out)?;
             let _ = fs::remove_file(base_iso);
-            logging::ready("image", "disk image ready", &img_out.to_string_lossy());
+            logging::ready("image", "disk image ready", img_out.to_string_lossy());
         }
         ImageFormat::Vhd => {
             let base_iso = cli_outdir.join("aethercore-vhd-intermediate.iso");
@@ -247,7 +247,7 @@ fn bundle_image(arch: TargetArch, bootloader: &Bootloader, format: &ImageFormat)
             logging::info("image", "converting target to VHD architecture", &[]);
             generate_vhd_image(&base_iso, &vhd_out)?;
             let _ = fs::remove_file(base_iso);
-            logging::ready("image", "VHD image ready", &vhd_out.to_string_lossy());
+            logging::ready("image", "VHD image ready", vhd_out.to_string_lossy());
         }
     }
 

@@ -9,7 +9,7 @@ pub(super) struct ScoreBundle {
     pub(super) pass_rate: f64,
     pub(super) ci_ok: bool,
 }
-
+#[allow(clippy::too_many_arguments)]
 pub(super) fn build_score_bundle(
     profile: &str,
     ci: bool,

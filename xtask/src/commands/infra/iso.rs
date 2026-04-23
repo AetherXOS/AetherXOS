@@ -110,7 +110,7 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
     logging::ready(
         "iso",
         "ISO assembled successfully",
-        &out_iso.to_string_lossy(),
+        out_iso.to_string_lossy(),
     );
     Ok(())
 }

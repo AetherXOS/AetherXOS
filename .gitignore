@@ -7,7 +7,7 @@ hyper_config.toml
 .VSCodeCounter/
 .vscode/
 .vs/
-reports/
+reports/*
 !tests/reports/
 !tests/reports/nextest/
 !tests/reports/nextest/.gitkeep

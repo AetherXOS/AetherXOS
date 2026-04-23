@@ -125,7 +125,7 @@ pub fn run_smoke() -> Result<()> {
         logging::ready(
             "test",
             "driver smoke gate passed",
-            &mapping.len().to_string(),
+            mapping.len().to_string(),
         );
         Ok(())
     } else {
