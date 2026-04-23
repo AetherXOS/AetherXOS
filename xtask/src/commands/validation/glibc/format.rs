@@ -53,9 +53,21 @@ pub fn generate_markdown(inventory: &[GlibcSyscall], _verbose: bool) -> Result<S
         .filter(|s| s.status == SyscallStatus::Stub)
         .count();
 
-    let full_rate = if total > 0 { full as f64 / total as f64 * 100.0 } else { 0.0 };
-    let partial_rate = if total > 0 { partial as f64 / total as f64 * 100.0 } else { 0.0 };
-    let stub_rate = if total > 0 { stub as f64 / total as f64 * 100.0 } else { 0.0 };
+    let full_rate = if total > 0 {
+        full as f64 / total as f64 * 100.0
+    } else {
+        0.0
+    };
+    let partial_rate = if total > 0 {
+        partial as f64 / total as f64 * 100.0
+    } else {
+        0.0
+    };
+    let stub_rate = if total > 0 {
+        stub as f64 / total as f64 * 100.0
+    } else {
+        0.0
+    };
 
     md.push_str(&format!(
         "\n## Summary\n\n- **Total:** {} syscalls\n- **Full:** {} ({:.1}%)\n- **Partial:** {} ({:.1}%)\n- **Stub:** {} ({:.1}%)\n",

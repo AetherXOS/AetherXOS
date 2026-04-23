@@ -24,10 +24,18 @@ pub fn export_junit(out: Option<&str>, strict: bool) -> Result<()> {
 
     ci_bundle(false)?;
     let ci_bundle_path = root.join(config::repo_paths::CI_BUNDLE_JSON);
-    let ci_bundle_text = fs::read_to_string(&ci_bundle_path)
-        .with_context(|| format!("failed reading CI bundle for junit export: {}", ci_bundle_path.display()))?;
-    let ci_bundle_doc: Value = serde_json::from_str(&ci_bundle_text)
-        .with_context(|| format!("failed parsing CI bundle for junit export: {}", ci_bundle_path.display()))?;
+    let ci_bundle_text = fs::read_to_string(&ci_bundle_path).with_context(|| {
+        format!(
+            "failed reading CI bundle for junit export: {}",
+            ci_bundle_path.display()
+        )
+    })?;
+    let ci_bundle_doc: Value = serde_json::from_str(&ci_bundle_text).with_context(|| {
+        format!(
+            "failed parsing CI bundle for junit export: {}",
+            ci_bundle_path.display()
+        )
+    })?;
 
     let overall_ok = ci_bundle_doc
         .get("overall_ok")
@@ -38,7 +46,10 @@ pub fn export_junit(out: Option<&str>, strict: bool) -> Result<()> {
         for check in checks {
             let ok = check.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
             if !ok {
-                let id = check.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
+                let id = check
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
                 failed_checks.push(id.to_string());
             }
         }
@@ -102,7 +113,8 @@ pub fn freeze_check(strict: bool, allow_dirty: bool) -> Result<()> {
         .unwrap_or_else(|| "unknown".to_string());
     let status = capture_command_output("git", &["status", "--porcelain"]).unwrap_or_default();
     let worktree_clean = status.trim().is_empty();
-    let branch_ok = branch == "main" || branch.starts_with("release/") || branch.starts_with("hotfix/");
+    let branch_ok =
+        branch == "main" || branch.starts_with("release/") || branch.starts_with("hotfix/");
 
     let overall_ok = branch_ok && (worktree_clean || allow_dirty);
     let detail = format!(
@@ -125,10 +137,7 @@ pub fn freeze_check(strict: bool, allow_dirty: bool) -> Result<()> {
     report::write_text_report(&out_md, &render_freeze_check_md(&doc))?;
 
     if strict && !doc.overall_ok {
-        bail!(
-            "strict freeze-check failed. See {}",
-            out_json.display()
-        );
+        bail!("strict freeze-check failed. See {}", out_json.display());
     }
 
     println!("[release::freeze-check] PASS");
@@ -185,10 +194,7 @@ pub fn sbom_audit(strict: bool) -> Result<()> {
     report::write_text_report(&out_md, &render_sbom_audit_md(&doc))?;
 
     if strict && !doc.overall_ok {
-        bail!(
-            "strict sbom-audit failed. See {}",
-            out_json.display()
-        );
+        bail!("strict sbom-audit failed. See {}", out_json.display());
     }
 
     println!("[release::sbom-audit] PASS");
@@ -303,7 +309,12 @@ fn render_release_manifest_md(doc: &ReleaseManifestDoc) -> String {
     md.push_str(&format!("- generated_utc: {}\n", doc.generated_utc));
     md.push_str(&format!("- strict: {}\n", doc.strict));
     md.push_str(&format!("- overall_ok: {}\n", doc.overall_ok));
-    md.push_str(&format!("- git_commit: {}\n", doc.git_commit.clone().unwrap_or_else(|| "unknown".to_string())));
+    md.push_str(&format!(
+        "- git_commit: {}\n",
+        doc.git_commit
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string())
+    ));
     md.push_str(&format!("- host_os: {}\n", doc.host_os));
     md.push_str(&format!("- host_arch: {}\n", doc.host_arch));
     md.push_str(&format!("- required_missing: {}\n\n", doc.required_missing));

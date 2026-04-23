@@ -38,7 +38,10 @@ pub(crate) fn execute(strict: bool) -> Result<()> {
         .unwrap_or_default();
 
     let mut plan = Vec::new();
-    plan.push("1) Run `cargo run -p xtask -- release gate-fixup` to refresh all gate artifacts.".to_string());
+    plan.push(
+        "1) Run `cargo run -p xtask -- release gate-fixup` to refresh all gate artifacts."
+            .to_string(),
+    );
     for issue in &issues {
         let id = issue
             .get("id")

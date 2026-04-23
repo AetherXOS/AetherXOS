@@ -22,7 +22,10 @@ pub fn cargo(args: &[&str]) -> Result<()> {
 
 /// Run `cargo` with the given arguments in a specific directory.
 pub fn cargo_in_dir(args: &[&str], cwd: &std::path::Path) -> Result<()> {
-    logging::exec("cargo", &format!("(cd {}) cargo {}", cwd.display(), args.join(" ")));
+    logging::exec(
+        "cargo",
+        &format!("(cd {}) cargo {}", cwd.display(), args.join(" ")),
+    );
     let status = Command::new(tools::CARGO)
         .args(args)
         .current_dir(cwd)

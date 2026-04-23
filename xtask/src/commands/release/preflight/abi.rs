@@ -145,16 +145,9 @@ fn collect_abi_snapshot(root: &Path) -> Result<AbiSnapshot> {
     let syscalls_consts = root.join("kernel/src/kernel/syscalls/syscalls_consts.rs");
     let linux_numbers = root.join("kernel/src/kernel/syscalls/syscalls_consts/linux_numbers.rs");
 
-    let nr_entries = parse_const_block(
-        &syscalls_consts,
-        r"pub\s+mod\s+nr\s*\{",
-        "nr",
-    )?;
-    let linux_nr_entries = parse_const_block(
-        &linux_numbers,
-        r"pub\s+mod\s+linux_nr\s*\{",
-        "linux_nr",
-    )?;
+    let nr_entries = parse_const_block(&syscalls_consts, r"pub\s+mod\s+nr\s*\{", "nr")?;
+    let linux_nr_entries =
+        parse_const_block(&linux_numbers, r"pub\s+mod\s+linux_nr\s*\{", "linux_nr")?;
 
     let mut entries = nr_entries;
     entries.extend(linux_nr_entries);
@@ -175,7 +168,11 @@ fn collect_abi_snapshot(root: &Path) -> Result<AbiSnapshot> {
     })
 }
 
-fn parse_const_block(path: &Path, module_header_pattern: &str, scope: &str) -> Result<Vec<AbiConstEntry>> {
+fn parse_const_block(
+    path: &Path,
+    module_header_pattern: &str,
+    scope: &str,
+) -> Result<Vec<AbiConstEntry>> {
     let text = fs::read_to_string(path)
         .with_context(|| format!("failed reading ABI source file: {}", path.display()))?;
 
@@ -204,8 +201,8 @@ fn parse_const_block(path: &Path, module_header_pattern: &str, scope: &str) -> R
         }
     }
 
-    let close_idx = end_idx
-        .with_context(|| format!("unterminated module block in {}", path.display()))?;
+    let close_idx =
+        end_idx.with_context(|| format!("unterminated module block in {}", path.display()))?;
     let scanned = block_tail
         .get(..close_idx)
         .with_context(|| format!("failed slicing module body in {}", path.display()))?;
@@ -235,9 +232,15 @@ fn render_abi_drift_md(report_obj: &AbiDriftReport) -> String {
     md.push_str("# ABI Drift Report\n\n");
     md.push_str(&format!("- generated_utc: {}\n", report_obj.generated_utc));
     md.push_str(&format!("- baseline_path: {}\n", report_obj.baseline_path));
-    md.push_str(&format!("- baseline_created: {}\n", report_obj.baseline_created));
+    md.push_str(&format!(
+        "- baseline_created: {}\n",
+        report_obj.baseline_created
+    ));
     md.push_str(&format!("- overall_ok: {}\n", report_obj.overall_ok));
-    md.push_str(&format!("- baseline_count: {}\n", report_obj.baseline_count));
+    md.push_str(&format!(
+        "- baseline_count: {}\n",
+        report_obj.baseline_count
+    ));
     md.push_str(&format!("- current_count: {}\n", report_obj.current_count));
     md.push_str(&format!("- added: {}\n", report_obj.added.len()));
     md.push_str(&format!("- removed: {}\n", report_obj.removed.len()));

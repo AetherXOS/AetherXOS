@@ -6,9 +6,7 @@ use walkdir::WalkDir;
 use crate::config;
 use crate::utils::{paths, report};
 
-use crate::commands::release::preflight::models::{
-    PolicyGuardReport, PolicyViolation,
-};
+use crate::commands::release::preflight::models::{PolicyGuardReport, PolicyViolation};
 
 pub fn execute(strict: bool) -> Result<()> {
     println!("[release::policy-guard] Scanning critical kernel modules for forbidden patterns");
@@ -20,7 +18,11 @@ pub fn execute(strict: bool) -> Result<()> {
         "kernel/src/kernel/syscalls",
     ];
     let rules = [
-        (Regex::new(r"\bunimplemented!\b")?, "critical", "unimplemented!"),
+        (
+            Regex::new(r"\bunimplemented!\b")?,
+            "critical",
+            "unimplemented!",
+        ),
         (Regex::new(r"\btodo!\b")?, "high", "todo!"),
         (Regex::new(r"\bdbg!\s*\(")?, "high", "dbg!(...)"),
         (Regex::new(r"FIXME")?, "medium", "FIXME marker"),

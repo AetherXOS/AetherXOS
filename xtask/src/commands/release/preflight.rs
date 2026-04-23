@@ -58,10 +58,16 @@ pub fn execute(action: &ReleaseAction) -> Result<()> {
         ReleaseAction::GateFixup { strict } => ci::gate_fixup(*strict),
         ReleaseAction::CiBundle { strict } => ci::ci_bundle(*strict),
         ReleaseAction::Doctor { strict } => diagnostics::release_doctor(*strict),
-        ReleaseAction::GateReport { prev, strict } => reports::gate_report(prev.as_deref(), *strict),
-        ReleaseAction::ExportJunit { out, strict } => reports::export_junit(out.as_deref(), *strict),
+        ReleaseAction::GateReport { prev, strict } => {
+            reports::gate_report(prev.as_deref(), *strict)
+        }
+        ReleaseAction::ExportJunit { out, strict } => {
+            reports::export_junit(out.as_deref(), *strict)
+        }
         ReleaseAction::ExplainFailure { strict } => reports::explain_failure(*strict),
-        ReleaseAction::TrendDashboard { limit, strict } => reports::trend_dashboard(*limit, *strict),
+        ReleaseAction::TrendDashboard { limit, strict } => {
+            reports::trend_dashboard(*limit, *strict)
+        }
         ReleaseAction::PerfReport { strict } => reports::perf_report(*strict),
         ReleaseAction::FreezeCheck {
             strict,

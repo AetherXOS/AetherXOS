@@ -1,6 +1,6 @@
-use clap::Subcommand;
 use crate::types::{Bootloader, ImageFormat};
 use aethercore_common::TargetArch;
+use clap::Subcommand;
 
 #[derive(Subcommand, Debug)]
 pub enum BuildAction {

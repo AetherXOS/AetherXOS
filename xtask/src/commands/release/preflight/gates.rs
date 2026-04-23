@@ -94,8 +94,12 @@ pub fn enforce_production_acceptance_gate() -> Result<()> {
             scorecard_path.display()
         )
     })?;
-    let scorecard: Value = serde_json::from_str(&scorecard_text)
-        .with_context(|| format!("failed parsing scorecard JSON: {}", scorecard_path.display()))?;
+    let scorecard: Value = serde_json::from_str(&scorecard_text).with_context(|| {
+        format!(
+            "failed parsing scorecard JSON: {}",
+            scorecard_path.display()
+        )
+    })?;
 
     let overall_ok = scorecard
         .get("overall_ok")
@@ -140,8 +144,12 @@ pub fn enforce_p_tier_trend_no_regression() -> Result<()> {
             p_tier_path.display()
         )
     })?;
-    let p_tier: Value = serde_json::from_str(&p_tier_text)
-        .with_context(|| format!("failed parsing p-tier status JSON: {}", p_tier_path.display()))?;
+    let p_tier: Value = serde_json::from_str(&p_tier_text).with_context(|| {
+        format!(
+            "failed parsing p-tier status JSON: {}",
+            p_tier_path.display()
+        )
+    })?;
 
     let tier_regression = p_tier
         .get("trend")

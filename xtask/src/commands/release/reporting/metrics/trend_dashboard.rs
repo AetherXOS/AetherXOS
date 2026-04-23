@@ -1,12 +1,12 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde_json::Value;
 use std::fs;
 
+use super::helpers::render_trend_dashboard_md;
 use crate::commands::release::preflight::ci_bundle;
 use crate::commands::release::preflight::models::{TrendDashboardDoc, TrendPoint};
 use crate::config;
 use crate::utils::{paths, report};
-use super::helpers::render_trend_dashboard_md;
 
 pub(crate) fn execute(limit: usize, strict: bool) -> Result<()> {
     println!("[release::trend-dashboard] Updating trend history and dashboard");

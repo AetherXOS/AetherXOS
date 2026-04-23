@@ -49,7 +49,10 @@ pub(crate) fn abi_perf_gate(strict: bool) -> Result<()> {
         .get("overall_ok")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    let linux_abi_score = semantic.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    let linux_abi_score = semantic
+        .get("score")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
 
     let linux_abi_trend_regression = trend
         .get("regression_detected")

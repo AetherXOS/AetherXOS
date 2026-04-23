@@ -44,8 +44,8 @@ pub struct ClosureTestResult {
 
 mod format;
 mod inventory;
-pub(crate) use inventory::get_glibc_inventory;
 use format::*;
+pub(crate) use inventory::get_glibc_inventory;
 
 pub fn execute(action: &GlibcAction) -> Result<()> {
     match action {
@@ -202,4 +202,3 @@ fn test_family(family: &str, strict: bool) -> Result<(usize, usize, Vec<String>)
 
     Ok((passed, failed, blockers))
 }
-

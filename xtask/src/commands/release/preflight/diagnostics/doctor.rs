@@ -5,9 +5,7 @@ use std::fs;
 use crate::config;
 use crate::utils::{paths, report};
 
-use crate::commands::release::preflight::models::{
-    BundleCheck, DoctorReport,
-};
+use crate::commands::release::preflight::models::{BundleCheck, DoctorReport};
 
 pub fn execute(strict: bool) -> Result<()> {
     println!("[release::doctor] Running release doctor checks");
@@ -19,14 +17,23 @@ pub fn execute(strict: bool) -> Result<()> {
     super::release::execute(false)?;
 
     let specs = [
-        ("host_tool_verify", config::repo_paths::HOST_TOOL_VERIFY_JSON),
+        (
+            "host_tool_verify",
+            config::repo_paths::HOST_TOOL_VERIFY_JSON,
+        ),
         (
             "critical_policy_guard",
             config::repo_paths::CRITICAL_POLICY_GUARD_JSON,
         ),
         ("warning_audit", config::repo_paths::WARNING_AUDIT_JSON),
-        ("release_diagnostics", config::repo_paths::RELEASE_DIAGNOSTICS_JSON),
-        ("release_evidence_bundle", config::repo_paths::RELEASE_EVIDENCE_BUNDLE_JSON),
+        (
+            "release_diagnostics",
+            config::repo_paths::RELEASE_DIAGNOSTICS_JSON,
+        ),
+        (
+            "release_evidence_bundle",
+            config::repo_paths::RELEASE_EVIDENCE_BUNDLE_JSON,
+        ),
     ];
 
     let mut checks = Vec::new();

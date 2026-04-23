@@ -193,7 +193,10 @@ fn capture_binary_version(id: &str, binary: &str) -> Option<String> {
     } else {
         vec!["--version"]
     };
-    let output = std::process::Command::new(binary).args(args).output().ok()?;
+    let output = std::process::Command::new(binary)
+        .args(args)
+        .output()
+        .ok()?;
     if !output.status.success() {
         return None;
     }

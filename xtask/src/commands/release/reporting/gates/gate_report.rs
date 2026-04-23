@@ -25,10 +25,18 @@ pub(crate) fn execute(prev: Option<&str>, strict: bool) -> Result<()> {
 
     preflight::ci_bundle(false)?;
     let current_path = root.join(config::repo_paths::CI_BUNDLE_JSON);
-    let current_text = fs::read_to_string(&current_path)
-        .with_context(|| format!("failed reading current CI bundle: {}", current_path.display()))?;
-    let current_doc: Value = serde_json::from_str(&current_text)
-        .with_context(|| format!("failed parsing current CI bundle: {}", current_path.display()))?;
+    let current_text = fs::read_to_string(&current_path).with_context(|| {
+        format!(
+            "failed reading current CI bundle: {}",
+            current_path.display()
+        )
+    })?;
+    let current_doc: Value = serde_json::from_str(&current_text).with_context(|| {
+        format!(
+            "failed parsing current CI bundle: {}",
+            current_path.display()
+        )
+    })?;
 
     let baseline_rel = prev.unwrap_or("reports/tooling/ci_bundle_prev.json");
     let baseline_path = root.join(baseline_rel);
@@ -117,10 +125,22 @@ fn render_gate_report_md(report_obj: &GateReportDoc) -> String {
     md.push_str(&format!("- generated_utc: {}\n", report_obj.generated_utc));
     md.push_str(&format!("- strict: {}\n", report_obj.strict));
     md.push_str(&format!("- baseline_path: {}\n", report_obj.baseline_path));
-    md.push_str(&format!("- baseline_created: {}\n", report_obj.baseline_created));
-    md.push_str(&format!("- current_overall_ok: {}\n", report_obj.current_overall_ok));
-    md.push_str(&format!("- regressions: {}\n", report_obj.regressions.len()));
-    md.push_str(&format!("- improvements: {}\n\n", report_obj.improvements.len()));
+    md.push_str(&format!(
+        "- baseline_created: {}\n",
+        report_obj.baseline_created
+    ));
+    md.push_str(&format!(
+        "- current_overall_ok: {}\n",
+        report_obj.current_overall_ok
+    ));
+    md.push_str(&format!(
+        "- regressions: {}\n",
+        report_obj.regressions.len()
+    ));
+    md.push_str(&format!(
+        "- improvements: {}\n\n",
+        report_obj.improvements.len()
+    ));
 
     if !report_obj.regressions.is_empty() {
         md.push_str("## Regressions\n\n");

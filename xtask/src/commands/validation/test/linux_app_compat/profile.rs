@@ -36,11 +36,7 @@ impl NormalizedOptions {
     }
 
     pub(super) fn score_profile(self) -> &'static str {
-        if self.strict {
-            "strict"
-        } else {
-            "standard"
-        }
+        if self.strict { "strict" } else { "standard" }
     }
 
     pub(super) fn needs_qemu_gate(self) -> bool {

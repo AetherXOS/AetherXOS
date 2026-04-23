@@ -1,13 +1,11 @@
 use crate::utils::paths;
 
-use super::helpers::{
-    command_exists, count_occurrences, file_contains, file_contains_all,
-};
+use super::helpers::{command_exists, count_occurrences, file_contains, file_contains_all};
 use super::probe_output::{
     ProbeRequirements, ProbeSnapshot, build_desktop_probes, maybe_print_package_stack_diagnostics,
     run_probe_suite,
 };
-use super::{constants, Layer, LinuxAppCompatOptions, Totals};
+use super::{Layer, LinuxAppCompatOptions, Totals, constants};
 
 pub(super) fn run_runtime_probes(
     compat: &mut Layer,
@@ -77,18 +75,9 @@ pub(super) fn run_runtime_probes(
 
     let wayland_x11_depth_ok = wayland_probe_ok
         && x11_probe_ok
-        && file_contains_all(
-            &wayland_mod,
-            constants::WAYLAND_CLIENT_REQUIRED_PREFIXES,
-        )
-        && file_contains_all(
-            &x11_mod,
-            constants::X11_CLIENT_REQUIRED_PREFIXES,
-        )
-        && file_contains_all(
-            &x11_proto,
-            constants::X11_PROTO_REQUIRED_PREFIXES,
-        )
+        && file_contains_all(&wayland_mod, constants::WAYLAND_CLIENT_REQUIRED_PREFIXES)
+        && file_contains_all(&x11_mod, constants::X11_CLIENT_REQUIRED_PREFIXES)
+        && file_contains_all(&x11_proto, constants::X11_PROTO_REQUIRED_PREFIXES)
         && file_contains_all(
             &linux_abi_platform,
             &["score_graphics_stack", "wayland_stack", "x11_stack"],
@@ -98,7 +87,9 @@ pub(super) fn run_runtime_probes(
             &["graphics_readiness", "score_stack", "Wayland", "X11"],
         );
 
-    let has_any_system_pkg_manager = constants::SYSTEM_PKG_MANAGERS.iter().any(|pm| command_exists(pm));
+    let has_any_system_pkg_manager = constants::SYSTEM_PKG_MANAGERS
+        .iter()
+        .any(|pm| command_exists(pm));
 
     let generated_seed_root = root.join("artifacts/boot_image/generated/initramfs_apt");
     let seeded_apt_available = generated_seed_root.join("usr/bin/apt-get").exists()
@@ -176,10 +167,7 @@ pub(super) fn run_runtime_probes(
             &diskfs_bootstrap,
             &["probing block devices", "mount -t", "/var/lib/aethercore"],
         )
-        && file_contains_all(
-            &pivot_root_setup,
-            constants::PIVOT_ROOT_SETUP_VARS,
-        )
+        && file_contains_all(&pivot_root_setup, constants::PIVOT_ROOT_SETUP_VARS)
         && file_contains_all(
             &linux_mount_setup,
             &[
@@ -193,10 +181,7 @@ pub(super) fn run_runtime_probes(
                 "/run",
             ],
         )
-        && file_contains_all(
-            &mount_table,
-            constants::LINUX_MOUNT_TYPES,
-        )
+        && file_contains_all(&mount_table, constants::LINUX_MOUNT_TYPES)
         && file_contains_all(
             &disk_fs,
             &["DiskFsMode", "Fat", "Little", "Ext4", "with_backend"],
@@ -350,10 +335,7 @@ pub(super) fn run_runtime_probes(
 
     let parity_module_count = count_occurrences(&kernel_tests_mod, "_parity;");
     let syscall_semantic_parity_ok = parity_module_count >= 8
-        && file_contains_all(
-            &kernel_tests_mod,
-            constants::SYSCALL_SEMANTIC_PARITY_TESTS,
-        )
+        && file_contains_all(&kernel_tests_mod, constants::SYSCALL_SEMANTIC_PARITY_TESTS)
         && file_contains_all(
             &syscall_stats_api,
             &[
@@ -363,25 +345,22 @@ pub(super) fn run_runtime_probes(
             ],
         );
 
-    let gpu_ioctl_coverage_ok = file_contains_all(
-        &linux_shim_dispatch,
-        &["linux_nr::IOCTL", "sys_linux_ioctl"],
-    ) && file_contains_all(
-        &linux_compat_io,
-        &["pub fn sys_linux_ioctl", "ioctl", "posix::fs::ioctl"],
-    ) && file_contains_all(
-        &gpu_mod,
-        &["GpuBackend", "VirtIoGpu", "gpu_stack_snapshot"],
-    ) && file_contains_all(
-        &gpu_tests,
-        &[
-            "gpu_desktop_path_readiness_requires_non_none_backend",
-            "gpu_health_detects_stale_heartbeat",
-        ],
-    ) && file_contains_all(
-        &gpu_ioctl_inventory,
-        constants::GPU_IOCTL_COVERAGE_REQS,
-    );
+    let gpu_ioctl_coverage_ok =
+        file_contains_all(
+            &linux_shim_dispatch,
+            &["linux_nr::IOCTL", "sys_linux_ioctl"],
+        ) && file_contains_all(
+            &linux_compat_io,
+            &["pub fn sys_linux_ioctl", "ioctl", "posix::fs::ioctl"],
+        ) && file_contains_all(&gpu_mod, &["GpuBackend", "VirtIoGpu", "gpu_stack_snapshot"])
+            && file_contains_all(
+                &gpu_tests,
+                &[
+                    "gpu_desktop_path_readiness_requires_non_none_backend",
+                    "gpu_health_detects_stale_heartbeat",
+                ],
+            )
+            && file_contains_all(&gpu_ioctl_inventory, constants::GPU_IOCTL_COVERAGE_REQS);
 
     let linux_host_e2e_pipeline_ok = file_contains_all(
         &linux_host_e2e_script,

@@ -150,7 +150,12 @@ fn is_known_subcommand(top: &str, sub: &str) -> bool {
     match top {
         "setup" => matches!(
             sub,
-            "audit" | "repair" | "bootstrap" | "installer-select" | "fetch-bootloader" | "toolchain"
+            "audit"
+                | "repair"
+                | "bootstrap"
+                | "installer-select"
+                | "fetch-bootloader"
+                | "toolchain"
         ),
         "release" => matches!(
             sub,
@@ -186,8 +191,14 @@ fn is_known_subcommand(top: &str, sub: &str) -> bool {
                 | "abi-perf-gate"
                 | "perf-report"
         ),
-        "build" => matches!(sub, "full" | "image" | "kernel" | "initramfs" | "app" | "tier-status"),
-        "run" => matches!(sub, "smoke" | "live" | "bare-metal-deploy" | "debug" | "pxe-server"),
+        "build" => matches!(
+            sub,
+            "full" | "image" | "kernel" | "initramfs" | "app" | "tier-status"
+        ),
+        "run" => matches!(
+            sub,
+            "smoke" | "live" | "bare-metal-deploy" | "debug" | "pxe-server"
+        ),
         "test" => matches!(
             sub,
             "quality-gate"
@@ -214,10 +225,16 @@ fn is_known_subcommand(top: &str, sub: &str) -> bool {
                 | "workload-catalog"
         ),
         "secureboot" => {
-            matches!(sub, "sign" | "sbat-validate" | "pcr-report" | "mok-plan" | "ovmf-matrix")
+            matches!(
+                sub,
+                "sign" | "sbat-validate" | "pcr-report" | "mok-plan" | "ovmf-matrix"
+            )
         }
         "dashboard" => matches!(sub, "build" | "test" | "open" | "agent-start"),
-        "glibc" => matches!(sub, "audit" | "closure-gate" | "scorecard" | "compatibility-split"),
+        "glibc" => matches!(
+            sub,
+            "audit" | "closure-gate" | "scorecard" | "compatibility-split"
+        ),
         "ab-slot" => matches!(sub, "init" | "stage" | "nightly-flip" | "recovery-gate"),
         _ => true,
     }
@@ -240,7 +257,10 @@ fn render_docs_command_audit_md(doc: &DocsCommandAuditDoc) -> String {
 
     md.push_str("## Issues\n\n");
     for issue in &doc.issues {
-        md.push_str(&format!("- {}:{} [{}]\n", issue.path, issue.line, issue.severity));
+        md.push_str(&format!(
+            "- {}:{} [{}]\n",
+            issue.path, issue.line, issue.severity
+        ));
         md.push_str(&format!("  - detail: {}\n", issue.detail));
         md.push_str(&format!("  - command: {}\n", issue.command));
     }

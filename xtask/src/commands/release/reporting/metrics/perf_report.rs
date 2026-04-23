@@ -1,16 +1,14 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde_json::Value;
 use std::fs;
 
-use crate::config;
-use crate::utils::{paths, report};
-use crate::commands::release::preflight::models::{
-    PerfEngineeringReportDoc,
-};
 use super::helpers::{
     completion_pct, failed_check_count, load_or_create_perf_thresholds, load_perf_waiver,
     render_perf_report_md, select_scoring_checks,
 };
+use crate::commands::release::preflight::models::PerfEngineeringReportDoc;
+use crate::config;
+use crate::utils::{paths, report};
 
 pub(crate) fn execute(strict: bool) -> Result<()> {
     println!("[release::perf-report] Building performance engineering report");
@@ -27,22 +25,26 @@ pub(crate) fn execute(strict: bool) -> Result<()> {
     .with_context(|| format!("failed parsing CI bundle report: {}", ci_path.display()))?;
 
     let score_norm_path = root.join(config::repo_paths::SCORE_NORMALIZE_JSON);
-    let score_norm_doc: Value = serde_json::from_str(&fs::read_to_string(&score_norm_path).with_context(
-        || format!("failed reading score normalize report: {}", score_norm_path.display()),
-    )?)
-    .with_context(|| {
-        format!(
-            "failed parsing score normalize report: {}",
-            score_norm_path.display()
-        )
-    })?;
+    let score_norm_doc: Value =
+        serde_json::from_str(&fs::read_to_string(&score_norm_path).with_context(|| {
+            format!(
+                "failed reading score normalize report: {}",
+                score_norm_path.display()
+            )
+        })?)
+        .with_context(|| {
+            format!(
+                "failed parsing score normalize report: {}",
+                score_norm_path.display()
+            )
+        })?;
 
     let trend_path = root.join(config::repo_paths::TREND_DASHBOARD_JSON);
-    let trend_doc: Value = serde_json::from_str(
-        &fs::read_to_string(&trend_path)
-            .with_context(|| format!("failed reading trend dashboard: {}", trend_path.display()))?,
-    )
-    .with_context(|| format!("failed parsing trend dashboard: {}", trend_path.display()))?;
+    let trend_doc: Value =
+        serde_json::from_str(&fs::read_to_string(&trend_path).with_context(|| {
+            format!("failed reading trend dashboard: {}", trend_path.display())
+        })?)
+        .with_context(|| format!("failed parsing trend dashboard: {}", trend_path.display()))?;
 
     let linux_abi_path = root.join(config::repo_paths::LINUX_ABI_SEMANTIC_MATRIX_JSON);
     let linux_abi_score = if linux_abi_path.exists() {
@@ -77,9 +79,8 @@ pub(crate) fn execute(strict: bool) -> Result<()> {
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
-    let raw_perf_score = (gate_completion_pct * 0.45)
-        + (normalized_gate_score * 0.35)
-        + (linux_abi_score * 0.20);
+    let raw_perf_score =
+        (gate_completion_pct * 0.45) + (normalized_gate_score * 0.35) + (linux_abi_score * 0.20);
     let host_adjustment = if std::env::consts::OS == "windows" {
         9.0
     } else {

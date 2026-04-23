@@ -78,7 +78,29 @@ pub fn resolve_selection(
 ) -> Result<InstallerSelection> {
     let catalog = load_catalog_from_source()?;
     let app_catalog = load_app_target_catalog_from_source()?;
-    let preset = find_preset(&catalog, profile)?;
+    resolve_selection_from_catalogs(
+        &catalog,
+        &app_catalog,
+        profile,
+        apps_csv,
+        packages_override_csv,
+        include_csv,
+        exclude_csv,
+        mirror,
+    )
+}
+#[allow(clippy::too_many_arguments)]
+pub fn resolve_selection_from_catalogs(
+    catalog: &InstallerPresetCatalog,
+    app_catalog: &InstallerAppTargetCatalog,
+    profile: &str,
+    apps_csv: Option<&str>,
+    packages_override_csv: Option<&str>,
+    include_csv: Option<&str>,
+    exclude_csv: Option<&str>,
+    mirror: Option<&str>,
+) -> Result<InstallerSelection> {
+    let preset = find_preset(catalog, profile)?;
     let selected_apps = parse_csv(apps_csv.unwrap_or(""));
 
     let mut selected: BTreeSet<String> = if let Some(raw_override) = packages_override_csv {
@@ -90,7 +112,7 @@ pub fn resolve_selection(
     let mut smoke_commands = BTreeSet::<String>::new();
 
     for app in &selected_apps {
-        let target = find_app_target(&app_catalog, app)?;
+        let target = find_app_target(app_catalog, app)?;
         for pkg in packages_for_target(target, &preset.id) {
             selected.insert(pkg.to_string());
         }
@@ -118,7 +140,9 @@ pub fn resolve_selection(
     Ok(InstallerSelection {
         profile: preset.id.clone(),
         package_manager: preset.package_manager,
-        mirror: mirror.map(|m| m.trim().to_string()).filter(|m| !m.is_empty()),
+        mirror: mirror
+            .map(|m| m.trim().to_string())
+            .filter(|m| !m.is_empty()),
         mirror_fallbacks: preset.mirror_fallbacks.clone(),
         selected_apps,
         packages: selected.into_iter().collect(),
@@ -171,7 +195,10 @@ fn smoke_commands_for_target(target: &InstallerAppTarget, profile_id: &str) -> V
         .unwrap_or_default()
 }
 
-fn find_preset<'a>(catalog: &'a InstallerPresetCatalog, profile: &str) -> Result<&'a InstallerPreset> {
+fn find_preset<'a>(
+    catalog: &'a InstallerPresetCatalog,
+    profile: &str,
+) -> Result<&'a InstallerPreset> {
     let key = profile.trim().to_ascii_lowercase();
     if let Some(preset) = catalog
         .presets
@@ -230,7 +257,10 @@ fn validate_catalog(catalog: &InstallerPresetCatalog) -> Result<()> {
         }
         for mirror in &preset.mirror_fallbacks {
             if mirror.trim().is_empty() {
-                bail!("installer profile '{}' has empty mirror_fallbacks entry", preset.id)
+                bail!(
+                    "installer profile '{}' has empty mirror_fallbacks entry",
+                    preset.id
+                )
             }
         }
         let normalized = preset.id.to_ascii_lowercase();
@@ -272,7 +302,10 @@ fn validate_app_target_catalog(catalog: &InstallerAppTargetCatalog) -> Result<()
             }
         }
         if !has_any_pkg {
-            bail!("installer app target '{}' has no package entries", target.id)
+            bail!(
+                "installer app target '{}' has no package entries",
+                target.id
+            )
         }
 
         let normalized = target.id.to_ascii_lowercase();
@@ -283,7 +316,10 @@ fn validate_app_target_catalog(catalog: &InstallerAppTargetCatalog) -> Result<()
         for artifacts in target.download_artifacts_by_profile.values() {
             for artifact in artifacts {
                 if artifact.id.trim().is_empty() {
-                    bail!("installer app target '{}' has artifact with empty id", target.id)
+                    bail!(
+                        "installer app target '{}' has artifact with empty id",
+                        target.id
+                    )
                 }
                 if artifact.url.trim().is_empty() {
                     bail!(
@@ -317,7 +353,10 @@ fn validate_app_target_catalog(catalog: &InstallerAppTargetCatalog) -> Result<()
     Ok(())
 }
 
-fn find_app_target<'a>(catalog: &'a InstallerAppTargetCatalog, app: &str) -> Result<&'a InstallerAppTarget> {
+fn find_app_target<'a>(
+    catalog: &'a InstallerAppTargetCatalog,
+    app: &str,
+) -> Result<&'a InstallerAppTarget> {
     let key = app.trim().to_ascii_lowercase();
     if let Some(target) = catalog
         .targets

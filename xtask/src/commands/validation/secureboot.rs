@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::cli::SecurebootAction;
+use anyhow::Result;
 
 pub mod models;
 pub mod mok;
