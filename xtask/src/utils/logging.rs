@@ -1,7 +1,24 @@
 use chrono::{DateTime, Utc};
 use serde_json::{Map, Value, json};
 use std::borrow::Cow;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::SystemTime;
+
+static VERBOSE: AtomicBool = AtomicBool::new(false);
+static QUIET: AtomicBool = AtomicBool::new(false);
+
+pub fn set_verbosity(verbose: bool, quiet: bool) {
+    VERBOSE.store(verbose, Ordering::SeqCst);
+    QUIET.store(quiet, Ordering::SeqCst);
+}
+
+pub fn is_verbose() -> bool {
+    VERBOSE.load(Ordering::SeqCst)
+}
+
+pub fn is_quiet() -> bool {
+    QUIET.load(Ordering::SeqCst)
+}
 
 pub const RESET: &str = "\x1b[0m";
 #[allow(dead_code)]
@@ -20,6 +37,9 @@ pub const BG_MAGENTA: &str = "\x1b[45m";
 pub const BG_BRIGHT_BLACK: &str = "\x1b[100m";
 
 pub fn print_header(about: &str, system: &str, target: &str) {
+    if is_quiet() {
+        return;
+    }
     println!(
         " {}{} {:12} {} {}",
         BG_CYAN, FG_BLACK, "ABOUT", RESET, about
@@ -51,6 +71,10 @@ fn use_json_output() -> bool {
 }
 
 pub fn log(level: &str, module: &str, message: &str, kv: &[(&str, &str)]) {
+    if is_quiet() && level != "ERROR" && level != "WARN" {
+        return;
+    }
+
     let ts = get_timestamp();
 
     if use_json_output() {
@@ -106,7 +130,9 @@ pub fn event(module: &str, event: &str, status: &str, kv: &[(&str, &str)]) {
 }
 
 pub fn exec(module: &str, command: &str) {
-    log("EXEC", module, command, &[]);
+    if is_verbose() {
+        log("EXEC", module, command, &[]);
+    }
 }
 
 #[allow(dead_code)]
