@@ -1,0 +1,1787 @@
+[
+  {
+    "linux_nr": "ACCEPT",
+    "handler": "sys_linux_accept",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/conn.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "ACCEPT4",
+    "handler": "sys_linux_accept4",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/conn.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "ACCESS",
+    "handler": "sys_linux_access",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "ACCT",
+    "handler": "sys_linux_acct",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "ALARM",
+    "handler": "sys_linux_alarm",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/time/clock.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "ARCH_PRCTL",
+    "handler": "sys_linux_arch_prctl",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/special.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "BIND",
+    "handler": "sys_linux_bind",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/conn.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "BPF",
+    "handler": "sys_linux_bpf",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "BRK",
+    "handler": "sys_linux_brk",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/mem/brk.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "CACHESTAT",
+    "handler": "sys_linux_cachestat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "CAPGET",
+    "handler": "sys_linux_capget",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "CAPSET",
+    "handler": "sys_linux_capset",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "CHDIR",
+    "handler": "sys_linux_chdir",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/dir.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "CHMOD",
+    "handler": "sys_linux_chmod",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "CHOWN",
+    "handler": "sys_linux_chown",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "CHROOT",
+    "handler": "sys_linux_chroot",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/mount.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "CLONE3",
+    "handler": "sys_linux_clone3",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "CLOSE_RANGE",
+    "handler": "sys_linux_close_range",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "CONNECT",
+    "handler": "sys_linux_connect",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/conn.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "COPY_FILE_RANGE",
+    "handler": "sys_linux_copy_file_range",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "CREATE_MODULE",
+    "handler": "sys_linux_create_module",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "DELETE_MODULE",
+    "handler": "sys_linux_delete_module",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "DUP3",
+    "handler": "sys_linux_dup3",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "EPOLL_CREATE",
+    "handler": "sys_linux_epoll_create",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/poll.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "EPOLL_PWAIT",
+    "handler": "sys_linux_epoll_pwait",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/poll.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "EPOLL_PWAIT2",
+    "handler": "sys_linux_epoll_pwait2",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/poll.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "EVENTFD",
+    "handler": "sys_linux_eventfd",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sync/eventfd.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "EVENTFD2",
+    "handler": "sys_linux_eventfd2",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sync/eventfd.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "EXECVE",
+    "handler": "sys_linux_execve",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/exec.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "EXECVEAT",
+    "handler": "sys_linux_execveat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/process_runtime.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "EXIT_GROUP",
+    "handler": "<external>",
+    "status": "external",
+    "file": "-",
+    "reason": "mapped to non-linux_compat function"
+  },
+  {
+    "linux_nr": "FACCESSAT",
+    "handler": "sys_linux_faccessat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FACCESSAT2",
+    "handler": "sys_linux_faccessat2",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FALLOCATE",
+    "handler": "sys_linux_fallocate",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FCHDIR",
+    "handler": "sys_linux_fchdir",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/dir.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FCHMOD",
+    "handler": "sys_linux_fchmod",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FCHMODAT",
+    "handler": "sys_linux_fchmodat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FCHOWN",
+    "handler": "sys_linux_fchown",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FCHOWNAT",
+    "handler": "sys_linux_fchownat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FCNTL",
+    "handler": "sys_linux_fcntl",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/io.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FDATASYNC",
+    "handler": "sys_linux_fdatasync",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FGETXATTR",
+    "handler": "sys_linux_fgetxattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FLISTXATTR",
+    "handler": "sys_linux_flistxattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FREMOVEXATTR",
+    "handler": "sys_linux_fremovexattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FSCONFIG",
+    "handler": "sys_linux_fsconfig",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FSETXATTR",
+    "handler": "sys_linux_fsetxattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FSMOUNT",
+    "handler": "sys_linux_fsmount",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/mount.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FSOPEN",
+    "handler": "sys_linux_fsopen",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/mount.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FSPICK",
+    "handler": "sys_linux_fspick",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/mount.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FSTAT",
+    "handler": "sys_linux_fstat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FSTATFS",
+    "handler": "sys_linux_fstatfs",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FSYNC",
+    "handler": "sys_linux_fsync",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FTRUNCATE",
+    "handler": "sys_linux_ftruncate",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FUTEX",
+    "handler": "sys_linux_futex",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sync/futex.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "FUTEX_WAITV",
+    "handler": "sys_linux_futex_waitv",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sync/futex.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETCPU",
+    "handler": "sys_linux_getcpu",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETCWD",
+    "handler": "sys_linux_getcwd",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/dir.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETDENTS",
+    "handler": "sys_linux_getdents64",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/dir.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETDENTS64",
+    "handler": "sys_linux_getdents64",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/dir.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETEGID",
+    "handler": "sys_linux_getegid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETEUID",
+    "handler": "sys_linux_geteuid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETGID",
+    "handler": "sys_linux_getgid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETGROUPS",
+    "handler": "sys_linux_getgroups",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETITIMER",
+    "handler": "sys_linux_getitimer",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/time/clock.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETPEERNAME",
+    "handler": "sys_linux_getpeername",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/conn.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETPGID",
+    "handler": "sys_linux_getpgid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETPGRP",
+    "handler": "sys_linux_getpgrp",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETPID",
+    "handler": "sys_linux_getpid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETPPID",
+    "handler": "sys_linux_getppid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETPRIORITY",
+    "handler": "sys_linux_getpriority",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/special.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETRESGID",
+    "handler": "sys_linux_getresgid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETRESUID",
+    "handler": "sys_linux_getresuid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETRLIMIT",
+    "handler": "sys_linux_getrlimit",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETRUSAGE",
+    "handler": "sys_linux_getrusage",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETSID",
+    "handler": "sys_linux_getsid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETSOCKNAME",
+    "handler": "sys_linux_getsockname",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/conn.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETSOCKOPT",
+    "handler": "sys_linux_getsockopt",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/socket.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETTID",
+    "handler": "sys_linux_gettid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETTIMEOFDAY",
+    "handler": "sys_linux_gettimeofday",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/time/clock.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETUID",
+    "handler": "sys_linux_getuid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GETXATTR",
+    "handler": "sys_linux_getxattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "GET_ROBUST_LIST",
+    "handler": "sys_linux_get_robust_list",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sync/futex.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "INIT_MODULE",
+    "handler": "sys_linux_init_module",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "INOTIFY_ADD_WATCH",
+    "handler": "sys_linux_inotify_add_watch",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/inotify.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "INOTIFY_INIT",
+    "handler": "sys_linux_inotify_init",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/inotify.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "INOTIFY_INIT1",
+    "handler": "sys_linux_inotify_init1",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/inotify.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "INOTIFY_RM_WATCH",
+    "handler": "sys_linux_inotify_rm_watch",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/inotify.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "IOCTL",
+    "handler": "sys_linux_ioctl",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/io.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "IOPERM",
+    "handler": "sys_linux_ioperm",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "IOPL",
+    "handler": "sys_linux_iopl",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "IO_PGETEVENTS",
+    "handler": "sys_linux_io_pgetevents",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "IO_URING_ENTER",
+    "handler": "sys_linux_io_uring_enter",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "IO_URING_REGISTER",
+    "handler": "sys_linux_io_uring_register",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "IO_URING_SETUP",
+    "handler": "sys_linux_io_uring_setup",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "KEXEC_FILE_LOAD",
+    "handler": "sys_linux_kexec_file_load",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "KILL",
+    "handler": "sys_linux_kill",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sig/send.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LANDLOCK_ADD_RULE",
+    "handler": "sys_linux_landlock_add_rule",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LANDLOCK_CREATE_RULESET",
+    "handler": "sys_linux_landlock_create_ruleset",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LCHOWN",
+    "handler": "sys_linux_lchown",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LGETXATTR",
+    "handler": "sys_linux_lgetxattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LINKAT",
+    "handler": "sys_linux_linkat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/link.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LISTEN",
+    "handler": "sys_linux_listen",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/conn.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LISTXATTR",
+    "handler": "sys_linux_listxattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LLISTXATTR",
+    "handler": "sys_linux_llistxattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LREMOVEXATTR",
+    "handler": "sys_linux_lremovexattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LSEEK",
+    "handler": "sys_linux_lseek",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LSETXATTR",
+    "handler": "sys_linux_lsetxattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "LSTAT",
+    "handler": "sys_linux_lstat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MADVISE",
+    "handler": "sys_linux_madvise",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/mem/mman.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MEMBARRIER",
+    "handler": "sys_linux_membarrier",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MEMFD_CREATE",
+    "handler": "sys_linux_memfd_create",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MEMFD_SECRET",
+    "handler": "sys_linux_memfd_secret",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MKDIR",
+    "handler": "sys_linux_mkdir",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MKDIRAT",
+    "handler": "sys_linux_mkdirat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/dir.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MKNOD",
+    "handler": "sys_linux_mknod",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/link.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MKNODAT",
+    "handler": "sys_linux_mknodat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/link.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MLOCK",
+    "handler": "sys_linux_mlock",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/mem/mman.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MLOCK2",
+    "handler": "sys_linux_mlock2",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MLOCKALL",
+    "handler": "sys_linux_mlockall",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/mem/mman.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MOUNT",
+    "handler": "sys_linux_mount",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/mount.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MOUNT_SETATTR",
+    "handler": "sys_linux_mount_setattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/mount.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MOVE_MOUNT",
+    "handler": "sys_linux_move_mount",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/mount.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MQ_GETSETATTR",
+    "handler": "sys_linux_mq_getsetattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/mq.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MQ_OPEN",
+    "handler": "sys_linux_mq_open",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/mq.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MQ_TIMEDRECEIVE",
+    "handler": "sys_linux_mq_timedreceive",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/mq.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MQ_TIMEDSEND",
+    "handler": "sys_linux_mq_timedsend",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/mq.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MQ_UNLINK",
+    "handler": "sys_linux_mq_unlink",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/mq.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MREMAP",
+    "handler": "sys_linux_mremap",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/mem/mman.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MSGGET",
+    "handler": "sys_linux_msgget",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/msg.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MSGRCV",
+    "handler": "sys_linux_msgrcv",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/msg.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MSGSND",
+    "handler": "sys_linux_msgsnd",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/msg.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MUNLOCK",
+    "handler": "sys_linux_munlock",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/mem/mman.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "MUNLOCKALL",
+    "handler": "sys_linux_munlockall",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/mem/mman.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "NANOSLEEP",
+    "handler": "sys_linux_nanosleep",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/time/clock.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "NEWFSTATAT",
+    "handler": "sys_linux_newfstatat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "OPENAT",
+    "handler": "sys_linux_openat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "OPENAT2",
+    "handler": "sys_linux_openat2",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/openat2.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "OPEN_BY_HANDLE_AT",
+    "handler": "sys_linux_open_by_handle_at",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "OPEN_TREE",
+    "handler": "sys_linux_open_tree",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/mount.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PAUSE",
+    "handler": "sys_linux_pause",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sig/mask.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PERSONALITY",
+    "handler": "sys_linux_personality",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/special.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PIDFD_GETFD",
+    "handler": "sys_linux_pidfd_getfd",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PIDFD_OPEN",
+    "handler": "sys_linux_pidfd_open",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PIDFD_SEND_SIGNAL",
+    "handler": "sys_linux_pidfd_send_signal",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PIPE",
+    "handler": "sys_linux_pipe",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PIPE2",
+    "handler": "sys_linux_pipe2",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PIVOT_ROOT",
+    "handler": "sys_linux_pivot_root",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/mount.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PKEY_ALLOC",
+    "handler": "sys_linux_pkey_alloc",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PKEY_FREE",
+    "handler": "sys_linux_pkey_free",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PKEY_MPROTECT",
+    "handler": "sys_linux_pkey_mprotect",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PPOLL",
+    "handler": "sys_linux_ppoll",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/poll.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PREAD64",
+    "handler": "sys_linux_pread64",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PREADV",
+    "handler": "sys_linux_preadv",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PREADV2",
+    "handler": "sys_linux_preadv2",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PRLIMIT64",
+    "handler": "sys_linux_prlimit64",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/proc_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PROCESS_MADVISE",
+    "handler": "sys_linux_process_madvise",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PROCESS_MRELEASE",
+    "handler": "sys_linux_process_mrelease",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PWRITE64",
+    "handler": "sys_linux_pwrite64",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PWRITEV",
+    "handler": "sys_linux_pwritev",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "PWRITEV2",
+    "handler": "sys_linux_pwritev2",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "QUOTACTL_FD",
+    "handler": "sys_linux_quotactl_fd",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "READLINK",
+    "handler": "sys_linux_readlink",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "READLINKAT",
+    "handler": "sys_linux_readlinkat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "READV",
+    "handler": "sys_linux_readv",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "REBOOT",
+    "handler": "sys_linux_reboot",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RECVFROM",
+    "handler": "sys_linux_recvfrom",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/io.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RECVMMSG",
+    "handler": "sys_linux_recvmmsg",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/io.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RECVMSG",
+    "handler": "sys_linux_recvmsg",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/io.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "REMOVEXATTR",
+    "handler": "sys_linux_removexattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RENAME",
+    "handler": "sys_linux_rename",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/link.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RENAMEAT",
+    "handler": "sys_linux_renameat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/link.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RENAMEAT2",
+    "handler": "sys_linux_renameat2",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/dir.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RMDIR",
+    "handler": "sys_linux_rmdir",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/dir.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RSEQ",
+    "handler": "sys_linux_rseq",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/process_runtime.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RT_SIGPENDING",
+    "handler": "sys_linux_rt_sigpending",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sig/mask.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RT_SIGQUEUEINFO",
+    "handler": "sys_linux_rt_sigqueueinfo",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RT_SIGRETURN",
+    "handler": "sys_linux_rt_sigreturn",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sig/action.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "RT_SIGSUSPEND",
+    "handler": "sys_linux_rt_sigsuspend",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sig/mask.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SCHED_GETAFFINITY",
+    "handler": "sys_linux_sched_getaffinity",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sched.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SCHED_GETPARAM",
+    "handler": "sys_linux_sched_getparam",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sched.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SCHED_GETSCHEDULER",
+    "handler": "sys_linux_sched_getscheduler",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sched.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SCHED_GET_PRIORITY_MAX",
+    "handler": "sys_linux_sched_get_priority_max",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sched.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SCHED_GET_PRIORITY_MIN",
+    "handler": "sys_linux_sched_get_priority_min",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sched.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SCHED_RR_GET_INTERVAL",
+    "handler": "sys_linux_sched_rr_get_interval",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sched.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SCHED_SETAFFINITY",
+    "handler": "sys_linux_sched_setaffinity",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sched.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SCHED_SETPARAM",
+    "handler": "sys_linux_sched_setparam",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sched.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SCHED_SETSCHEDULER",
+    "handler": "sys_linux_sched_setscheduler",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sched.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SCHED_YIELD",
+    "handler": "<external>",
+    "status": "external",
+    "file": "-",
+    "reason": "mapped to non-linux_compat function"
+  },
+  {
+    "linux_nr": "SECURITY",
+    "handler": "sys_linux_security",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SEMCTL",
+    "handler": "sys_linux_semctl",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/sem.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SEMGET",
+    "handler": "sys_linux_semget",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/sem.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SEMOP",
+    "handler": "sys_linux_semop",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/sem.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SENDMMSG",
+    "handler": "sys_linux_sendmmsg",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/io.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SENDMSG",
+    "handler": "sys_linux_sendmsg",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/io.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SENDTO",
+    "handler": "sys_linux_sendto",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/io.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETDOMAINNAME",
+    "handler": "sys_linux_setdomainname",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sys_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETGID",
+    "handler": "sys_linux_setgid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETGROUPS",
+    "handler": "sys_linux_setgroups",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETHOSTNAME",
+    "handler": "sys_linux_sethostname",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sys_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETITIMER",
+    "handler": "sys_linux_setitimer",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/time/clock.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETPGID",
+    "handler": "sys_linux_setpgid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETPRIORITY",
+    "handler": "sys_linux_setpriority",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/special.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETREGID",
+    "handler": "sys_linux_setresgid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETRESGID",
+    "handler": "sys_linux_setresgid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETRESUID",
+    "handler": "sys_linux_setresuid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETREUID",
+    "handler": "sys_linux_setresuid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETRLIMIT",
+    "handler": "sys_linux_setrlimit",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/limit.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETSID",
+    "handler": "sys_linux_setsid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETSOCKOPT",
+    "handler": "sys_linux_setsockopt",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/socket.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETTIMEOFDAY",
+    "handler": "sys_linux_settimeofday",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/time/clock.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETUID",
+    "handler": "sys_linux_setuid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/cred/identity.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SETXATTR",
+    "handler": "sys_linux_setxattr",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SET_ROBUST_LIST",
+    "handler": "sys_linux_set_robust_list",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sync/futex.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SET_TID_ADDRESS",
+    "handler": "sys_linux_set_tid_address",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/special.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SHMAT",
+    "handler": "sys_linux_shmat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/shm.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SHMCTL",
+    "handler": "sys_linux_shmctl",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/shm.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SHMDT",
+    "handler": "sys_linux_shmdt",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/shm.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SHMGET",
+    "handler": "sys_linux_shmget",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/ipc/shm.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SHUTDOWN",
+    "handler": "sys_linux_shutdown",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/io.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SIGALTSTACK",
+    "handler": "sys_linux_sigaltstack",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sig/action.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SIGNALFD",
+    "handler": "sys_linux_signalfd",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sig/signalfd.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SIGNALFD4",
+    "handler": "sys_linux_signalfd4",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sig/signalfd.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SOCKET",
+    "handler": "sys_linux_socket",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/socket.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SOCKETPAIR",
+    "handler": "sys_linux_socketpair",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/net/socket.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "STAT",
+    "handler": "sys_linux_stat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "STATFS",
+    "handler": "sys_linux_statfs",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "STATX",
+    "handler": "sys_linux_statx",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SYMLINK",
+    "handler": "sys_linux_symlink",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/link.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SYMLINKAT",
+    "handler": "sys_linux_symlinkat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/link.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SYNC",
+    "handler": "sys_linux_sync",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SYNCFS",
+    "handler": "sys_linux_syncfs",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SYSFS",
+    "handler": "sys_linux_sysfs",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SYSINFO",
+    "handler": "sys_linux_sysinfo",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sys_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "SYSLOG",
+    "handler": "sys_linux_syslog",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sys_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "TGKILL",
+    "handler": "sys_linux_tgkill",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sig/send.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "TIMERFD_CREATE",
+    "handler": "sys_linux_timerfd_create",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sync/timerfd.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "TIMERFD_GETTIME",
+    "handler": "sys_linux_timerfd_gettime",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sync/timerfd.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "TIMERFD_SETTIME",
+    "handler": "sys_linux_timerfd_settime",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sync/timerfd.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "TIMER_CREATE",
+    "handler": "sys_linux_timer_create",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "TIMER_DELETE",
+    "handler": "sys_linux_timer_delete",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "TIMES",
+    "handler": "sys_linux_times",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sys_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "TKILL",
+    "handler": "sys_linux_tkill",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sig/send.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "TRUNCATE",
+    "handler": "sys_linux_truncate",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "UMASK",
+    "handler": "sys_linux_umask",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "UMOUNT2",
+    "handler": "sys_linux_umount2",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/mount.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "UNAME",
+    "handler": "sys_linux_uname",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/sys_info.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "UNLINK",
+    "handler": "sys_linux_unlink",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/link.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "UNLINKAT",
+    "handler": "sys_linux_unlinkat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/link.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "USERFAULTFD",
+    "handler": "sys_linux_userfaultfd",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "UTIME",
+    "handler": "sys_linux_utime",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "UTIMENSAT",
+    "handler": "sys_linux_utimensat",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/attr.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "VHANGUP",
+    "handler": "sys_linux_vhangup",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/sys/advanced/mod.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "WAIT4",
+    "handler": "sys_linux_wait4",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/wait.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "WAITID",
+    "handler": "sys_linux_waitid",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/process/wait.rs",
+    "reason": "no unsupported markers detected"
+  },
+  {
+    "linux_nr": "WRITEV",
+    "handler": "sys_linux_writev",
+    "status": "implemented",
+    "file": "C:/Users/oyunm/Desktop/OS/src/modules/linux_compat/fs/file.rs",
+    "reason": "no unsupported markers detected"
+  }
+]
