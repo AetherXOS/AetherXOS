@@ -195,23 +195,33 @@ fn evaluate_security_release_profile_gate(root: &Path) -> (bool, String, usize) 
     };
 
     let default_features = crate::utils::parser::parse_default_features(&cargo_toml);
-    let boundary = crate::utils::parser::parse_generated_str_const(&generated, "LIBRARY_BOUNDARY_MODE")
-        .unwrap_or_else(|| "Strict".to_string());
-    let vfs_exposed = crate::utils::parser::parse_generated_bool_const(&generated, "LIBRARY_EXPOSE_VFS_API").unwrap_or(true);
+    let boundary =
+        crate::utils::parser::parse_generated_str_const(&generated, "LIBRARY_BOUNDARY_MODE")
+            .unwrap_or_else(|| "Strict".to_string());
+    let vfs_exposed =
+        crate::utils::parser::parse_generated_bool_const(&generated, "LIBRARY_EXPOSE_VFS_API")
+            .unwrap_or(true);
     let network_exposed =
-        crate::utils::parser::parse_generated_bool_const(&generated, "LIBRARY_EXPOSE_NETWORK_API").unwrap_or(true);
-    let ipc_exposed = crate::utils::parser::parse_generated_bool_const(&generated, "LIBRARY_EXPOSE_IPC_API").unwrap_or(true);
+        crate::utils::parser::parse_generated_bool_const(&generated, "LIBRARY_EXPOSE_NETWORK_API")
+            .unwrap_or(true);
+    let ipc_exposed =
+        crate::utils::parser::parse_generated_bool_const(&generated, "LIBRARY_EXPOSE_IPC_API")
+            .unwrap_or(true);
 
     let security_enforced = default_features.iter().any(|name| {
         matches!(
             name.as_str(),
-            "security" | "security_acl" | "security_capabilities" | "security_sel4" | "security_null"
+            "security"
+                | "security_acl"
+                | "security_capabilities"
+                | "security_sel4"
+                | "security_null"
         )
     });
     let capability_enforced = security_enforced
-        && default_features.iter().any(|name| {
-            matches!(name.as_str(), "capabilities" | "security_capabilities")
-        });
+        && default_features
+            .iter()
+            .any(|name| matches!(name.as_str(), "capabilities" | "security_capabilities"));
     let multi_user_enabled = true;
     let staging_context = boundary.eq_ignore_ascii_case("Balanced") && security_enforced;
     let production_context = boundary.eq_ignore_ascii_case("Strict")
@@ -232,8 +242,9 @@ fn evaluate_security_release_profile_gate(root: &Path) -> (bool, String, usize) 
     let boundary_is_strict = boundary.eq_ignore_ascii_case("Strict");
     let proc_config_exposed = vfs_exposed && !boundary_is_strict;
     let sysctl_exposed = vfs_exposed && !boundary_is_strict;
-    let expose_linux_compat_surface =
-        linux_compat_enabled && !boundary_is_strict && (vfs_exposed || network_exposed || ipc_exposed);
+    let expose_linux_compat_surface = linux_compat_enabled
+        && !boundary_is_strict
+        && (vfs_exposed || network_exposed || ipc_exposed);
 
     let mut compat_budget = 0u8;
     if vfs_exposed {
@@ -275,8 +286,7 @@ fn evaluate_security_release_profile_gate(root: &Path) -> (bool, String, usize) 
         reasons += 1;
     }
 
-    let blocked = reasons > 0
-        && matches!(deployment_context, "staging-compat" | "production-hardened");
+    let blocked =
+        reasons > 0 && matches!(deployment_context, "staging-compat" | "production-hardened");
     (!blocked, deployment_context.to_string(), reasons)
 }
-

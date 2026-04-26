@@ -31,7 +31,8 @@ pub fn host_tool_verify(strict: bool) -> Result<()> {
     println!("[release::host-tool-verify] Checking host toolchain/runtime dependencies");
     let root = paths::repo_root();
 
-    let specs: [(&str, bool, &[&str], Option<&str>, &str); 7] = [
+    type ToolSpec<'a> = (&'a str, bool, &'a [&'a str], Option<&'a str>, &'a str);
+    let specs: [ToolSpec; 7] = [
         (
             "rustc",
             true,
@@ -192,7 +193,10 @@ fn capture_binary_version(id: &str, binary: &str) -> Option<String> {
     } else {
         vec!["--version"]
     };
-    let output = std::process::Command::new(binary).args(args).output().ok()?;
+    let output = std::process::Command::new(binary)
+        .args(args)
+        .output()
+        .ok()?;
     if !output.status.success() {
         return None;
     }

@@ -10,10 +10,14 @@ use crate::config;
 use crate::utils::{paths, report};
 
 use super::abi::abi_drift_report;
-use super::diagnostics::{critical_policy_guard, release_diagnostics, seed_release_support_reports, warning_audit};
+use super::diagnostics::{
+    critical_policy_guard, release_diagnostics, seed_release_support_reports, warning_audit,
+};
 use super::evidence_bundle;
 use super::host_tools::host_tool_verify;
-use super::models::{BundleCheck, CiBundleDoc, EvidenceFileEntry, ReleaseEvidenceBundle, ReproducibleBuildEvidence};
+use super::models::{
+    BundleCheck, CiBundleDoc, EvidenceFileEntry, ReleaseEvidenceBundle, ReproducibleBuildEvidence,
+};
 
 pub fn parse_csv_lower(raw: &str) -> Vec<String> {
     raw.split(',')
@@ -38,7 +42,10 @@ pub fn reproducible_evidence() -> Result<()> {
         ("Cargo.lock", true),
         ("xtask/Cargo.toml", true),
         (config::repo_paths::P_TIER_STATUS_JSON, true),
-        (config::repo_paths::PRODUCTION_ACCEPTANCE_SCORECARD_JSON, true),
+        (
+            config::repo_paths::PRODUCTION_ACCEPTANCE_SCORECARD_JSON,
+            true,
+        ),
         (config::repo_paths::SYSCALL_COVERAGE_SUMMARY, true),
         ("artifacts/boot_image/stage/boot/aethercore.elf", false),
         ("artifacts/boot_image/stage/boot/initramfs.cpio.gz", false),
@@ -115,7 +122,10 @@ fn hash_file_sha256(path: &Path) -> Result<String> {
 }
 
 pub fn capture_command_output(program: &str, args: &[&str]) -> Option<String> {
-    let out = std::process::Command::new(program).args(args).output().ok()?;
+    let out = std::process::Command::new(program)
+        .args(args)
+        .output()
+        .ok()?;
     if !out.status.success() {
         return None;
     }
@@ -206,7 +216,10 @@ pub fn render_bundle_md(bundle: &ReleaseEvidenceBundle) -> String {
     md.push_str(&format!("- generated_utc: {}\n", bundle.generated_utc));
     md.push_str(&format!("- strict: {}\n", bundle.strict));
     md.push_str(&format!("- overall_ok: {}\n", bundle.overall_ok));
-    md.push_str(&format!("- required_missing: {}\n", bundle.required_missing));
+    md.push_str(&format!(
+        "- required_missing: {}\n",
+        bundle.required_missing
+    ));
     md.push_str(&format!(
         "- required_gate_failures: {}\n\n",
         bundle.required_gate_failures
@@ -264,9 +277,7 @@ pub fn ci_bundle(strict: bool) -> Result<()> {
         limit: 60,
         strict: false,
     })?;
-    validation::glibc::execute(&crate::cli::GlibcAction::CompatibilitySplit {
-        strict: false,
-    })?;
+    validation::glibc::execute(&crate::cli::GlibcAction::CompatibilitySplit { strict: false })?;
 
     let specs = [
         ("p_tier", config::repo_paths::P_TIER_STATUS_JSON),
@@ -279,7 +290,10 @@ pub fn ci_bundle(strict: bool) -> Result<()> {
             config::repo_paths::RELEASE_EVIDENCE_BUNDLE_JSON,
         ),
         ("diagnostics", config::repo_paths::RELEASE_DIAGNOSTICS_JSON),
-        ("host_tool_verify", config::repo_paths::HOST_TOOL_VERIFY_JSON),
+        (
+            "host_tool_verify",
+            config::repo_paths::HOST_TOOL_VERIFY_JSON,
+        ),
         (
             "critical_policy_guard",
             config::repo_paths::CRITICAL_POLICY_GUARD_JSON,

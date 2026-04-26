@@ -51,11 +51,13 @@ pub(super) struct ProbeRequirements {
     pub(super) quick: bool,
 }
 
-pub(super) fn maybe_print_package_stack_diagnostics(snapshot: &ProbeSnapshot, require_package_stack: bool) {
+pub(super) fn maybe_print_package_stack_diagnostics(
+    snapshot: &ProbeSnapshot,
+    require_package_stack: bool,
+) {
     if require_package_stack && !snapshot.package_stack_ok {
         println!(
-            "[test::linux-app-compat] package-stack diagnostics: seeded_pkg_mgr={} seeded_apt={} abi_check={} abi_contract={} apt_seed_manifest={} elf_so_contract={}"
-            ,
+            "[test::linux-app-compat] package-stack diagnostics: seeded_pkg_mgr={} seeded_apt={} abi_check={} abi_contract={} apt_seed_manifest={} elf_so_contract={}",
             snapshot.seeded_system_pkg_manager_any,
             snapshot.seeded_apt_available,
             snapshot.seeded_abi_check_available,
@@ -64,8 +66,7 @@ pub(super) fn maybe_print_package_stack_diagnostics(snapshot: &ProbeSnapshot, re
             snapshot.elf_so_runtime_contract_ok,
         );
         println!(
-            "[test::linux-app-compat] package-stack policy diagnostics: mirror_failover={} retry_timeout={} signature_policy={} checksum_policy={} apt_keyring_list={} pacman_keyring_path={} flutter_closure_audit={}"
-            ,
+            "[test::linux-app-compat] package-stack policy diagnostics: mirror_failover={} retry_timeout={} signature_policy={} checksum_policy={} apt_keyring_list={} pacman_keyring_path={} flutter_closure_audit={}",
             snapshot.seeded_mirror_failover_available,
             snapshot.seeded_retry_timeout_available,
             snapshot.seeded_signature_policy_available,
@@ -167,7 +168,9 @@ pub(super) fn run_probe_suite(
     );
 }
 
-pub(super) fn build_desktop_probes(snapshot: &ProbeSnapshot) -> serde_json::Map<String, serde_json::Value> {
+pub(super) fn build_desktop_probes(
+    snapshot: &ProbeSnapshot,
+) -> serde_json::Map<String, serde_json::Value> {
     let mut desktop_probes = serde_json::Map::new();
 
     macro_rules! insert_probe {
@@ -181,38 +184,131 @@ pub(super) fn build_desktop_probes(snapshot: &ProbeSnapshot) -> serde_json::Map<
     insert_probe!("fs_stack_ok", snapshot.fs_stack_ok);
     insert_probe!("package_stack_ok", snapshot.package_stack_ok);
     insert_probe!("desktop_app_stack_ok", snapshot.desktop_app_stack_ok);
-    insert_probe!("runtime_system_package_manager_any", snapshot.has_any_system_pkg_manager);
-    insert_probe!("runtime_seeded_system_package_manager_any", snapshot.seeded_system_pkg_manager_any);
-    insert_probe!("runtime_seeded_apt_available", snapshot.seeded_apt_available);
-    insert_probe!("runtime_seeded_pacman_available", snapshot.seeded_pacman_available);
-    insert_probe!("runtime_seeded_diskfs_setup_available", snapshot.seeded_diskfs_setup_available);
-    insert_probe!("runtime_seeded_pivot_root_setup_available", snapshot.seeded_pivot_root_setup_available);
-    insert_probe!("source_diskfs_bootstrap_telemetry_ok", snapshot.diskfs_bootstrap_telemetry_ok);
-    insert_probe!("runtime_seeded_abi_check_available", snapshot.seeded_abi_check_available);
-    insert_probe!("runtime_seeded_abi_contract_available", snapshot.seeded_abi_contract_available);
-    insert_probe!("runtime_seeded_mirror_failover_available", snapshot.seeded_mirror_failover_available);
-    insert_probe!("runtime_seeded_signature_policy_available", snapshot.seeded_signature_policy_available);
-    insert_probe!("runtime_seeded_checksum_policy_available", snapshot.seeded_checksum_policy_available);
-    insert_probe!("runtime_seeded_installer_policy_available", snapshot.seeded_installer_policy_available);
-    insert_probe!("runtime_seeded_retry_timeout_available", snapshot.seeded_retry_timeout_available);
-    insert_probe!("runtime_seeded_apt_keyring_list_available", snapshot.seeded_apt_keyring_list_available);
-    insert_probe!("runtime_seeded_pacman_keyring_path_available", snapshot.seeded_pacman_keyring_path_available);
-    insert_probe!("runtime_seeded_flutter_closure_audit_available", snapshot.seeded_flutter_closure_audit_available);
-    insert_probe!("runtime_seeded_apt_capability_manifest_available", snapshot.seeded_apt_capability_manifest_available);
-    insert_probe!("runtime_seeded_apt_host_limitation_note_available", snapshot.seeded_apt_host_limitation_note_available);
-    insert_probe!("runtime_dev_package_stack_ok", snapshot.has_min_dev_pkg_stack);
-    insert_probe!("runtime_language_package_manager_count", snapshot.language_pkg_manager_count);
-    insert_probe!("runtime_desktop_session_available", snapshot.has_desktop_session_runtime);
+    insert_probe!(
+        "runtime_system_package_manager_any",
+        snapshot.has_any_system_pkg_manager
+    );
+    insert_probe!(
+        "runtime_seeded_system_package_manager_any",
+        snapshot.seeded_system_pkg_manager_any
+    );
+    insert_probe!(
+        "runtime_seeded_apt_available",
+        snapshot.seeded_apt_available
+    );
+    insert_probe!(
+        "runtime_seeded_pacman_available",
+        snapshot.seeded_pacman_available
+    );
+    insert_probe!(
+        "runtime_seeded_diskfs_setup_available",
+        snapshot.seeded_diskfs_setup_available
+    );
+    insert_probe!(
+        "runtime_seeded_pivot_root_setup_available",
+        snapshot.seeded_pivot_root_setup_available
+    );
+    insert_probe!(
+        "source_diskfs_bootstrap_telemetry_ok",
+        snapshot.diskfs_bootstrap_telemetry_ok
+    );
+    insert_probe!(
+        "runtime_seeded_abi_check_available",
+        snapshot.seeded_abi_check_available
+    );
+    insert_probe!(
+        "runtime_seeded_abi_contract_available",
+        snapshot.seeded_abi_contract_available
+    );
+    insert_probe!(
+        "runtime_seeded_mirror_failover_available",
+        snapshot.seeded_mirror_failover_available
+    );
+    insert_probe!(
+        "runtime_seeded_signature_policy_available",
+        snapshot.seeded_signature_policy_available
+    );
+    insert_probe!(
+        "runtime_seeded_checksum_policy_available",
+        snapshot.seeded_checksum_policy_available
+    );
+    insert_probe!(
+        "runtime_seeded_installer_policy_available",
+        snapshot.seeded_installer_policy_available
+    );
+    insert_probe!(
+        "runtime_seeded_retry_timeout_available",
+        snapshot.seeded_retry_timeout_available
+    );
+    insert_probe!(
+        "runtime_seeded_apt_keyring_list_available",
+        snapshot.seeded_apt_keyring_list_available
+    );
+    insert_probe!(
+        "runtime_seeded_pacman_keyring_path_available",
+        snapshot.seeded_pacman_keyring_path_available
+    );
+    insert_probe!(
+        "runtime_seeded_flutter_closure_audit_available",
+        snapshot.seeded_flutter_closure_audit_available
+    );
+    insert_probe!(
+        "runtime_seeded_apt_capability_manifest_available",
+        snapshot.seeded_apt_capability_manifest_available
+    );
+    insert_probe!(
+        "runtime_seeded_apt_host_limitation_note_available",
+        snapshot.seeded_apt_host_limitation_note_available
+    );
+    insert_probe!(
+        "runtime_dev_package_stack_ok",
+        snapshot.has_min_dev_pkg_stack
+    );
+    insert_probe!(
+        "runtime_language_package_manager_count",
+        snapshot.language_pkg_manager_count
+    );
+    insert_probe!(
+        "runtime_desktop_session_available",
+        snapshot.has_desktop_session_runtime
+    );
     insert_probe!("runtime_flutter_available", snapshot.has_flutter_runtime);
-    insert_probe!("runtime_seeded_flutter_available", snapshot.seeded_flutter_runtime_available);
-    insert_probe!("runtime_desktop_install_capable", snapshot.desktop_install_capable);
-    insert_probe!("source_elf_so_runtime_contract_ok", snapshot.elf_so_runtime_contract_ok);
-    insert_probe!("source_syscall_semantic_parity_ok", snapshot.syscall_semantic_parity_ok);
-    insert_probe!("source_gpu_ioctl_coverage_ok", snapshot.gpu_ioctl_coverage_ok);
-    insert_probe!("source_linux_host_e2e_pipeline_ok", snapshot.linux_host_e2e_pipeline_ok);
-    insert_probe!("source_cross_layer_health_surface_ok", snapshot.cross_layer_health_surface_ok);
-    insert_probe!("source_wayland_x11_protocol_depth_ok", snapshot.wayland_x11_depth_ok);
-    insert_probe!("source_syscall_parity_module_count", snapshot.parity_module_count);
+    insert_probe!(
+        "runtime_seeded_flutter_available",
+        snapshot.seeded_flutter_runtime_available
+    );
+    insert_probe!(
+        "runtime_desktop_install_capable",
+        snapshot.desktop_install_capable
+    );
+    insert_probe!(
+        "source_elf_so_runtime_contract_ok",
+        snapshot.elf_so_runtime_contract_ok
+    );
+    insert_probe!(
+        "source_syscall_semantic_parity_ok",
+        snapshot.syscall_semantic_parity_ok
+    );
+    insert_probe!(
+        "source_gpu_ioctl_coverage_ok",
+        snapshot.gpu_ioctl_coverage_ok
+    );
+    insert_probe!(
+        "source_linux_host_e2e_pipeline_ok",
+        snapshot.linux_host_e2e_pipeline_ok
+    );
+    insert_probe!(
+        "source_cross_layer_health_surface_ok",
+        snapshot.cross_layer_health_surface_ok
+    );
+    insert_probe!(
+        "source_wayland_x11_protocol_depth_ok",
+        snapshot.wayland_x11_depth_ok
+    );
+    insert_probe!(
+        "source_syscall_parity_module_count",
+        snapshot.parity_module_count
+    );
 
     desktop_probes
 }

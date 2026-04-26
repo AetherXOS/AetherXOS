@@ -61,7 +61,10 @@ pub(crate) fn render_trend_dashboard_md(doc: &TrendDashboardDoc) -> String {
     md.push_str(&format!("- generated_utc: {}\n", doc.generated_utc));
     md.push_str(&format!("- strict: {}\n", doc.strict));
     md.push_str(&format!("- latest_overall_ok: {}\n", doc.latest_overall_ok));
-    md.push_str(&format!("- latest_failed_count: {}\n", doc.latest_failed_count));
+    md.push_str(&format!(
+        "- latest_failed_count: {}\n",
+        doc.latest_failed_count
+    ));
     md.push_str(&format!(
         "- regression_detected: {}\n\n",
         doc.regression_detected
@@ -84,8 +87,14 @@ pub(crate) fn render_score_normalize_md(doc: &ScoreNormalizeDoc) -> String {
     md.push_str(&format!("- overall_ok: {}\n", doc.overall_ok));
     md.push_str(&format!("- host_os: {}\n", doc.host_os));
     md.push_str(&format!("- host_arch: {}\n", doc.host_arch));
-    md.push_str(&format!("- raw_completion_pct: {:.1}\n", doc.raw_completion_pct));
-    md.push_str(&format!("- normalized_score: {:.1}\n", doc.normalized_score));
+    md.push_str(&format!(
+        "- raw_completion_pct: {:.1}\n",
+        doc.raw_completion_pct
+    ));
+    md.push_str(&format!(
+        "- normalized_score: {:.1}\n",
+        doc.normalized_score
+    ));
     md.push_str(&format!("- failed_checks: {}\n", doc.failed_checks));
     md
 }

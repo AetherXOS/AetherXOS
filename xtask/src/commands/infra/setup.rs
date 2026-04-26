@@ -56,7 +56,8 @@ pub fn execute(action: &SetupAction) -> Result<()> {
             };
 
             if let Some(parent) = out_path.parent() {
-                fs::create_dir_all(parent).context("Failed to create installer output directory")?;
+                fs::create_dir_all(parent)
+                    .context("Failed to create installer output directory")?;
             }
 
             let payload = serde_json::json!({

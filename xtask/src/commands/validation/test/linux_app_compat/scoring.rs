@@ -9,7 +9,7 @@ pub(super) struct ScoreBundle {
     pub(super) pass_rate: f64,
     pub(super) ci_ok: bool,
 }
-
+#[allow(clippy::too_many_arguments)]
 pub(super) fn build_score_bundle(
     profile: &str,
     ci: bool,
@@ -33,7 +33,11 @@ pub(super) fn build_score_bundle(
     let integration_rate = rate(integration);
     let compat_rate = rate(compat);
     let kernel_rate = rate(kernel);
-    let qemu_rate = if include_qemu { rate(qemu_layer) } else { 100.0 };
+    let qemu_rate = if include_qemu {
+        rate(qemu_layer)
+    } else {
+        100.0
+    };
     let overall = ((host_rate * constants::SCORE_WEIGHT_HOST)
         + (integration_rate * constants::SCORE_WEIGHT_INTEGRATION)
         + (compat_rate * constants::SCORE_WEIGHT_RUNTIME_PROBE)

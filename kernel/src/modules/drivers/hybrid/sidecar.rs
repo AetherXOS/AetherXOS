@@ -1,7 +1,7 @@
 mod transport;
 mod vm;
 mod wire;
-mod telemetry;
+pub mod telemetry;
 
 pub use transport::*;
 pub use vm::*;

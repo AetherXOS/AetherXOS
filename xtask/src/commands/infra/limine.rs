@@ -37,7 +37,7 @@ pub fn generate_configs(
     logging::ready(
         "limine",
         "Configuration generation completed.",
-        &stage_dir.to_string_lossy(),
+        stage_dir.to_string_lossy(),
     );
     Ok(())
 }

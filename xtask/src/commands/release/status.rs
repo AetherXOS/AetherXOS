@@ -70,99 +70,66 @@ pub fn run() -> Result<()> {
 
     // Baseline checks
     let p0_checks = vec![
-            bool_check(
-                &root,
-                "health_score",
-                vec!["reports/tooling/health_report.json"],
-                true,
-                |d| {
-                    let score = d.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                    (score >= 60.0, format!("score={score}"))
-                },
-                "missing health_report",
-            ),
-            bool_check(
-                &root,
-                "policy_gate",
-                vec!["reports/tooling/policy_gate.json"],
-                true,
-                |d| {
-                    (
-                        d.get("ok").and_then(|v| v.as_bool()).unwrap_or(false),
-                        "policy_gate.ok".to_string(),
-                    )
-                },
-                "missing policy gate",
-            ),
-            bool_check(
-                &root,
-                "syscall_default",
-                vec![config::repo_paths::SYSCALL_COVERAGE_SUMMARY],
-                true,
-                |d| {
-                    let pct = d
-                        .get("implemented_pct")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
-                    (pct >= 100.0, format!("implemented_pct={pct}"))
-                },
-                "missing syscall coverage summary",
-            ),
-            bool_check(
-                &root,
-                "syscall_linux_compat",
-                vec!["reports/syscall_coverage_linux_compat_summary.json"],
-                true,
-                |d| {
-                    let pct = d
-                        .get("implemented_pct")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
-                    (pct >= 100.0, format!("implemented_pct={pct}"))
-                },
-                "missing linux_compat syscall summary",
-            ),
-        ];
-
-        // Expansion checks
-        let p1_checks = vec![
-            bool_check(
-                &root,
-                "posix_conformance",
-                vec![config::repo_paths::POSIX_CONFORMANCE_SUMMARY],
-                true,
-                |d| {
-                    let ok = d
-                        .get("summary")
-                        .and_then(|v| v.get("ok"))
-                        .and_then(|v| v.as_bool())
-                        .unwrap_or(false);
-                    (ok, "summary.ok".to_string())
-                },
-                "missing posix conformance summary",
-            ),
-            bool_check(
-                &root,
-                "soak_stress_chaos",
-                vec!["reports/soak_stress_chaos.json"],
-                true,
-                |d| {
-                    let ok = d
-                        .get("summary")
-                        .and_then(|v| v.get("ok"))
-                        .and_then(|v| v.as_bool())
-                        .unwrap_or(false);
-                    (ok, "summary.ok".to_string())
-                },
-                "missing soak/stress summary",
-            ),
-        ];
-
-        // Maturity checks
-        let p2_checks = vec![bool_check(
+        bool_check(
             &root,
-            "p2_gap_gate",
-            vec!["reports/p2_gap/gate_summary.json"],
+            "health_score",
+            vec!["reports/tooling/health_report.json"],
+            true,
+            |d| {
+                let score = d.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                (score >= 60.0, format!("score={score}"))
+            },
+            "missing health_report",
+        ),
+        bool_check(
+            &root,
+            "policy_gate",
+            vec!["reports/tooling/policy_gate.json"],
+            true,
+            |d| {
+                (
+                    d.get("ok").and_then(|v| v.as_bool()).unwrap_or(false),
+                    "policy_gate.ok".to_string(),
+                )
+            },
+            "missing policy gate",
+        ),
+        bool_check(
+            &root,
+            "syscall_default",
+            vec![config::repo_paths::SYSCALL_COVERAGE_SUMMARY],
+            true,
+            |d| {
+                let pct = d
+                    .get("implemented_pct")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0);
+                (pct >= 100.0, format!("implemented_pct={pct}"))
+            },
+            "missing syscall coverage summary",
+        ),
+        bool_check(
+            &root,
+            "syscall_linux_compat",
+            vec!["reports/syscall_coverage_linux_compat_summary.json"],
+            true,
+            |d| {
+                let pct = d
+                    .get("implemented_pct")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0);
+                (pct >= 100.0, format!("implemented_pct={pct}"))
+            },
+            "missing linux_compat syscall summary",
+        ),
+    ];
+
+    // Expansion checks
+    let p1_checks = vec![
+        bool_check(
+            &root,
+            "posix_conformance",
+            vec![config::repo_paths::POSIX_CONFORMANCE_SUMMARY],
             true,
             |d| {
                 let ok = d
@@ -172,103 +139,136 @@ pub fn run() -> Result<()> {
                     .unwrap_or(false);
                 (ok, "summary.ok".to_string())
             },
-            "missing p2 gap gate summary",
-        )];
+            "missing posix conformance summary",
+        ),
+        bool_check(
+            &root,
+            "soak_stress_chaos",
+            vec!["reports/soak_stress_chaos.json"],
+            true,
+            |d| {
+                let ok = d
+                    .get("summary")
+                    .and_then(|v| v.get("ok"))
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                (ok, "summary.ok".to_string())
+            },
+            "missing soak/stress summary",
+        ),
+    ];
 
-        let mut tiers = HashMap::new();
-        tiers.insert("p0".to_string(), summarize_tier(p0_checks));
-        tiers.insert("p1".to_string(), summarize_tier(p1_checks));
-        tiers.insert("p2".to_string(), summarize_tier(p2_checks));
+    // Maturity checks
+    let p2_checks = vec![bool_check(
+        &root,
+        "p2_gap_gate",
+        vec!["reports/p2_gap/gate_summary.json"],
+        true,
+        |d| {
+            let ok = d
+                .get("summary")
+                .and_then(|v| v.get("ok"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            (ok, "summary.ok".to_string())
+        },
+        "missing p2 gap gate summary",
+    )];
 
-        let overall_ok = tiers.values().all(|t| t.ok);
-        let mut blockers = Vec::new();
-        for (name, tier) in &tiers {
-            for c in &tier.checks {
-                if c.required && !c.ok {
-                    blockers.push(format!("{name}:{}: {}", c.id, c.detail));
-                }
+    let mut tiers = HashMap::new();
+    tiers.insert("p0".to_string(), summarize_tier(p0_checks));
+    tiers.insert("p1".to_string(), summarize_tier(p1_checks));
+    tiers.insert("p2".to_string(), summarize_tier(p2_checks));
+
+    let overall_ok = tiers.values().all(|t| t.ok);
+    let mut blockers = Vec::new();
+    for (name, tier) in &tiers {
+        for c in &tier.checks {
+            if c.required && !c.ok {
+                blockers.push(format!("{name}:{}: {}", c.id, c.detail));
             }
         }
-
-        let required_total: usize = tiers.values().map(|t| t.required_total).sum();
-        let required_passed: usize = tiers.values().map(|t| t.required_passed).sum();
-        let overall_completion_pct = if required_total > 0 {
-            (required_passed as f64 / required_total as f64) * 100.0
-        } else {
-            100.0
-        };
-
-        // Previous status for trend
-        let prev_status: Option<PTierStatusRepo> = fs::read_to_string(&out_json)
-            .ok()
-            .and_then(|t| serde_json::from_str(&t).ok());
-
-        let trend = build_trend(&tiers, prev_status);
-
-        let report = PTierStatusRepo {
-            generated_utc: report::utc_now_iso(),
-            overall_ok,
-            overall_completion_pct: (overall_completion_pct * 10.0).round() / 10.0,
-            required_total,
-            required_passed,
-            required_remaining: required_total.saturating_sub(required_passed),
-            blockers: blockers.clone(),
-            trend,
-            tiers: tiers.clone(),
-        };
-
-        report::write_json_report(&out_json, &report)?;
-
-        // Generator markdown
-        let mut md = format!(
-            "# Baseline/Expansion/Maturity Status\n\n- generated_utc: `{}`\n- overall_ok: `{}`\n- overall_completion_pct: {:.1}%\n- required_passed: {}/{}\n- blockers: {}\n\n",
-            report.generated_utc,
-            overall_ok,
-            report.overall_completion_pct,
-            report.required_passed,
-            report.required_total,
-            blockers.len()
-        );
-
-        for tier_name in &["p0", "p1", "p2"] {
-            if let Some(t) = tiers.get(*tier_name) {
-                md.push_str(&format!(
-                    "## {} - {}\n",
-                    tier_name.to_uppercase(),
-                    if t.ok { "OK" } else { "FAIL" }
-                ));
-                md.push_str(&format!("- score_pct: {:.1}%\n", t.score_pct));
-                md.push_str(&format!(
-                    "- required_passed: {}/{}\n\n",
-                    t.required_passed, t.required_total
-                ));
-                for c in &t.checks {
-                    md.push_str(&format!(
-                        "- [{}] `{}` ({}) - {}\n",
-                        if c.ok { "x" } else { " " },
-                        c.id,
-                        if c.required { "required" } else { "optional" },
-                        c.detail
-                    ));
-                }
-                md.push('\n');
-            }
-        }
-
-        fs::write(&out_md, md)?;
-
-        scorecard::write_production_acceptance_scorecard(&root)?;
-
-        logging::ready(
-            "release::status",
-            "Readiness status generated",
-            &[
-                ("completion", &format!("{:.1}%", overall_completion_pct)),
-                ("blockers", &blockers.len().to_string()),
-            ],
-        );
-        Ok(())
     }
+
+    let required_total: usize = tiers.values().map(|t| t.required_total).sum();
+    let required_passed: usize = tiers.values().map(|t| t.required_passed).sum();
+    let overall_completion_pct = if required_total > 0 {
+        (required_passed as f64 / required_total as f64) * 100.0
+    } else {
+        100.0
+    };
+
+    // Previous status for trend
+    let prev_status: Option<PTierStatusRepo> = fs::read_to_string(&out_json)
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok());
+
+    let trend = build_trend(&tiers, prev_status);
+
+    let report = PTierStatusRepo {
+        generated_utc: report::utc_now_iso(),
+        overall_ok,
+        overall_completion_pct: (overall_completion_pct * 10.0).round() / 10.0,
+        required_total,
+        required_passed,
+        required_remaining: required_total.saturating_sub(required_passed),
+        blockers: blockers.clone(),
+        trend,
+        tiers: tiers.clone(),
+    };
+
+    report::write_json_report(&out_json, &report)?;
+
+    // Generator markdown
+    let mut md = format!(
+        "# Baseline/Expansion/Maturity Status\n\n- generated_utc: `{}`\n- overall_ok: `{}`\n- overall_completion_pct: {:.1}%\n- required_passed: {}/{}\n- blockers: {}\n\n",
+        report.generated_utc,
+        overall_ok,
+        report.overall_completion_pct,
+        report.required_passed,
+        report.required_total,
+        blockers.len()
+    );
+
+    for tier_name in &["p0", "p1", "p2"] {
+        if let Some(t) = tiers.get(*tier_name) {
+            md.push_str(&format!(
+                "## {} - {}\n",
+                tier_name.to_uppercase(),
+                if t.ok { "OK" } else { "FAIL" }
+            ));
+            md.push_str(&format!("- score_pct: {:.1}%\n", t.score_pct));
+            md.push_str(&format!(
+                "- required_passed: {}/{}\n\n",
+                t.required_passed, t.required_total
+            ));
+            for c in &t.checks {
+                md.push_str(&format!(
+                    "- [{}] `{}` ({}) - {}\n",
+                    if c.ok { "x" } else { " " },
+                    c.id,
+                    if c.required { "required" } else { "optional" },
+                    c.detail
+                ));
+            }
+            md.push('\n');
+        }
+    }
+
+    fs::write(&out_md, md)?;
+
+    scorecard::write_production_acceptance_scorecard(&root)?;
+
+    logging::ready(
+        "release::status",
+        "Readiness status generated",
+        &[
+            ("completion", &format!("{:.1}%", overall_completion_pct)),
+            ("blockers", &blockers.len().to_string()),
+        ],
+    );
+    Ok(())
+}
 
 fn bool_check<F>(
     root: &Path,

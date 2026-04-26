@@ -4,9 +4,7 @@ use std::fs;
 use crate::config;
 use crate::utils::{paths, report};
 
-use crate::commands::release::preflight::models::{
-    WarningAuditHit, WarningAuditReport,
-};
+use crate::commands::release::preflight::models::{WarningAuditHit, WarningAuditReport};
 
 pub fn execute(strict: bool, from_file: Option<&str>) -> Result<()> {
     println!("[release::warning-audit] Auditing warning lines for critical kernel paths");
@@ -21,7 +19,11 @@ pub fn execute(strict: bool, from_file: Option<&str>) -> Result<()> {
         logs.push(root.join("cargo_build.txt"));
     }
 
-    let critical_paths = ["kernel/src/hal/", "kernel/src/kernel_runtime/", "kernel/src/kernel/syscalls/"];
+    let critical_paths = [
+        "kernel/src/hal/",
+        "kernel/src/kernel_runtime/",
+        "kernel/src/kernel/syscalls/",
+    ];
     let mut hits = Vec::new();
     let mut scanned_logs = 0usize;
 

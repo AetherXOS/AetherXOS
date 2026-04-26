@@ -1,7 +1,7 @@
 use crate::cli::RunAction;
 use crate::constants;
-use anyhow::{Context, Result, bail};
 use crate::utils::logging;
+use anyhow::{Context, Result, bail};
 
 /// Entry point for `cargo run -p xtask -- run <action>`.
 /// Isolates emulation layers and hardware block-level testing environments.
@@ -11,12 +11,12 @@ pub fn execute(action: &RunAction) -> Result<()> {
             logging::info(
                 "run::smoke",
                 "Starting automated generic smoke test via headless QEMU parameter constraints.",
-                &[]
+                &[],
             );
             logging::info(
                 "run::smoke",
                 "Intercepted intended target bootloader sequence",
-                &[("bootloader", &format!("{:?}", bootloader))]
+                &[("bootloader", &format!("{:?}", bootloader))],
             );
 
             crate::commands::ops::qemu::smoke_test()
@@ -26,7 +26,7 @@ pub fn execute(action: &RunAction) -> Result<()> {
             logging::info(
                 "run::live",
                 "Launching interactive QEMU graphic interface",
-                &[("firmware", firmware)]
+                &[("firmware", firmware)],
             );
 
             crate::commands::ops::qemu::interactive().context(
@@ -34,11 +34,15 @@ pub fn execute(action: &RunAction) -> Result<()> {
             )?;
         }
         RunAction::Debug { firmware } => {
-            logging::info("run::debug", "Engaging execution mode: Paused / Waiting for GDB.", &[]);
+            logging::info(
+                "run::debug",
+                "Engaging execution mode: Paused / Waiting for GDB.",
+                &[],
+            );
             logging::info(
                 "run::debug",
                 "Proceeding to inject TCP debugging port (tcp::1234)",
-                &[("firmware", firmware)]
+                &[("firmware", firmware)],
             );
 
             crate::commands::ops::qemu::debug_session()
@@ -48,12 +52,12 @@ pub fn execute(action: &RunAction) -> Result<()> {
             logging::info(
                 "run::pxe",
                 "Emulating stateless distribution host for physical machine broadcasting",
-                &[]
+                &[],
             );
             logging::info(
                 "run::pxe",
                 "Initializing HTTP-based iPXE delivery subsystem natively",
-                &[("port", &port.to_string())]
+                &[("port", &port.to_string())],
             );
 
             let host_dir = constants::paths::artifact_dir();
@@ -66,12 +70,12 @@ pub fn execute(action: &RunAction) -> Result<()> {
             logging::info(
                 "run::pxe",
                 "Emulating dynamic TFTP/HTTP serving to generic physical NICs",
-                &[("dir", &host_dir.to_string_lossy())]
+                &[("dir", &host_dir.to_string_lossy())],
             );
             logging::info(
                 "run::pxe",
                 "Use your other computer's BIOS -> Network Boot pointing to this host's IP",
-                &[("port", &port.to_string())]
+                &[("port", &port.to_string())],
             );
 
             crate::utils::process::run_checked_in_dir(
@@ -85,12 +89,12 @@ pub fn execute(action: &RunAction) -> Result<()> {
             logging::warn(
                 "run::deploy",
                 "CRITICAL PROCESS: Immediate raw byte-transfer initialized",
-                &[("device", device)]
+                &[("device", device)],
             );
             logging::warn(
                 "run::deploy",
                 "CAUTION: This operation bypasses logical FAT formats to enforce raw DD block sector overwrites",
-                &[]
+                &[],
             );
 
             let img_path = constants::paths::artifact_dir().join("aethercore.img");
@@ -103,17 +107,17 @@ pub fn execute(action: &RunAction) -> Result<()> {
             logging::info(
                 "run::deploy",
                 "Origin block source verified",
-                &[("path", &img_path.to_string_lossy())]
+                &[("path", &img_path.to_string_lossy())],
             );
             logging::info(
                 "run::deploy",
                 "Requesting administrative lock overlay on target physical address",
-                &[("device", device)]
+                &[("device", device)],
             );
             logging::info(
                 "run::deploy",
                 "Stub constraint triggered (Requires explicitly elevated Host OS execution context)",
-                &[]
+                &[],
             );
         }
     }

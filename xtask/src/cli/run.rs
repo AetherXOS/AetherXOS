@@ -1,5 +1,5 @@
-use clap::Subcommand;
 use crate::types::Bootloader;
+use clap::Subcommand;
 
 #[derive(Subcommand, Debug)]
 pub enum RunAction {

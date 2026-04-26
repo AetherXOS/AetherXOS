@@ -1,14 +1,14 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde_json::Value;
 use std::fs;
 
+use super::helpers::{
+    completion_pct, failed_check_count, render_score_normalize_md, select_scoring_checks,
+};
 use crate::commands::release::preflight::ci_bundle;
 use crate::commands::release::preflight::models::ScoreNormalizeDoc;
 use crate::config;
 use crate::utils::{paths, report};
-use super::helpers::{
-    completion_pct, failed_check_count, render_score_normalize_md, select_scoring_checks,
-};
 
 pub(crate) fn execute(strict: bool) -> Result<()> {
     println!("[release::score-normalize] Normalizing gate score for host drift-aware comparison");

@@ -107,11 +107,9 @@ pub fn smoke_test() -> Result<()> {
     let boot_marker_seen = BOOT_SUCCESS_MARKERS.iter().any(|m| stream.contains(m));
     let interrupt_health = detect_interrupt_health(&stream);
     let interrupt_health_ok = interrupt_health
-        .map(|health| validate_interrupt_health(health))
+        .map(validate_interrupt_health)
         .unwrap_or(false);
-    let pass = !panic_seen
-        && interrupt_health_ok
-        && (final_result.success || boot_marker_seen);
+    let pass = !panic_seen && interrupt_health_ok && (final_result.success || boot_marker_seen);
 
     println!("[qemu::smoke] Mode: {}", final_mode);
     println!(
@@ -121,7 +119,10 @@ pub fn smoke_test() -> Result<()> {
     println!("[qemu::smoke] Timeout: {}", final_result.timed_out);
     println!("[qemu::smoke] Panic detected: {}", panic_seen);
     println!("[qemu::smoke] Boot marker detected: {}", boot_marker_seen);
-    println!("[qemu::smoke] Interrupt health asserted: {}", interrupt_health_ok);
+    println!(
+        "[qemu::smoke] Interrupt health asserted: {}",
+        interrupt_health_ok
+    );
     println!("[qemu::smoke] Exit success: {}", final_result.success);
     println!("[qemu::smoke] Text Log: {}", log_path.display());
 
@@ -129,9 +130,7 @@ pub fn smoke_test() -> Result<()> {
     let junit_path = constants::paths::qemu_smoke_junit();
     let failure_message = format!(
         "Panic Seen: {} | Timed Out: {} | Interrupt Health: {}",
-        panic_seen,
-        final_result.timed_out,
-        interrupt_health_ok
+        panic_seen, final_result.timed_out, interrupt_health_ok
     );
     let junit = JunitSingleCaseReport {
         suite_name: "QemuSmokeTest",
@@ -244,7 +243,7 @@ fn extract_u64_kv(line: &str, key: &str) -> Option<u64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{detect_interrupt_health, validate_interrupt_health, InterruptHealth};
+    use super::{InterruptHealth, detect_interrupt_health, validate_interrupt_health};
 
     #[test]
     fn detects_x86_interrupt_health_from_runtime_line() {

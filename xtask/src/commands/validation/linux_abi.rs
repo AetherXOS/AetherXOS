@@ -39,17 +39,50 @@ struct ShimCheckSpec {
 const SHIM_ERRNO_REQUIREMENT: &str = "uses EFAULT-only mapping";
 
 const SHIM_ERRNO_CHECKS: &[ShimCheckSpec] = &[
-    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs", function: "read_linux_msghdr_compat" },
-    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs", function: "read_linux_iovec_compat" },
-    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs", function: "read_sockaddr_in_compat" },
-    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs", function: "write_sockaddr_in_compat" },
-    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/task_time/time_ops.rs", function: "sys_linux_clock_gettime" },
-    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/socket/addr.rs", function: "read_sockaddr_in" },
-    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/socket/addr.rs", function: "write_sockaddr_in" },
-    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs", function: "timeout_ptr_to_retries" },
-    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs", function: "parse_sigmask" },
-    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs", function: "sys_linux_epoll_pwait" },
-    ShimCheckSpec { rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs", function: "sys_linux_epoll_pwait2" },
+    ShimCheckSpec {
+        rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs",
+        function: "read_linux_msghdr_compat",
+    },
+    ShimCheckSpec {
+        rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs",
+        function: "read_linux_iovec_compat",
+    },
+    ShimCheckSpec {
+        rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs",
+        function: "read_sockaddr_in_compat",
+    },
+    ShimCheckSpec {
+        rel_path: "kernel/src/kernel/syscalls/linux_shim/net/msg/compat.rs",
+        function: "write_sockaddr_in_compat",
+    },
+    ShimCheckSpec {
+        rel_path: "kernel/src/kernel/syscalls/linux_shim/task_time/time_ops.rs",
+        function: "sys_linux_clock_gettime",
+    },
+    ShimCheckSpec {
+        rel_path: "kernel/src/kernel/syscalls/linux_shim/net/socket/addr.rs",
+        function: "read_sockaddr_in",
+    },
+    ShimCheckSpec {
+        rel_path: "kernel/src/kernel/syscalls/linux_shim/net/socket/addr.rs",
+        function: "write_sockaddr_in",
+    },
+    ShimCheckSpec {
+        rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs",
+        function: "timeout_ptr_to_retries",
+    },
+    ShimCheckSpec {
+        rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs",
+        function: "parse_sigmask",
+    },
+    ShimCheckSpec {
+        rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs",
+        function: "sys_linux_epoll_pwait",
+    },
+    ShimCheckSpec {
+        rel_path: "kernel/src/kernel/syscalls/linux_shim/net/epoll.rs",
+        function: "sys_linux_epoll_pwait2",
+    },
 ];
 
 pub fn execute(action: &LinuxAbiAction) -> Result<()> {
@@ -116,8 +149,10 @@ pub(crate) fn refresh_shim_errno_conformance_report() -> Result<()> {
         let file_text = fs::read_to_string(&abs)
             .with_context(|| format!("failed reading shim source file: {}", abs.display()))?;
 
-        let body = crate::utils::parser::extract_fn_body(&file_text, spec.function).unwrap_or_default();
-        let has_explicit_efault = body.contains("linux_errno(crate::modules::posix_consts::errno::EFAULT)");
+        let body =
+            crate::utils::parser::extract_fn_body(&file_text, spec.function).unwrap_or_default();
+        let has_explicit_efault =
+            body.contains("linux_errno(crate::modules::posix_consts::errno::EFAULT)");
         results.push(ShimErrnoResult {
             requirement: SHIM_ERRNO_REQUIREMENT,
             file: normalize_report_path(spec.rel_path),
@@ -241,5 +276,3 @@ fn audit_syscalls() -> Result<()> {
 
     Ok(())
 }
-
-
