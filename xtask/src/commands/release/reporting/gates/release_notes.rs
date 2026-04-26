@@ -42,7 +42,26 @@ pub(crate) fn execute(out: Option<&str>) -> Result<()> {
         .and_then(|v| v.as_array())
         .cloned()
         .unwrap_or_default();
+    let plan = diag_doc
+        .get("action_plan")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let notes = render_release_notes_md(&checks, &plan, overall_ok);
 
+    let out_rel = out.unwrap_or(config::repo_paths::RELEASE_NOTES_MD);
+    let out_path = root.join(out_rel);
+    report::write_text_report(&out_path, &notes)?;
+
+    println!("[release::notes] PASS");
+    Ok(())
+}
+
+pub(crate) fn render_release_notes_md(
+    checks: &[Value],
+    plan: &[Value],
+    overall_ok: bool,
+) -> String {
     let mut notes = String::new();
     notes.push_str("# Release Notes (Auto)\n\n");
     notes.push_str(&format!("- generated_utc: {}\n", report::utc_now_iso()));
@@ -55,18 +74,15 @@ pub(crate) fn execute(out: Option<&str>) -> Result<()> {
     }
 
     notes.push_str("\n## Remediation Plan\n\n");
-    if let Some(plan) = diag_doc.get("action_plan").and_then(|v| v.as_array()) {
-        for line in plan {
-            if let Some(step) = line.as_str() {
-                notes.push_str(&format!("- {}\n", step));
-            }
+    for line in plan {
+        if let Some(step) = line.as_str() {
+            notes.push_str(&format!("- {}\n", step));
         }
     }
 
-    let out_rel = out.unwrap_or(config::repo_paths::RELEASE_NOTES_MD);
-    let out_path = root.join(out_rel);
-    report::write_text_report(&out_path, &notes)?;
-
-    println!("[release::notes] PASS");
-    Ok(())
+    notes
 }
+
+#[cfg(test)]
+#[path = "release_notes_tests.rs"]
+mod tests;

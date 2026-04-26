@@ -90,3 +90,7 @@ fn render_explain_failure_md(doc: &ExplainFailureDoc) -> String {
     }
     md
 }
+
+#[cfg(test)]
+#[path = "explain_failure_tests.rs"]
+mod tests;

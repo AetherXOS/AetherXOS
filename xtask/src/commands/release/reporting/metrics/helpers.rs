@@ -169,3 +169,11 @@ pub(crate) fn load_perf_waiver(path: &Path) -> Result<PerfWaiverConfig> {
     serde_json::from_str(&text)
         .with_context(|| format!("failed parsing perf waiver file: {}", path.display()))
 }
+
+#[cfg(test)]
+#[path = "helpers_tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "render_tests.rs"]
+mod render_tests;

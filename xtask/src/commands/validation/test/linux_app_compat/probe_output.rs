@@ -216,3 +216,7 @@ pub(super) fn build_desktop_probes(snapshot: &ProbeSnapshot) -> serde_json::Map<
 
     desktop_probes
 }
+
+#[cfg(test)]
+#[path = "probe_output_tests.rs"]
+mod tests;

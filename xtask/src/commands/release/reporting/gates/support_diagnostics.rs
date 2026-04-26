@@ -121,3 +121,7 @@ fn render_support_diagnostics_md(doc: &SupportDiagnosticsDoc) -> String {
     }
     md
 }
+
+#[cfg(test)]
+#[path = "support_diagnostics_tests.rs"]
+mod tests;

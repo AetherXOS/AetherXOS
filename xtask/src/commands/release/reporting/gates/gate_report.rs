@@ -137,3 +137,7 @@ fn render_gate_report_md(report_obj: &GateReportDoc) -> String {
     }
     md
 }
+
+#[cfg(test)]
+#[path = "gate_report_tests.rs"]
+mod tests;
