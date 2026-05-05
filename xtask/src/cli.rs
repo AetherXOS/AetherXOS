@@ -39,6 +39,14 @@ pub struct Cli {
     #[arg(long, global = true, default_value = "artifacts")]
     pub outdir: PathBuf,
 
+    /// Enable verbose logging output.
+    #[arg(short, long, global = true)]
+    pub verbose: bool,
+
+    /// Suppress non-error logging output.
+    #[arg(short, long, global = true)]
+    pub quiet: bool,
+
     /// Selected operational mode or isolated subsystem category.
     #[command(subcommand)]
     pub command: Commands,
@@ -121,4 +129,14 @@ pub enum Commands {
         #[command(subcommand)]
         action: GlibcAction,
     },
+
+    /// Remove generated build artifacts and object files
+    Clean {
+        /// Also remove the global Cargo `target/` directory
+        #[arg(long)]
+        target: bool,
+    },
+
+    /// Display environment and toolchain diagnostic information
+    Info,
 }

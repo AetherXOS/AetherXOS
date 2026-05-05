@@ -15,6 +15,10 @@ use std::env;
 use utils::{context as app_context, logging};
 
 fn main() -> Result<()> {
+    let args = Cli::parse();
+
+    logging::set_verbosity(args.verbose, args.quiet);
+
     let version = env!("CARGO_PKG_VERSION");
     let cpu_model = get_cpu_model();
     let rustc_version = get_rustc_version();
@@ -24,8 +28,6 @@ fn main() -> Result<()> {
     let target = format!("Aether X OS-Generic (Release: {})", !cfg!(debug_assertions));
 
     logging::print_header(&about, &system, &target);
-
-    let args = Cli::parse();
 
     utils::paths::ensure_dir(&args.outdir).with_context(|| {
         format!(
@@ -80,12 +82,18 @@ fn main() -> Result<()> {
         Commands::Glibc { ref action } => {
             commands::validation::glibc::execute(action).context("Glibc audit failure")?;
         }
+        Commands::Clean { target } => {
+            commands::ops::clean::execute(target).context("Clean operation failure")?;
+        }
+        Commands::Info => {
+            commands::ops::info::execute().context("Info operation failure")?;
+        }
     }
 
     Ok(())
 }
 
-fn get_cpu_model() -> String {
+pub fn get_cpu_model() -> String {
     if let Ok(content) = std::fs::read_to_string("/proc/cpuinfo") {
         for line in content.lines() {
             if line.contains("model name") || line.contains("Processor") {
@@ -110,7 +118,7 @@ fn get_cpu_model() -> String {
     env::var("PROCESSOR_IDENTIFIER").unwrap_or_else(|_| "Generic Host CPU".to_string())
 }
 
-fn get_rustc_version() -> String {
+pub fn get_rustc_version() -> String {
     std::process::Command::new("rustc")
         .arg("-V")
         .output()
