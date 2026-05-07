@@ -23,7 +23,7 @@
 //!                    [Orphaned]                           [Background]
 //! ```
 
-mod job_control;
+pub mod job_control;
 
 pub use job_control::{JobControlState, ProcessGroupId, SessionId};
 
@@ -84,6 +84,27 @@ pub struct TermiosAttrs {
     pub vintr: u8,  // INTR character (typically Ctrl-C)
     pub vquit: u8,  // QUIT character (typically Ctrl-\)
     pub vsusp: u8,  // SUSP character (typically Ctrl-Z)
+}
+
+/// Window size structure matching Linux `struct winsize`.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WinSize {
+    pub ws_row: u16,
+    pub ws_col: u16,
+    pub ws_xpixel: u16,
+    pub ws_ypixel: u16,
+}
+
+impl Default for WinSize {
+    fn default() -> Self {
+        Self {
+            ws_row: 24,
+            ws_col: 80,
+            ws_xpixel: 0,
+            ws_ypixel: 0,
+        }
+    }
 }
 
 impl Default for TermiosAttrs {
@@ -148,7 +169,9 @@ pub struct TtyDevice {
 
     /// Wait queue for readers blocking on input
     read_wait: WaitQueue,
-
+    
+    /// Current window size
+    winsize: IrqSafeMutex<WinSize>,
 }
 
 impl TtyDevice {
@@ -162,6 +185,7 @@ impl TtyDevice {
             is_open: AtomicBool::new(false),
             input_queue: IrqSafeMutex::new(VecDeque::with_capacity(1024)),
             read_wait: WaitQueue::new(),
+            winsize: IrqSafeMutex::new(WinSize::default()),
         }
     }
 
@@ -226,6 +250,16 @@ impl TtyDevice {
     pub fn set_session_id(&self, sid: Option<SessionId>) {
         let val = sid.map(|s| (s.0).0).unwrap_or(usize::MAX);
         self.session_id.store(val, Ordering::Release);
+    }
+
+    /// Get the current window size
+    pub fn get_winsize(&self) -> WinSize {
+        *self.winsize.lock()
+    }
+
+    /// Set the window size
+    pub fn set_winsize(&self, winsize: WinSize) {
+        *self.winsize.lock() = winsize;
     }
 
     /// Write raw data to TTY (called by kernel output paths)

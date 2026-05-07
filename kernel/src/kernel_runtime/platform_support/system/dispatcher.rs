@@ -15,7 +15,7 @@ pub(crate) fn log_dispatcher_vectored_runtime() {
     );
 }
 
-#[cfg(feature = "dispatcher")]
+#[cfg(all(feature = "dispatcher", feature = "ipc_message_passing"))]
 pub(crate) fn log_dispatcher_upcall_runtime() {
     let up = aethercore::modules::dispatcher::upcall::stats();
     aethercore::klog_info!(

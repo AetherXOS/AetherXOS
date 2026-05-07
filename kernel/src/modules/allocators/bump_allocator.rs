@@ -62,7 +62,7 @@ unsafe impl GlobalAlloc for BumpAllocator {
 }
 
 impl HeapAllocator for BumpAllocator {
-    fn init(&self, start: usize, size: usize) {
+    unsafe fn init(&mut self, start: usize, size: usize) {
         self.heap_start.store(start, Ordering::SeqCst);
         self.heap_end.store(start + size, Ordering::SeqCst);
         self.next.store(start, Ordering::SeqCst);

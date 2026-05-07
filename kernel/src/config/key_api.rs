@@ -172,7 +172,7 @@ fn normalize_runtime_key(key: &str) -> String {
     String::from(out.trim_matches('_'))
 }
 
-fn set_bool(value: Option<ConfigValue>, setter: fn(Option<bool>)) -> Result<(), ConfigSetError> {
+pub(super) fn set_bool(value: Option<ConfigValue>, setter: fn(Option<bool>)) -> Result<(), ConfigSetError> {
     match value {
         None => {
             setter(None);
@@ -186,7 +186,7 @@ fn set_bool(value: Option<ConfigValue>, setter: fn(Option<bool>)) -> Result<(), 
     }
 }
 
-fn set_u8(value: Option<ConfigValue>, setter: fn(Option<u8>)) -> Result<(), ConfigSetError> {
+pub(super) fn set_u8(value: Option<ConfigValue>, setter: fn(Option<u8>)) -> Result<(), ConfigSetError> {
     match value {
         None => {
             setter(None);
@@ -200,7 +200,7 @@ fn set_u8(value: Option<ConfigValue>, setter: fn(Option<u8>)) -> Result<(), Conf
     }
 }
 
-fn set_u16(value: Option<ConfigValue>, setter: fn(Option<u16>)) -> Result<(), ConfigSetError> {
+pub(super) fn set_u16(value: Option<ConfigValue>, setter: fn(Option<u16>)) -> Result<(), ConfigSetError> {
     match value {
         None => {
             setter(None);
@@ -218,7 +218,7 @@ fn set_u16(value: Option<ConfigValue>, setter: fn(Option<u16>)) -> Result<(), Co
     }
 }
 
-fn set_u32(value: Option<ConfigValue>, setter: fn(Option<u32>)) -> Result<(), ConfigSetError> {
+pub(super) fn set_u32(value: Option<ConfigValue>, setter: fn(Option<u32>)) -> Result<(), ConfigSetError> {
     match value {
         None => {
             setter(None);
@@ -236,7 +236,7 @@ fn set_u32(value: Option<ConfigValue>, setter: fn(Option<u32>)) -> Result<(), Co
     }
 }
 
-fn set_u64(value: Option<ConfigValue>, setter: fn(Option<u64>)) -> Result<(), ConfigSetError> {
+pub(super) fn set_u64(value: Option<ConfigValue>, setter: fn(Option<u64>)) -> Result<(), ConfigSetError> {
     match value {
         None => {
             setter(None);
@@ -250,7 +250,7 @@ fn set_u64(value: Option<ConfigValue>, setter: fn(Option<u64>)) -> Result<(), Co
     }
 }
 
-fn set_usize(value: Option<ConfigValue>, setter: fn(Option<usize>)) -> Result<(), ConfigSetError> {
+pub(super) fn set_usize(value: Option<ConfigValue>, setter: fn(Option<usize>)) -> Result<(), ConfigSetError> {
     match value {
         None => {
             setter(None);
@@ -268,7 +268,7 @@ fn set_usize(value: Option<ConfigValue>, setter: fn(Option<usize>)) -> Result<()
     }
 }
 
-fn set_tls(
+pub(super) fn set_tls(
     value: Option<ConfigValue>,
     setter: fn(Option<TlsPolicyProfile>),
 ) -> Result<(), ConfigSetError> {
@@ -285,7 +285,7 @@ fn set_tls(
     }
 }
 
-fn set_boundary_mode(
+pub(super) fn set_boundary_mode(
     value: Option<ConfigValue>,
     setter: fn(Option<BoundaryMode>),
 ) -> Result<(), ConfigSetError> {
@@ -302,7 +302,7 @@ fn set_boundary_mode(
     }
 }
 
-fn set_devfs_policy(
+pub(super) fn set_devfs_policy(
     value: Option<ConfigValue>,
     setter: fn(Option<DevFsPolicyProfile>),
 ) -> Result<(), ConfigSetError> {
@@ -319,7 +319,7 @@ fn set_devfs_policy(
     }
 }
 
-fn set_virtualization_governor(
+pub(super) fn set_virtualization_governor(
     value: Option<ConfigValue>,
     setter: fn(Option<VirtualizationGovernorProfile>),
 ) -> Result<(), ConfigSetError> {
@@ -336,7 +336,7 @@ fn set_virtualization_governor(
     }
 }
 
-fn set_virtualization_execution(
+pub(super) fn set_virtualization_execution(
     value: Option<ConfigValue>,
     setter: fn(Option<VirtualizationExecutionProfile>),
 ) -> Result<(), ConfigSetError> {
@@ -355,7 +355,7 @@ fn set_virtualization_execution(
     }
 }
 
-fn parse_bool(raw: &str) -> Result<bool, ConfigSetError> {
+pub(super) fn parse_bool(raw: &str) -> Result<bool, ConfigSetError> {
     if raw.eq_ignore_ascii_case("true")
         || raw.eq_ignore_ascii_case("1")
         || raw.eq_ignore_ascii_case("yes")
@@ -373,23 +373,23 @@ fn parse_bool(raw: &str) -> Result<bool, ConfigSetError> {
     }
 }
 
-fn parse_u8(raw: &str) -> Result<u8, ConfigSetError> {
+pub(super) fn parse_u8(raw: &str) -> Result<u8, ConfigSetError> {
     raw.parse::<u8>().map_err(|_| ConfigSetError::InvalidValue)
 }
 
-fn parse_u16(raw: &str) -> Result<u16, ConfigSetError> {
+pub(super) fn parse_u16(raw: &str) -> Result<u16, ConfigSetError> {
     raw.parse::<u16>().map_err(|_| ConfigSetError::InvalidValue)
 }
 
-fn parse_u32(raw: &str) -> Result<u32, ConfigSetError> {
+pub(super) fn parse_u32(raw: &str) -> Result<u32, ConfigSetError> {
     raw.parse::<u32>().map_err(|_| ConfigSetError::InvalidValue)
 }
 
-fn parse_u64(raw: &str) -> Result<u64, ConfigSetError> {
+pub(super) fn parse_u64(raw: &str) -> Result<u64, ConfigSetError> {
     raw.parse::<u64>().map_err(|_| ConfigSetError::InvalidValue)
 }
 
-fn parse_usize(raw: &str) -> Result<usize, ConfigSetError> {
+pub(super) fn parse_usize(raw: &str) -> Result<usize, ConfigSetError> {
     raw.parse::<usize>()
         .map_err(|_| ConfigSetError::InvalidValue)
 }

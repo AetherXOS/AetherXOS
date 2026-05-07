@@ -186,3 +186,18 @@ pub struct CredentialRuntimeProfile {
     pub multi_user: bool,
     pub credential_enforcement: bool,
 }
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SystemCertificationProfile {
+    GeneralPurpose,    // Standard Linux compat, non-deterministic scheduling allowed
+    DO178C,            // Aerospace RTOS level, strict determinism, no dynamic alloc after init
+    ISO26262,          // Automotive, ASIL-D target, lock-step verification enabled
+    MissionCritical,   // Hybrid high-assurance
+}
+
+impl Default for SystemCertificationProfile {
+    fn default() -> Self {
+        SystemCertificationProfile::GeneralPurpose
+    }
+}

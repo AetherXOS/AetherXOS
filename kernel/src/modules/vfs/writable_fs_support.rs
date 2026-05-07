@@ -81,16 +81,19 @@ impl OverlayEntry {
     }
 
     pub(super) fn to_stats(&self) -> crate::modules::vfs::types::FileStats {
+        use crate::modules::vfs::types::VfsTimespec;
         crate::modules::vfs::types::FileStats {
             size: self.size,
             mode: self.mode as u32,
             uid: self.uid,
             gid: self.gid,
-            atime: self.atime,
-            mtime: self.mtime,
-            ctime: self.ctime,
+            nlink: self.link_count,
+            atime: VfsTimespec { sec: self.atime, nsec: 0 },
+            mtime: VfsTimespec { sec: self.mtime, nsec: 0 },
+            ctime: VfsTimespec { sec: self.ctime, nsec: 0 },
             blksize: PAGE_SIZE as u32,
             blocks: (self.size + 511) / 512,
+            ..crate::modules::vfs::types::FileStats::default()
         }
     }
 }

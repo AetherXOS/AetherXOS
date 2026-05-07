@@ -18,7 +18,10 @@ pub(crate) use self::runtime::{
 pub(crate) use self::runtime::log_slab_runtime;
 
 #[cfg(feature = "dispatcher")]
-pub(crate) use self::dispatcher::{log_dispatcher_upcall_runtime, log_dispatcher_vectored_runtime};
+#[cfg(all(feature = "dispatcher", feature = "ipc_message_passing"))]
+pub(crate) use self::dispatcher::log_dispatcher_upcall_runtime;
+#[cfg(feature = "dispatcher")]
+pub(crate) use self::dispatcher::log_dispatcher_vectored_runtime;
 
 #[cfg(target_arch = "aarch64")]
 pub(crate) use self::aarch64::log_aarch64_exception_runtime;

@@ -10,7 +10,7 @@ mod utils;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use cli::{Cli, Commands};
+use cli::Cli;
 use std::env;
 use utils::{context as app_context, logging};
 
@@ -19,78 +19,47 @@ fn main() -> Result<()> {
     let cpu_model = get_cpu_model();
     let rustc_version = get_rustc_version();
 
-    let about = format!("Aether X OS xtask/{} {}", version, rustc_version);
+    let about = format!("Aether X OS xtask v{} ({})", version, rustc_version);
     let system = format!("{} {} ({})", env::consts::OS, env::consts::ARCH, cpu_model);
-    let target = format!("Aether X OS-Generic (Release: {})", !cfg!(debug_assertions));
+    let target = format!("AetherX - Mode: {}", if cfg!(debug_assertions) { "Development" } else { "Release" });
 
     logging::print_header(&about, &system, &target);
 
-    let args = Cli::parse();
-
-    utils::paths::ensure_dir(&args.outdir).with_context(|| {
-        format!(
-            "Failed to initialize artifacts directory: {}",
-            args.outdir.display()
-        )
-    })?;
-
-    app_context::init(args.outdir.clone()).context("Failed to initialize xtask runtime context")?;
-
-    match args.command {
-        Commands::Build { ref action } => {
-            commands::infra::build::execute(action).context("Build pipeline failure")?;
-        }
-        Commands::Run { ref action } => {
-            commands::ops::run::execute(action).context("Execution pipeline failure")?;
-        }
-        Commands::Test { ref action } => {
-            commands::validation::test::execute(action).context("Validation suite failure")?;
-        }
-        Commands::Setup { ref action } => {
-            commands::infra::setup::execute(action).context("Host setup failure")?;
-        }
-        Commands::LinuxAbi { ref action } => {
-            commands::validation::linux_abi::execute(action).context("ABI parser failure")?;
-        }
-        Commands::Secureboot { ref action } => {
-            commands::infra::secureboot::execute(action).context("Secure Boot protocol failure")?;
-        }
-        Commands::Dashboard { ref action } => {
-            commands::dashboard::execute(action).context("Dashboard operation failure")?;
-        }
-        Commands::Release { ref action } => {
-            commands::release::preflight::execute(action).context("Release pipeline failure")?;
-        }
-        Commands::AbSlot { ref action } => {
-            commands::runtime::ab_slot::execute(action).context("A/B slot operation failure")?;
-        }
-        Commands::CorePressure {
-            ref words,
-            ref lottery_words,
-            ref format,
-            ref out,
-        } => {
-            commands::runtime::core_pressure::execute(words, lottery_words, format, out)
-                .context("Core pressure report failure")?;
-        }
-        Commands::CrashRecovery => {
-            commands::runtime::crash_recovery::execute()
-                .context("Crash recovery pipeline failure")?;
-        }
-        Commands::Glibc { ref action } => {
-            commands::validation::glibc::execute(action).context("Glibc audit failure")?;
+    // Initial check for no args or explicit help
+    let args_vec: Vec<String> = env::args().collect();
+    if args_vec.len() == 1 || args_vec.iter().any(|a| a == "--help" || a == "-h" || a == "help") {
+        utils::help::print_autonomous_help();
+        if args_vec.len() == 1 || args_vec.contains(&"help".to_string()) {
+             return Ok(());
         }
     }
 
-    Ok(())
+    let args = Cli::parse();
+
+    // If caller requested non-interactive via CLI flag, propagate to utils
+    // config so helpers that consult `is_non_interactive()` see it.
+    if args.non_interactive {
+        utils::config::set_non_interactive(true);
+    }
+
+    utils::paths::ensure_dir(&args.outdir).context("Failed to initialize artifacts directory")?;
+    app_context::init(args.outdir.clone()).context("Failed to initialize xtask runtime context")?;
+
+    // Global Integrity and Pre-flight Audits
+    utils::preflight::run_audit().context("System health audit encountered a terminal failure")?;
+
+    // Autonomous execution via trait dispatch
+    use utils::executable::Executable;
+    args.command.execute()
 }
 
 fn get_cpu_model() -> String {
-    if let Ok(content) = std::fs::read_to_string("/proc/cpuinfo") {
-        for line in content.lines() {
-            if line.contains("model name") || line.contains("Processor") {
-                if let Some(model) = line.split(':').nth(1) {
-                    return model.trim().to_string();
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(content) = std::fs::read_to_string("/proc/cpuinfo") {
+            for line in content.lines() {
+                if line.contains("model name") {
+                    return line.split(':').nth(1).unwrap_or("Unknown CPU").trim().to_string();
                 }
             }
         }
@@ -98,12 +67,16 @@ fn get_cpu_model() -> String {
 
     #[cfg(target_os = "macos")]
     {
-        if let Ok(output) = std::process::Command::new("sysctl")
-            .arg("-n")
-            .arg("machdep.cpu.brand_string")
-            .output()
-        {
+        if let Ok(output) = std::process::Command::new("sysctl").args(["-n", "machdep.cpu.brand_string"]).output() {
             return String::from_utf8_lossy(&output.stdout).trim().to_string();
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(output) = std::process::Command::new("wmic").args(["cpu", "get", "name"]).output() {
+            let s = String::from_utf8_lossy(&output.stdout);
+            return s.lines().nth(1).unwrap_or("Generic Windows CPU").trim().to_string();
         }
     }
 
@@ -116,7 +89,6 @@ fn get_rustc_version() -> String {
         .output()
         .ok()
         .and_then(|output| String::from_utf8(output.stdout).ok())
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| "rustc/unknown".to_string())
+        .map(|value| value.split(' ').nth(1).unwrap_or("unknown").to_string())
+        .unwrap_or_else(|| "unknown".to_string())
 }

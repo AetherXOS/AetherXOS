@@ -8,7 +8,7 @@ use spin::Mutex;
 
 use crate::interfaces::TaskId;
 use crate::modules::vfs::{
-    types::{DirEntry, FileStats},
+    types::{DirEntry, FileStats, VfsTimespec},
     File, FileSystem,
 };
 
@@ -343,11 +343,14 @@ impl FileSystem for DevFs {
                 mode: 0o755 | 0o040000, // dir
                 uid: 0,
                 gid: 0,
-                atime: 0,
-                mtime: 0,
-                ctime: 0,
+                nlink: 2,
+                atime: VfsTimespec::default(),
+                mtime: VfsTimespec::default(),
+                ctime: VfsTimespec::default(),
+                btime: VfsTimespec::default(),
                 blksize: 4096,
                 blocks: 0,
+                ino: 1,
             });
         }
         let devices = self.devices.lock();
@@ -357,11 +360,14 @@ impl FileSystem for DevFs {
                 mode: node.meta.mode,
                 uid: node.meta.uid,
                 gid: node.meta.gid,
-                atime: 0,
-                mtime: 0,
-                ctime: 0,
+                nlink: 1,
+                atime: VfsTimespec::default(),
+                mtime: VfsTimespec::default(),
+                ctime: VfsTimespec::default(),
+                btime: VfsTimespec::default(),
                 blksize: 4096,
                 blocks: 0,
+                ino: 1000,
             })
         } else if Self::path_is_dir(&devices, &name) {
             Ok(FileStats {
@@ -369,11 +375,14 @@ impl FileSystem for DevFs {
                 mode: 0o755 | 0o040000,
                 uid: 0,
                 gid: 0,
-                atime: 0,
-                mtime: 0,
-                ctime: 0,
+                nlink: 2,
+                atime: VfsTimespec::default(),
+                mtime: VfsTimespec::default(),
+                ctime: VfsTimespec::default(),
+                btime: VfsTimespec::default(),
                 blksize: 4096,
                 blocks: 0,
+                ino: 1000,
             })
         } else {
             Err("not found")

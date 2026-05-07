@@ -1,5 +1,6 @@
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
+use crate::config::KernelConfig;
 use super::*;
 
 const NVME_MIN_IO_QUEUE_DEPTH: usize = 2;

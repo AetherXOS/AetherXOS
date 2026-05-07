@@ -88,7 +88,7 @@ pub(super) fn prepare_scheduler_switch(
     } else {
         #[cfg(target_arch = "x86_64")]
         aethercore::hal::serial::write_raw("[EARLY SERIAL] timer pick_next empty\n");
-        let stolen_task = aethercore::kernel::load_balance::try_steal_for_cpu(cpu)?;
+        let stolen_task = aethercore::kernel::load_balance::operations::try_steal_for_cpu(cpu)?;
         let tid = stolen_task.lock().id;
         scheduler.add_task(stolen_task);
         if should_emit_scheduler_trace() {

@@ -10,7 +10,7 @@ pub(crate) fn timer_tick_handler(_irq: u8) {
 
     aethercore::kernel::debug_trace::record_optional("timer.tick", "handler_entered", None, false);
 
-    aethercore::kernel::load_balance::maybe_periodic_rebalance();
+    aethercore::kernel::load_balance::operations::maybe_periodic_rebalance();
 
     let cpu: &'static aethercore::kernel::cpu_local::CpuLocal =
         unsafe { aethercore::kernel::cpu_local::CpuLocal::get() };

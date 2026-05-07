@@ -58,6 +58,14 @@ fn resolve_interp_path_accepts_lib64_glibc_loader() {
 
 #[cfg(all(feature = "vfs", feature = "posix_fs"))]
 #[test_case]
+fn resolve_interp_path_accepts_ubuntu_loader_layout() {
+    let image = elf64_with_interp(b"/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2\0");
+    let interp = resolve_interp_path(&image).expect("resolve interp");
+    assert_eq!(interp.as_deref(), Some("/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"));
+}
+
+#[cfg(all(feature = "vfs", feature = "posix_fs"))]
+#[test_case]
 fn resolve_interp_path_rejects_oversized_interp_segment() {
     let image = elf64_with_interp(&alloc::vec![b'a'; 4097]);
     assert_eq!(resolve_interp_path(&image), Err(PosixErrno::Invalid));

@@ -190,6 +190,7 @@ pub fn pthread_create_from_image(
             deadline,
             burst_time,
             kernel_stack_top,
+            None,
         )
         .map_err(map_launch_error)?;
         clear_lifecycle(tid);

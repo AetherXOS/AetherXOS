@@ -1,8 +1,9 @@
+use crate::interfaces::memory::PageAllocator;
 use crate::interfaces::{KernelError, KernelResult};
 use crate::kernel::sync::IrqSafeMutex;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::sync::atomic::Ordering;
 use lazy_static::lazy_static;
 
 use crate::interfaces::task::{ProcessId, TaskId};
@@ -34,7 +35,7 @@ impl Drop for ShmPages {
         for &page in &self.pages {
             // Free the physical page.
             // In AetherCore, 0 is the order for a single 4KB page.
-            alloc.free_pages(page, 0);
+            alloc.deallocate_pages(page, 0);
         }
     }
 }
@@ -122,13 +123,55 @@ pub fn shm_rmid(id: ShmId) -> KernelResult<()> {
         if region.key != IPC_PRIVATE {
             state.key_to_id.remove(&region.key);
         }
-        // The physical pages will be freed automatically when all processes
-        // detach and the reference count of Arc<ShmPages> becomes zero.
         Ok(())
     } else {
         Err(KernelError::NotFound)
     }
 }
+
+pub fn shm_attach(id: ShmId, requested_addr: u64, flags: u32) -> KernelResult<u64> {
+    let region = shm_get_region(id).ok_or(KernelError::NotFound)?;
+    
+    let cpu = unsafe { crate::kernel::cpu_local::CpuLocal::get() };
+    let current_tid = cpu.current_task_id();
+    let process = crate::kernel::launch::process_arc_by_id(
+        crate::kernel::launch::process_id_by_task(current_tid).ok_or(KernelError::InvalidTask)?
+    ).ok_or(KernelError::NotFound)?;
+
+    let mut addr = requested_addr;
+    if addr == 0 {
+        // Simple allocator for SHM addresses (in a real kernel this would be more robust)
+        addr = process.next_mapping_hint.fetch_add(region.size as u64, Ordering::SeqCst);
+    }
+
+    // Register mapping in process
+    // We use map_id = 2_000_000 + id to tell the VMM this is an SHM region
+    let map_id = 2_000_000 + (id as u32);
+    let prot = crate::interfaces::memory::page_flags::PRESENT | 
+               crate::interfaces::memory::page_flags::USER |
+               (if (flags & 0o10000) == 0 { crate::interfaces::memory::page_flags::WRITABLE } else { 0 });
+
+    process.register_mapping(map_id, addr, addr + region.size as u64, prot, flags)?;
+    
+    Ok(addr)
+}
+
+pub fn shm_detach(addr: u64) -> KernelResult<()> {
+    let cpu = unsafe { crate::kernel::cpu_local::CpuLocal::get() };
+    let current_tid = cpu.current_task_id();
+    let process = crate::kernel::launch::process_arc_by_id(
+        crate::kernel::launch::process_id_by_task(current_tid).ok_or(KernelError::InvalidTask)?
+    ).ok_or(KernelError::NotFound)?;
+
+    let mut mappings = process.mappings.lock();
+    if let Some(pos) = mappings.iter().position(|m| m.start == addr && m.map_id >= 2_000_000) {
+        mappings.remove(pos);
+        Ok(())
+    } else {
+        Err(KernelError::NotFound)
+    }
+}
+
 
 impl core::ops::Deref for ShmPages {
     type Target = [usize];

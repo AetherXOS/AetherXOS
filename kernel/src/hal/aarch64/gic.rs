@@ -81,9 +81,7 @@ impl Gic {
     }
 
     pub fn gicd_base_addr(&self) -> usize {
-        // This is a bit of a hack, but MmioBlock doesn't easily expose its base.
-        // We'll return 0 for now as it's mostly used for version detection which we handle in update_bases.
-        0
+        self.dist_block.base()
     }
 
     pub fn read_iar(&self) -> u32 {

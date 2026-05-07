@@ -206,7 +206,7 @@ pub const fn is_category_enabled_compile_time(category: ObservabilityCategory) -
 /// 
 /// This replaces manual messages like "[EARLY SERIAL] x86_64 ap cpu id ready\n"
 /// with autonomous generation that handles the prefix and newline automatically.
-#[allow(dead_code)]
+
 #[inline]
 pub fn serial_autonomous(category: ObservabilityCategory, message: &str) -> String {
     alloc::format!("[{}] {}\n", category.as_str(), message)
@@ -215,7 +215,7 @@ pub fn serial_autonomous(category: ObservabilityCategory, message: &str) -> Stri
 /// Format autonomous message with hexadecimal value
 ///
 /// Generates: [CATEGORY] key=0xvalue\n
-#[allow(dead_code)]
+
 #[inline]
 pub fn serial_autonomous_hex(category: ObservabilityCategory, key: &str, value: u64) -> String {
     alloc::format!("[{}] {}=0x{:x}\n", category.as_str(), key, value)
@@ -224,7 +224,7 @@ pub fn serial_autonomous_hex(category: ObservabilityCategory, key: &str, value: 
 /// Format autonomous message with formatted arguments
 ///
 /// Generates: [CATEGORY] formatted_message\n
-#[allow(dead_code)]
+
 #[inline]
 pub fn serial_autonomous_fmt(category: ObservabilityCategory, args: core::fmt::Arguments) -> String {
     alloc::format!("[{}] {}\n", category.as_str(), args)
@@ -233,7 +233,7 @@ pub fn serial_autonomous_fmt(category: ObservabilityCategory, args: core::fmt::A
 /// Format autonomous debug trace message with category prefix and automatic newline
 ///
 /// Generates: [CATEGORY] message\n
-#[allow(dead_code)]
+
 #[inline]
 pub fn trace_autonomous(category: ObservabilityCategory, message: &str) -> String {
     alloc::format!("[{}] {}\n", category.as_str(), message)
@@ -242,7 +242,7 @@ pub fn trace_autonomous(category: ObservabilityCategory, message: &str) -> Strin
 /// Format autonomous trace with hexadecimal value
 ///
 /// Generates: [CATEGORY] key=0xvalue\n
-#[allow(dead_code)]
+
 #[inline]
 pub fn trace_autonomous_hex(category: ObservabilityCategory, key: &str, value: u64) -> String {
     alloc::format!("[{}] {}=0x{:x}\n", category.as_str(), key, value)

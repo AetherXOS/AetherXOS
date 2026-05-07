@@ -1,4 +1,3 @@
-use core::sync::atomic::Ordering;
 use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

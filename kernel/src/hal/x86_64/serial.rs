@@ -4,8 +4,9 @@ use crate::kernel::sync::IrqSafeMutex;
 use core::fmt;
 use core::sync::atomic::{AtomicU64, Ordering};
 use spin::Mutex;
-use x86_64::instructions::port::Port;
 use crate::kernel::bit_utils::com as bits;
+#[cfg(target_os = "none")]
+use x86_64::instructions::port::Port;
 
 // Standard COM1 port constants moved to bit_utils
 const SERIAL_TX_MAX_SPINS: usize = 1_000_000;
@@ -78,51 +79,77 @@ pub fn stats() -> SerialRuntimeStats {
 }
 
 pub struct SerialPort {
+    #[cfg(target_os = "none")]
     data: Port<u8>,
+    #[cfg(target_os = "none")]
     ier: Port<u8>,
+    #[cfg(target_os = "none")]
     fcr: Port<u8>,
+    #[cfg(target_os = "none")]
     lcr: Port<u8>,
+    #[cfg(target_os = "none")]
     mcr: Port<u8>,
+    #[cfg(target_os = "none")]
     lsr: Port<u8>,
 }
 
 impl SerialPort {
     pub const fn new(base: u16) -> Self {
-        Self {
-            data: Port::new(base + bits::DATA),
-            ier:  Port::new(base + bits::IER),
-            fcr:  Port::new(base + bits::IIR_FCR),
-            lcr:  Port::new(base + bits::LCR),
-            mcr:  Port::new(base + bits::MCR),
-            lsr:  Port::new(base + bits::LSR),
+        #[cfg(target_os = "none")]
+        {
+            Self {
+                data: Port::new(base + bits::DATA),
+                ier:  Port::new(base + bits::IER),
+                fcr:  Port::new(base + bits::IIR_FCR),
+                lcr:  Port::new(base + bits::LCR),
+                mcr:  Port::new(base + bits::MCR),
+                lsr:  Port::new(base + bits::LSR),
+            }
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            let _ = base;
+            Self {}
         }
     }
 
     #[inline(always)]
     fn is_transmit_empty(&mut self) -> bool {
+        #[cfg(target_os = "none")]
         unsafe { self.lsr.read() & bits::LSR_THRE != 0 }
+        #[cfg(not(target_os = "none"))]
+        true
     }
 
     fn write_byte_with_timeout(&mut self, data: u8) -> bool {
-        let mut spins = 0usize;
-        while !self.is_transmit_empty() {
-            if spins >= SERIAL_TX_MAX_SPINS {
-                SERIAL_TX_TIMEOUTS.fetch_add(1, Ordering::Relaxed);
-                SERIAL_TX_DROPS.fetch_add(1, Ordering::Relaxed);
-                return false;
+        #[cfg(target_os = "none")]
+        {
+            let mut spins = 0usize;
+            while !self.is_transmit_empty() {
+                if spins >= SERIAL_TX_MAX_SPINS {
+                    SERIAL_TX_TIMEOUTS.fetch_add(1, Ordering::Relaxed);
+                    SERIAL_TX_DROPS.fetch_add(1, Ordering::Relaxed);
+                    return false;
+                }
+                spins += 1;
+                SERIAL_TX_SPIN_LOOPS.fetch_add(1, Ordering::Relaxed);
+                core::hint::spin_loop();
             }
-            spins += 1;
-            SERIAL_TX_SPIN_LOOPS.fetch_add(1, Ordering::Relaxed);
-            core::hint::spin_loop();
+            unsafe { self.data.write(data); }
+            SERIAL_TX_BYTES.fetch_add(1, Ordering::Relaxed);
+            true
         }
-        unsafe { self.data.write(data); }
-        SERIAL_TX_BYTES.fetch_add(1, Ordering::Relaxed);
-        true
+        #[cfg(not(target_os = "none"))]
+        {
+            let _ = data;
+            true
+        }
     }
 }
 
 impl SerialDevice for SerialPort {
     fn init(&mut self) {
+        #[cfg(target_os = "none")]
         unsafe {
             self.ier.write(0x00); // Disable interrupts
             self.lcr.write(bits::LCR_DLAB); // Enable DLAB
@@ -136,8 +163,18 @@ impl SerialDevice for SerialPort {
     }
 
     fn send(&mut self, data: u8) {
-        if data == b'\n' { let _ = self.write_byte_with_timeout(b'\r'); }
-        let _ = self.write_byte_with_timeout(data);
+        #[cfg(target_os = "none")]
+        {
+            if data == b'\n' { let _ = self.write_byte_with_timeout(b'\r'); }
+            let _ = self.write_byte_with_timeout(data);
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            use std::io::Write;
+            let mut stdout = std::io::stdout();
+            let _ = stdout.write_all(&[data]);
+            let _ = stdout.flush();
+        }
     }
 }
 
@@ -195,9 +232,19 @@ pub fn recent_traces_into(out: &mut [TraceRecord]) -> usize {
 }
 
 pub fn write_raw(s: &str) {
-    use core::fmt::Write;
-    use x86_64::instructions::interrupts;
-    interrupts::without_interrupts(|| { let _ = SERIAL1.lock().write_str(s); });
+    #[cfg(target_os = "none")]
+    {
+        use core::fmt::Write;
+        use x86_64::instructions::interrupts;
+        interrupts::without_interrupts(|| { let _ = SERIAL1.lock().write_str(s); });
+    }
+    #[cfg(not(target_os = "none"))]
+    {
+        use std::io::Write;
+        let mut stdout = std::io::stdout();
+        let _ = stdout.write_all(s.as_bytes());
+        let _ = stdout.flush();
+    }
 }
 
 pub const fn tx_timeout_spins() -> usize {

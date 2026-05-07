@@ -1,5 +1,5 @@
 pub(crate) fn log_module_loader_runtime() {
-    let loader = aethercore::kernel::module_loader::stats();
+    let loader = aethercore::kernel::module_loader::bootstrap::stats();
     aethercore::klog_info!(
         "Module loader: preflight={}/{} fp={:#x} parse={}/{} plan={}/{} map={}/{} bootstrap={}/{} segmat={}/{} segbytes={}",
         loader.preflight_success,

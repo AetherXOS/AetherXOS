@@ -330,18 +330,22 @@ impl WritebackManager {
         strict_errors: bool,
     ) -> Result<usize, &'static str> {
         let keys = dirty_keys_for_inode(&self.dirty_pages, ino);
-        let cache = inode.pages.lock();
         let mut flushed = 0usize;
 
         for key in &keys {
+            let shard = inode.get_page_shard(key.page_idx);
+            let cache = inode.pages[shard].lock();
             if let Some(page_arc) = cache.get(&key.page_idx) {
+                let page_arc = page_arc.clone();
+                drop(cache);
                 let mut page = page_arc.lock();
                 if page.dirty {
+                    let data = page.as_slice().to_vec();
                     if strict_errors {
-                        sink.write_page(ino, page.offset, &page.data)?;
+                        sink.write_page(ino, page.offset, &data)?;
                         page.dirty = false;
                         flushed += 1;
-                    } else if sink.write_page(ino, page.offset, &page.data).is_ok() {
+                    } else if sink.write_page(ino, page.offset, &data).is_ok() {
                         page.dirty = false;
                         flushed += 1;
                     }
@@ -375,11 +379,15 @@ impl WritebackManager {
             };
 
             if let Some(inode) = GLOBAL_INODE_CACHE.get(key.ino) {
-                let cache = inode.pages.lock();
+                let shard = inode.get_page_shard(key.page_idx);
+                let cache = inode.pages[shard].lock();
                 if let Some(page_arc) = cache.get(&key.page_idx) {
+                    let page_arc = page_arc.clone();
+                    drop(cache);
                     let mut page = page_arc.lock();
                     if page.dirty {
-                        if sink.write_page(key.ino, page.offset, &page.data).is_ok() {
+                        let data = page.as_slice().to_vec();
+                        if sink.write_page(key.ino, page.offset, &data).is_ok() {
                             page.dirty = false;
                             flushed += 1;
                             flush_needed.insert(mount_id, true);
@@ -456,6 +464,27 @@ pub fn sync_all() -> Result<usize, &'static str> {
     GLOBAL_WRITEBACK.lock().sync_all()
 }
 
+/// Aether-Flusher: Dedicated Kernel Thread for VFS Writeback.
+/// This ensures I/O happens in a process context, not an interrupt context.
+pub fn spawn_writeback_thread() {
+    crate::kernel::task::kthread::spawn_kthread("Aether-Flusher", || {
+        let mut tick = 0u64;
+        loop {
+            // Wake up every 5 seconds (5000ms)
+            // Wait ~5 seconds by spin-sleeping on the tick counter
+            let start = crate::kernel::watchdog::global_tick();
+            while crate::kernel::watchdog::global_tick().wrapping_sub(start) < 5000 {
+                crate::kernel::rt_preemption::request_forced_reschedule();
+            }
+            tick += 5;
+            let flushed = periodic_writeback(tick);
+            if flushed > 0 {
+                crate::klog_info!("[VFS] Background writeback flushed {} pages", flushed);
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 fn reset_writeback_state_for_tests() {
     *GLOBAL_WRITEBACK.lock() = WritebackManager::new();
@@ -474,5 +503,4 @@ fn evict_inodes_for_tests(inodes: &[u64]) {
 }
 
 #[cfg(test)]
-#[path = "writeback/tests.rs"]
 mod tests;

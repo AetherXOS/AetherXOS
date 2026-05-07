@@ -132,7 +132,10 @@ pub fn sendto(fd: u32, addr: SocketAddrV4, payload: &[u8]) -> Result<usize, &'st
                     return Err("socket shutdown for write");
                 }
                 ensure_datagram_socket(state)?;
-                state.socket.as_mut().unwrap().send_to(addr.port, payload)
+                match state.socket.as_mut() {
+                    Some(s) => s.send_to(addr.port, payload),
+                    None => Err("not connected"),
+                }
             }
             PosixSocket::Stream(_) => Err("sendto not supported for stream socket, use send"),
         }

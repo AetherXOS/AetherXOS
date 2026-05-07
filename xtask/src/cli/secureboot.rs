@@ -19,3 +19,9 @@ pub enum SecurebootAction {
         dry_run: bool,
     },
 }
+
+impl crate::utils::executable::Executable for SecurebootAction {
+    fn execute(&self) -> anyhow::Result<()> {
+        crate::commands::infra::secureboot::execute(self)
+    }
+}

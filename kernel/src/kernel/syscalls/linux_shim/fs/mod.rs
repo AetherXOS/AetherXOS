@@ -1,6 +1,6 @@
 mod io;
 mod meta;
-mod support;
+pub(crate) mod support;
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_access(path_ptr: usize, mode: usize) -> usize {
@@ -109,6 +109,8 @@ pub(super) fn sys_linux_write(fd: usize, ptr: usize, len: usize) -> usize {
     io::sys_linux_write(fd, ptr, len)
 }
 
+
+
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_fdatasync(fd: usize) -> usize {
     meta::sys_linux_fdatasync(fd)
@@ -210,5 +212,4 @@ pub(super) fn sys_linux_futimesat(dirfd: usize, pathname_ptr: usize, times_ptr: 
 }
 
 #[cfg(all(test, not(feature = "linux_compat")))]
-#[path = "integration_tests.rs"]
 mod integration_tests;

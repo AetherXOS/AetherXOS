@@ -1,10 +1,12 @@
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::string::String;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 use core::sync::atomic::Ordering;
 use lazy_static::lazy_static;
 use spin::Mutex;
+use crate::kernel::sync::WaitQueue;
 use super::common::{bounded_push_bytes, suspend_on, wake_one_task};
 
 const DBUS_TOPIC_QUEUE_LIMIT: usize = 256;
@@ -63,7 +65,7 @@ lazy_static! {
     static ref DBUS_QUEUES: Mutex<BTreeMap<String, VecDeque<Vec<u8>>>> =
         Mutex::new(BTreeMap::new());
     static ref DBUS_SUBSCRIBERS: Mutex<BTreeMap<String, Vec<TaskId>>> = Mutex::new(BTreeMap::new());
-    static ref DBUS_WAITERS: Mutex<BTreeMap<String, WaitQueue>> = Mutex::new(BTreeMap::new());
+    static ref DBUS_WAITERS: Mutex<BTreeMap<String, Arc<WaitQueue>>> = Mutex::new(BTreeMap::new());
     static ref DBUS_SESSION_SERVICES: Mutex<BTreeMap<String, SessionServiceEntry>> =
         Mutex::new(BTreeMap::new());
 }
@@ -149,7 +151,7 @@ pub fn dbus_subscribe(topic: &str) -> Result<(), &'static str> {
     }
     {
         let mut waiters = DBUS_WAITERS.lock();
-        waiters.entry(topic.into()).or_insert_with(WaitQueue::new);
+        waiters.entry(topic.into()).or_insert_with(|| Arc::new(WaitQueue::new()));
     }
 
     let mut subs = DBUS_SUBSCRIBERS.lock();
@@ -204,7 +206,7 @@ pub fn dbus_consume(topic: &str, out: &mut [u8]) -> Result<usize, &'static str> 
             let mut waiters_map = DBUS_WAITERS.lock();
             waiters_map
                 .entry(topic.into())
-                .or_insert_with(WaitQueue::new)
+                .or_insert_with(|| Arc::new(WaitQueue::new()))
                 .clone()
         };
 

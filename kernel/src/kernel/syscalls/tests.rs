@@ -3,13 +3,13 @@ use super::BackpressurePolicyMode;
 #[cfg(not(feature = "linux_compat"))]
 use super::{
     execve_stack_required_bytes, prepare_execve_user_stack, read_user_c_string_array,
-    require_control_plane_access,
+    require_control_plane_access, SYSCALL_ERR_PERMISSION_DENIED,
 };
 use super::{
     futex_key_from_ptr_or_hint, parse_process_priority, upcall_entry_pc_valid,
     user_access_range_check_with, user_access_range_valid_with, user_range_valid,
     user_word_aligned, BinarySwitch, CStateOverrideMode, PowerOverrideMode, UserAccessFault,
-    UserAccessMode, SYSCALL_ERR_PERMISSION_DENIED,
+    UserAccessMode,
 };
 use crate::kernel::syscalls::syscalls_consts::*;
 

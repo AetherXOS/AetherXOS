@@ -117,35 +117,46 @@ fn enforce_cpu_protections_x86_64() {
     let leaf_ext = core::arch::x86_64::__cpuid(0x80000001);
     let has_nx = (leaf_ext.edx & (1 << 20)) != 0;
 
-    // Read CR4
-    let mut cr4: u64;
-    unsafe {
-        core::arch::asm!("mov {}, cr4", out(reg) cr4, options(nomem, nostack));
+    #[cfg(target_os = "none")]
+    {
+        // Read CR4
+        let mut cr4: u64 = 0;
+        unsafe {
+            core::arch::asm!("mov {}, cr4", out(reg) cr4, options(nomem, nostack));
+        }
+
+        if has_smep {
+            cr4 |= 1 << 20; // CR4.SMEP
+        }
+        if has_smap {
+            cr4 |= 1 << 21; // CR4.SMAP
+        }
+        if has_umip {
+            cr4 |= 1 << 11; // CR4.UMIP
+        }
+
+        // Write back CR4 with protection bits set
+        unsafe {
+            core::arch::asm!("mov cr4, {}", in(reg) cr4, options(nomem, nostack));
+        }
     }
 
     if has_smep {
-        cr4 |= 1 << 20; // CR4.SMEP
         SMEP_ENABLED.store(true, Ordering::Relaxed);
     }
     if has_smap {
-        cr4 |= 1 << 21; // CR4.SMAP
         SMAP_ENABLED.store(true, Ordering::Relaxed);
     }
     if has_umip {
-        cr4 |= 1 << 11; // CR4.UMIP
         UMIP_ENABLED.store(true, Ordering::Relaxed);
-    }
-
-    // Write back CR4 with protection bits set
-    unsafe {
-        core::arch::asm!("mov cr4, {}", in(reg) cr4, options(nomem, nostack));
     }
 
     // Enable NX via IA32_EFER MSR (bit 11)
     if has_nx {
         const IA32_EFER: u32 = 0xC000_0080;
-        let efer_lo: u32;
-        let efer_hi: u32;
+        let mut efer_lo: u32 = 0;
+        let mut efer_hi: u32 = 0;
+        #[cfg(target_os = "none")]
         unsafe {
             core::arch::asm!(
                 "rdmsr",
@@ -159,6 +170,7 @@ fn enforce_cpu_protections_x86_64() {
         let efer_new = efer | (1 << 11); // NXE bit
         let new_lo = efer_new as u32;
         let new_hi = (efer_new >> 32) as u32;
+        #[cfg(target_os = "none")]
         unsafe {
             core::arch::asm!(
                 "wrmsr",
@@ -178,7 +190,8 @@ fn enforce_cpu_protections_aarch64() {
     // are controlled via SCTLR_EL1.
 
     // Read SCTLR_EL1
-    let mut sctlr: u64;
+    let mut sctlr: u64 = 0;
+    #[cfg(target_os = "none")]
     unsafe {
         core::arch::asm!("mrs {}, sctlr_el1", out(reg) sctlr, options(nomem, nostack));
     }
@@ -188,13 +201,15 @@ fn enforce_cpu_protections_aarch64() {
     NX_ENABLED.store(true, Ordering::Relaxed);
 
     // Check PAN support (ID_AA64MMFR1_EL1 bits [23:20])
-    let mmfr1: u64;
+    let mut mmfr1: u64 = 0;
+    #[cfg(target_os = "none")]
     unsafe {
         core::arch::asm!("mrs {}, id_aa64mmfr1_el1", out(reg) mmfr1, options(nomem, nostack));
     }
     let pan_support = (mmfr1 >> 20) & 0xF;
     if pan_support >= 1 {
         // Enable PAN — PSTATE.PAN = 1 (analogue of SMAP)
+        #[cfg(target_os = "none")]
         unsafe {
             core::arch::asm!("msr S3_0_C4_C1_1, {0}", in(reg) 1u64, options(nomem, nostack));
         }
@@ -202,6 +217,7 @@ fn enforce_cpu_protections_aarch64() {
     }
 
     // Write updated SCTLR_EL1
+    #[cfg(target_os = "none")]
     unsafe {
         core::arch::asm!("msr sctlr_el1, {}", in(reg) sctlr, options(nomem, nostack));
         core::arch::asm!("isb", options(nomem, nostack));
@@ -212,12 +228,49 @@ fn enforce_cpu_protections_aarch64() {
     SMEP_ENABLED.store(true, Ordering::Relaxed);
 }
 
+#[inline(always)]
+pub fn allow_user_access() {
+    #[cfg(target_arch = "x86_64")]
+    #[cfg(target_os = "none")]
+    if SMAP_ENABLED.load(Ordering::Relaxed) {
+        unsafe {
+            core::arch::asm!("stac", options(nomem, nostack));
+        }
+    }
+    #[cfg(target_arch = "aarch64")]
+    #[cfg(target_os = "none")]
+    if SMAP_ENABLED.load(Ordering::Relaxed) {
+        unsafe {
+            core::arch::asm!("msr S3_0_C4_C1_1, {0}", in(reg) 0u64, options(nomem, nostack));
+        }
+    }
+}
+
+#[inline(always)]
+pub fn forbid_user_access() {
+    #[cfg(target_arch = "x86_64")]
+    #[cfg(target_os = "none")]
+    if SMAP_ENABLED.load(Ordering::Relaxed) {
+        unsafe {
+            core::arch::asm!("clac", options(nomem, nostack));
+        }
+    }
+    #[cfg(target_arch = "aarch64")]
+    #[cfg(target_os = "none")]
+    if SMAP_ENABLED.load(Ordering::Relaxed) {
+        unsafe {
+            core::arch::asm!("msr S3_0_C4_C1_1, {0}", in(reg) 1u64, options(nomem, nostack));
+        }
+    }
+}
+
 /// Temporarily disable SMAP for a controlled kernel access to user memory.
 /// Returns a guard that re-enables SMAP on drop.
 pub fn smap_disable_guard() -> SmapGuard {
     #[cfg(target_arch = "x86_64")]
     {
         if SMAP_ENABLED.load(Ordering::Relaxed) {
+            #[cfg(target_os = "none")]
             unsafe {
                 core::arch::asm!("stac", options(nomem, nostack));
             }
@@ -227,6 +280,7 @@ pub fn smap_disable_guard() -> SmapGuard {
     #[cfg(target_arch = "aarch64")]
     {
         if SMAP_ENABLED.load(Ordering::Relaxed) {
+            #[cfg(target_os = "none")]
             unsafe {
                 core::arch::asm!("msr S3_0_C4_C1_1, {0}", in(reg) 0u64, options(nomem, nostack));
             }
@@ -245,10 +299,12 @@ impl Drop for SmapGuard {
     fn drop(&mut self) {
         if self.was_active {
             #[cfg(target_arch = "x86_64")]
+            #[cfg(target_os = "none")]
             unsafe {
                 core::arch::asm!("clac", options(nomem, nostack));
             }
             #[cfg(target_arch = "aarch64")]
+            #[cfg(target_os = "none")]
             unsafe {
                 core::arch::asm!("msr S3_0_C4_C1_1, {0}", in(reg) 1u64, options(nomem, nostack));
             }

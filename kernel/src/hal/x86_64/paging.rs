@@ -3,7 +3,10 @@ pub use x86_64::structures::paging::{
 };
 pub use x86_64::structures::paging::FrameAllocator as X86FrameAllocator;
 use x86_64::VirtAddr;
-use crate::interfaces::memory::page_flags as bits;
+use crate::interfaces::memory::{self};
+#[cfg(feature = "paging_enable")]
+use crate::interfaces::memory::PageAllocator;
+use memory::page_flags as bits;
 use x86_64::structures::paging::Translate;
 
 pub const COW_BIT: u64 = 1 << 9; // OS-available bit
@@ -41,7 +44,11 @@ impl PageManager {
         let x86_flags = convert_flags(flags);
         unsafe {
             match self.mapper.map_to(page, frame, x86_flags, alloc) {
-                Ok(tlb) => { tlb.flush(); Ok(()) }
+                Ok(tlb) => { 
+                    #[cfg(target_os = "none")]
+                    tlb.flush(); 
+                    Ok(()) 
+                }
                 Err(_) => Err("Mapping failed"),
             }
         }
@@ -64,8 +71,12 @@ impl PageManager {
                     unsafe {
                         core::ptr::copy_nonoverlapping(old_virt.as_ptr::<u8>(), new_virt.as_mut_ptr::<u8>(), 4096);
                         let new_flags = (flags | X86Flags::WRITABLE) & X86Flags::from_bits_truncate(!COW_BIT);
-                        self.mapper.unmap(page).unwrap().1.flush();
-                        self.mapper.map_to(page, new_frame, new_flags, alloc).unwrap().flush();
+                        let flush = self.mapper.unmap(page).unwrap().1;
+                        #[cfg(target_os = "none")]
+                        flush.flush();
+                        let flush = self.mapper.map_to(page, new_frame, new_flags, alloc).unwrap();
+                        #[cfg(target_os = "none")]
+                        flush.flush();
                     }
                     return Ok(());
                 }
@@ -74,9 +85,99 @@ impl PageManager {
             _ => {
                 let frame = alloc.allocate_frame().ok_or("Out of memory")?;
                 let flags = X86Flags::PRESENT | X86Flags::WRITABLE | X86Flags::USER_ACCESSIBLE;
-                unsafe { self.mapper.map_to(page, frame, flags, alloc).unwrap().flush(); }
+                unsafe { 
+                    let flush = self.mapper.map_to(page, frame, flags, alloc).unwrap();
+                    #[cfg(target_os = "none")]
+                    flush.flush();
+                }
                 Ok(())
             }
+        }
+    }
+
+    pub fn update_page_flags(&mut self, va: u64, flags: u32) -> Result<(), &'static str> {
+        let page = Page::<Size4KiB>::containing_address(VirtAddr::new(va));
+        let x86_flags = convert_flags(flags);
+        unsafe {
+            match self.mapper.update_flags(page, x86_flags) {
+                Ok(tlb) => { 
+                    #[cfg(target_os = "none")]
+                    tlb.flush(); 
+                    Ok(()) 
+                }
+                Err(_) => Err("Update flags failed"),
+            }
+        }
+    }
+
+    pub fn map_page_2mb(
+        &mut self,
+        va: u64,
+        pa: u64,
+        flags: u32,
+        alloc: &mut impl X86FrameAllocator<Size4KiB>,
+    ) -> Result<(), &'static str> {
+        use x86_64::structures::paging::Size2MiB;
+        let page = Page::<Size2MiB>::containing_address(VirtAddr::new(va));
+        let frame = PhysFrame::containing_address(x86_64::PhysAddr::new(pa));
+        let x86_flags = convert_flags(flags) | X86Flags::HUGE_PAGE;
+        unsafe {
+            match self.mapper.map_to(page, frame, x86_flags, alloc) {
+                Ok(tlb) => { 
+                    #[cfg(target_os = "none")]
+                    tlb.flush(); 
+                    Ok(()) 
+                }
+                Err(_) => Err("Mapping failed"),
+            }
+        }
+    }
+}
+
+pub struct PageAllocWrapper;
+
+impl PageAllocWrapper {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+        <Self as X86FrameAllocator<Size4KiB>>::allocate_frame(self)
+    }
+
+    pub fn allocate_huge_frame(&mut self) -> Option<PhysFrame<x86_64::structures::paging::Size2MiB>> {
+        <Self as X86FrameAllocator<x86_64::structures::paging::Size2MiB>>::allocate_frame(self)
+    }
+}
+
+unsafe impl X86FrameAllocator<Size4KiB> for PageAllocWrapper {
+    fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+        #[cfg(feature = "paging_enable")]
+        {
+            crate::kernel::vmm::GLOBAL_PAGE_ALLOC
+                .lock()
+                .allocate_pages(0)
+                .map(|pa| PhysFrame::containing_address(x86_64::PhysAddr::new(pa as u64)))
+        }
+        #[cfg(not(feature = "paging_enable"))]
+        {
+            None
+        }
+    }
+}
+
+unsafe impl X86FrameAllocator<x86_64::structures::paging::Size2MiB> for PageAllocWrapper {
+    fn allocate_frame(&mut self) -> Option<PhysFrame<x86_64::structures::paging::Size2MiB>> {
+        #[cfg(feature = "paging_enable")]
+        {
+            crate::kernel::vmm::GLOBAL_PAGE_ALLOC
+                .lock()
+                .allocate_pages(9) // 2^9 * 4KB = 2MB
+                .map(|pa| PhysFrame::containing_address(x86_64::PhysAddr::new(pa as u64)))
+        }
+        #[cfg(not(feature = "paging_enable"))]
+        {
+            None
         }
     }
 }

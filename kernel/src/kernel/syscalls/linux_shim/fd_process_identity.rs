@@ -2,7 +2,7 @@ use super::*;
 
 #[path = "fd_process_identity/dir_info.rs"]
 mod dir_info;
-#[path = "fd_process_identity/fd_ops.rs"]
+#[path = "fd_process_identity/fd_ops/mod.rs"]
 mod fd_ops;
 #[path = "fd_process_identity/process_identity.rs"]
 mod process_identity;

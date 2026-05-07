@@ -120,7 +120,7 @@ pub struct ConfigOverridePreviewSummary {
     pub critical_touched: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct KernelConfigSnapshot {
     pub core: CoreRuntimeLimits,
     pub network: NetworkRuntimeProfile,

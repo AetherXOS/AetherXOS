@@ -2,6 +2,7 @@ pub mod acl;
 pub mod capabilities;
 pub mod formal;
 pub mod hardware;
+pub mod lockfree_capabilities;
 pub mod mac;
 pub mod null;
 pub mod sel4;
@@ -15,9 +16,9 @@ pub use acl::AccessControlList;
 pub use capabilities::ObjectCapability;
 pub use formal::{formal_stats, register_proof_artifact, verify_security_invariants, FormalStats};
 pub use hardware::{
-    cpu_protection_status, detect_hardware_security, enforce_cpu_protections,
-    hardware_security_stats, smap_disable_guard, CpuProtectionStatus, HardwareSecurityBackend,
-    HardwareSecurityStats, SmapGuard,
+    allow_user_access, cpu_protection_status, detect_hardware_security, enforce_cpu_protections,
+    forbid_user_access, hardware_security_stats, smap_disable_guard, CpuProtectionStatus,
+    HardwareSecurityBackend, HardwareSecurityStats, SmapGuard,
 };
 pub use mac::{
     check_access as check_mac_access, set_resource_label as set_mac_resource_label,
@@ -105,6 +106,11 @@ pub fn active_profile() -> SecurityProfile {
     {
         return SecurityProfile::Acl;
     }
+    #[cfg(all(
+        not(feature = "security_sel4"),
+        not(feature = "security_capabilities"),
+        not(feature = "security_acl")
+    ))]
     SecurityProfile::Null
 }
 
@@ -359,24 +365,29 @@ pub fn check_access_full(
 pub mod selector {
     use super::*;
 
-    #[cfg(feature = "security_null")]
-    pub type ActiveSecurity = NullMonitor;
-
-    #[cfg(feature = "security_acl")]
-    pub type ActiveSecurity = AccessControlList;
-
-    #[cfg(feature = "security_capabilities")]
-    pub type ActiveSecurity = ObjectCapability;
-
     #[cfg(feature = "security_sel4")]
     pub type ActiveSecurity = SeL4Style;
 
+    #[cfg(all(not(feature = "security_sel4"), feature = "security_capabilities"))]
+    pub type ActiveSecurity = ObjectCapability;
+
+    #[cfg(all(not(feature = "security_sel4"), not(feature = "security_capabilities"), feature = "security_acl"))]
+    pub type ActiveSecurity = AccessControlList;
+
     #[cfg(not(any(
-        feature = "security_null",
-        feature = "security_acl",
+        feature = "security_sel4",
         feature = "security_capabilities",
-        feature = "security_sel4"
+        feature = "security_acl",
+        feature = "security_null"
     )))]
+    pub type ActiveSecurity = NullMonitor;
+    
+    #[cfg(all(
+        not(feature = "security_sel4"),
+        not(feature = "security_capabilities"),
+        not(feature = "security_acl"),
+        feature = "security_null"
+    ))]
     pub type ActiveSecurity = NullMonitor;
 }
 

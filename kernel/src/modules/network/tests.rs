@@ -1,6 +1,8 @@
 use super::*;
+use alloc::vec::Vec;
 use alloc::vec;
 use crate::modules::network::metrics_ops::update_loopback_high_water;
+use crate::modules::network::types::PacketData;
 #[cfg(feature = "network_transport")]
 use crate::modules::network::filter_support::apply_filters;
 
@@ -54,12 +56,12 @@ fn loopback_reports_queue_drop_when_full() {
     let mut loopback = Loopback::new();
     for _ in 0..crate::config::KernelConfig::network_loopback_queue_limit() {
         let packet = Packet {
-            data: vec![1, 2, 3, 4],
+            data: PacketData::Buffer(vec![1, 2, 3, 4]),
         };
         assert!(loopback.send(packet).is_ok());
     }
     let overflow = Packet {
-        data: vec![9, 9, 9],
+        data: PacketData::Buffer(vec![9, 9, 9]),
     };
     assert!(loopback.send(overflow).is_err());
 
@@ -81,12 +83,12 @@ fn loopback_backpressure_defer_policy_reports_telemetry() {
     let mut loopback = Loopback::new();
     for _ in 0..crate::config::KernelConfig::network_loopback_queue_limit() {
         let packet = Packet {
-            data: vec![1, 2, 3, 4],
+            data: PacketData::Buffer(vec![1, 2, 3, 4]),
         };
         assert!(loopback.send(packet).is_ok());
     }
     let overflow = Packet {
-        data: vec![9, 9, 9],
+        data: PacketData::Buffer(vec![9, 9, 9]),
     };
     assert!(loopback.send(overflow).is_err());
 

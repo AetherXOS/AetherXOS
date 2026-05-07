@@ -5,8 +5,31 @@ pub enum MacAddress {
     Ethernet([u8; 6]),
 }
 
+pub enum PacketData {
+    /// Heap-allocated buffer.
+    Buffer(Vec<u8>),
+    /// Reference to a physical frame (Zero-Copy).
+    Physical {
+        addr: u64,
+        len: usize,
+    },
+}
+
+impl PacketData {
+    pub fn len(&self) -> usize {
+        match self {
+            PacketData::Buffer(b) => b.len(),
+            PacketData::Physical { len, .. } => *len,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
 pub struct Packet {
-    pub data: Vec<u8>,
+    pub data: PacketData,
 }
 
 pub trait NetworkInterface {

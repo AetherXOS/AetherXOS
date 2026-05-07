@@ -28,7 +28,19 @@ pub fn execute() -> Result<()> {
         .and_then(|v| v.as_bool())
         .unwrap_or(true);
 
-    let health_score = if policy_ok && warning_ok { 90.0 } else { 55.0 };
+    let refactor_audit = read_json_doc(&root.join("reports/kernel_refactor_audit/summary.json"));
+    let long_file_count = refactor_audit
+        .as_ref()
+        .and_then(|doc| doc.get("summary"))
+        .and_then(|s| s.get("long_file_count"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(1);
+
+    let mut health_score = if policy_ok && warning_ok { 90.0 } else { 55.0 };
+    if health_score >= 90.0 && long_file_count == 0 {
+        health_score = 100.0;
+    }
+
     let health_path = root.join("reports/tooling/health_report.json");
     report::write_json_report(
         &health_path,

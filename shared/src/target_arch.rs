@@ -1,8 +1,10 @@
 use core::fmt;
-use core::str::FromStr;
+use strum::{Display, EnumString, EnumIter, IntoStaticStr, AsRefStr};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Display, EnumString, EnumIter, IntoStaticStr, AsRefStr)]
+#[strum(serialize_all = "snake_case")]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
+#[cfg_attr(feature = "clap", clap(rename_all = "snake_case"))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TargetArch {
     #[default]
@@ -10,22 +12,9 @@ pub enum TargetArch {
     Aarch64,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ParseTargetArchError;
-
-impl fmt::Display for ParseTargetArchError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("unsupported target architecture")
-    }
-}
-
 impl TargetArch {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::X86_64 => "x86_64",
-            Self::Aarch64 => "aarch64",
-        }
+    pub fn as_str(&self) -> &'static str {
+        self.into()
     }
 
     #[must_use]
@@ -46,26 +35,9 @@ impl TargetArch {
     }
 
     #[must_use]
-    pub const fn supported() -> &'static [Self] {
-        &[Self::X86_64, Self::Aarch64]
-    }
-}
-
-impl fmt::Display for TargetArch {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for TargetArch {
-    type Err = ParseTargetArchError;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "x86_64" => Ok(Self::X86_64),
-            "aarch64" => Ok(Self::Aarch64),
-            _ => Err(ParseTargetArchError),
-        }
+    pub fn supported() -> impl Iterator<Item = Self> {
+        use strum::IntoEnumIterator;
+        Self::iter()
     }
 }
 
@@ -95,7 +67,7 @@ mod tests {
     fn roundtrip_triple_mapping() {
         for arch in TargetArch::supported() {
             let triple = arch.to_bare_metal_triple();
-            assert_eq!(TargetArch::from_bare_metal_triple(triple), Some(*arch));
+            assert_eq!(TargetArch::from_bare_metal_triple(triple), Some(arch));
         }
     }
 }

@@ -1,10 +1,8 @@
 use crate::kernel::sync::WaitQueue;
-use crate::kernel::task::wake_tasks;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use super::common::suspend_on;
 
 use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
 
@@ -86,17 +84,15 @@ lazy_static! {
 
 pub struct Futex;
 
-static GLOBAL_FUTEX: Futex = Futex;
+pub static FUTEX_MANAGER: Futex = Futex;
 
-#[inline(always)]
 pub fn global() -> &'static Futex {
-    &GLOBAL_FUTEX
+    &FUTEX_MANAGER
 }
 
 impl Futex {
-    /// Wait on a futex key.
-    /// Returns `FutexWaitResult` so the syscall layer can distinguish outcomes.
-    pub fn wait(&self, key: u64, observed: u32, expected: u32) -> FutexWaitResult {
+    /// Wait on a futex key with an optional bitmask.
+    pub fn wait_bitset(&self, key: u64, observed: u32, expected: u32, mask: u32) -> FutexWaitResult {
         counter_inc!(FUTEX_WAIT_CALLS);
 
         if observed != expected {
@@ -115,13 +111,17 @@ impl Futex {
                 .clone()
         };
 
-        suspend_on(&entry.queue);
+        super::common::suspend_on_with_mask(&entry.queue, mask);
         counter_inc!(FUTEX_WAIT_ENQUEUED);
         FutexWaitResult::Enqueued
     }
 
-    /// Wake up to `max_wake` threads waiting on the key.
-    pub fn wake(&self, key: u64, max_wake: usize) -> usize {
+    pub fn wait(&self, key: u64, observed: u32, expected: u32) -> FutexWaitResult {
+        self.wait_bitset(key, observed, expected, 0xFFFF_FFFF)
+    }
+
+    /// Wake up to `max_wake` threads waiting on the key that match the bitmask.
+    pub fn wake_bitset(&self, key: u64, max_wake: usize, mask: u32) -> usize {
         counter_inc!(FUTEX_WAKE_CALLS);
         if max_wake == 0 {
             return 0;
@@ -133,49 +133,66 @@ impl Futex {
         };
 
         if let Some(e) = entry {
-            let mut woken_tids = alloc::vec::Vec::with_capacity(max_wake);
-            for _ in 0..max_wake {
-                if let Some(tid) = e.queue.wake_one() {
-                    woken_tids.push(tid);
-                } else {
-                    break;
-                }
-            }
-
-            let count = woken_tids.len();
-            if count > 0 {
-                for _ in 0..count {
-                    counter_inc!(FUTEX_WAKE_WOKEN);
-                }
-                wake_tasks(woken_tids);
+            let woken = super::common::wake_tasks_with_mask(&e.queue, mask, max_wake);
+            
+            for _ in 0..woken {
+                counter_inc!(FUTEX_WAKE_WOKEN);
             }
 
             // Cleanup if no more waiters
             if e.queue.is_empty() {
                 let mut map = FUTEX_MAP.lock();
-                // Check again to avoid race
                 if let Some(curr) = map.get(&key) {
                     if curr.queue.is_empty() {
                         map.remove(&key);
                     }
                 }
             }
-            count
+            woken
         } else {
             0
         }
     }
+
+    pub fn wake(&self, key: u64, max_wake: usize) -> usize {
+        self.wake_bitset(key, max_wake, 0xFFFF_FFFF)
+    }
+
+    /// Move up to `max_requeue` tasks from `src_key` to `dst_key`.
+    pub fn requeue(&self, src_key: u64, dst_key: u64, max_wake: usize, max_requeue: usize) -> usize {
+        // 1. Wake some tasks from src
+        let woken = self.wake(src_key, max_wake);
+
+        // 2. Requeue remaining tasks to dst
+        let mut map = FUTEX_MAP.lock();
+        
+        let src_entry = map.get(&src_key).cloned();
+        if let Some(src) = src_entry {
+            let dst = map.entry(dst_key)
+                .or_insert_with(|| Arc::new(FutexEntry { queue: WaitQueue::new() }))
+                .clone();
+            
+            src.queue.requeue_to(&dst.queue, max_requeue);
+
+            if src.queue.is_empty() {
+                map.remove(&src_key);
+            }
+        }
+
+        woken
+    }
 }
+
 
 // POSIX/Linux Syscall glue follows in the dispatcher layers
 
 #[cfg(test)]
 mod tests {
-    use super::{global, stats, take_stats, FutexWaitResult};
+    use super::{stats, take_stats, FutexWaitResult, FUTEX_MANAGER};
 
     #[test_case]
     fn futex_stats_take_resets_counters() {
-        let futex = global();
+        let futex = &FUTEX_MANAGER;
 
         let result = futex.wait(42, 1, 2);
         assert_eq!(result, FutexWaitResult::ValueMismatch);

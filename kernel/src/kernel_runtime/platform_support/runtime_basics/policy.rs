@@ -11,9 +11,9 @@ pub(crate) fn log_boundary_policy() {
 
 pub(crate) fn log_watchdog_policy() {
     aethercore::klog_info!(
-        "Watchdog policy: soft_enabled={} soft_stall_ticks={} soft_action={}",
+        "Watchdog policy: soft_enabled={} soft_stall_ticks={} soft_action={:?}",
         aethercore::config::KernelConfig::is_soft_watchdog_enabled(),
         aethercore::config::KernelConfig::soft_watchdog_stall_ticks(),
-        aethercore::config::KernelConfig::soft_watchdog_action(),
+        aethercore::config::KernelConfig::soft_watchdog_action_mode(),
     );
 }

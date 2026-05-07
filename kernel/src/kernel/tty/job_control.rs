@@ -88,10 +88,9 @@ impl JobControlState {
         }
     }
 
-    /// Get current state
     pub fn state(&self) -> JobControlStateType {
         let byte = self.state.load(Ordering::Acquire);
-        JobControlStateType::from_u8(byte).expect("invalid job control state")
+        JobControlStateType::from_u8(byte).unwrap_or(JobControlStateType::Active)
     }
 
     /// Set the process group state
@@ -143,8 +142,14 @@ pub struct ProcessGroupManager {
     /// All active sessions: sid → set of process group IDs
     sessions: BTreeMap<SessionId, alloc::vec::Vec<ProcessGroupId>>,
 
+    /// Reverse lookup from process group to the session it belongs to
+    group_to_session: BTreeMap<ProcessGroupId, SessionId>,
+
     /// Job control state per process group
     group_states: BTreeMap<ProcessGroupId, JobControlState>,
+
+    /// Map from process to its current process group
+    process_to_group: BTreeMap<ProcessId, ProcessGroupId>,
 }
 
 #[allow(dead_code)]
@@ -153,7 +158,9 @@ impl ProcessGroupManager {
         ProcessGroupManager {
             groups: BTreeMap::new(),
             sessions: BTreeMap::new(),
+            group_to_session: BTreeMap::new(),
             group_states: BTreeMap::new(),
+            process_to_group: BTreeMap::new(),
         }
     }
 
@@ -165,7 +172,20 @@ impl ProcessGroupManager {
     ) -> crate::interfaces::KernelResult<()> {
         self.groups.entry(pgrp).or_insert_with(alloc::vec::Vec::new).push(pid);
         self.group_states.entry(pgrp).or_insert_with(JobControlState::new);
+        self.process_to_group.insert(pid, pgrp);
         Ok(())
+    }
+
+    /// Get the current group for a process
+    pub fn get_current_group(&self, pid: ProcessId) -> Option<ProcessGroupId> {
+        self.process_to_group.get(&pid).copied()
+    }
+
+    /// Create a new process group with the given process as leader
+    pub fn create_group(&mut self, pid: ProcessId) -> crate::interfaces::KernelResult<ProcessGroupId> {
+        let pgrp = ProcessGroupId(pid);
+        self.create_or_join_group(pid, pgrp)?;
+        Ok(pgrp)
     }
 
     /// Create or join a session
@@ -174,7 +194,11 @@ impl ProcessGroupManager {
         pgrp: ProcessGroupId,
         sid: SessionId,
     ) -> crate::interfaces::KernelResult<()> {
-        self.sessions.entry(sid).or_insert_with(alloc::vec::Vec::new).push(pgrp);
+        let entry = self.sessions.entry(sid).or_insert_with(alloc::vec::Vec::new);
+        if !entry.contains(&pgrp) {
+            entry.push(pgrp);
+        }
+        self.group_to_session.insert(pgrp, sid);
         Ok(())
     }
 
@@ -188,6 +212,11 @@ impl ProcessGroupManager {
         self.groups.get(&pgrp).cloned()
     }
 
+    /// Get all process groups in a session.
+    pub fn groups_in_session(&self, sid: SessionId) -> alloc::vec::Vec<ProcessGroupId> {
+        self.sessions.get(&sid).cloned().unwrap_or_default()
+    }
+
     /// Remove a process from its group
     pub fn remove_process(&mut self, pid: ProcessId, pgrp: ProcessGroupId) {
         if let Some(procs) = self.groups.get_mut(&pgrp) {
@@ -195,30 +224,92 @@ impl ProcessGroupManager {
             if procs.is_empty() {
                 self.groups.remove(&pgrp);
                 self.group_states.remove(&pgrp);
+                if let Some(sid) = self.group_to_session.remove(&pgrp) {
+                    if let Some(groups) = self.sessions.get_mut(&sid) {
+                        groups.retain(|&group| group != pgrp);
+                        if groups.is_empty() {
+                            self.sessions.remove(&sid);
+                        }
+                    }
+                }
             }
         }
+        self.process_to_group.remove(&pid);
     }
 
-    /// Check if a process group is orphaned
-    /// (all parent processes in the session have exited)
-    pub fn is_orphaned(&self, _pgrp: ProcessGroupId) -> bool {
-        // TODO: Implement orphan detection logic
-        // An orphaned process group has no parent process that is member of the same session
-        false
+    pub fn is_orphaned(&self, pgrp: ProcessGroupId) -> bool {
+        #[cfg(feature = "posix_process")]
+        {
+            let members = match self.groups.get(&pgrp) {
+                Some(m) => m,
+                None => return true, // Empty group is technically orphaned or dead
+            };
+
+            let session_id = match self.group_to_session.get(&pgrp) {
+                Some(&sid) => sid,
+                None => return true, // Not in a session? Orphaned.
+            };
+
+            for &pid in members {
+                // Check parent of each member
+                if let Ok(parent_pid_val) = crate::modules::posix::process::parent_of(pid.0) {
+                    let parent_pid = ProcessId(parent_pid_val);
+                    
+                    // If parent is 0 (init/root), it's considered outside the session usually
+                    if parent_pid.0 == 0 {
+                        continue;
+                    }
+
+                    // A group is NOT orphaned if any member has a parent that:
+                    // 1. Is in the same session as the group
+                    // 2. Is NOT in the same process group
+
+                    // Find parent's session
+                    if let Ok(parent_sid_val) = crate::modules::posix::process::getsid(parent_pid.0) {
+                        let parent_sid = SessionId(ProcessId(parent_sid_val));
+                        
+                        if parent_sid == session_id {
+                            // Parent is in same session. Is it in the same group?
+                            if let Some(parent_pgrp) = self.process_to_group.get(&parent_pid) {
+                                if *parent_pgrp != pgrp {
+                                    // Found a parent in the same session but different group!
+                                    return false; 
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            true // No such parent found for any member
+        }
+        #[cfg(not(feature = "posix_process"))]
+        {
+            let _ = pgrp;
+            true
+        }
     }
 
     /// Deliver a signal to all processes in a group
     pub fn signal_group(
         &self,
         pgrp: ProcessGroupId,
-        _signal: u8,
+        signal: u8,
     ) -> crate::interfaces::KernelResult<usize> {
         if let Some(procs) = self.groups.get(&pgrp) {
             let mut delivered = 0;
-            for &_pid in procs {
-                // TODO: Actually deliver signal to process
-                // For now, just count
-                delivered += 1;
+            for &pid in procs {
+                #[cfg(all(feature = "posix_signal", feature = "posix_process"))]
+                {
+                    if crate::modules::posix::signal::kill(pid.0, signal as i32).is_ok() {
+                        delivered += 1;
+                    }
+                }
+
+                #[cfg(not(all(feature = "posix_signal", feature = "posix_process")))]
+                {
+                    let _ = (pid, signal);
+                    delivered += 1;
+                }
             }
             return Ok(delivered);
         }
@@ -271,6 +362,11 @@ impl Default for ProcessGroupManager {
     fn default() -> Self {
         Self::new()
     }
+}
+
+lazy_static::lazy_static! {
+    pub static ref GLOBAL_PROCESS_GROUP_MANAGER: crate::kernel::sync::IrqSafeMutex<ProcessGroupManager> = 
+        crate::kernel::sync::IrqSafeMutex::new(ProcessGroupManager::new());
 }
 
 #[cfg(all(test, target_os = "none"))]
@@ -349,12 +445,15 @@ mod tests {
     fn empty_group_cleanup() {
         let mut mgr = ProcessGroupManager::new();
         let pgrp = ProcessGroupId(ProcessId(1100));
+        let sid = SessionId(ProcessId(2200));
 
         mgr.create_or_join_group(ProcessId(1001), pgrp).unwrap();
+        mgr.create_or_join_session(pgrp, sid).unwrap();
         mgr.remove_process(ProcessId(1001), pgrp);
 
         let procs = mgr.processes_in_group(pgrp);
         assert!(procs.is_none()); // Group should be removed when empty
+        assert!(mgr.groups_in_session(sid).is_empty());
     }
 
     #[test_case]
@@ -365,5 +464,19 @@ mod tests {
 
         mgr.create_or_join_session(pgrp, sid).unwrap();
         // Sessions are valid if they don't error
+    }
+
+    #[test_case]
+    fn session_join_does_not_duplicate_groups() {
+        let mut mgr = ProcessGroupManager::new();
+        let pgrp = ProcessGroupId(ProcessId(1200));
+        let sid = SessionId(ProcessId(2200));
+
+        mgr.create_or_join_session(pgrp, sid).unwrap();
+        mgr.create_or_join_session(pgrp, sid).unwrap();
+
+        let groups = mgr.groups_in_session(sid);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0], pgrp);
     }
 }

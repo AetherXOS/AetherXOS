@@ -38,13 +38,16 @@ pub(super) fn try_enable_vmx() -> bool {
         return false;
     }
 
-    let mut cr4: u64;
-    unsafe {
-        core::arch::asm!("mov {}, cr4", out(reg) cr4, options(nostack, nomem));
-    }
-    cr4 |= 1 << 13;
-    unsafe {
-        core::arch::asm!("mov cr4, {}", in(reg) cr4, options(nostack, nomem));
+    #[cfg(target_os = "none")]
+    {
+        let mut cr4: u64 = 0;
+        unsafe {
+            core::arch::asm!("mov {}, cr4", out(reg) cr4, options(nostack, nomem));
+        }
+        cr4 |= 1 << 13;
+        unsafe {
+            core::arch::asm!("mov cr4, {}", in(reg) cr4, options(nostack, nomem));
+        }
     }
 
     true
@@ -67,12 +70,13 @@ pub(super) fn try_enter_vmx_operation() -> bool {
     }
 
     let vmxon_phys = support::virt_to_phys(vmxon_region_ptr() as usize);
-    let Some(vmxon_phys) = vmxon_phys else {
+    let Some(_vmxon_phys) = vmxon_phys else {
         crate::klog_warn!("VMXON skipped: could not translate VMXON region to physical address");
         return false;
     };
 
-    let mut failed: u8;
+    let mut failed: u8 = 1;
+    #[cfg(target_os = "none")]
     unsafe {
         core::arch::asm!(
             "vmxon [{ptr}]",

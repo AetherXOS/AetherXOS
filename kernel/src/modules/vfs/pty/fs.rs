@@ -65,11 +65,11 @@ impl FileSystem for PtsFs {
                 mode: 0o040755,
                 uid: 0,
                 gid: 5,
-                atime: 0,
-                mtime: 0,
-                ctime: 0,
-                blksize: 4096,
+                atime: Default::default(),
+                mtime: Default::default(),
+                ctime: Default::default(),
                 blocks: 0,
+                ..Default::default()
             });
         }
 
@@ -78,11 +78,11 @@ impl FileSystem for PtsFs {
             mode: 0o020620,
             uid: 0,
             gid: 5,
-            atime: 0,
-            mtime: 0,
-            ctime: 0,
-            blksize: 4096,
+            atime: Default::default(),
+            mtime: Default::default(),
+            ctime: Default::default(),
             blocks: 0,
+            ..Default::default()
         })
     }
 }

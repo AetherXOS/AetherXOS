@@ -49,9 +49,17 @@ pub fn sys_linux_chroot(pathname: UserPtr<u8>) -> usize {
         if path.is_empty() { return linux_inval(); }
 
         // In a true production system, we'd verify path existence and directory status.
-        // For now, we update our process-global root path.
         let mut root = CHROOT_PATH.lock();
-        *root = path;
+        *root = path.clone(); // need to clone for audit log
+
+        let audit_id = crate::modules::linux_compat::audit::AuditTraceId::new();
+        crate::modules::linux_compat::audit::audit_log(
+            audit_id,
+            "NS",
+            "CHROOT",
+            &path,
+        );
+        
         0
     })
 }
@@ -64,7 +72,16 @@ pub fn sys_linux_pivot_root(new_root: UserPtr<u8>, old_put: UserPtr<u8>) -> usiz
         // pivot_root is complex and usually requires MS_MOVE type logic.
         // For production-grade shim, we accept it if paths are valid.
         let mut root = CHROOT_PATH.lock();
-        *root = _new;
+        *root = _new.clone();
+
+        let audit_id = crate::modules::linux_compat::audit::AuditTraceId::new();
+        crate::modules::linux_compat::audit::audit_log(
+            audit_id,
+            "NS",
+            "PIVOT_ROOT",
+            &alloc::format!("new={} old={}", _new, _old),
+        );
+        
         0
     })
 }
@@ -227,6 +244,15 @@ pub fn sys_linux_mount(
     if (flags & MS_REMOUNT) != 0 {
         if let Some(id) = crate::kernel::vfs_control::mount_id_by_path(target_path.as_bytes()) {
             let _ = crate::kernel::vfs_control::set_mount_readonly(id, (flags & MS_RDONLY) != 0);
+            
+            let audit_id = crate::modules::linux_compat::audit::AuditTraceId::new();
+            crate::modules::linux_compat::audit::audit_log(
+                audit_id,
+                "VFS",
+                "REMOUNT",
+                &target_path,
+            );
+            
             return 0;
         }
         return linux_errno(crate::modules::posix_consts::errno::ENOENT);
@@ -240,6 +266,15 @@ pub fn sys_linux_mount(
             Ok(id) => {
                 let _ =
                     crate::kernel::vfs_control::set_mount_readonly(id, (flags & MS_RDONLY) != 0);
+                    
+                let audit_id = crate::modules::linux_compat::audit::AuditTraceId::new();
+                crate::modules::linux_compat::audit::audit_log(
+                    audit_id,
+                    "VFS",
+                    "MOUNT",
+                    &target_path,
+                );
+                
                 0
             }
             Err(_) => linux_inval(),
@@ -253,7 +288,16 @@ pub fn sys_linux_umount2(target: UserPtr<u8>, _flags: usize) -> usize {
         Err(e) => return e,
     };
     match crate::kernel::vfs_control::unmount_by_path(path.as_bytes()) {
-        Ok(_) => 0,
+        Ok(_) => {
+            let audit_id = crate::modules::linux_compat::audit::AuditTraceId::new();
+            crate::modules::linux_compat::audit::audit_log(
+                audit_id,
+                "VFS",
+                "UMOUNT",
+                &path,
+            );
+            0
+        }
         Err(_) => linux_errno(crate::modules::posix_consts::errno::EINVAL),
     }
 }

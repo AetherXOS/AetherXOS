@@ -3,24 +3,12 @@ use std::env;
 
 use crate::constants::{cargo as cargo_consts, test as test_consts, tools};
 use crate::utils::{cargo, process};
+use crate::types::TestTier;
 
 const CLIPPY_LINT_ARGS: &[&str] = &[
-    "-A",
-    "warnings",
-    "-A",
-    "unused",
-    "-A",
-    "dead_code",
-    "-A",
-    "unused_imports",
-    "-A",
-    "unused_variables",
-    "-A",
-    "unused_mut",
-    "-A",
-    "unsafe_op_in_unsafe_fn",
-    "-A",
-    "clippy::all",
+    "-A", "warnings", "-A", "unused", "-A", "dead_code", "-A", "unused_imports",
+    "-A", "unused_variables", "-A", "unused_mut", "-A", "unsafe_op_in_unsafe_fn",
+    "-A", "clippy::all",
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -39,9 +27,9 @@ struct CommandSpec {
     availability: ToolAvailability,
 }
 
-pub fn run(tier: &str, ci: bool) -> Result<()> {
+pub fn run(tier: TestTier, ci: bool) -> Result<()> {
     let host = cargo::detect_host_triple()?;
-    let specs = tier_specs(tier, ci, &host)?;
+    let specs = tier_specs(tier, ci, &host);
 
     for spec in specs {
         run_spec(&spec)?;
@@ -51,24 +39,18 @@ pub fn run(tier: &str, ci: bool) -> Result<()> {
 }
 
 pub fn run_all(ci: bool) -> Result<()> {
-    for tier in test_consts::all_tiers() {
+    use strum::IntoEnumIterator;
+    for tier in TestTier::iter() {
         run(tier, ci)?;
     }
     Ok(())
 }
 
-fn tier_specs(tier: &str, ci: bool, host: &str) -> Result<Vec<CommandSpec>> {
-    if !test_consts::is_valid_tier(tier) {
-        bail!(
-            "unknown test phase: {tier}. Supported: {:?}",
-            test_consts::all_tiers()
-        );
-    }
+fn tier_specs(tier: TestTier, ci: bool, host: &str) -> Vec<CommandSpec> {
     match tier {
-        test_consts::TIER_FAST => Ok(fast_specs(ci, host)),
-        test_consts::TIER_INTEGRATION => Ok(integration_specs(ci, host)),
-        test_consts::TIER_NIGHTLY => Ok(nightly_specs(ci, host)),
-        _ => unreachable!(),
+        TestTier::Fast => fast_specs(ci, host),
+        TestTier::Integration => integration_specs(ci, host),
+        TestTier::Nightly => nightly_specs(ci, host),
     }
 }
 

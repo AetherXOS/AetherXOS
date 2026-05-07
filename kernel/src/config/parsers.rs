@@ -49,13 +49,15 @@ impl PanicAction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WatchdogAction {
     Halt,
-    LogOnly,
+    Panic,
+    Log,
 }
 
 impl WatchdogAction {
     pub fn from_str(value: &str) -> Self {
         match value.trim() {
-            value if value.eq_ignore_ascii_case("LogOnly") => Self::LogOnly,
+            value if value.eq_ignore_ascii_case("Panic") => Self::Panic,
+            value if value.eq_ignore_ascii_case("Log") => Self::Log,
             _ => Self::Halt,
         }
     }
@@ -64,14 +66,27 @@ impl WatchdogAction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AffinityPolicy {
     PreferLocal,
+    StrictLocal,
+    Balanced,
     Spread,
 }
 
 impl AffinityPolicy {
     pub fn from_str(value: &str) -> Self {
         match value.trim() {
+            value if value.eq_ignore_ascii_case("StrictLocal") => Self::StrictLocal,
+            value if value.eq_ignore_ascii_case("Balanced") => Self::Balanced,
             value if value.eq_ignore_ascii_case("Spread") => Self::Spread,
             _ => Self::PreferLocal,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::PreferLocal => "PreferLocal",
+            Self::StrictLocal => "StrictLocal",
+            Self::Balanced => "Balanced",
+            Self::Spread => "Spread",
         }
     }
 }

@@ -5,6 +5,7 @@ use x86_64::registers::rflags::RFlags;
 
 /// Initialize Syscall MSRs
 pub fn init(selectors: &super::gdt::Selectors) {
+    #[cfg(target_os = "none")]
     unsafe {
         // 1. Enable SYSCALL/SYSRET instruction via EFER.SCE
         Efer::update(|flags| {
@@ -29,15 +30,21 @@ pub fn init(selectors: &super::gdt::Selectors) {
 
         let _ = Star::write(user_code, user_data, kernel_code, kernel_data);
     }
+    #[cfg(not(target_os = "none"))]
+    {
+        let _ = selectors;
+    }
 }
 
 /// Raw Syscall Entry Point (Ring 3 -> Ring 0)
+#[cfg(target_os = "none")]
 #[unsafe(naked)]
 pub unsafe extern "C" fn syscall_handler() {
     naked_asm!(
         "swapgs",                  // Switch to Kernel GS Base (CpuLocal)
         "mov gs:[{scratch}], rsp", // Save User Stack Pointer to CpuLocal.scratch
         "mov rsp, gs:[{kstack}]",  // Load Kernel Stack Pointer from CpuLocal.kernel_stack_top
+        "push gs:[{scratch}]", // User RSP
         "push rbp",
         "push rbx",
         "push r12",
@@ -52,7 +59,7 @@ pub unsafe extern "C" fn syscall_handler() {
         "push rax", // original rax (often used for syscall result)
 
         // Pass a pointer to the Frame on the stack as arg 10 (System V ABI)
-        // Frame starts at RSP: [rax, rdx, rsi, rdi, rcx, r11, r15, r14, r13, r12, rbx, rbp]
+        // Frame starts at RSP: [rax, rdx, rsi, rdi, rcx, r11, r15, r14, r13, r12, rbx, rbp, rsp]
         "sub rsp, 32",
         "mov [rsp], rax",              // arg 7: syscall_id
         "mov rax, [rsp + 64]",         // [rsp+64] is rcx (user_rip)
@@ -79,6 +86,7 @@ pub unsafe extern "C" fn syscall_handler() {
         "pop r12",
         "pop rbx",
         "pop rbp",
+        "pop gs:[{scratch}]", // Restore User RSP to scratch
 
         "mov rsp, gs:[{scratch}]",
         "swapgs",
@@ -86,4 +94,9 @@ pub unsafe extern "C" fn syscall_handler() {
         scratch = const x86::CPU_LOCAL_SCRATCH,
         kstack = const x86::CPU_LOCAL_KSTACK_TOP,
     );
+}
+
+#[cfg(not(target_os = "none"))]
+pub unsafe extern "C" fn syscall_handler() {
+    panic!("syscall_handler called on host");
 }

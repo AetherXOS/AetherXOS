@@ -1,4 +1,5 @@
 pub(crate) mod common;
+pub mod lockfree_ring;
 pub mod logind;
 pub mod pipe;
 
@@ -41,6 +42,7 @@ pub use futex::Futex;
 #[cfg(feature = "ipc_message_passing")]
 pub use message_passing::MessagePassing;
 pub use pipe::{PipeEnd, PipeId, PipeRegistry, PipeStats};
+pub use lockfree_ring::{lockfree_ring_stats, LockFreeRingBuffer, LockFreeRingStats};
 pub use logind::{mark_session_active, register_session, session_snapshot};
 #[cfg(feature = "ipc_ring_buffer")]
 pub use ring_buffer::RingBuffer;
@@ -58,7 +60,8 @@ pub use unix_socket::{unix_bind, unix_connect, UnixSocket};
 pub use zero_copy::ZeroCopy;
 
 pub mod selector {
-    use super::*;
+    #[cfg(feature = "ipc_ring_buffer")]
+    use super::ring_buffer::RingBuffer;
 
     #[cfg(all(feature = "ipc_zero_copy", param_ipc = "ZeroCopy"))]
     pub type ActiveIpc = ZeroCopy;
@@ -70,10 +73,10 @@ pub mod selector {
     pub type ActiveIpc = SignalOnly;
 
     #[cfg(all(feature = "ipc_ring_buffer", param_ipc = "Pipes"))]
-    pub type ActiveIpc = RingBuffer;
+    pub type ActiveIpc = RingBuffer<u8>;
 
     #[cfg(all(feature = "ipc_ring_buffer", param_ipc = "RingBuffer"))]
-    pub type ActiveIpc = RingBuffer;
+    pub type ActiveIpc = RingBuffer<u8>;
 
     #[cfg(all(feature = "ipc_futex", param_ipc = "Futex"))]
     pub type ActiveIpc = Futex;

@@ -105,30 +105,49 @@ pub struct PlatformStatus {
 }
 
 pub fn status() -> PlatformStatus {
-    let virt = super::virt::status();
-    let iommu = crate::hal::iommu::stats();
-    let acpi_present = super::acpi_rsdp_addr().is_some();
-    let dtb_present = super::dtb_addr().is_some();
+    let virt = {
+        let v = super::virt::status();
+        v
+    };
+    let iommu = {
+        let i = crate::hal::iommu::stats();
+        i
+    };
+    let acpi_present = {
+        let v = super::acpi_rsdp_addr().is_some();
+        v
+    };
+    let dtb_present = {
+        let v = super::dtb_addr().is_some();
+        v
+    };
     let kind = classify_platform(acpi_present, virt.caps.hypervisor_present);
     let virt_status = support::virt_platform_status(virt, iommu, super::apic::is_x2apic());
-    match kind {
-        PlatformKind::Pc => pc::status(acpi_present, dtb_present, virt, iommu),
-        PlatformKind::VirtualMachine => virt::status(acpi_present, dtb_present, virt, iommu),
-        PlatformKind::BareMetalUnknown => support::compose_platform_status(
-            support::PlatformBaseStatus {
-                kind,
-                acpi_present,
-                dtb_present,
-                hypervisor_present: virt.caps.hypervisor_present,
-                iommu_ready: iommu.initialized && iommu.hardware_mode,
-                iommu_backend: iommu.backend,
-                cpu_count: super::smp::cpu_count(),
-                ap_online: super::smp::ap_online_count(),
-                x2apic_supported: super::apic::supports_x2apic(),
-                x2apic_enabled: super::apic::is_x2apic(),
-                vm_launch_ready: virt.vm_launch_ready,
-            },
-            virt_status,
-        ),
-    }
+    let result = match kind {
+        PlatformKind::Pc => {
+            pc::status(acpi_present, dtb_present, virt, iommu, virt_status)
+        }
+        PlatformKind::VirtualMachine => {
+            virt::status(acpi_present, dtb_present, virt, iommu)
+        }
+        PlatformKind::BareMetalUnknown => {
+            support::compose_platform_status(
+                support::PlatformBaseStatus {
+                    kind,
+                    acpi_present,
+                    dtb_present,
+                    hypervisor_present: virt.caps.hypervisor_present,
+                    iommu_ready: iommu.initialized && iommu.hardware_mode,
+                    iommu_backend: iommu.backend,
+                    cpu_count: super::smp::cpu_count(),
+                    ap_online: super::smp::ap_online_count(),
+                    x2apic_supported: super::apic::supports_x2apic(),
+                    x2apic_enabled: super::apic::is_x2apic(),
+                    vm_launch_ready: virt.vm_launch_ready,
+                },
+                virt_status,
+            )
+        }
+    };
+    result
 }

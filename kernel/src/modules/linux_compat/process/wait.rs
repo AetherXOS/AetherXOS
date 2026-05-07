@@ -27,7 +27,7 @@ pub fn sys_linux_wait4(
 
         let res = if upid == -1 {
             match crate::modules::posix::process::wait_any_status(nohang) {
-                Ok(Some((p, st))) => {
+                Ok(Some((p, st, _ru))) => {
                     let rusage = crate::modules::posix::process::getrusage(RUSAGE_CHILDREN as i32).unwrap_or(zero_rusage);
                     Ok(Some((p, st, rusage)))
                 }

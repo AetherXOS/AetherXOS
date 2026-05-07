@@ -30,7 +30,7 @@ lazy_static! {
     });
 }
 
-pub fn semget(key: SemKey, nsems: i32, flags: u32) -> KernelResult<SemId> {
+pub fn semget(key: SemKey, nsems: i32, _flags: u32) -> KernelResult<SemId> {
     let mut state = SEM_MANAGER.lock();
 
     if key != IPC_PRIVATE {
@@ -70,9 +70,9 @@ pub fn semop(id: SemId, ops: &[(u16, i16, i16)]) -> KernelResult<()> {
     Ok(())
 }
 
-pub fn semctl(id: SemId, semnum: i32, cmd: i32, arg: usize) -> KernelResult<usize> {
+pub fn semctl(id: SemId, _semnum: i32, cmd: i32, _arg: usize) -> KernelResult<usize> {
     let mut state = SEM_MANAGER.lock();
-    let set = state.sets.get_mut(&id).ok_or(KernelError::NotFound)?;
+    let _set = state.sets.get_mut(&id).ok_or(KernelError::NotFound)?;
 
     match cmd {
         0 => Ok(0), // IPC_RMID (hypothetical)

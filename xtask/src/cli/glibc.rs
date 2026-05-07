@@ -33,3 +33,9 @@ pub enum GlibcAction {
         strict: bool,
     },
 }
+
+impl crate::utils::executable::Executable for GlibcAction {
+    fn execute(&self) -> anyhow::Result<()> {
+        crate::commands::validation::glibc::execute(self)
+    }
+}

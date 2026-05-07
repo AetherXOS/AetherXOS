@@ -16,9 +16,7 @@ pub fn enqueue_job(state: &AppState, action: &str, priority: &str, source: &str)
     let mut inner = state.write();
 
     // Verify action exists
-    if inner.action_by_id(action).is_none() {
-        return None;
-    }
+    inner.action_by_id(action)?;
 
     if inner.queue.len() as u32 >= inner.max_queue {
         return None;
@@ -265,7 +263,7 @@ async fn run_job(state: AppState, job_id: String, cmd: String, args: Vec<String>
 }
 
 async fn execute_pwsh(args: &[String]) -> (Option<i32>, Vec<String>, Option<String>) {
-    let pwsh_bin = if cfg!(windows) { "pwsh" } else { "pwsh" };
+    let pwsh_bin = "pwsh";
 
     let child_result = tokio::process::Command::new(pwsh_bin)
         .args(args)

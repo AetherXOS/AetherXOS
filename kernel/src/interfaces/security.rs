@@ -271,6 +271,12 @@ pub struct ResourceLimits {
     pub gid: u32,
 }
 
+impl Default for ResourceLimits {
+    fn default() -> Self {
+        Self::unlimited()
+    }
+}
+
 impl ResourceLimits {
     /// Unlimited — no restrictions.
     pub const fn unlimited() -> Self {

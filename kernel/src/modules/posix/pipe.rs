@@ -1,23 +1,28 @@
-use spin::Mutex;
 
-use crate::modules::posix::PosixErrno;
-
-const PIPE_IO_SPIN_BUDGET: usize = 4096;
-
-use crate::modules::vfs::types::FileStats;
+use crate::modules::vfs::types::{FileStats, VfsTimespec};
 use crate::modules::vfs::File;
 use crate::modules::vfs::SeekFrom;
 use alloc::sync::Arc;
 use core::any::Any;
 
+use crate::kernel::sync::ring_buffer::RingBuffer;
+use spin::Mutex;
+use crate::modules::posix::PosixErrno;
+
 struct PipeState {
-    rb: crate::modules::ipc::RingBuffer,
+    rb: RingBuffer<u8>,
     readers: u32,
     writers: u32,
 }
 
+struct SharedPipe {
+    state: Mutex<PipeState>,
+    read_waiters: crate::kernel::sync::WaitQueue,
+    write_waiters: crate::kernel::sync::WaitQueue,
+}
+
 struct PipeFile {
-    state: Arc<Mutex<PipeState>>,
+    shared: Arc<SharedPipe>,
     read_end: bool,
     nonblock: bool,
 }
@@ -28,51 +33,52 @@ impl File for PipeFile {
             return Err("not a read end");
         }
 
-        for _ in 0..PIPE_IO_SPIN_BUDGET {
-            let state = self.state.lock();
-            if let Some(n) = state.rb.receive_internal(buf) {
-                return Ok(n);
+        loop {
+            let state = self.shared.state.lock();
+            let count = state.rb.pop_slice(buf);
+            
+            if count > 0 {
+                // Wake up writers that might be waiting for space
+                self.shared.write_waiters.wake_all();
+                return Ok(count);
             }
-            if state.writers == 0 {
-                return Ok(0);
+
+            if self.nonblock || state.writers == 0 {
+                return Ok(0); // EOF if no writers left
             }
-            if self.nonblock {
-                return Err("would block");
-            }
+
+            // Block until data is available
             drop(state);
-            crate::kernel::rt_preemption::request_forced_reschedule();
+            crate::kernel::task::suspend_current_task(&self.shared.read_waiters);
         }
-        Err("timeout")
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, &'static str> {
         if self.read_end {
             return Err("not a write end");
         }
-        if buf.is_empty() {
-            return Ok(0);
-        }
 
-        for _ in 0..PIPE_IO_SPIN_BUDGET {
-            let state = self.state.lock();
+        loop {
+            let state = self.shared.state.lock();
             if state.readers == 0 {
                 return Err("broken pipe");
             }
 
-            let before = state.rb.stats();
-            state.rb.send_internal(buf);
-            let after = state.rb.stats();
-            if after.send_enqueued > before.send_enqueued {
-                return Ok(buf.len());
+            let written = state.rb.push_slice(buf);
+            if written > 0 {
+                // Wake up readers that might be waiting for data
+                self.shared.read_waiters.wake_all();
+                return Ok(written);
             }
 
             if self.nonblock {
-                return Err("would block");
+                return Err("resource temporarily unavailable");
             }
+
+            // Block until space is available
             drop(state);
-            crate::kernel::rt_preemption::request_forced_reschedule();
+            crate::kernel::task::suspend_current_task(&self.shared.write_waiters);
         }
-        Err("timeout")
     }
 
     fn seek(&mut self, _pos: SeekFrom) -> Result<u64, &'static str> {
@@ -80,7 +86,7 @@ impl File for PipeFile {
     }
 
     fn poll_events(&self) -> crate::modules::vfs::types::PollEvents {
-        let state = self.state.lock();
+        let state = self.shared.state.lock();
         let mut revents = 0u32;
         if self.read_end {
             if state.rb.has_data() {
@@ -102,15 +108,18 @@ impl File for PipeFile {
 
     fn stat(&self) -> Result<FileStats, &'static str> {
         Ok(FileStats {
-            size: 0,
-            mode: 0o010666, // S_IFIFO | 0666
+            size: self.shared.state.lock().rb.len() as u64,
+            mode: 0o10666, // S_IFIFO | 0666
             uid: 0,
             gid: 0,
-            atime: 0,
-            mtime: 0,
-            ctime: 0,
+            nlink: 1,
+            atime: VfsTimespec::default(),
+            mtime: VfsTimespec::default(),
+            ctime: VfsTimespec::default(),
+            btime: VfsTimespec::default(),
             blksize: 4096,
             blocks: 0,
+            ino: 0,
         })
     }
 
@@ -124,7 +133,7 @@ impl File for PipeFile {
 
 impl Drop for PipeFile {
     fn drop(&mut self) {
-        let mut state = self.state.lock();
+        let mut state = self.shared.state.lock();
         if self.read_end {
             state.readers = state.readers.saturating_sub(1);
         } else {
@@ -138,19 +147,23 @@ pub fn pipe() -> Result<(u32, u32), PosixErrno> {
 }
 
 pub fn pipe2(nonblock: bool) -> Result<(u32, u32), PosixErrno> {
-    let state = Arc::new(Mutex::new(PipeState {
-        rb: crate::modules::ipc::RingBuffer::new(),
-        readers: 1,
-        writers: 1,
-    }));
+    let shared = Arc::new(SharedPipe {
+        state: Mutex::new(PipeState {
+            rb: RingBuffer::new(65536), // Linux default 64KB
+            readers: 1,
+            writers: 1,
+        }),
+        read_waiters: crate::kernel::sync::WaitQueue::new(),
+        write_waiters: crate::kernel::sync::WaitQueue::new(),
+    });
 
     let rf = PipeFile {
-        state: state.clone(),
+        shared: shared.clone(),
         read_end: true,
         nonblock,
     };
     let wf = PipeFile {
-        state,
+        shared,
         read_end: false,
         nonblock,
     };

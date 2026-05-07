@@ -72,39 +72,19 @@ pub(super) fn getcpu() -> Result<(u32, u32), PosixErrno> {
 
 pub(super) fn getrusage(who: i32) -> Result<PosixRusage, PosixErrno> {
     match who {
-        crate::modules::posix_consts::process::RUSAGE_SELF
-        | crate::modules::posix_consts::process::RUSAGE_CHILDREN => {}
-        _ => return Err(PosixErrno::Invalid),
-    }
-
-    let tick = crate::kernel::watchdog::global_tick();
-
-    #[cfg(feature = "process_abstraction")]
-    let (ru_minflt, ru_majflt) = {
-        let pid = getpid();
-        if pid == 0 {
-            (0u64, 0u64)
-        } else if let Some((_regions, pages)) =
-            crate::kernel::launch::process_mapping_state(crate::interfaces::task::ProcessId(pid))
-        {
-            let p = pages as u64;
-            (p, p / 8)
-        } else {
-            (0u64, 0u64)
+        crate::modules::posix_consts::process::RUSAGE_SELF => {
+            Ok(PosixRusage::current_self())
         }
-    };
-
-    #[cfg(not(feature = "process_abstraction"))]
-    let (ru_minflt, ru_majflt) = (0u64, 0u64);
-
-    Ok(PosixRusage {
-        ru_utime_ticks: tick,
-        ru_stime_ticks: 0,
-        ru_maxrss: ru_minflt.saturating_mul(4096),
-        ru_minflt,
-        ru_majflt,
-        ru_nswap: 0,
-    })
+        crate::modules::posix_consts::process::RUSAGE_CHILDREN => {
+            let pid = getpid();
+            if pid == 0 {
+                return Ok(PosixRusage::default());
+            }
+            let reaped = REAPED_CHILDREN_RUSAGE.lock();
+            Ok(reaped.get(&pid).copied().unwrap_or(PosixRusage::default()))
+        }
+        _ => Err(PosixErrno::Invalid),
+    }
 }
 
 pub(super) fn getpgid_of(pid: usize) -> Result<usize, PosixErrno> {
@@ -143,7 +123,7 @@ pub(super) fn pidfd_get_pid(pidfd: u32) -> Result<usize, PosixErrno> {
 
 pub(super) fn pidfd_send_signal(pidfd: u32, signal: i32) -> Result<(), PosixErrno> {
     let pid = pidfd_get_pid(pidfd)?;
-    kill(pid, signal)
+    super::lifecycle_ops::kill(pid, signal)
 }
 
 pub(super) fn pidfd_close(pidfd: u32) -> Result<(), PosixErrno> {

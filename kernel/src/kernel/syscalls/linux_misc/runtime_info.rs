@@ -1,5 +1,5 @@
 #[cfg(not(feature = "linux_compat"))]
-use super::{linux_errno, with_user_write_bytes};
+use crate::kernel::syscalls::{linux_errno, with_user_write_bytes};
 #[cfg(not(feature = "linux_compat"))]
 use core::sync::atomic::{AtomicU64, Ordering};
 
@@ -59,7 +59,7 @@ fn next_getrandom_word(state: &mut u64) -> u64 {
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_gettimeofday(tv_ptr: usize) -> usize {
+pub fn sys_linux_gettimeofday(tv_ptr: usize) -> usize {
     #[cfg(feature = "posix_time")]
     {
         let spec = match crate::modules::posix::time::clock_gettime_raw(0) {
@@ -70,19 +70,19 @@ pub(super) fn sys_linux_gettimeofday(tv_ptr: usize) -> usize {
             dst[0..8].copy_from_slice(&spec.sec.to_ne_bytes());
             let usec = (spec.nsec as i64) / 1000;
             dst[8..16].copy_from_slice(&usec.to_ne_bytes());
-            0
+            0usize
         })
         .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
     }
     #[cfg(not(feature = "posix_time"))]
     {
         let _ = tv_ptr;
-        0
+        0usize
     }
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_time(tloc: usize) -> usize {
+pub fn sys_linux_time(tloc: usize) -> usize {
     #[cfg(feature = "posix_time")]
     {
         let spec = match crate::modules::posix::time::clock_gettime_raw(0) {
@@ -93,7 +93,7 @@ pub(super) fn sys_linux_time(tloc: usize) -> usize {
         if tloc != 0 {
             let wrote = with_user_write_bytes(tloc, 8, |dst| {
                 dst.copy_from_slice(&(secs as u64).to_ne_bytes());
-                0
+                0usize
             });
             if wrote.is_err() {
                 return linux_errno(crate::modules::posix_consts::errno::EFAULT);
@@ -104,17 +104,17 @@ pub(super) fn sys_linux_time(tloc: usize) -> usize {
     #[cfg(not(feature = "posix_time"))]
     {
         let _ = tloc;
-        0
+        0usize
     }
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_getcpu(cpu_ptr: usize, node_ptr: usize) -> usize {
+pub fn sys_linux_getcpu(cpu_ptr: usize, node_ptr: usize) -> usize {
     let cpu_id = crate::kernel::cpu_local::CpuLocal::try_id().unwrap_or(0) as u32;
     if cpu_ptr != 0 {
         let wrote = with_user_write_bytes(cpu_ptr, 4, |dst| {
             dst.copy_from_slice(&cpu_id.to_ne_bytes());
-            0
+            0usize
         });
         if wrote.is_err() {
             return linux_errno(crate::modules::posix_consts::errno::EFAULT);
@@ -123,7 +123,7 @@ pub(super) fn sys_linux_getcpu(cpu_ptr: usize, node_ptr: usize) -> usize {
     if node_ptr != 0 {
         let wrote = with_user_write_bytes(node_ptr, 4, |dst| {
             dst.copy_from_slice(&0u32.to_ne_bytes());
-            0
+            0usize
         });
         if wrote.is_err() {
             return linux_errno(crate::modules::posix_consts::errno::EFAULT);
@@ -133,7 +133,7 @@ pub(super) fn sys_linux_getcpu(cpu_ptr: usize, node_ptr: usize) -> usize {
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_sysinfo(info_ptr: usize) -> usize {
+pub fn sys_linux_sysinfo(info_ptr: usize) -> usize {
     let total = core::mem::size_of::<LinuxSysinfo>();
     with_user_write_bytes(info_ptr, total, |dst| {
         dst.fill(0);
@@ -147,13 +147,13 @@ pub(super) fn sys_linux_sysinfo(info_ptr: usize) -> usize {
         dst[72..74].copy_from_slice(&procs.to_ne_bytes());
         let mem_unit: u32 = 1;
         dst[84..88].copy_from_slice(&mem_unit.to_ne_bytes());
-        0
+        0usize
     })
     .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_getrandom(buf_ptr: usize, buflen: usize, _flags: usize) -> usize {
+pub fn sys_linux_getrandom(buf_ptr: usize, buflen: usize, _flags: usize) -> usize {
     if buflen == 0 {
         return 0;
     }

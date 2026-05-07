@@ -3,7 +3,7 @@
 
 use super::{ConfigKeySpec, ConfigSetError, ConfigValue, ConfigValueKind, KernelConfig};
 
-pub(super) const AUTO_RUNTIME_CONFIG_CATEGORIES: &[&str] = &["ahci", "capability", "cfs", "core", "credential", "debug", "devfs", "diskfs", "driver", "e1000", "edf", "exec", "ipc", "irq", "irqsafe", "launch", "libnet", "library", "log", "mlfq", "module", "multi", "network", "nvme", "power", "proc", "rt", "runtime", "sched", "scheduler", "security", "serial", "strict", "syscall", "sysctl", "telemetry", "userspace", "vfs", "virtualization", "watchdog"];
+pub(super) const AUTO_RUNTIME_CONFIG_CATEGORIES: &[&str] = &["ahci", "capability", "cfs", "core", "credential", "debug", "devfs", "diskfs", "driver", "e1000", "edf", "exec", "ipc", "irq", "irqsafe", "launch", "libnet", "library", "log", "mlfq", "module", "multi", "network", "nvme", "power", "proc", "rebalance", "rt", "runtime", "sched", "security", "serial", "stack", "strict", "syscall", "sysctl", "telemetry", "userspace", "vfs", "virtualization", "watchdog"];
 
 pub(super) const AUTO_RUNTIME_CONFIG_KEYS: &[ConfigKeySpec] = &[
     ConfigKeySpec { key: "ahci_io_timeout_spins", value_kind: ConfigValueKind::Usize, description: "auto:set_ahci_io_timeout_spins" },
@@ -94,6 +94,7 @@ pub(super) const AUTO_RUNTIME_CONFIG_KEYS: &[ConfigKeySpec] = &[
     ConfigKeySpec { key: "nvme_poll_timeout_spins", value_kind: ConfigValueKind::Usize, description: "auto:set_nvme_poll_timeout_spins" },
     ConfigKeySpec { key: "power_runqueue_saturation_limit", value_kind: ConfigValueKind::Usize, description: "auto:set_power_runqueue_saturation_limit" },
     ConfigKeySpec { key: "proc_config_api_exposed", value_kind: ConfigValueKind::Bool, description: "auto:set_proc_config_api_exposed" },
+    ConfigKeySpec { key: "rebalance_imbalance_threshold", value_kind: ConfigValueKind::Usize, description: "auto:set_rebalance_imbalance_threshold" },
     ConfigKeySpec { key: "rt_deadline_burst_threshold", value_kind: ConfigValueKind::Usize, description: "auto:set_rt_deadline_burst_threshold" },
     ConfigKeySpec { key: "rt_force_reschedule_min_ticks", value_kind: ConfigValueKind::Usize, description: "auto:set_rt_force_reschedule_min_ticks" },
     ConfigKeySpec { key: "rt_group_reservation_enabled", value_kind: ConfigValueKind::Bool, description: "auto:set_rt_group_reservation_enabled" },
@@ -107,9 +108,9 @@ pub(super) const AUTO_RUNTIME_CONFIG_KEYS: &[ConfigKeySpec] = &[
     ConfigKeySpec { key: "sched_lottery_lcg_multiplier", value_kind: ConfigValueKind::U64, description: "auto:set_sched_lottery_lcg_multiplier" },
     ConfigKeySpec { key: "sched_lottery_min_tickets_per_task", value_kind: ConfigValueKind::U64, description: "auto:set_sched_lottery_min_tickets_per_task" },
     ConfigKeySpec { key: "sched_lottery_tickets_per_priority_level", value_kind: ConfigValueKind::U64, description: "auto:set_sched_lottery_tickets_per_priority_level" },
-    ConfigKeySpec { key: "scheduler_trace_sample_rate", value_kind: ConfigValueKind::U64, description: "auto:set_scheduler_trace_sample_rate" },
     ConfigKeySpec { key: "security_enforcement_enabled", value_kind: ConfigValueKind::Bool, description: "auto:set_security_enforcement_enabled" },
     ConfigKeySpec { key: "serial_early_debug_enabled", value_kind: ConfigValueKind::Bool, description: "auto:set_serial_early_debug_enabled" },
+    ConfigKeySpec { key: "stack_size", value_kind: ConfigValueKind::Usize, description: "auto:set_stack_size" },
     ConfigKeySpec { key: "strict_optional_features_enabled", value_kind: ConfigValueKind::Bool, description: "auto:set_strict_optional_features_enabled" },
     ConfigKeySpec { key: "syscall_max_path_len", value_kind: ConfigValueKind::Usize, description: "auto:set_syscall_max_path_len" },
     ConfigKeySpec { key: "sysctl_api_exposed", value_kind: ConfigValueKind::Bool, description: "auto:set_sysctl_api_exposed" },
@@ -243,6 +244,7 @@ pub(super) fn auto_set_by_stem(stem: &str, value: Option<ConfigValue>) -> Result
         "nvme_poll_timeout_spins" => super::set_usize(value, KernelConfig::set_nvme_poll_timeout_spins),
         "power_runqueue_saturation_limit" => super::set_usize(value, KernelConfig::set_power_runqueue_saturation_limit),
         "proc_config_api_exposed" => super::set_bool(value, KernelConfig::set_proc_config_api_exposed),
+        "rebalance_imbalance_threshold" => super::set_usize(value, KernelConfig::set_rebalance_imbalance_threshold),
         "rt_deadline_burst_threshold" => super::set_usize(value, KernelConfig::set_rt_deadline_burst_threshold),
         "rt_force_reschedule_min_ticks" => super::set_usize(value, KernelConfig::set_rt_force_reschedule_min_ticks),
         "rt_group_reservation_enabled" => super::set_bool(value, KernelConfig::set_rt_group_reservation_enabled),
@@ -256,9 +258,9 @@ pub(super) fn auto_set_by_stem(stem: &str, value: Option<ConfigValue>) -> Result
         "sched_lottery_lcg_multiplier" => super::set_u64(value, KernelConfig::set_sched_lottery_lcg_multiplier),
         "sched_lottery_min_tickets_per_task" => super::set_u64(value, KernelConfig::set_sched_lottery_min_tickets_per_task),
         "sched_lottery_tickets_per_priority_level" => super::set_u64(value, KernelConfig::set_sched_lottery_tickets_per_priority_level),
-        "scheduler_trace_sample_rate" => super::set_u64(value, KernelConfig::set_scheduler_trace_sample_rate),
         "security_enforcement_enabled" => super::set_bool(value, KernelConfig::set_security_enforcement_enabled),
         "serial_early_debug_enabled" => super::set_bool(value, KernelConfig::set_serial_early_debug_enabled),
+        "stack_size" => super::set_usize(value, KernelConfig::set_stack_size),
         "strict_optional_features_enabled" => super::set_bool(value, KernelConfig::set_strict_optional_features_enabled),
         "syscall_max_path_len" => super::set_usize(value, KernelConfig::set_syscall_max_path_len),
         "sysctl_api_exposed" => super::set_bool(value, KernelConfig::set_sysctl_api_exposed),

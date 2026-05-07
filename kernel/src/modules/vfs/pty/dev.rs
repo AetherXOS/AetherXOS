@@ -1,4 +1,5 @@
 use super::*;
+use core::any::Any;
 
 /// `/dev/ptmx` — opening this allocates a new PTY pair.
 pub struct DevPtmx;
@@ -18,11 +19,11 @@ impl File for DevPtmx {
             mode: 0o020666,
             uid: 0,
             gid: 5,
-            atime: 0,
-            mtime: 0,
-            ctime: 0,
-            blksize: 4096,
+            atime: Default::default(),
+            mtime: Default::default(),
+            ctime: Default::default(),
             blocks: 0,
+            ..Default::default()
         })
     }
 
@@ -44,12 +45,9 @@ pub fn open_ptmx() -> Result<Box<dyn File>, &'static str> {
 /// Open /dev/pts/N: returns the slave side of PTY pair N.
 pub fn open_pts(index: u32) -> Result<Box<dyn File>, &'static str> {
     let pair = super::registry::get_pty_pair(index).ok_or("ENOENT")?;
-    {
-        let mut inner = pair.0.lock();
-        if inner.locked {
-            return Err("EIO");
-        }
-        inner.slave_opened = true;
+    if pair.is_locked() {
+        return Err("EIO");
     }
+    pair.set_slave_opened();
     Ok(Box::new(PtySlave::new(index, pair)))
 }

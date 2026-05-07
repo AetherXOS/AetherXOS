@@ -11,6 +11,12 @@ pub enum SeekFrom {
     Current(i64),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct VfsTimespec {
+    pub sec: u64,
+    pub nsec: u32,
+}
+
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct PollEvents: u32 {
@@ -28,17 +34,20 @@ pub enum IoPolicy {
     Unbuffered,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct FileStats {
     pub size: u64,
     pub mode: u32,
     pub uid: u32,
     pub gid: u32,
-    pub atime: u64,
-    pub mtime: u64,
-    pub ctime: u64,
+    pub nlink: u32,
+    pub atime: VfsTimespec,
+    pub mtime: VfsTimespec,
+    pub ctime: VfsTimespec,
+    pub btime: VfsTimespec, // Birth time
     pub blksize: u32,
     pub blocks: u64,
+    pub ino: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -148,6 +157,16 @@ pub trait File: Send + Sync {
         Err("ioctl not supported")
     }
 
+    /// Returns a list of physical frame addresses for the requested range.
+    /// Used for zero-copy memory mapping.
+    fn mmap_physical(
+        &self,
+        _offset: u64,
+        _len: usize,
+    ) -> Result<alloc::vec::Vec<u64>, &'static str> {
+        Err("physical mmap not supported")
+    }
+
     fn mmap(
         &self,
         _offset: u64,
@@ -208,4 +227,27 @@ pub trait FileSystem: Send + Sync {
     fn sync_fs(&self) -> Result<(), &'static str> {
         Ok(())
     }
+
+    /// Return filesystem statistics (like statfs(2)).
+    fn statfs(&self, _path: &str, _tid: TaskId) -> Result<FsStats, &'static str> {
+        Err("operation not supported")
+    }
+
+    /// Fast-path lookup for a dentry.
+    fn lookup_dentry(&self, _path: &str) -> Option<Arc<crate::modules::vfs::cache::Dentry>> {
+        None
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FsStats {
+    pub f_type: u64,
+    pub f_bsize: u64,
+    pub f_blocks: u64,
+    pub f_bfree: u64,
+    pub f_bavail: u64,
+    pub f_files: u64,
+    pub f_ffree: u64,
+    pub f_fsid: u64,
+    pub f_namelen: u64,
 }

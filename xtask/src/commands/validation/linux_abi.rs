@@ -117,6 +117,18 @@ pub fn execute(action: &LinuxAbiAction) -> Result<()> {
         }
         LinuxAbiAction::ReadinessScore => {
             logging::info("abi", "Calculating global ABI readiness score...", &[]);
+            let stats = audit_syscall_stats()?;
+
+            println!("\nLinux ABI Readiness Report");
+            println!("==========================");
+            println!("Total Tracked Syscalls: {}", stats.total_tracked);
+            println!("Implemented (Real):     {}", stats.real);
+            println!("Implemented (Stubs):    {}", stats.stubs);
+            println!("Missing/Nosys:          {}", stats.missing);
+            println!("--------------------------");
+            println!("Readiness Score:        {:.1}%", stats.readiness_score);
+            println!("Source Coverage:        {:.1}%", stats.coverage_score);
+            println!();
         }
         LinuxAbiAction::P2GapReport => {
             logging::info("abi", "Generating Tier-2 ABI gap analysis report...", &[]);
@@ -135,6 +147,9 @@ pub fn execute(action: &LinuxAbiAction) -> Result<()> {
         LinuxAbiAction::WorkloadCatalog { limit, strict } => {
             logging::info("abi", "Building Linux userspace workload catalog...", &[]);
             linux_abi_reports::workload_catalog(*limit, *strict)?;
+        }
+        LinuxAbiAction::UpdateBadges => {
+            crate::commands::validation::reports::readme_badge::update_badges()?;
         }
     }
     Ok(())
@@ -185,6 +200,93 @@ pub(crate) fn refresh_shim_errno_conformance_report() -> Result<()> {
 
 fn normalize_report_path(rel_path: &str) -> String {
     rel_path.replacen("kernel/src/", "src/", 1)
+}
+
+pub(crate) struct SyscallStats {
+    pub(crate) total_tracked: usize,
+    pub(crate) real: usize,
+    pub(crate) stubs: usize,
+    pub(crate) missing: usize,
+    pub(crate) readiness_score: f32,
+    pub(crate) coverage_score: f32,
+}
+
+pub(crate) fn audit_syscall_stats() -> Result<SyscallStats> {
+    let kernel_dir = crate::utils::paths::kernel_src("");
+    if !kernel_dir.exists() {
+        anyhow::bail!("'kernel/src' not found");
+    }
+
+    let pattern =
+        Regex::new(r"pub\s+(?:async\s+)?fn\s+sys_([a-zA-Z0-9_]+)\s*\((?:.|\n)*?\{").unwrap();
+    let stub_pattern = Regex::new(r"(?i)todo!|stub|linux_nosys|ENOSYS").unwrap();
+
+    let mut real_count = 0;
+    let mut stub_count = 0;
+    let mut seen_names = std::collections::HashSet::new();
+
+    let mut stack = vec![kernel_dir];
+    while let Some(dir) = stack.pop() {
+        let entries = match fs::read_dir(&dir) {
+            Ok(iter) => iter,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|ext| ext == "rs") {
+                if let Ok(content) = fs::read_to_string(&path) {
+                    // This is a naive way to find function bodies, but it works for our formatting
+                    for cap in pattern.captures_iter(&content) {
+                        if let Some(syscall_match) = cap.get(1) {
+                            let name = syscall_match.as_str().to_string();
+                            if !name.starts_with("linux_") {
+                                continue;
+                            } // Only count linux shim syscalls
+                            if seen_names.contains(&name) {
+                                continue;
+                            }
+                            seen_names.insert(name);
+
+                            let start = cap.get(0).unwrap().end();
+                            // Find the matching closing brace (very naive)
+                            let mut depth = 1;
+                            let mut end = start;
+                            let bytes = content.as_bytes();
+                            while depth > 0 && end < bytes.len() {
+                                if bytes[end] == b'{' {
+                                    depth += 1;
+                                } else if bytes[end] == b'}' {
+                                    depth -= 1;
+                                }
+                                end += 1;
+                            }
+
+                            let body = &content[start..end];
+                            if stub_pattern.is_match(body) {
+                                stub_count += 1;
+                            } else {
+                                real_count += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let total_tracked = crate::constants::defaults::audit::TOTAL_POSIX_SYSCALL_ESTIMATE;
+    let missing = total_tracked.saturating_sub(real_count + stub_count);
+
+    Ok(SyscallStats {
+        total_tracked,
+        real: real_count,
+        stubs: stub_count,
+        missing,
+        readiness_score: (real_count as f32 / total_tracked as f32) * 100.0,
+        coverage_score: ((real_count + stub_count) as f32 / total_tracked as f32) * 100.0,
+    })
 }
 
 fn audit_syscalls() -> Result<()> {

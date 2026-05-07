@@ -1,7 +1,7 @@
 use super::*;
 use core::sync::atomic::Ordering;
 
-#[allow(dead_code)]
+
 pub(crate) fn sys_vfs_mount_ramfs(_path_ptr: usize, _path_len: usize) -> usize {
     SYSCALL_VFS_MOUNT_RAMFS_CALLS.fetch_add(1, Ordering::Relaxed);
     if let Err(err) = require_control_plane_access(crate::modules::security::RESOURCE_VFS_MOUNT) {
@@ -25,7 +25,7 @@ pub(crate) fn sys_vfs_mount_ramfs(_path_ptr: usize, _path_len: usize) -> usize {
     }
 }
 
-#[allow(dead_code)]
+
 pub(crate) fn sys_vfs_mount_diskfs(
     _path_ptr: usize,
     _path_len: usize,
@@ -60,7 +60,7 @@ pub(crate) fn sys_vfs_mount_diskfs(
     }
 }
 
-#[allow(dead_code)]
+
 pub(crate) fn sys_vfs_mount_overlay(
     _path_ptr: usize,
     _path_len: usize,
@@ -95,7 +95,7 @@ pub(crate) fn sys_vfs_mount_overlay(
     }
 }
 
-#[allow(dead_code)]
+
 pub(crate) fn sys_vfs_list_mounts(_ptr: usize, len: usize) -> usize {
     SYSCALL_VFS_LIST_MOUNTS_CALLS.fetch_add(1, Ordering::Relaxed);
     if let Err(err) = require_control_plane_access(crate::modules::security::RESOURCE_VFS_LIST) {
@@ -135,7 +135,7 @@ pub(crate) fn sys_vfs_list_mounts(_ptr: usize, len: usize) -> usize {
     }
 }
 
-#[allow(dead_code)]
+
 pub(crate) fn sys_vfs_get_mount_path(_mount_id: usize, _ptr: usize, _len: usize) -> usize {
     SYSCALL_VFS_MOUNT_PATH_CALLS.fetch_add(1, Ordering::Relaxed);
     if let Err(err) = require_control_plane_access(crate::modules::security::RESOURCE_VFS_PATH) {
@@ -161,7 +161,7 @@ pub(crate) fn sys_vfs_get_mount_path(_mount_id: usize, _ptr: usize, _len: usize)
     }
 }
 
-#[allow(dead_code)]
+
 pub(crate) fn sys_vfs_unmount(_mount_id: usize) -> usize {
     SYSCALL_VFS_UNMOUNT_CALLS.fetch_add(1, Ordering::Relaxed);
     if let Err(err) = require_control_plane_access(crate::modules::security::RESOURCE_VFS_UNMOUNT) {
@@ -182,7 +182,7 @@ pub(crate) fn sys_vfs_unmount(_mount_id: usize) -> usize {
     }
 }
 
-#[allow(dead_code)]
+
 pub(crate) fn sys_vfs_get_stats(_ptr: usize, _len: usize) -> usize {
     SYSCALL_VFS_STATS_CALLS.fetch_add(1, Ordering::Relaxed);
     if let Err(err) = require_control_plane_access(crate::modules::security::RESOURCE_VFS_STATS) {
@@ -218,7 +218,7 @@ pub(crate) fn sys_vfs_get_stats(_ptr: usize, _len: usize) -> usize {
     }
 }
 
-#[allow(dead_code)]
+
 pub(crate) fn sys_vfs_unmount_path(_path_ptr: usize, _path_len: usize) -> usize {
     SYSCALL_VFS_UNMOUNT_PATH_CALLS.fetch_add(1, Ordering::Relaxed);
     if let Err(err) = require_control_plane_access(crate::modules::security::RESOURCE_VFS_UNMOUNT) {

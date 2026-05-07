@@ -222,16 +222,18 @@ impl VirtIoBlock {
         );
 
         q.avail_push(d0);
+        let is_mmio = self.is_mmio;
 
         // Notify device (queue index 0)
-        if !self.is_mmio {
+        if !is_mmio {
             self.write16(VIRTIO_PCI_QUEUE_NOTIFY, 0);
         }
+
+        let q = self.queue.as_mut().unwrap(); // Re-borrow after self.write16
 
         // Poll used ring until the device returns our descriptor
         const IO_POLL_TIMEOUT: u64 = 10_000_000;
         let mut spins: u64 = 0;
-        let q = self.queue.as_mut().unwrap();
         loop {
             core::hint::spin_loop();
             let used_idx = q.used_idx();
@@ -260,7 +262,6 @@ impl VirtIoBlock {
         }
 
         // Timeout cleanup
-        let q = self.queue.as_mut().unwrap();
         q.free_desc(d2);
         q.free_desc(d1);
         q.free_desc(d0);

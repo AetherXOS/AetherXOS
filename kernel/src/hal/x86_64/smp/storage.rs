@@ -106,9 +106,11 @@ pub(super) fn allocate_ap_cpu_local(cpu_id: CpuId) -> &'static CpuLocal {
             #[cfg(feature = "ring_protection")]
             kernel_stack_top: core::sync::atomic::AtomicUsize::new(ap_kernel_stack_top(slot)),
             current_task: core::sync::atomic::AtomicUsize::new(0),
+            is_user_mode: core::sync::atomic::AtomicBool::new(false),
             heartbeat_tick: core::sync::atomic::AtomicU64::new(0),
             idle_stack_pointer: core::sync::atomic::AtomicUsize::new(0),
             scheduler,
+            kernel_mode_depth: core::sync::atomic::AtomicU32::new(1),
         });
     }
     AP_CPU_LOCAL_READY_MASK.fetch_or(bit, Ordering::Release);

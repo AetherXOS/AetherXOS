@@ -3,12 +3,12 @@ use super::*;
 static SYSCALL_AFFINITY_TRACE_EVENT_SEQ: core::sync::atomic::AtomicU64 =
     core::sync::atomic::AtomicU64::new(0);
 
-pub(crate) fn sys_yield() -> usize {
+pub fn sys_yield() -> usize {
     crate::kernel::rt_preemption::request_forced_reschedule();
     0
 }
 
-pub(crate) fn sys_exit(_code: usize) -> usize {
+pub fn sys_exit(_code: usize) -> usize {
     crate::klog_info!("SYSCALL task exit code {}", _code);
 
     #[cfg(feature = "process_abstraction")]
@@ -61,7 +61,7 @@ pub(super) fn sys_print(ptr: usize, len: usize) -> usize {
     .unwrap_or_else(|err| err)
 }
 
-pub(crate) fn sys_set_tls(base: usize) -> usize {
+pub fn sys_set_tls(base: usize) -> usize {
     SYSCALL_TLS_CALLS.fetch_add(1, Ordering::Relaxed);
 
     if !crate::generated_consts::CORE_ENABLE_TLS_SYSCALLS {
@@ -93,7 +93,7 @@ pub(crate) fn sys_set_tls(base: usize) -> usize {
     0
 }
 
-pub(crate) fn sys_get_tls() -> usize {
+pub fn sys_get_tls() -> usize {
     SYSCALL_TLS_CALLS.fetch_add(1, Ordering::Relaxed);
 
     if !crate::generated_consts::CORE_ENABLE_TLS_SYSCALLS {

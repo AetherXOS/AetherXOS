@@ -8,6 +8,10 @@ mod paging_support;
 pub mod slab;
 pub mod swap;
 pub mod rt_pools;
+pub mod demand_paging;
+
+#[cfg(feature = "paging_enable")]
+pub use demand_paging::handle_user_page_fault;
 
 pub use compaction::{CompactionResult, PageMobility, Zone};
 pub use lru::{LruPage, LruReclaimer, PageFlags, ReclaimConfig, ReclaimResult};

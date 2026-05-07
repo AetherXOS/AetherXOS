@@ -1,4 +1,8 @@
 use super::*;
+use crate::hal::common::virt::VirtualizationRebalanceTuning;
+use crate::hal::common::virt::virtualization_rebalance_tuning;
+use crate::kernel::load_balance::adaptive::*;
+use crate::kernel::load_balance::decision::*;
 
 #[test_case]
 fn virtualization_rebalance_tuning_prefers_latency_profile() {

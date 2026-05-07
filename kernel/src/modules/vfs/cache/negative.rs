@@ -81,11 +81,23 @@ impl NegativeDentryCache {
 }
 
 /// Called by the journal checkpoint to record that a journaled block has been
-/// written to its primary filesystem location. In a full implementation this
-/// would mark the corresponding cache page as clean; for now it is a no-op
-/// placeholder for future integration.
-pub fn mark_block_journaled(_block: u64, _seq: u32) {
-    // No-op: production code would clear the dirty bit in the block cache.
+/// written to its primary filesystem location. Clears the dirty bit on the
+/// corresponding page in the inode page cache so that the writeback engine
+/// does not re-flush an already-persisted block.
+pub fn mark_block_journaled(block: u64, _seq: u32) {
+    // Each block maps to an inode page. Walk all cached inodes and clear the
+    // dirty flag for the matching page index. In a production VFS the journal
+    // would carry the owning inode number; here we use a linear scan of the
+    // global cache which is acceptable for the current in-memory journal.
+    let page_idx = block;
+    super::GLOBAL_INODE_CACHE.for_each(|_ino, inode| {
+        let shard = inode.get_page_shard(page_idx);
+        let pages = inode.pages[shard].lock();
+        if let Some(page_arc) = pages.get(&page_idx) {
+            let mut page = page_arc.lock();
+            page.dirty = false;
+        }
+    });
 }
 
 /// Global negative dentry cache (max 4096 entries).

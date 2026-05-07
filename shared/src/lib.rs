@@ -6,12 +6,15 @@ extern crate alloc;
 #[cfg(feature = "clap")]
 extern crate std;
 
+pub mod bits;
 pub mod identifiers;
 pub mod macros;
 pub mod prelude;
 pub mod result;
+pub mod flags;
 pub mod target_arch;
 pub mod telemetry;
 pub mod units;
 
+pub use flags::KernelFeatures;
 pub use target_arch::TargetArch;

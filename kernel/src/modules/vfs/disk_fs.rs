@@ -1,8 +1,6 @@
-use alloc::boxed::Box;
-use alloc::string::ToString;
-use alloc::vec::Vec;
-
 use crate::interfaces::TaskId;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use crate::modules::vfs::backends::{self, FsBackendKind};
 use crate::modules::vfs::disk_fs_support::validate_diskfs_path;
 use crate::modules::vfs::error_context::{map_error, require_some};
@@ -57,7 +55,7 @@ fn try_load_ext4_probe_image(
     for kind in SUPPORTED_STORAGE_KINDS {
         if let Some(dev) = manager.first_by_kind(kind) {
             let mut buf = alloc::vec![0u8; EXT4_PROBE_IMAGE_BYTES];
-            if dev.read_blocks(0, EXT4_PROBE_BLOCKS, &mut buf).is_ok() {
+            if dev.read_blocks(0, EXT4_PROBE_BLOCKS as u16, &mut buf).is_ok() {
                 return Some(buf);
             }
         }

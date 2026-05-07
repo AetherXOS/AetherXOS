@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use crate::utils::paths as fs_paths;
 
 /// Cargo-related constants.
-#[allow(dead_code)]
+
 pub mod cargo {
     pub const CMD_BUILD: &str = "build";
     pub const CMD_CHECK: &str = "check";
@@ -57,7 +57,7 @@ pub mod commands {
 }
 
 /// Tool names and external binaries.
-#[allow(dead_code)]
+
 pub mod tools {
     pub const QEMU_X86_64: &str = "qemu-system-x86_64";
     pub const QEMU_X86_64_EXE: &str = "qemu-system-x86_64.exe";
@@ -70,7 +70,7 @@ pub mod tools {
 }
 
 /// Repository-relative and staged artifact paths.
-#[allow(dead_code)]
+
 pub mod paths {
     use super::*;
 
@@ -220,13 +220,23 @@ pub mod paths {
 }
 
 /// Kernel configuration constants.
-#[allow(dead_code)]
+
 pub mod kernel {
     pub const SECTOR_SIZE_DEFAULT: usize = 512;
 }
 
+pub mod boot {
+    pub const GRUB_CFG_TEMPLATE: &str = r#"set timeout=0
+set default=0
+menuentry "Aether X OS" {
+  multiboot2 /boot/aethercore.elf
+  boot
+}
+"#;
+}
+
 /// Telemetry and mount policy constants.
-#[allow(dead_code)]
+
 pub mod telemetry {
     pub const MOUNT_POLICY_PATH: &str = "/run/aethercore/telemetry/mount_policy_events";
     pub const EVENT_TMPFS_FALLBACK: &str = "event=tmpfs_fallback";
@@ -235,33 +245,36 @@ pub mod telemetry {
 }
 
 /// Test tier and feature constants.
-#[allow(dead_code)]
+
 pub mod test {
-    pub const TIER_FAST: &str = "fast";
-    pub const TIER_INTEGRATION: &str = "integration";
-    pub const TIER_NIGHTLY: &str = "nightly";
+    use crate::types::TestTier;
+    use strum::IntoEnumIterator;
+
+    pub const TIER_FAST: TestTier = TestTier::Fast;
+    pub const TIER_INTEGRATION: TestTier = TestTier::Integration;
+    pub const TIER_NIGHTLY: TestTier = TestTier::Nightly;
 
     /// Features needed for comprehensive kernel testing.
     pub const TEST_FEATURES: &str = "kernel_test_mode,vfs,drivers";
 
     pub fn is_valid_tier(tier: &str) -> bool {
-        matches!(tier, TIER_FAST | TIER_INTEGRATION | TIER_NIGHTLY)
+        <TestTier as core::str::FromStr>::from_str(tier).is_ok()
     }
 
-    pub fn all_tiers() -> &'static [&'static str] {
-        &[TIER_FAST, TIER_INTEGRATION, TIER_NIGHTLY]
+    pub fn all_tiers() -> impl Iterator<Item = TestTier> {
+        TestTier::iter()
     }
 }
 
 /// Default configurations used by CLI and command orchestration.
-#[allow(dead_code)]
+
 pub mod defaults {
     pub mod build {
-        pub const ARCH: aethercore_common::TargetArch = aethercore_common::TargetArch::X86_64;
-        pub const BOOTLOADER: &str = "limine";
-        pub const FORMAT: &str = "iso";
-        pub const USERSPACE_TARGET: &str =
-            aethercore_common::TargetArch::X86_64.to_bare_metal_triple();
+        use crate::types::{Arch, Bootloader, ImageFormat};
+        pub const ARCH: Arch = Arch::X86_64;
+        pub const BOOTLOADER: Bootloader = Bootloader::Limine;
+        pub const FORMAT: ImageFormat = ImageFormat::Iso;
+        pub const USERSPACE_TARGET: &str = Arch::X86_64.to_bare_metal_triple();
     }
 
     pub mod run {

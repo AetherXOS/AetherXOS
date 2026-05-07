@@ -1,4 +1,7 @@
     use super::*;
+    use crate::kernel::syscalls::linux_errno;
+    use crate::kernel::syscalls::linux_shim::LINUX_AT_FDCWD;
+    use crate::kernel::syscalls::linux_shim::fs::support::LINUX_AT_EMPTY_PATH;
 
     #[test_case]
     fn newfstatat_invalid_path_pointer_returns_efault() {
@@ -30,7 +33,7 @@
                 .expect("mount");
             let fd = crate::modules::posix::fs::open(fs_id, "/tracked", true).expect("open");
             let empty = b"\0";
-            let mut stat_buf = [0u8; LINUX_STAT_BUF_LEN];
+            let mut stat_buf = [0u8; core::mem::size_of::<LinuxStatfs>()];
             assert_eq!(
                 sys_linux_newfstatat(
                     fd as usize,

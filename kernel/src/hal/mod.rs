@@ -61,6 +61,25 @@ impl HardwareAbstraction for Hal {
     fn serial_write_raw(s: &str) {
         crate::hal::serial::write_raw(s);
     }
+
+    fn get_time_ns() -> u64 {
+        HAL::get_time_ns()
+    }
+
+    #[inline(always)]
+    fn panic_with_report(info: &core::panic::PanicInfo, report: &crate::kernel::CrashReport) -> ! {
+        HAL::panic_with_report(info, report);
+    }
+
+    #[inline(always)]
+    fn fatal_halt(reason: &str) -> ! {
+        HAL::fatal_halt(reason);
+    }
+
+    #[inline(always)]
+    fn idle_once() {
+        HAL::idle_once();
+    }
 }
 
 impl Hal {

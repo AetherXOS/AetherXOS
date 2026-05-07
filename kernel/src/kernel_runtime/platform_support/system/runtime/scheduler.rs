@@ -45,7 +45,7 @@ pub(crate) fn log_watchdog_runtime() {
 }
 
 pub(crate) fn log_load_balance_runtime() {
-    let lb = aethercore::kernel::load_balance::stats_snapshot();
+    let lb = aethercore::kernel::load_balance::stats::stats_snapshot();
     let virt = current_virtualization_log_snapshot();
     aethercore::klog_info!(
         "LoadBalance: attempts={} moved={} affinity_skips={} prefer_local_skips={} prefer_local_forced={} hist_lt2={} hist_2_3={} hist_4_7={} hist_8_15={} hist_ge16={} p50={} p90={} p99={} samples={} virt_exec_profile={} virt_lane={} virt_mode={} virt_dispatch={} virt_governor={} latency_bias={} energy_bias={}",

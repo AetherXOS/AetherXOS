@@ -5,6 +5,7 @@
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
+use alloc::sync::Arc;
 use spin::Mutex;
 
 /// Mount identifier.
@@ -78,8 +79,15 @@ pub enum FsType {
     Custom(u16),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MountPropagation {
+    Private,
+    Shared,
+    Slave,
+}
+
 /// A single mount entry.
-#[derive(Debug, Clone)]
+#[derive(Clone)] // Removed Debug because FileSystem doesn't implement it
 pub struct MountEntry {
     pub id: MountId,
     /// Parent mount id (0 for root mount).
@@ -88,12 +96,26 @@ pub struct MountEntry {
     pub mount_point: String,
     /// Filesystem type.
     pub fs_type: FsType,
+    /// Backend filesystem implementation.
+    pub fs: Option<Arc<dyn crate::modules::vfs::FileSystem>>,
     /// Source device or path.
     pub source: String,
     /// Mount flags/options.
     pub flags: MountFlags,
+    /// Mount propagation type.
+    pub propagation: MountPropagation,
     /// Reference count (number of open files under this mount).
     pub ref_count: u32,
+}
+
+impl core::fmt::Debug for MountEntry {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("MountEntry")
+            .field("id", &self.id)
+            .field("mount_point", &self.mount_point)
+            .field("fs_type", &self.fs_type)
+            .finish()
+    }
 }
 
 /// Global mount table.
@@ -118,14 +140,28 @@ impl MountTable {
         &mut self,
         mount_point: &str,
         source: &str,
-        fs_type: FsType,
+        mut fs_type: FsType,
         flags: MountFlags,
+        mut fs: Option<Arc<dyn crate::modules::vfs::FileSystem>>,
     ) -> Result<MountId, &'static str> {
         let normalized = normalize_path(mount_point);
 
         // Check for duplicate mount point.
         if self.path_index.contains_key(&normalized) {
             return Err("mount point already in use");
+        }
+
+        // Handle BIND mounts
+        let mut final_source = String::from(source);
+        if flags.contains(MountFlags::BIND) {
+            let src_normalized = normalize_path(source);
+            if let Some(src_mount) = self.resolve(&src_normalized) {
+                fs_type = src_mount.fs_type;
+                final_source = src_mount.source.clone();
+                fs = src_mount.fs.clone();
+            } else {
+                return Err("bind source path not found in mount table");
+            }
         }
 
         // Find parent mount.
@@ -139,8 +175,10 @@ impl MountTable {
             parent_id,
             mount_point: normalized.clone(),
             fs_type,
-            source: String::from(source),
+            fs,
+            source: final_source,
             flags,
+            propagation: MountPropagation::Private,
             ref_count: 0,
         };
 
@@ -193,10 +231,27 @@ impl MountTable {
         }
     }
 
-    /// Resolve the mount for a given path (longest-prefix match).
+    /// Resolve a path to its mount entry using longest-prefix match.
     pub fn resolve(&self, path: &str) -> Option<&MountEntry> {
         let normalized = normalize_path(path);
-        // Find the longest mount prefix.
+        let mut best: Option<&MountEntry> = None;
+        for entry in self.mounts.values() {
+            if normalized.starts_with(&entry.mount_point) {
+                // Ensure we match a full path component
+                if normalized.len() == entry.mount_point.len() || normalized.as_bytes()[entry.mount_point.len()] == b'/' {
+                    match best {
+                        Some(b) if b.mount_point.len() >= entry.mount_point.len() => {}
+                        _ => best = Some(entry),
+                    }
+                }
+            }
+        }
+        best
+    }
+
+    /// Resolve the mount and relative path for a given path.
+    pub fn resolve_path(&self, path: &str) -> Option<(Arc<dyn crate::modules::vfs::FileSystem>, String)> {
+        let normalized = normalize_path(path);
         let mut best: Option<&MountEntry> = None;
         for entry in self.mounts.values() {
             if normalized.starts_with(&entry.mount_point) {
@@ -206,7 +261,14 @@ impl MountTable {
                 }
             }
         }
-        best
+
+        best.and_then(|entry| {
+            entry.fs.as_ref().map(|fs| {
+                let relative = &normalized[entry.mount_point.len()..];
+                let rel_str = if relative.is_empty() { "/" } else { relative };
+                (fs.clone(), String::from(rel_str))
+            })
+        })
     }
 
     /// Check write permission based on mount flags.
@@ -295,12 +357,13 @@ pub fn mount(
     source: &str,
     fs_type: FsType,
     flags: MountFlags,
+    fs: Option<Arc<dyn crate::modules::vfs::FileSystem>>,
 ) -> Result<MountId, &'static str> {
     let mut guard = GLOBAL_MOUNT_TABLE.lock();
     guard
         .as_mut()
         .ok_or("mount table not initialized")?
-        .mount(mount_point, source, fs_type, flags)
+        .mount(mount_point, source, fs_type, flags, fs)
 }
 
 /// Unmount a filesystem.
@@ -335,10 +398,10 @@ mod tests {
     fn resolve_prefers_longest_mount_prefix() {
         let mut table = MountTable::new();
         let root = table
-            .mount("/", "rootfs", FsType::RamFs, MountFlags::NONE)
+            .mount("/", "rootfs", FsType::RamFs, MountFlags::NONE, None)
             .unwrap();
         let nested = table
-            .mount("/srv/data", "datafs", FsType::Ext4, MountFlags::RDONLY)
+            .mount("/srv/data", "datafs", FsType::Ext4, MountFlags::RDONLY, None)
             .unwrap();
 
         assert_eq!(
@@ -355,10 +418,10 @@ mod tests {
     fn unmount_rejects_busy_and_child_mounts() {
         let mut table = MountTable::new();
         let parent = table
-            .mount("/mnt", "ram", FsType::RamFs, MountFlags::NONE)
+            .mount("/mnt", "ram", FsType::RamFs, MountFlags::NONE, None)
             .unwrap();
         let _child = table
-            .mount("/mnt/nested", "nested", FsType::Tmpfs, MountFlags::NONE)
+            .mount("/mnt/nested", "nested", FsType::Tmpfs, MountFlags::NONE, None)
             .unwrap();
         assert_eq!(
             table.unmount("/mnt"),
@@ -367,7 +430,7 @@ mod tests {
 
         let mut busy = MountTable::new();
         let busy_id = busy
-            .mount("/busy", "ram", FsType::RamFs, MountFlags::NONE)
+            .mount("/busy", "ram", FsType::RamFs, MountFlags::NONE, None)
             .unwrap();
         busy.acquire_ref(busy_id);
         assert_eq!(busy.unmount("/busy"), Err("mount busy"));
@@ -381,7 +444,7 @@ mod tests {
     fn remount_updates_write_permissions_and_normalizes_paths() {
         let mut table = MountTable::new();
         table
-            .mount("//var//log//", "ram", FsType::RamFs, MountFlags::NONE)
+            .mount("//var//log//", "ram", FsType::RamFs, MountFlags::NONE, None)
             .unwrap();
         assert_eq!(table.check_write("/var/log/messages"), Ok(()));
         table
@@ -400,14 +463,14 @@ mod tests {
     fn mount_rejects_duplicate_normalized_paths_and_tracks_parent_mount() {
         let mut table = MountTable::new();
         let root = table
-            .mount("/", "rootfs", FsType::RamFs, MountFlags::NONE)
+            .mount("/", "rootfs", FsType::RamFs, MountFlags::NONE, None)
             .unwrap();
         let child = table
-            .mount("/srv//logs/", "logs", FsType::Tmpfs, MountFlags::NONE)
+            .mount("/srv//logs/", "logs", FsType::Tmpfs, MountFlags::NONE, None)
             .unwrap();
 
         assert_eq!(
-            table.mount("/srv/logs", "dup", FsType::Tmpfs, MountFlags::NONE),
+            table.mount("/srv/logs", "dup", FsType::Tmpfs, MountFlags::NONE, None),
             Err("mount point already exists")
         );
         assert_eq!(
@@ -420,10 +483,10 @@ mod tests {
     fn resolve_does_not_match_partial_path_components() {
         let mut table = MountTable::new();
         let root = table
-            .mount("/", "rootfs", FsType::RamFs, MountFlags::NONE)
+            .mount("/", "rootfs", FsType::RamFs, MountFlags::NONE, None)
             .unwrap();
         let srv = table
-            .mount("/srv", "srvfs", FsType::Tmpfs, MountFlags::NONE)
+            .mount("/srv", "srvfs", FsType::Tmpfs, MountFlags::NONE, None)
             .unwrap();
 
         assert_eq!(table.resolve("/srv/data").map(|entry| entry.id), Some(srv));

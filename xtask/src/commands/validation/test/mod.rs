@@ -18,7 +18,7 @@ pub fn execute(action: &TestAction) -> Result<()> {
         TestAction::Host { release } => host::validate_feature_matrix(*release),
         TestAction::AgentContract => agent_contract(),
         TestAction::All { ci } => tier::run_all(*ci),
-        TestAction::Tier { tier, ci } => tier::run(tier, *ci),
+        TestAction::Tier { tier, ci } => tier::run(*tier, *ci),
         TestAction::PosixConformance => posix::run_gate(),
         TestAction::DriverSmoke => driver::run_smoke(),
         TestAction::LinuxAppCompat {
@@ -71,7 +71,9 @@ fn quality_gate() -> Result<()> {
         arch: constants::defaults::build::ARCH,
         bootloader: crate::cli::Bootloader::Limine,
         format: crate::cli::ImageFormat::Iso,
+        features: aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS | aethercore_common::KernelFeatures::LOGGING,
         release: false,
+        rootfs: None,
     })?;
     crate::commands::ops::qemu::smoke_test()?;
     logging::success("test::quality-gate", "Pipeline passed successfully", &[]);

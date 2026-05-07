@@ -1,6 +1,6 @@
 use super::super::super::*;
 #[cfg(feature = "posix_fs")]
-use super::super::support::{resolve_path_at_allow_empty, LINUX_AT_EMPTY_PATH, LINUX_AT_NO_AUTOMOUNT, LINUX_AT_SYMLINK_NOFOLLOW};
+use crate::kernel::syscalls::linux_shim::fs::support::{resolve_path_at_allow_empty, LINUX_AT_EMPTY_PATH, LINUX_AT_NO_AUTOMOUNT, LINUX_AT_SYMLINK_NOFOLLOW};
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
 use crate::kernel::syscalls::linux_shim::util::write_user_pod;
 
@@ -63,18 +63,18 @@ fn write_linux_statx(mask: usize, statxbuf_ptr: usize, st: crate::modules::posix
         + (crate::kernel::syscalls::syscalls_consts::linux::STAT_BLOCK_SIZE - 1) as u64)
         / crate::kernel::syscalls::syscalls_consts::linux::STAT_BLOCK_SIZE as u64;
     stx.stx_atime = LinuxStatxTimestampCompat {
-        tv_sec: st.atime,
-        tv_nsec: 0,
+        tv_sec: st.atime.sec,
+        tv_nsec: st.atime.nsec as u32,
         __reserved: 0,
     };
     stx.stx_mtime = LinuxStatxTimestampCompat {
-        tv_sec: st.mtime,
-        tv_nsec: 0,
+        tv_sec: st.mtime.sec,
+        tv_nsec: st.mtime.nsec as u32,
         __reserved: 0,
     };
     stx.stx_ctime = LinuxStatxTimestampCompat {
-        tv_sec: st.ctime,
-        tv_nsec: 0,
+        tv_sec: st.ctime.sec,
+        tv_nsec: st.ctime.nsec as u32,
         __reserved: 0,
     };
     stx.stx_btime = stx.stx_ctime;

@@ -1,4 +1,5 @@
 pub mod errno {
+    pub const MAX_ERRNO: i32 = 4095;
     pub const EPERM: i32 = 1;
     pub const ESRCH: i32 = 3;
     pub const ENOMEM: i32 = 12;
@@ -253,6 +254,7 @@ pub mod signal {
     pub const SIGSTOP: i32 = 19;
     pub const SIGUSR1: i32 = 10;
     pub const SIGUSR2: i32 = 12;
+    pub const SIGWINCH: i32 = 28;
 
     pub const SIG_BLOCK: i32 = 0;
     pub const SIG_UNBLOCK: i32 = 1;
@@ -287,3 +289,28 @@ pub mod mman {
     pub const MADV_WILLNEED: i32 = 3;
     pub const MADV_DONTNEED: i32 = 4;
 }
+
+pub mod prctl {
+    pub const PR_SET_PDEATHSIG: usize = 1;
+    pub const PR_GET_PDEATHSIG: usize = 2;
+    pub const PR_GET_DUMPABLE: usize = 3;
+    pub const PR_SET_DUMPABLE: usize = 4;
+    pub const PR_GET_KEEPCAPS: usize = 7;
+    pub const PR_SET_KEEPCAPS: usize = 8;
+    pub const PR_SET_NAME: usize = 15;
+    pub const PR_GET_NAME: usize = 16;
+    pub const PR_GET_SECCOMP: usize = 21;
+    pub const PR_SET_SECCOMP: usize = 22;
+    pub const PR_CAPBSET_READ: usize = 23;
+    pub const PR_CAPBSET_DROP: usize = 24;
+    pub const PR_SET_NO_NEW_PRIVS: usize = 38;
+    pub const PR_GET_NO_NEW_PRIVS: usize = 39;
+}
+
+pub mod arch_prctl {
+    pub const ARCH_SET_GS: usize = 0x1001;
+    pub const ARCH_SET_FS: usize = 0x1002;
+    pub const ARCH_GET_FS: usize = 0x1003;
+    pub const ARCH_GET_GS: usize = 0x1004;
+}
+

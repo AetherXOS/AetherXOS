@@ -116,9 +116,9 @@ pub fn sys_linux_shmget(key: i32, size: usize, shmflg: i32) -> usize {
         return id as usize;
     }
     #[cfg(feature = "ipc_shared_memory")]
-    match crate::modules::ipc::shared_memory::shm_get(key, size, shmflg) {
-        Ok(shmid) => shmid.0 as usize,
-        Err(e) => linux_errno(e.code()),
+    match crate::modules::ipc::shared_memory::shm_get(key, size, shmflg as u32) {
+        Ok(shmid) => shmid as usize,
+        Err(e) => linux_errno(e.to_posix_errno()),
     }
 }
 
@@ -346,7 +346,7 @@ pub fn sys_linux_shmctl(shmid: i32, cmd: i32, _buf: UserPtr<u8>) -> usize {
         match cmd {
             IPC_RMID => match crate::modules::ipc::shared_memory::shm_rmid(shmid) {
                 Ok(()) => 0,
-                Err(e) => linux_errno(e.code()),
+                Err(e) => linux_errno(e.to_posix_errno()),
             },
             IPC_STAT => {
                 if _buf.is_null() {

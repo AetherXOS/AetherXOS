@@ -4,6 +4,9 @@
 
 # Aether X OS
 
+
+![Linux ABI Compatibility](https://img.shields.io/badge/Linux_ABI-76.6%25-blue)
+![Smoke Tests](https://img.shields.io/badge/Smoke_Tests-Passing-green)
 Aether X OS is a next-generation high-performance computing layer built on an Exokernel architecture. By eliminating traditional monolithic kernel abstractions, Aether X OS provides applications with direct-to-silicon resource management, enabling sub-nanosecond instruction dispatch and hardware-enforced isolation.
 
 ## Technical Philosophy

@@ -177,7 +177,7 @@ fn sys_linux_select_with_retries(
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(crate) fn sys_linux_select(
+pub fn sys_linux_select(
     nfds: usize,
     readfds: usize,
     writefds: usize,
@@ -204,7 +204,7 @@ pub(crate) fn sys_linux_select(
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(crate) fn sys_linux_pselect6(
+pub fn sys_linux_pselect6(
     nfds: usize,
     readfds: usize,
     writefds: usize,

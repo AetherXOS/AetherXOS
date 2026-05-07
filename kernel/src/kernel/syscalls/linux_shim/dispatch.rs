@@ -52,7 +52,7 @@ pub(super) fn sys_linux_shim(
         linux_nr::GETTID => Some(task_time::sys_linux_gettid()),
         linux_nr::SET_TID_ADDRESS => Some(task_time::sys_linux_set_tid_address(arg1)),
         linux_nr::ARCH_PRCTL => Some(super::sys_linux_arch_prctl(arg1, arg2)),
-        linux_nr::FUTEX => Some(super::sys_linux_futex(arg1, arg2, arg3)),
+        linux_nr::FUTEX => Some(super::sys_linux_futex(arg1, arg2, arg3, arg4, arg5, arg6)),
         linux_nr::TGKILL => Some(task_time::sys_linux_tgkill(arg1, arg2, arg3)),
         linux_nr::KILL => Some(task_time::sys_linux_kill(arg1, arg2)),
         linux_nr::CLOCK_GETTIME => Some(task_time::sys_linux_clock_gettime(arg1, arg2)),

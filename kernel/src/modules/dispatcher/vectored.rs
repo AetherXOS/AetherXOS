@@ -171,6 +171,7 @@ impl Dispatcher for VectoredDispatcher {
                         break; // Handled, no need to fan-out further
                     }
                 }
+                #[cfg(feature = "ipc_message_passing")]
                 let _ = crate::modules::dispatcher::upcall::mark_global_delivered_for_irq(irq);
                 return;
             }
@@ -188,6 +189,7 @@ impl Dispatcher for VectoredDispatcher {
         if let Some(default) = *self.default_handler.lock() {
             DISPATCH_DEFAULT_HITS.fetch_add(1, Ordering::Relaxed);
             default(irq);
+            #[cfg(feature = "ipc_message_passing")]
             let _ = crate::modules::dispatcher::upcall::mark_global_delivered_for_irq(irq);
         }
     }

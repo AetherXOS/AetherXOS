@@ -85,12 +85,12 @@ pub fn fill_linux_stat(pstat: crate::modules::posix::fs::PosixStat) -> LinuxStat
         st_blocks: (pstat.size as i64
             + (crate::kernel::syscalls::syscalls_consts::linux::STAT_BLOCK_SIZE - 1))
             / crate::kernel::syscalls::syscalls_consts::linux::STAT_BLOCK_SIZE,
-        st_atime: pstat.atime,
-        st_atime_nsec: 0,
-        st_mtime: pstat.mtime,
-        st_mtime_nsec: 0,
-        st_ctime: pstat.ctime,
-        st_ctime_nsec: 0,
+        st_atime: pstat.atime.sec as i64,
+        st_atime_nsec: pstat.atime.nsec as i64,
+        st_mtime: pstat.mtime.sec as i64,
+        st_mtime_nsec: pstat.mtime.nsec as i64,
+        st_ctime: pstat.ctime.sec as i64,
+        st_ctime_nsec: pstat.ctime.nsec as i64,
         __unused: [0; 3],
     }
 }

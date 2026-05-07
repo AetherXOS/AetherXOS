@@ -1,4 +1,5 @@
 use super::*;
+use crate::interfaces::Scheduler;
 
 pub(super) fn kill(pid: usize, signal: i32) -> Result<(), PosixErrno> {
     if signal == 0 {
@@ -22,17 +23,18 @@ pub(super) fn kill(pid: usize, signal: i32) -> Result<(), PosixErrno> {
                     crate::interfaces::task::ProcessId(pid),
                     status,
                 ) {
-                    record_exit_status(pid, status);
-                    clear_process_metadata(pid);
+                    record_exit_status(pid, status, PosixRusage::of_process(pid));
+                    // Metadata preserved for waitpid reaping.
                     Ok(())
-                } else {
+                }
+ else {
                     Err(PosixErrno::NoEntry)
                 }
             }
             #[cfg(not(feature = "process_abstraction"))]
             {
                 if pid == getpid() && pid != 0 {
-                    record_exit_status(pid, encode_wait_signal_status(signal));
+                    record_exit_status(pid, encode_wait_signal_status(signal), PosixRusage::current_self());
                     crate::kernel::rt_preemption::request_forced_reschedule();
                     Ok(())
                 } else {
@@ -57,18 +59,19 @@ pub(super) fn exit_with_status(code: u8) -> Result<(), PosixErrno> {
             crate::interfaces::task::ProcessId(pid),
             status,
         ) {
-            record_exit_status(pid, status);
-            clear_process_metadata(pid);
+            record_exit_status(pid, status, PosixRusage::current_self());
+            // Metadata MUST NOT be cleared here. It must persist until reaped by waitpid.
             crate::kernel::rt_preemption::request_forced_reschedule();
             Ok(())
-        } else {
+        }
+ else {
             Err(PosixErrno::NoEntry)
         }
     }
 
     #[cfg(not(feature = "process_abstraction"))]
     {
-        record_exit_status(pid, status);
+        record_exit_status(pid, status, PosixRusage::current_self());
         crate::kernel::rt_preemption::request_forced_reschedule();
         Ok(())
     }
@@ -87,23 +90,47 @@ pub(super) fn fork() -> Result<usize, PosixErrno> {
             return Err(PosixErrno::Invalid);
         }
 
-        let (child_pid, _child_tid) = crate::kernel::launch::clone_process_from_registered_image(
-            crate::interfaces::task::ProcessId(parent_pid),
-            128,
-            0,
-            0,
-            0,
-        )
-        .map_err(|e| match e {
-            crate::kernel::launch::LaunchError::LoaderFailed => PosixErrno::Invalid,
-            crate::kernel::launch::LaunchError::SchedulerUnavailable => PosixErrno::Again,
-            crate::kernel::launch::LaunchError::InvalidSpawnRequest => PosixErrno::Invalid,
-        })?;
+        // 1. Clone Address Space (COW)
+        #[cfg(feature = "paging_enable")]
+        let new_cr3 = crate::kernel::vmm::clone_current_address_space()
+            .map_err(|_| PosixErrno::Again)?;
+        #[cfg(not(feature = "paging_enable"))]
+        let new_cr3 = 0u64;
 
+        // 2. Create new Process
+        let name = alloc::format!("child-of-{}", parent_pid);
+        #[cfg(feature = "paging_enable")]
+        let child_process = Arc::new(Process::new_with_cr3(name.as_bytes(), x86_64::PhysAddr::new(new_cr3)));
+        #[cfg(not(feature = "paging_enable"))]
+        let child_process = Arc::new(Process::new(name.as_bytes()));
+        let child_pid = child_process.id;
+        let child_tid = TaskId(child_pid.0);
+
+        // 3. Clone Task
+        let child_task_arc = crate::kernel::task::clone_current_task(child_tid, child_pid, new_cr3)
+            .map_err(|_| PosixErrno::Again)?;
+
+        // 4. Register and Start
+        crate::kernel::process_registry::register_process(child_process.clone());
         ensure_process_metadata(parent_pid);
-        register_spawned_process(parent_pid, child_pid);
-        Ok(child_pid)
+        register_spawned_process(parent_pid, child_pid.0);
+
+        // Inherit mappings (for bookkeeping)
+        let parent = crate::kernel::launch::process_arc_by_id(crate::interfaces::task::ProcessId(parent_pid))
+            .ok_or(PosixErrno::NoEntry)?;
+        {
+            let parent_maps = parent.mappings.lock();
+            let mut child_maps = child_process.mappings.lock();
+            *child_maps = parent_maps.clone();
+        }
+
+        // Add to scheduler
+        let cpu = unsafe { crate::kernel::cpu_local::CpuLocal::get() };
+        cpu.scheduler.lock().add_task(child_task_arc);
+
+        Ok(child_pid.0)
     }
+
 
     #[cfg(not(feature = "process_abstraction"))]
     {
@@ -178,6 +205,17 @@ pub(super) fn killpg(pgid: usize, signal: i32) -> Result<(), PosixErrno> {
 
     #[cfg(feature = "process_abstraction")]
     {
+        let mut mgr = crate::kernel::tty::job_control::GLOBAL_PROCESS_GROUP_MANAGER.lock();
+        let delivery = crate::kernel::signal::group_delivery::SignalGroupDelivery::new(&mut *mgr);
+        let pgrp_id = crate::kernel::tty::job_control::ProcessGroupId(crate::interfaces::task::ProcessId(group));
+        
+        if let Ok(result) = delivery.deliver_to_group(pgrp_id, signal as u32, true, false) {
+            if result.group_affected {
+                return Ok(());
+            }
+        }
+        
+        // Fallback to manual loop if delivery didn't affect anyone or failed
         let mut ids = [crate::interfaces::task::ProcessId(0); 64];
         let written = crate::kernel::launch::process_ids_snapshot(&mut ids);
         let mut delivered = false;

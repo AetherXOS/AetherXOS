@@ -37,7 +37,10 @@ pub(crate) fn read_syscall_rows(path: &std::path::Path) -> Result<Vec<SyscallCov
 }
 
 pub(crate) fn infer_family(linux_nr: &str) -> &'static str {
-    if linux_nr.starts_with("EPOLL") || linux_nr.starts_with("POLL") || linux_nr.starts_with("SELECT") {
+    if linux_nr.starts_with("EPOLL")
+        || linux_nr.starts_with("POLL")
+        || linux_nr.starts_with("SELECT")
+    {
         "event"
     } else if linux_nr.contains("SOCKET")
         || linux_nr.starts_with("BIND")

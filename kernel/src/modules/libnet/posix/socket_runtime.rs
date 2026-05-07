@@ -1,7 +1,7 @@
 #[cfg(feature = "network_transport")]
 use super::*;
 #[cfg(feature = "network_transport")]
-use crate::modules::vfs::types::{FileStats, SeekFrom};
+use crate::modules::vfs::types::{FileStats, SeekFrom, VfsTimespec};
 #[cfg(feature = "network_transport")]
 use alloc::collections::VecDeque;
 #[cfg(feature = "network_transport")]
@@ -88,7 +88,7 @@ impl File for SocketFile {
                     Ok(n)
                 } else {
                     ensure_datagram_socket(state)?;
-                    if let Some(datagram) = state.socket.as_ref().unwrap().recv() {
+                    if let Some(datagram) = state.socket.as_ref().and_then(|s| s.recv()) {
                         let n = datagram.payload.len().min(buf.len());
                         buf[..n].copy_from_slice(&datagram.payload[..n]);
                         Ok(n)
@@ -143,8 +143,8 @@ impl File for SocketFile {
             PosixSocket::Datagram(state) => {
                 if !state.pending.is_empty() {
                     revents |= crate::modules::posix_consts::net::POLLIN as u32;
-                } else if let Ok(()) = ensure_datagram_socket(state) {
-                    if let Some(d) = state.socket.as_ref().unwrap().recv() {
+                    } else if let Ok(()) = ensure_datagram_socket(state) {
+                    if let Some(d) = state.socket.as_ref().and_then(|s| s.recv()) {
                         state.pending.push_back(d);
                         revents |= crate::modules::posix_consts::net::POLLIN as u32;
                     }
@@ -192,11 +192,14 @@ impl File for SocketFile {
             mode: 0o140666,
             uid: 0,
             gid: 0,
-            atime: 0,
-            mtime: 0,
-            ctime: 0,
+            nlink: 1,
+            atime: VfsTimespec::default(),
+            mtime: VfsTimespec::default(),
+            ctime: VfsTimespec::default(),
+            btime: VfsTimespec::default(),
             blksize: 4096,
             blocks: 0,
+            ino: 0,
         })
     }
 

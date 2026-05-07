@@ -166,7 +166,10 @@ pub(crate) fn execute(limit: usize, strict: bool) -> Result<()> {
     let trend_history_path = root.join(config::repo_paths::LINUX_ABI_WORKLOAD_HISTORY_JSON);
     let mut history: Vec<WorkloadTrendPoint> = if trend_history_path.exists() {
         let text = fs::read_to_string(&trend_history_path).with_context(|| {
-            format!("failed reading workload history: {}", trend_history_path.display())
+            format!(
+                "failed reading workload history: {}",
+                trend_history_path.display()
+            )
         })?;
         serde_json::from_str(&text).unwrap_or_default()
     } else {
@@ -258,8 +261,14 @@ fn render_workload_trend_md(doc: &WorkloadTrendDoc) -> String {
     md.push_str(&format!("- generated_utc: {}\n", doc.generated_utc));
     md.push_str(&format!("- strict: {}\n", doc.strict));
     md.push_str(&format!("- overall_ok: {}\n", doc.overall_ok));
-    md.push_str(&format!("- latest_pass_rate_pct: {:.1}\n", doc.latest_pass_rate_pct));
-    md.push_str(&format!("- regression_detected: {}\n\n", doc.regression_detected));
+    md.push_str(&format!(
+        "- latest_pass_rate_pct: {:.1}\n",
+        doc.latest_pass_rate_pct
+    ));
+    md.push_str(&format!(
+        "- regression_detected: {}\n\n",
+        doc.regression_detected
+    ));
     md.push_str("## Points\n\n");
     for point in &doc.points {
         md.push_str(&format!(

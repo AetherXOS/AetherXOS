@@ -47,6 +47,8 @@ impl RuntimeBootContext {
         boot_sequence::write_stage_serial_marker("[EARLY SERIAL] prelude finalize begin");
         boot_sequence::finalize_boot_prelude(&self.prelude);
         boot_sequence::write_stage_serial_marker("[EARLY SERIAL] prelude finalize returned");
+        #[cfg(feature = "process_abstraction")]
+        aethercore::kernel::process::init_linux_runtime_pages();
         crate::kernel_runtime::heap::finalize_heap_bootstrap();
         boot_sequence::write_stage_serial_marker(
             "[EARLY SERIAL] runtime boot platform services complete",

@@ -11,6 +11,7 @@ pub mod test;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use crate::utils::executable::Executable;
 
 pub use crate::types::{Bootloader, ImageFormat};
 
@@ -39,86 +40,81 @@ pub struct Cli {
     #[arg(long, global = true, default_value = "artifacts")]
     pub outdir: PathBuf,
 
+    /// Run xtask in non-interactive / CI mode. Equivalent to setting `XTASK_NONINTERACTIVE`.
+    #[arg(long, global = true, default_value_t = false)]
+    pub non_interactive: bool,
+
     /// Selected operational mode or isolated subsystem category.
     #[command(subcommand)]
     pub command: Commands,
 }
 
-/// Organizational hierarchies representing independent Xtask subsystems.
-#[derive(Subcommand, Debug)]
-pub enum Commands {
-    /// Infrastructure build operations (Compile kernel, pack rootfs, construct full bootable images)
-    Build {
-        #[command(subcommand)]
-        action: BuildAction,
-    },
+macro_rules! define_commands {
+    ($($variant:ident($action:ident) => $desc:expr),* $(; $($simple_variant:ident => $simple_desc:expr),*)?) => {
+        #[derive(Subcommand, Debug)]
+        pub enum Commands {
+            $(
+                #[doc = $desc]
+                $variant {
+                    #[command(subcommand)]
+                    action: $action,
+                },
+            )*
+            $(
+                $(
+                    #[doc = $simple_desc]
+                    $simple_variant,
+                )*
+            )?
+            CorePressure {
+                #[arg(long)]
+                words: String,
+                #[arg(long)]
+                lottery_words: Option<String>,
+                #[arg(long, default_value = "text")]
+                format: String,
+                #[arg(long)]
+                out: Option<String>,
+            },
+        }
 
-    /// Emulation gateways and direct runtime deployment targets
-    Run {
-        #[command(subcommand)]
-        action: RunAction,
-    },
+        impl Executable for Commands {
+            fn execute(&self) -> anyhow::Result<()> {
+                use anyhow::Context;
+                match self {
+                    $(
+                        Commands::$variant { action } => action.execute().context(concat!(stringify!($variant), " failure")),
+                    )*
+                    $(
+                        $(
+                            Commands::$simple_variant => {
+                                match stringify!($simple_variant) {
+                                    "CrashRecovery" => crate::commands::runtime::crash_recovery::execute().context("Crash recovery failure"),
+                                    _ => Ok(())
+                                }
+                            }
+                        )*
+                    )?
+                    Commands::CorePressure { words, lottery_words, format, out } => {
+                        crate::commands::runtime::core_pressure::execute(words, lottery_words, format, out)
+                            .context("Core pressure report failure")
+                    }
+                }
+            }
+        }
+    }
+}
 
-    /// Comprehensive kernel logic checks, UI assertions, and tooling validations suites
-    Test {
-        #[command(subcommand)]
-        action: TestAction,
-    },
-
-    /// Configuration, bootstrapping, host environmental gap remediation
-    Setup {
-        #[command(subcommand)]
-        action: SetupAction,
-    },
-
-    /// Status reporting, CI/CD telemetry aggregations, overview metrics
-    Dashboard {
-        #[command(subcommand)]
-        action: DashboardAction,
-    },
-
-    /// Linux application compatibility parsing, coverage auditing, bridging metrics
-    LinuxAbi {
-        #[command(subcommand)]
-        action: LinuxAbiAction,
-    },
-
-    /// Cryptographic signing routines, SBAT validations, Platform Configuration Registers logic
-    Secureboot {
-        #[command(subcommand)]
-        action: SecurebootAction,
-    },
-
-    /// Release engineering, preflight gates, and candidate acceptance
-    Release {
-        #[command(subcommand)]
-        action: ReleaseAction,
-    },
-
-    /// Runtime A/B slot management and boot recovery gates
-    AbSlot {
-        #[command(subcommand)]
-        action: AbSlotAction,
-    },
-
-    CorePressure {
-        #[arg(long)]
-        words: String,
-
-        #[arg(long)]
-        lottery_words: Option<String>,
-
-        #[arg(long, default_value = "text")]
-        format: String,
-
-        #[arg(long)]
-        out: Option<String>,
-    },
-
-    CrashRecovery,
-
-    Glibc {
-        #[command(subcommand)]
-        action: GlibcAction,
-    },
+define_commands! {
+    Build(BuildAction) => "Infrastructure build operations",
+    Run(RunAction) => "Emulation and deployment gateways",
+    Test(TestAction) => "Validation suites",
+    Setup(SetupAction) => "Host setup and bootstrapping",
+    Dashboard(DashboardAction) => "Pipeline health visualization",
+    LinuxAbi(LinuxAbiAction) => "Linux ABI compatibility",
+    Secureboot(SecurebootAction) => "Secure Boot protocols",
+    Release(ReleaseAction) => "Release engineering",
+    AbSlot(AbSlotAction) => "A/B slot management",
+    Glibc(GlibcAction) => "Glibc audit";
+    CrashRecovery => "Panic diagnostics"
 }

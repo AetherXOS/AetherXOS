@@ -117,7 +117,7 @@ pub(crate) fn upcall_entry_pc_valid(entry_pc: usize) -> bool {
 }
 
 #[inline(always)]
-pub(crate) fn current_process_id() -> Option<usize> {
+pub fn current_process_id() -> Option<usize> {
     #[cfg(feature = "process_abstraction")]
     {
         let cpu = unsafe { crate::kernel::cpu_local::CpuLocal::get() };

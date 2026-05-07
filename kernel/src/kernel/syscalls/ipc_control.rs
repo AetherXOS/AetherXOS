@@ -9,7 +9,7 @@ pub(crate) fn futex_key_from_ptr_or_hint(ptr: usize, key_hint: usize) -> u64 {
     }
 }
 
-pub(crate) fn sys_futex_wait(_user_word_ptr: usize, _expected: usize, _key_hint: usize) -> usize {
+pub fn sys_futex_wait(_user_word_ptr: usize, _expected: usize, _key_hint: usize) -> usize {
     SYSCALL_FUTEX_WAIT_CALLS.fetch_add(1, Ordering::Relaxed);
     if let Err(err) = require_control_plane_access(crate::modules::security::RESOURCE_IPC_FUTEX) {
         return err;
@@ -24,13 +24,20 @@ pub(crate) fn sys_futex_wait(_user_word_ptr: usize, _expected: usize, _key_hint:
         with_user_read_bytes(_user_word_ptr, FUTEX_WORD_BYTES, |slice| {
             let mut bytes = [0u8; FUTEX_WORD_BYTES];
             bytes.copy_from_slice(slice);
-            let observed = u32::from_le_bytes(bytes);
-            let key = futex_key_from_ptr_or_hint(_user_word_ptr, _key_hint);
-            match crate::modules::ipc::futex::global().wait(key, observed, _expected as u32) {
-                crate::modules::ipc::futex::FutexWaitResult::Enqueued => 0,
-                crate::modules::ipc::futex::FutexWaitResult::ValueMismatch => {
-                    FUTEX_WAIT_VALUE_MISMATCH
+            let _observed = u32::from_le_bytes(bytes);
+            let _key = futex_key_from_ptr_or_hint(_user_word_ptr, _key_hint);
+            #[cfg(feature = "ipc_futex")]
+            {
+                match (&crate::modules::ipc::futex::FUTEX_MANAGER).wait(_key, _observed, _expected as u32) {
+                    crate::modules::ipc::futex::FutexWaitResult::Enqueued => 0,
+                    crate::modules::ipc::futex::FutexWaitResult::ValueMismatch => {
+                        FUTEX_WAIT_VALUE_MISMATCH
+                    }
                 }
+            }
+            #[cfg(not(feature = "ipc_futex"))]
+            {
+                0
             }
         })
         .unwrap_or_else(|err| err)
@@ -42,29 +49,21 @@ pub(crate) fn sys_futex_wait(_user_word_ptr: usize, _expected: usize, _key_hint:
     }
 }
 
-pub(crate) fn sys_futex_wake(_user_word_ptr: usize, _max_wake: usize, _key_hint: usize) -> usize {
+pub fn sys_futex_wake(_user_word_ptr: usize, _count: usize, _key_hint: usize) -> usize {
     SYSCALL_FUTEX_WAKE_CALLS.fetch_add(1, Ordering::Relaxed);
     if let Err(err) = require_control_plane_access(crate::modules::security::RESOURCE_IPC_FUTEX) {
         return err;
     }
 
-    #[cfg(feature = "ipc")]
+    #[cfg(feature = "ipc_futex")]
     {
-        if _max_wake == 0 {
-            return 0;
-        }
-
-        if !user_readable_range_valid(_user_word_ptr, FUTEX_WORD_BYTES) {
-            return user_access_denied_arg();
-        }
-
         let key = futex_key_from_ptr_or_hint(_user_word_ptr, _key_hint);
-        crate::modules::ipc::futex::global().wake(key, _max_wake)
+        crate::modules::ipc::futex::FUTEX_MANAGER.wake(key, _count)
     }
 
-    #[cfg(not(feature = "ipc"))]
+    #[cfg(not(feature = "ipc_futex"))]
     {
-        invalid_arg()
+        0
     }
 }
 
@@ -116,28 +115,35 @@ pub(crate) fn sys_upcall_register(
 
 #[inline(always)]
 fn register_upcall_with_owner_guard(
-    irq: u8,
-    pid: crate::interfaces::task::ProcessId,
-    entry_pc: u64,
-    user_ctx: u64,
-    flags: u32,
+    _irq: u8,
+    _pid: crate::interfaces::task::ProcessId,
+    _entry_pc: u64,
+    _user_ctx: u64,
+    _flags: u32,
 ) -> Result<(), usize> {
-    let replaced =
-        crate::modules::dispatcher::upcall::register_global(irq, pid, entry_pc, user_ctx, flags);
-    if let Some(old) = replaced {
-        let _ = crate::modules::dispatcher::upcall::register_global(
-            irq,
-            old.process_id,
-            old.entry_pc,
-            old.user_ctx,
-            old.flags,
-        );
-        if old.process_id != pid {
-            return Err(permission_denied_arg());
+    #[cfg(feature = "ipc_message_passing")]
+    {
+        let replaced =
+            crate::modules::dispatcher::upcall::register_global(_irq, _pid, _entry_pc, _user_ctx, _flags);
+        if let Some(old) = replaced {
+            let _ = crate::modules::dispatcher::upcall::register_global(
+                _irq,
+                old.process_id,
+                old.entry_pc,
+                old.user_ctx,
+                old.flags,
+            );
+            if old.process_id != _pid {
+                return Err(permission_denied_arg());
+            }
+            return Err(invalid_arg());
         }
-        return Err(invalid_arg());
+        Ok(())
     }
-    Ok(())
+    #[cfg(not(feature = "ipc_message_passing"))]
+    {
+        Ok(())
+    }
 }
 
 pub(crate) fn sys_upcall_unregister(_irq: usize) -> usize {
@@ -281,7 +287,7 @@ pub(crate) fn sys_upcall_inject_virtual_irq(_irq: usize, _user_ctx: usize, _flag
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "ipc_message_passing"))]
 mod tests {
     use super::*;
 

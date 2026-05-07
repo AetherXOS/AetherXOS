@@ -126,3 +126,9 @@ pub enum ReleaseAction {
         strict: bool,
     },
 }
+
+impl crate::utils::executable::Executable for ReleaseAction {
+    fn execute(&self) -> anyhow::Result<()> {
+        crate::commands::release::preflight::execute(self)
+    }
+}

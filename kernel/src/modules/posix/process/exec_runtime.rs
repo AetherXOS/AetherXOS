@@ -98,18 +98,39 @@ pub(super) fn execve(path: &str, _argv: &[&str], _envp: &[&str]) -> Result<(), P
                     if let Some(hhdm) = crate::hal::hhdm_offset() {
                         unsafe {
                             let offset = x86_64::VirtAddr::new(hhdm);
-                            let lvl4 = crate::kernel::memory::paging::active_level_4_table(offset);
+                            let lvl4 = crate::kernel::memory::paging::active_level_4_table(offset.as_u64());
                             let mut page_manager =
                                 crate::kernel::memory::paging::PageManager::new(offset, lvl4);
-                            let mut frame_allocator = crate::kernel::vmm::PageAllocWrapper;
-                            crate::kernel::module_loader::materialize_process_image(
+                            let mut frame_allocator = crate::hal::paging::PageAllocWrapper;
+
+                            // 1. Materialize main executable
+                            let prepared = crate::kernel::module_loader::materialize_process_image(
                                 &proc_arc,
                                 &image,
                                 &mut page_manager,
                                 &mut frame_allocator,
                             )
                             .map_err(|_| PosixErrno::Invalid)?;
+
+                            // 2. If interpreter present, materialize it too
+                            if let Some(interp_path) = prepared.info.interpreter_path.as_ref() {
+                                let fs_id = (*EXEC_FS_ID.lock()).ok_or(PosixErrno::BadFileDescriptor)?;
+                                let interp_image = read_exec_image_from_fs(fs_id, interp_path)?;
+                                
+                                let interp_prepared = crate::kernel::module_loader::materialize_process_image(
+                                    &proc_arc,
+                                    &interp_image,
+                                    &mut page_manager,
+                                    &mut frame_allocator,
+                                )
+                                .map_err(|_| PosixErrno::Invalid)?;
+                                
+                                // Set interpreter base and entry point
+                                proc_arc.set_interpreter_base(interp_prepared.load_plan.aslr_base);
+                                proc_arc.set_runtime_entry(Some(interp_prepared.load_plan.entry + interp_prepared.load_plan.aslr_base));
+                            }
                         }
+
                     } else {
                         crate::kernel::module_loader::prepare_process_image(&proc_arc, &image)
                             .map_err(|_| PosixErrno::Invalid)?;
@@ -285,6 +306,18 @@ pub(super) fn posix_spawn_from_image(
             .map_err(|_| PosixErrno::Invalid)?;
 
         let parent_pid = getpid();
+        
+        // 1. Detect if interpreter is needed
+        let mut interpreter_image = None;
+        #[cfg(all(feature = "vfs", feature = "posix_fs"))]
+        {
+            if let Some(interp_path) = resolve_interp_path(image)? {
+                let fs_id = (*EXEC_FS_ID.lock()).ok_or(PosixErrno::BadFileDescriptor)?;
+                let interp_img = read_exec_image_from_fs(fs_id, &interp_path)?;
+                interpreter_image = Some(interp_img);
+            }
+        }
+
         let (pid, _tid) = crate::kernel::launch::spawn_bootstrap_from_image(
             process_name,
             image,
@@ -292,6 +325,7 @@ pub(super) fn posix_spawn_from_image(
             deadline,
             burst_time,
             kernel_stack_top,
+            interpreter_image,
         )
         .map_err(|e| match e {
             crate::kernel::launch::LaunchError::LoaderFailed => PosixErrno::Invalid,
@@ -301,6 +335,7 @@ pub(super) fn posix_spawn_from_image(
         ensure_process_metadata(parent_pid);
         register_spawned_process(parent_pid, pid);
         Ok(pid)
+
     }
 
     #[cfg(not(feature = "process_abstraction"))]

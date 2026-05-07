@@ -8,7 +8,10 @@ fn render_gate_report_md_shows_regressions_and_improvements() {
         baseline_path: "reports/tooling/ci_bundle_prev.json".to_string(),
         baseline_created: false,
         current_overall_ok: false,
-        regressions: vec!["abi_drift".to_string(), "linux_abi_semantic_matrix".to_string()],
+        regressions: vec![
+            "abi_drift".to_string(),
+            "linux_abi_semantic_matrix".to_string(),
+        ],
         improvements: vec!["qemu_boot_markers".to_string()],
     };
 

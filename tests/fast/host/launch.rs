@@ -26,11 +26,11 @@ fn loader_rejects_invalid_requests_without_bootstrap_side_effects() {
         Err(ModuleLoadError::TooSmall)
     ));
     assert_eq!(
-        spawn_bootstrap_from_image(b"", &[1u8], 0, 0, 0, 0),
+        spawn_bootstrap_from_image(b"", &[1u8], 0, 0, 0, 0, None),
         Err(LaunchError::InvalidSpawnRequest)
     );
     assert_eq!(
-        spawn_bootstrap_from_image(b"probe", &[], 0, 0, 0, 0),
+        spawn_bootstrap_from_image(b"probe", &[], 0, 0, 0, 0, None),
         Err(LaunchError::InvalidSpawnRequest)
     );
 }

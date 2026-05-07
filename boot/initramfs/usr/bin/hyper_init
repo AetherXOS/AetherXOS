@@ -258,7 +258,7 @@ if [ "${HYPERCORE_RUN_APT_SEED:-1}" = "1" ] && [ -x /usr/bin/hypercore-apt-seed 
   echo "[aether_init] apt seed exit status: ${HYPERCORE_APT_SEED_STATUS}"
 fi
 
-for candidate in /usr/lib/hypercore/init.elf /usr/lib/hypercore/probe.elf /usr/lib/hypercore/init /usr/bin/init /bin/init /bin/sh
+for candidate in /usr/lib/hypercore/init.elf /usr/lib/hypercore/probe.elf /usr/lib/hypercore/init /usr/bin/init /bin/init /sbin/init /lib/systemd/systemd /usr/lib/systemd/systemd /bin/sh
 do
   if [ -x "${candidate}" ]; then
     echo "[aether_init] launching ${candidate}"

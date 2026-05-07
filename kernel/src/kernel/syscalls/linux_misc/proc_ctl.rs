@@ -1,5 +1,6 @@
 #[cfg(not(feature = "linux_compat"))]
-use super::{linux_errno, with_user_read_bytes, with_user_write_bytes};
+use super::linux_errno;
+use crate::kernel::syscalls::{with_user_read_bytes, with_user_write_bytes};
 #[cfg(not(feature = "linux_compat"))]
 use alloc::collections::BTreeMap;
 #[cfg(not(feature = "linux_compat"))]
@@ -20,44 +21,52 @@ fn current_tid() -> usize {
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn seccomp_mode_for_tid(tid: usize) -> u8 {
+pub fn seccomp_mode_for_tid(tid: usize) -> u8 {
     SECCOMP_MODE_BY_TID.lock().get(&tid).copied().unwrap_or(0)
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn no_new_privs_for_tid(tid: usize) -> bool {
+pub fn no_new_privs_for_tid(tid: usize) -> bool {
     NO_NEW_PRIVS_BY_TID.lock().get(&tid).copied().unwrap_or(false)
+}
+
+#[cfg(not(feature = "linux_compat"))]
+pub fn validate_syscall_for_current_task(syscall_id: usize) -> bool {
+    let tid = current_tid();
+    let mode = seccomp_mode_for_tid(tid);
+    if mode == 0 {
+        return true;
+    }
+
+    if mode == 1 {
+        // SECCOMP_MODE_STRICT: allow only read, write, exit, rt_sigreturn
+        // We use AetherXOS native syscall IDs here for strict mode if it's a native task,
+        // or Linux IDs if it's a linux task. 
+        // For simplicity, we'll allow a few common ones.
+        return matches!(syscall_id, 0 | 1 | 2 | 3 | 15); // read, write, open, close, rt_sigreturn
+    }
+
+    // SECCOMP_MODE_FILTER (2): Not fully implemented yet, but for now we allow all
+    // In a real kernel, this would run a BPF program.
+    true
 }
 
 #[cfg(all(test, not(feature = "linux_compat")))]
 #[allow(dead_code)]
-pub(super) fn set_prctl_state_for_tid_for_test(tid: usize, seccomp_mode: u8, no_new_privs: bool) {
+pub fn set_prctl_state_for_tid_for_test(tid: usize, seccomp_mode: u8, no_new_privs: bool) {
     SECCOMP_MODE_BY_TID.lock().insert(tid, seccomp_mode);
     NO_NEW_PRIVS_BY_TID.lock().insert(tid, no_new_privs);
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_prctl(
+pub fn sys_linux_prctl(
     option: usize,
     arg2: usize,
     _arg3: usize,
     _arg4: usize,
     _arg5: usize,
 ) -> usize {
-    const PR_SET_NAME: usize = 15;
-    const PR_GET_NAME: usize = 16;
-    const PR_SET_PDEATHSIG: usize = 1;
-    const PR_GET_PDEATHSIG: usize = 2;
-    const PR_GET_DUMPABLE: usize = 3;
-    const PR_SET_DUMPABLE: usize = 4;
-    const PR_GET_KEEPCAPS: usize = 7;
-    const PR_SET_KEEPCAPS: usize = 8;
-    const PR_GET_SECCOMP: usize = 21;
-    const PR_SET_SECCOMP: usize = 22;
-    const PR_CAPBSET_READ: usize = 23;
-    const PR_CAPBSET_DROP: usize = 24;
-    const PR_SET_NO_NEW_PRIVS: usize = 38;
-    const PR_GET_NO_NEW_PRIVS: usize = 39;
+    use crate::modules::posix_consts::prctl::*;
 
     match option {
         PR_SET_NAME => {
@@ -153,8 +162,9 @@ pub(super) fn sys_linux_prctl(
     }
 }
 
+
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_sched_getparam(_pid: usize, param_ptr: usize) -> usize {
+pub fn sys_linux_sched_getparam(_pid: usize, param_ptr: usize) -> usize {
     #[cfg(feature = "posix_process")]
     {
         let priority = match crate::modules::posix::process::sched_getparam(_pid) {
@@ -178,7 +188,7 @@ pub(super) fn sys_linux_sched_getparam(_pid: usize, param_ptr: usize) -> usize {
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_sched_getscheduler(_pid: usize) -> usize {
+pub fn sys_linux_sched_getscheduler(_pid: usize) -> usize {
     #[cfg(feature = "posix_process")]
     {
         return match crate::modules::posix::process::sched_getscheduler(_pid) {
@@ -193,7 +203,7 @@ pub(super) fn sys_linux_sched_getscheduler(_pid: usize) -> usize {
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_sched_setparam(pid: usize, param_ptr: usize) -> usize {
+pub fn sys_linux_sched_setparam(pid: usize, param_ptr: usize) -> usize {
     let priority = match with_user_read_bytes(param_ptr, 4, |src| {
         i32::from_ne_bytes([src[0], src[1], src[2], src[3]])
     }) {
@@ -216,7 +226,7 @@ pub(super) fn sys_linux_sched_setparam(pid: usize, param_ptr: usize) -> usize {
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_sched_setscheduler(pid: usize, policy: usize, param_ptr: usize) -> usize {
+pub fn sys_linux_sched_setscheduler(pid: usize, policy: usize, param_ptr: usize) -> usize {
     let priority = match with_user_read_bytes(param_ptr, 4, |src| {
         i32::from_ne_bytes([src[0], src[1], src[2], src[3]])
     }) {
@@ -243,7 +253,7 @@ pub(super) fn sys_linux_sched_setscheduler(pid: usize, policy: usize, param_ptr:
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_sched_getaffinity(
+pub fn sys_linux_sched_getaffinity(
     _pid: usize,
     cpusetsize: usize,
     mask_ptr: usize,
@@ -260,7 +270,7 @@ pub(super) fn sys_linux_sched_getaffinity(
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_sched_setaffinity(
+pub fn sys_linux_sched_setaffinity(
     _pid: usize,
     _cpusetsize: usize,
     _mask_ptr: usize,

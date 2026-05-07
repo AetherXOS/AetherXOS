@@ -38,19 +38,22 @@ pub(super) fn build_linux_tmpfile_path(dir: &str, id: u64) -> alloc::string::Str
 
 pub(super) fn apply_linux_open_post_flags(fd: u32, flags: usize) {
     if (flags & linux::open_flags::O_APPEND) != 0 {
-        let current = crate::modules::posix::fs::fcntl_get_status_flags(fd).unwrap_or(0);
-        let _ = crate::modules::posix::fs::fcntl_set_status_flags(
-            fd,
-            current | crate::modules::posix_consts::fs::O_APPEND as u32,
-        );
-        let _ = crate::modules::posix::fs::lseek(fd, 0, crate::modules::posix::fs::SeekWhence::End);
+        if let Ok(current) = crate::modules::posix::fs::fcntl_get_status_flags(fd) {
+            let _ = crate::modules::posix::fs::fcntl_set_status_flags(
+                fd,
+                current | crate::modules::posix_consts::fs::O_APPEND as u32,
+            );
+            let _ =
+                crate::modules::posix::fs::lseek(fd, 0, crate::modules::posix::fs::SeekWhence::End);
+        }
     }
     if (flags & linux::open_flags::O_NONBLOCK) != 0 {
-        let current = crate::modules::posix::fs::fcntl_get_status_flags(fd).unwrap_or(0);
-        let _ = crate::modules::posix::fs::fcntl_set_status_flags(
-            fd,
-            current | crate::modules::posix_consts::net::O_NONBLOCK as u32,
-        );
+        if let Ok(current) = crate::modules::posix::fs::fcntl_get_status_flags(fd) {
+            let _ = crate::modules::posix::fs::fcntl_set_status_flags(
+                fd,
+                current | crate::modules::posix_consts::net::O_NONBLOCK as u32,
+            );
+        }
     }
     if (flags & linux::open_flags::O_CLOEXEC) != 0 {
         fs_io::linux_fd_set_descriptor_flags(fd, fs_io::LINUX_FD_CLOEXEC);

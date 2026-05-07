@@ -7,8 +7,8 @@ use crate::config;
 use crate::utils::{paths, report};
 
 use super::helpers::{
-    compute_family_tiers, read_json, read_syscall_rows, suggest_alternative, SyscallCoverageRow,
-    SyscallFamilyTier,
+    SyscallCoverageRow, SyscallFamilyTier, compute_family_tiers, read_json, read_syscall_rows,
+    suggest_alternative,
 };
 
 #[derive(Serialize)]
@@ -192,7 +192,10 @@ fn render_unsupported_syscalls_md(doc: &UnsupportedSyscallDoc) -> String {
     let mut md = String::new();
     md.push_str("# Linux ABI Unsupported Syscalls\n\n");
     md.push_str(&format!("- generated_utc: {}\n", doc.generated_utc));
-    md.push_str(&format!("- total_unsupported: {}\n\n", doc.total_unsupported));
+    md.push_str(&format!(
+        "- total_unsupported: {}\n\n",
+        doc.total_unsupported
+    ));
     md.push_str("## Entries\n\n");
     for entry in &doc.entries {
         md.push_str(&format!(

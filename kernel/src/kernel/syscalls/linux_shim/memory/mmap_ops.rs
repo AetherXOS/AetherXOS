@@ -173,6 +173,72 @@ pub(crate) fn sys_linux_mmap(
     }
 }
 
+pub(crate) fn sys_linux_brk(addr: usize) -> usize {
+    let Some(pid) = current_process_id() else {
+        return addr;
+    };
+    let Some(process) =
+        crate::kernel::launch::process_arc_by_id(crate::interfaces::task::ProcessId(pid))
+    else {
+        return addr;
+    };
+
+    let heap_start = process.heap_start.load(core::sync::atomic::Ordering::Relaxed) as usize;
+    let old_break = process.heap_break.load(core::sync::atomic::Ordering::Relaxed) as usize;
+
+    if addr == 0 || addr < heap_start {
+        return old_break;
+    }
+
+    if addr == old_break {
+        return old_break;
+    }
+
+    // Grow or shrink
+    if addr > old_break {
+        // Round up to page boundary
+        let new_break_aligned = (addr + 4095) & !4095;
+        let old_break_aligned = (old_break + 4095) & !4095;
+        let diff = new_break_aligned.saturating_sub(old_break_aligned);
+
+        if diff > 0 {
+            #[cfg(all(feature = "vfs", feature = "posix_mman", feature = "process_abstraction"))]
+            {
+                let prot = crate::modules::posix_consts::mman::PROT_READ
+                    | crate::modules::posix_consts::mman::PROT_WRITE;
+                let flags = crate::modules::posix_consts::mman::MAP_ANONYMOUS
+                    | crate::modules::posix_consts::mman::MAP_PRIVATE
+                    | crate::kernel::syscalls::syscalls_consts::linux::mmap::MAP_FIXED as u32;
+
+                match crate::modules::posix::mman::mmap_anonymous(diff, prot, flags) {
+                    Ok(map_id) => {
+                        if let Err(_) = register_mapping_for_current_process(
+                            old_break_aligned,
+                            map_id,
+                            diff,
+                            prot,
+                            flags,
+                        ) {
+                            return old_break;
+                        }
+                    }
+                    Err(_) => return old_break,
+                }
+            }
+        }
+        process
+            .heap_break
+            .store(addr as u64, core::sync::atomic::Ordering::Relaxed);
+        addr
+    } else {
+        // Shrink - POSIX allows deferring unmap
+        process
+            .heap_break
+            .store(addr as u64, core::sync::atomic::Ordering::Relaxed);
+        addr
+    }
+}
+
 #[cfg(not(feature = "linux_compat"))]
 pub(crate) fn sys_linux_munmap(addr: usize, len: usize) -> usize {
     if let Err(err) = validate_nonzero_mapping_range(addr, len) {

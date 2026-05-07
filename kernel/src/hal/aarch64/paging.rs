@@ -2,11 +2,56 @@
 //! Standardizes Paging behavior into the HAL.
 
 use core::ptr;
+use core::ops::{Index, IndexMut};
 use crate::kernel::bit_utils::paging as bits;
 use crate::interfaces::memory::page_flags as common_bits;
 
 pub const PAGE_SIZE: usize = bits::PAGE_SIZE;
 const ADDR_MASK: u64 = bits::PHYS_ADDR_MASK;
+
+/// AArch64 page-table entry (64-bit descriptor).
+#[derive(Clone, Copy)]
+pub struct PageTableEntry {
+    entry: u64,
+}
+
+impl PageTableEntry {
+    pub const fn new() -> Self { Self { entry: 0 } }
+    pub fn is_unused(&self) -> bool { self.entry == 0 }
+    pub fn flags(&self) -> ArchPageFlags { ArchPageFlags::from_bits_truncate(self.entry) }
+}
+
+/// AArch64 page table (512 64-bit entries).
+#[repr(C, align(4096))]
+pub struct PageTable {
+    entries: [PageTableEntry; 512],
+}
+
+impl PageTable {
+    pub const fn new() -> Self {
+        Self { entries: [PageTableEntry::new(); 512] }
+    }
+    pub fn zero(&mut self) {
+        for e in &mut self.entries {
+            e.entry = 0;
+        }
+    }
+}
+
+impl Index<usize> for PageTable {
+    type Output = PageTableEntry;
+    fn index(&self, i: usize) -> &PageTableEntry { &self.entries[i] }
+}
+
+impl IndexMut<usize> for PageTable {
+    fn index_mut(&mut self, i: usize) -> &mut PageTableEntry { &mut self.entries[i] }
+}
+
+impl Clone for PageTable {
+    fn clone(&self) -> Self {
+        Self { entries: self.entries.clone() }
+    }
+}
 
 define_flags!(pub struct ArchPageFlags: u64 {
     VALID       = 1 << 0,

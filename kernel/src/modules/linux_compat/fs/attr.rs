@@ -162,9 +162,9 @@ pub fn sys_linux_statx(
         match crate::modules::posix::fs::fstatat(fs_id, &dir_path, &path, follow) {
             Ok(pstat) => {
                 let mut stx: LinuxStatx = unsafe { core::mem::zeroed() };
-                stx.stx_mask = linux::STATX_BASIC_STATS & mask as u32;
+                stx.stx_mask = (linux::STATX_BASIC_STATS | linux::STATX_BTIME) & mask as u32;
                 stx.stx_blksize = LinuxCompatConfig::STAT_BLKSIZE;
-                stx.stx_nlink = 1;
+                stx.stx_nlink = pstat.nlink;
                 stx.stx_uid = pstat.uid;
                 stx.stx_gid = pstat.gid;
                 stx.stx_mode = pstat.mode;
@@ -176,10 +176,10 @@ pub fn sys_linux_statx(
                 stx.stx_ino = pstat.ino;
                 stx.stx_size = pstat.size;
                 stx.stx_blocks = (pstat.size + (LinuxCompatConfig::STAT_BLOCK_SIZE - 1)) / LinuxCompatConfig::STAT_BLOCK_SIZE;
-                stx.stx_atime = LinuxStatxTimestamp { tv_sec: pstat.atime, tv_nsec: 0, __reserved: 0 };
-                stx.stx_mtime = LinuxStatxTimestamp { tv_sec: pstat.mtime, tv_nsec: 0, __reserved: 0 };
-                stx.stx_ctime = LinuxStatxTimestamp { tv_sec: pstat.ctime, tv_nsec: 0, __reserved: 0 };
-                stx.stx_btime = stx.stx_ctime;
+                stx.stx_atime = LinuxStatxTimestamp { tv_sec: pstat.atime.sec, tv_nsec: pstat.atime.nsec as u32, __reserved: 0 };
+                stx.stx_mtime = LinuxStatxTimestamp { tv_sec: pstat.mtime.sec, tv_nsec: pstat.mtime.nsec as u32, __reserved: 0 };
+                stx.stx_ctime = LinuxStatxTimestamp { tv_sec: pstat.ctime.sec, tv_nsec: pstat.ctime.nsec as u32, __reserved: 0 };
+                stx.stx_btime = LinuxStatxTimestamp { tv_sec: pstat.btime.sec, tv_nsec: pstat.btime.nsec as u32, __reserved: 0 };
 
                 write_user_struct!(statxbuf, stx)
             }
@@ -320,16 +320,19 @@ fn fill_linux_stat(pstat: crate::modules::posix::fs::PosixStat) -> LinuxStat {
         lstat.st_mode |= linux::S_IFREG;
     }
 
-    lstat.st_nlink = 1;
+    lstat.st_nlink = pstat.nlink as u64;
     lstat.st_uid = pstat.uid;
     lstat.st_gid = pstat.gid;
     lstat.st_size = pstat.size as i64;
     lstat.st_blksize = LinuxCompatConfig::STAT_BLKSIZE as i64;
     lstat.st_blocks = (pstat.size as i64 + (LinuxCompatConfig::STAT_BLOCK_SIZE as i64 - 1))
         / LinuxCompatConfig::STAT_BLOCK_SIZE as i64;
-    lstat.st_atime = pstat.atime;
-    lstat.st_mtime = pstat.mtime;
-    lstat.st_ctime = pstat.ctime;
+    lstat.st_atime = pstat.atime.sec;
+    lstat.st_atime_nsec = pstat.atime.nsec as i64;
+    lstat.st_mtime = pstat.mtime.sec;
+    lstat.st_mtime_nsec = pstat.mtime.nsec as i64;
+    lstat.st_ctime = pstat.ctime.sec;
+    lstat.st_ctime_nsec = pstat.ctime.nsec as i64;
     lstat
 }
 

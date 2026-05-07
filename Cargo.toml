@@ -300,17 +300,16 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_derive = "1.0"
 
 [dev-dependencies]
-criterion = "0.5"
-proptest = "1.4"
-quickcheck = "1.0"
-quickcheck_macros = "1.0"
-tempfile = "3.8"
+# All host-only dev-dependencies live under the target-gated section below.
+# This section intentionally left minimal to avoid pulling std-requiring crates
+# into the x86_64-unknown-none bare-metal build.
 toml = "0.8"
-uuid = { version = "1.6", features = ["v4"] }
-serial_test = "3.0"
 
 [features]
-default = ["telemetry", "process_abstraction", "security", "allocators", "allocator_bump", "schedulers", "sched_cfs", "dispatcher", "dispatcher_vectored", "ipc", "ipc_message_passing", "ipc_futex"]
+default = ["telemetry", "process_abstraction", "security", "allocators", "allocator_lockfree_slab", "schedulers", "sched_numa_cfs", "dispatcher", "dispatcher_vectored", "ipc", "ipc_lockfree_ring", "posix_process", "posix_fs", "posix_time", "posix_io", "posix_mman"]
+
+# --- Architecture & Multi-Processing ---
+smp = [] # Symmetric Multi-Processing
 
 # --- Scheduler Types ---
 schedulers = []
@@ -322,6 +321,7 @@ sched_cooperative = ["schedulers"]
 sched_lottery = ["schedulers"]
 sched_mlfq = ["schedulers"]
 sched_cfs = ["schedulers"]
+sched_numa_cfs = ["schedulers"]
 sched_edf = ["schedulers"]
 sched_gang = ["schedulers"]
 sched_energy_aware = ["schedulers"]
@@ -345,6 +345,8 @@ sel4_extensions = []    # Enable seL4-like formal verification stubs.
 paging_enable = []      # Use Paging (MMU). WARN: Disabling implies physical addressing only.
 allocators = []
 allocator_slab = ["allocators"]
+allocator_lockfree_slab = ["allocators"]
+allocator_tiered = ["allocators"]
 allocator_buddy = ["allocators"]
 allocator_linked_list = ["allocators"]
 allocator_bump = ["allocators"]
@@ -353,6 +355,7 @@ allocator_bitmap = ["allocators"]
 # --- IPC ---
 ipc = []
 ipc_zero_copy = ["ipc"]
+ipc_lockfree_ring = ["ipc"]
 ipc_message_passing = ["ipc"]
 ipc_shared_memory = ["ipc"]
 ipc_signal_only = ["ipc"]
@@ -479,7 +482,7 @@ governor = []
 
 
 [target.'cfg(not(target_os = "none"))'.dependencies]
-fatfs = { version = "0.3.6", default-features = false, features = ["alloc"], optional = true }
+fatfs = { version = "0.3.6", default-features = false, features = ["alloc", "std"], optional = true }
 
 [target.'cfg(not(target_os = "none"))'.dev-dependencies]
 criterion = "0.5"

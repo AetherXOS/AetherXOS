@@ -3,11 +3,11 @@ use core::alloc::Layout;
 
 #[test_case]
 fn test_bump_allocator_basic_allocation() {
-    let allocator = BumpAllocator::new();
+    let mut allocator = BumpAllocator::new();
     let mut buffer = [0usize; 512];
     let start = buffer.as_mut_ptr() as usize;
     let size = buffer.len() * core::mem::size_of::<usize>();
-    allocator.init(start, size);
+    unsafe { allocator.init(start, size); }
 
     let layout1 = Layout::from_size_align(128, 8).unwrap();
     let ptr1 = unsafe { allocator.alloc(layout1) };
@@ -21,11 +21,11 @@ fn test_bump_allocator_basic_allocation() {
 
 #[test_case]
 fn test_bump_allocator_oom() {
-    let allocator = BumpAllocator::new();
+    let mut allocator = BumpAllocator::new();
     let mut buffer = [0usize; 128];
     let start = buffer.as_mut_ptr() as usize;
     let size = buffer.len() * core::mem::size_of::<usize>();
-    allocator.init(start, size);
+    unsafe { allocator.init(start, size); }
 
     let layout = Layout::from_size_align(2048, 8).unwrap();
     let ptr = unsafe { allocator.alloc(layout) };

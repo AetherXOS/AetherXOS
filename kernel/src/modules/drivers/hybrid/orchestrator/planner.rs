@@ -1,9 +1,6 @@
-#[path = "audits/mod.rs"]
-mod audits;
-#[path = "bootstrap.rs"]
-mod bootstrap;
-#[path = "routing.rs"]
-mod routing;
+pub mod audits;
+pub mod bootstrap;
+pub mod routing;
 
 pub use audits::*;
 pub use bootstrap::*;

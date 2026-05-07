@@ -2,11 +2,14 @@ use super::*;
 
 #[inline(always)]
 pub(super) fn getppid() -> usize {
-    let pid = getpid();
-    if pid == 0 {
-        return 0;
+    getppid_of(getpid()).unwrap_or(0)
+}
+
+pub(super) fn getppid_of(pid: usize) -> Result<usize, PosixErrno> {
+    if pid == 0 || !process_exists(pid) {
+        return Err(PosixErrno::NoEntry);
     }
-    PROCESS_PARENTS.lock().get(&pid).copied().unwrap_or(0)
+    Ok(PROCESS_PARENTS.lock().get(&pid).copied().unwrap_or(0))
 }
 
 pub(super) fn getpgid(pid: usize) -> Result<usize, PosixErrno> {

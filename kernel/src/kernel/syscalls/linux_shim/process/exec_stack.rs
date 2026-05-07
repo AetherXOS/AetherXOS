@@ -1,59 +1,19 @@
-#[cfg(any(
-    all(
-        not(feature = "linux_compat"),
-        feature = "posix_process",
-        feature = "process_abstraction",
-        feature = "vfs",
-        feature = "posix_mman"
-    ),
-    test
-))]
 use super::super::*;
 
-#[cfg(any(
-    all(
-        not(feature = "linux_compat"),
-        feature = "posix_process",
-        feature = "process_abstraction",
-        feature = "vfs",
-        feature = "posix_mman"
-    ),
-    test
-))]
 #[derive(Clone, Copy)]
-pub(crate) enum ExecveAuxValue<'a> {
+pub enum ExecveAuxValue<'a> {
     Word(usize),
     CString(&'a str),
     Bytes(&'a [u8]),
 }
 
-#[cfg(any(
-    all(
-        not(feature = "linux_compat"),
-        feature = "posix_process",
-        feature = "process_abstraction",
-        feature = "vfs",
-        feature = "posix_mman"
-    ),
-    test
-))]
 #[derive(Clone, Copy)]
-pub(crate) struct ExecveAuxEntry<'a> {
+pub struct ExecveAuxEntry<'a> {
     pub key: usize,
     pub value: ExecveAuxValue<'a>,
 }
 
-#[cfg(any(
-    all(
-        not(feature = "linux_compat"),
-        feature = "posix_process",
-        feature = "process_abstraction",
-        feature = "vfs",
-        feature = "posix_mman"
-    ),
-    test
-))]
-pub(crate) fn execve_stack_required_bytes(
+pub fn execve_stack_required_bytes(
     argv: &[alloc::string::String],
     envp: &[alloc::string::String],
     auxv_entries: &[ExecveAuxEntry<'_>],
@@ -86,16 +46,6 @@ pub(crate) fn execve_stack_required_bytes(
         .checked_add(word_size.saturating_sub(1))
 }
 
-#[cfg(any(
-    all(
-        not(feature = "linux_compat"),
-        feature = "posix_process",
-        feature = "process_abstraction",
-        feature = "vfs",
-        feature = "posix_mman"
-    ),
-    test
-))]
 fn validate_execve_auxv_entries(auxv_entries: &[ExecveAuxEntry<'_>]) -> Result<(), usize> {
     if auxv_entries
         .iter()
@@ -106,17 +56,7 @@ fn validate_execve_auxv_entries(auxv_entries: &[ExecveAuxEntry<'_>]) -> Result<(
     Ok(())
 }
 
-#[cfg(any(
-    all(
-        not(feature = "linux_compat"),
-        feature = "posix_process",
-        feature = "process_abstraction",
-        feature = "vfs",
-        feature = "posix_mman"
-    ),
-    test
-))]
-pub(crate) fn push_execve_user_word(
+pub fn push_execve_user_word(
     sp: &mut u64,
     word_size: u64,
     value: usize,
@@ -135,16 +75,6 @@ pub(crate) fn push_execve_user_word(
     Ok(())
 }
 
-#[cfg(any(
-    all(
-        not(feature = "linux_compat"),
-        feature = "posix_process",
-        feature = "process_abstraction",
-        feature = "vfs",
-        feature = "posix_mman"
-    ),
-    test
-))]
 fn push_execve_user_c_string(sp: &mut u64, value: &str) -> Result<usize, usize> {
     let bytes = value.as_bytes();
     let len = bytes.len().saturating_add(1);
@@ -163,16 +93,6 @@ fn push_execve_user_c_string(sp: &mut u64, value: &str) -> Result<usize, usize> 
     Ok(*sp as usize)
 }
 
-#[cfg(any(
-    all(
-        not(feature = "linux_compat"),
-        feature = "posix_process",
-        feature = "process_abstraction",
-        feature = "vfs",
-        feature = "posix_mman"
-    ),
-    test
-))]
 fn push_execve_user_bytes(sp: &mut u64, value: &[u8]) -> Result<usize, usize> {
     let len = value.len();
     let Some(next_sp) = sp.checked_sub(len as u64) else {
@@ -189,17 +109,7 @@ fn push_execve_user_bytes(sp: &mut u64, value: &[u8]) -> Result<usize, usize> {
     Ok(*sp as usize)
 }
 
-#[cfg(any(
-    all(
-        not(feature = "linux_compat"),
-        feature = "posix_process",
-        feature = "process_abstraction",
-        feature = "vfs",
-        feature = "posix_mman"
-    ),
-    test
-))]
-pub(crate) fn prepare_execve_user_stack(
+pub fn prepare_execve_user_stack(
     stack_start: u64,
     stack_size: u64,
     argv: &[alloc::string::String],
@@ -261,35 +171,3 @@ pub(crate) fn prepare_execve_user_stack(
 
     Ok(sp)
 }
-
-#[cfg(any(all(not(feature = "linux_compat"), test), test))]
-fn execve_stack_layout_indexes(
-    argv_len: usize,
-    envp_len: usize,
-    auxv_len: usize,
-) -> (usize, usize, usize) {
-    let aux_entry_index = 1;
-    let envp_null_index = aux_entry_index + (auxv_len * 2) + 2;
-    let argv_null_index = envp_null_index + envp_len + 1;
-    let first_argv_index = argv_null_index + argv_len;
-    (aux_entry_index, envp_null_index, first_argv_index)
-}
-
-#[cfg(any(all(not(feature = "linux_compat"), test), test))]
-fn execve_stack_pointer_indexes(
-    argv_len: usize,
-    envp_len: usize,
-    auxv_len: usize,
-    argv_index: usize,
-    envp_index: usize,
-) -> (usize, usize) {
-    let (_, envp_null_index, first_argv_index) =
-        execve_stack_layout_indexes(argv_len, envp_len, auxv_len);
-    let env_index = envp_null_index + envp_len.saturating_sub(envp_index);
-    let arg_index = first_argv_index.saturating_sub(argv_index);
-    (arg_index, env_index)
-}
-
-#[cfg(all(test, not(feature = "linux_compat")))]
-#[path = "exec_stack/tests.rs"]
-mod tests;

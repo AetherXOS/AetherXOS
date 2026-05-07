@@ -1,5 +1,7 @@
 use super::*;
 use crate::modules::vfs::devfs::{DevFs, DeviceMetadata};
+use crate::interfaces::hardware::SerialDevice;
+use alloc::boxed::Box; // Import Box for heap-allocated closures/objects
 
 /// `/dev/stdin` — reads from serial, writes fail.
 pub struct DevStdin;
@@ -19,11 +21,12 @@ impl File for DevStdin {
             mode: 0o020444,
             uid: 0,
             gid: 0,
-            atime: 0,
-            mtime: 0,
-            ctime: 0,
+            atime: Default::default(),
+            mtime: Default::default(),
+            ctime: Default::default(),
             blksize: 4096,
             blocks: 0,
+            ..crate::modules::vfs::types::FileStats::default()
         })
     }
 
@@ -64,11 +67,12 @@ impl File for DevStdout {
             mode: 0o020222,
             uid: 0,
             gid: 0,
-            atime: 0,
-            mtime: 0,
-            ctime: 0,
+            atime: Default::default(),
+            mtime: Default::default(),
+            ctime: Default::default(),
             blksize: 4096,
             blocks: 0,
+            ..crate::modules::vfs::types::FileStats::default()
         })
     }
 
@@ -113,11 +117,12 @@ impl File for DevStderr {
             mode: 0o020222,
             uid: 0,
             gid: 0,
-            atime: 0,
-            mtime: 0,
-            ctime: 0,
+            atime: Default::default(),
+            mtime: Default::default(),
+            ctime: Default::default(),
             blksize: 4096,
             blocks: 0,
+            ..crate::modules::vfs::types::FileStats::default()
         })
     }
 

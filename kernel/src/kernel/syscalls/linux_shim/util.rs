@@ -1,98 +1,82 @@
 use super::*;
-
-macro_rules! define_user_pod_codec {
-    ($read_fn:ident, $write_fn:ident, $ty:ty) => {
-        #[allow(dead_code)]
-        #[inline(always)]
-        fn $read_fn(ptr: usize) -> Result<$ty, usize> {
-            crate::kernel::syscalls::linux_shim::util::read_user_pod::<$ty>(ptr)
-        }
-
-        #[allow(dead_code)]
-        #[inline(always)]
-        fn $write_fn(ptr: usize, value: &$ty) -> Result<(), usize> {
-            crate::kernel::syscalls::linux_shim::util::write_user_pod(ptr, value)
-        }
-    };
+ 
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+pub struct LinuxTimeVal {
+    pub tv_sec: i64,
+    pub tv_usec: i64,
 }
 
-pub(crate) use define_user_pod_codec;
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+pub struct LinuxRUsage {
+    pub ru_utime: LinuxTimeVal,
+    pub ru_stime: LinuxTimeVal,
+    pub ru_maxrss: i64,
+    pub ru_ixrss: i64,
+    pub ru_idrss: i64,
+    pub ru_isrss: i64,
+    pub ru_minflt: i64,
+    pub ru_majflt: i64,
+    pub ru_nswap: i64,
+    pub ru_inblock: i64,
+    pub ru_oublock: i64,
+    pub ru_msgsnd: i64,
+    pub ru_msgrcv: i64,
+    pub ru_nsignals: i64,
+    pub ru_nvcsw: i64,
+    pub ru_nivcsw: i64,
+}
+
+impl From<crate::modules::posix::process::PosixRusage> for LinuxRUsage {
+    fn from(ru: crate::modules::posix::process::PosixRusage) -> Self {
+        let mut usage = Self::default();
+        let ns_per_tick = crate::config::KernelConfig::time_slice();
+        let utime_ns = ru.ru_utime_ticks.saturating_mul(ns_per_tick);
+        let stime_ns = ru.ru_stime_ticks.saturating_mul(ns_per_tick);
+
+        usage.ru_utime.tv_sec = (utime_ns / 1_000_000_000) as i64;
+        usage.ru_utime.tv_usec = ((utime_ns % 1_000_000_000) / 1000) as i64;
+        usage.ru_stime.tv_sec = (stime_ns / 1_000_000_000) as i64;
+        usage.ru_stime.tv_usec = ((stime_ns % 1_000_000_000) / 1000) as i64;
+        
+        usage.ru_maxrss = ru.ru_maxrss as i64;
+        usage.ru_minflt = ru.ru_minflt as i64;
+        usage.ru_majflt = ru.ru_majflt as i64;
+        usage.ru_nswap = ru.ru_nswap as i64;
+        usage
+    }
+}
+
+
 
 #[inline(always)]
-#[cfg(not(feature = "linux_compat"))]
 pub(super) fn arg5_to_zero(value: usize) -> usize {
     value
 }
 
-#[cfg(not(feature = "linux_compat"))]
-#[allow(dead_code)]
 pub(super) fn read_user_path_like_string(ptr: usize) -> Result<alloc::string::String, usize> {
     read_user_c_string(ptr, crate::config::KernelConfig::syscall_max_path_len())
 }
 
-#[cfg(not(feature = "linux_compat"))]
-#[allow(dead_code)]
+use crate::kernel::syscalls::{read_user_c_string as central_read_user_c_string};
+
 pub(super) fn read_user_c_string(
     ptr: usize,
     max_len: usize,
 ) -> Result<alloc::string::String, usize> {
-    if ptr < USER_SPACE_BOTTOM_INCLUSIVE || ptr >= USER_SPACE_TOP_EXCLUSIVE || max_len == 0 {
-        return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT));
-    }
-
-    let mut out = alloc::vec::Vec::new();
-    for i in 0..max_len {
-        let Some(addr) = ptr.checked_add(i) else {
-            return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT));
-        };
-        if !user_readable_range_valid(addr, 1) {
-            return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT));
-        }
-        let b = unsafe { *(addr as *const u8) };
-        if b == 0 {
-            if out.is_empty() {
-                return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
-            }
-            return alloc::string::String::from_utf8(out)
-                .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EINVAL));
-        }
-        out.push(b);
-    }
-
-    Err(linux_errno(crate::modules::posix_consts::errno::EINVAL))
+    central_read_user_c_string(ptr, max_len)
 }
 
-#[cfg(not(feature = "linux_compat"))]
-#[allow(dead_code)]
 pub(super) fn read_user_c_string_allow_empty(
     ptr: usize,
     max_len: usize,
 ) -> Result<alloc::string::String, usize> {
-    if ptr < USER_SPACE_BOTTOM_INCLUSIVE || ptr >= USER_SPACE_TOP_EXCLUSIVE || max_len == 0 {
-        return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT));
-    }
-
-    let mut out = alloc::vec::Vec::new();
-    for i in 0..max_len {
-        let Some(addr) = ptr.checked_add(i) else {
-            return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT));
-        };
-        if !user_readable_range_valid(addr, 1) {
-            return Err(linux_errno(crate::modules::posix_consts::errno::EFAULT));
-        }
-        let b = unsafe { *(addr as *const u8) };
-        if b == 0 {
-            return alloc::string::String::from_utf8(out)
-                .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EINVAL));
-        }
-        out.push(b);
-    }
-
-    Err(linux_errno(crate::modules::posix_consts::errno::EINVAL))
+    // Note: our central reader currently doesn't distinguish empty vs non-empty,
+    // which is actually correct for standard C strings (an empty string is just '\0').
+    central_read_user_c_string(ptr, max_len)
 }
 
-#[cfg(not(feature = "linux_compat"))]
-#[allow(dead_code)]
 pub(super) fn read_user_usize_word(ptr: usize) -> Result<usize, usize> {
     with_user_read_bytes(ptr, core::mem::size_of::<usize>(), |src| {
         let mut tmp = [0u8; core::mem::size_of::<usize>()];
@@ -101,9 +85,7 @@ pub(super) fn read_user_usize_word(ptr: usize) -> Result<usize, usize> {
     })
 }
 
-#[cfg(not(feature = "linux_compat"))]
-#[allow(dead_code)]
-pub(crate) fn read_user_pod<T: Copy + Default>(ptr: usize) -> Result<T, usize> {
+pub fn read_user_pod<T: Copy + Default>(ptr: usize) -> Result<T, usize> {
     let size = core::mem::size_of::<T>();
     with_user_read_bytes(ptr, size, |src| {
         let mut out = T::default();
@@ -115,8 +97,7 @@ pub(crate) fn read_user_pod<T: Copy + Default>(ptr: usize) -> Result<T, usize> {
 }
 
 #[cfg(not(feature = "linux_compat"))]
-#[allow(dead_code)]
-pub(crate) fn read_user_pod_prefix<T: Copy + Default>(ptr: usize, size: usize) -> Result<T, usize> {
+pub fn read_user_pod_prefix<T: Copy + Default>(ptr: usize, size: usize) -> Result<T, usize> {
     let full_size = core::mem::size_of::<T>();
     if size > full_size {
         return Err(linux_errno(crate::modules::posix_consts::errno::EINVAL));
@@ -132,9 +113,7 @@ pub(crate) fn read_user_pod_prefix<T: Copy + Default>(ptr: usize, size: usize) -
     .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
 }
 
-#[cfg(not(feature = "linux_compat"))]
-#[allow(dead_code)]
-pub(crate) fn write_user_pod<T: Copy>(ptr: usize, value: &T) -> Result<(), usize> {
+pub fn write_user_pod<T: Copy>(ptr: usize, value: &T) -> Result<(), usize> {
     let size = core::mem::size_of::<T>();
     with_user_write_bytes(ptr, size, |dst| {
         let src = unsafe { core::slice::from_raw_parts((value as *const T).cast::<u8>(), size) };
@@ -145,9 +124,23 @@ pub(crate) fn write_user_pod<T: Copy>(ptr: usize, value: &T) -> Result<(), usize
     .map_err(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
 }
 
+#[macro_export]
+macro_rules! define_user_pod_codec {
+    ($read_fn:ident, $write_fn:ident, $ty:ty) => {
+        pub(super) fn $read_fn(ptr: usize) -> Result<$ty, usize> {
+            crate::kernel::syscalls::linux_shim::util::read_user_pod::<$ty>(ptr)
+        }
+
+        pub(super) fn $write_fn(ptr: usize, value: &$ty) -> Result<(), usize> {
+            crate::kernel::syscalls::linux_shim::util::write_user_pod(ptr, value)
+        }
+    };
+}
+
 #[cfg(not(feature = "linux_compat"))]
-#[allow(dead_code)]
-pub(crate) fn read_user_c_string_array(
+pub use crate::define_user_pod_codec;
+
+pub fn read_user_c_string_array(
     ptr: usize,
     max_items: usize,
     max_item_len: usize,

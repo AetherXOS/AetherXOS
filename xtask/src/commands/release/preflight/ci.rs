@@ -26,6 +26,26 @@ pub fn parse_csv_lower(raw: &str) -> Vec<String> {
         .collect()
 }
 
+fn ubuntu_smoke_required_from_raw(value: Option<&str>) -> bool {
+    value
+        .map(|v| {
+            let t = v.trim();
+            t.eq_ignore_ascii_case("1")
+                || t.eq_ignore_ascii_case("true")
+                || t.eq_ignore_ascii_case("yes")
+                || t.eq_ignore_ascii_case("on")
+        })
+        .unwrap_or(false)
+}
+
+fn ubuntu_smoke_required() -> bool {
+    ubuntu_smoke_required_from_raw(
+        std::env::var("AETHERCORE_REQUIRE_UBUNTU_SMOKE")
+            .ok()
+            .as_deref(),
+    )
+}
+
 pub fn relative_display(root: &Path, path: &Path) -> String {
     path.strip_prefix(root)
         .unwrap_or(path)
@@ -176,6 +196,20 @@ pub fn evaluate_gate(path: &str, doc: &Value) -> Option<(bool, String)> {
         return Some((ok, "overall_ok".to_string()));
     }
 
+    if path == config::repo_paths::UBUNTU_USERSPACE_SMOKE_JSON {
+        let ok = doc
+            .get("overall_ok")
+            .and_then(|v| v.as_bool())
+            .or_else(|| doc.get("ok").and_then(|v| v.as_bool()))
+            .or_else(|| {
+                doc.get("status")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.eq_ignore_ascii_case("ok") || s.eq_ignore_ascii_case("pass"))
+            })
+            .unwrap_or(false);
+        return Some((ok, "ubuntu_userspace_smoke".to_string()));
+    }
+
     None
 }
 
@@ -279,57 +313,84 @@ pub fn ci_bundle(strict: bool) -> Result<()> {
     })?;
     validation::glibc::execute(&crate::cli::GlibcAction::CompatibilitySplit { strict: false })?;
 
+    let ubuntu_required = ubuntu_smoke_required();
     let specs = [
-        ("p_tier", config::repo_paths::P_TIER_STATUS_JSON),
+        ("p_tier", config::repo_paths::P_TIER_STATUS_JSON, true),
         (
             "prod_scorecard",
             config::repo_paths::PRODUCTION_ACCEPTANCE_SCORECARD_JSON,
+            true,
         ),
         (
             "evidence_bundle",
             config::repo_paths::RELEASE_EVIDENCE_BUNDLE_JSON,
+            true,
         ),
-        ("diagnostics", config::repo_paths::RELEASE_DIAGNOSTICS_JSON),
+        (
+            "diagnostics",
+            config::repo_paths::RELEASE_DIAGNOSTICS_JSON,
+            true,
+        ),
         (
             "host_tool_verify",
             config::repo_paths::HOST_TOOL_VERIFY_JSON,
+            true,
         ),
         (
             "critical_policy_guard",
             config::repo_paths::CRITICAL_POLICY_GUARD_JSON,
+            true,
         ),
-        ("warning_audit", config::repo_paths::WARNING_AUDIT_JSON),
-        ("abi_drift", config::repo_paths::ABI_DRIFT_REPORT_JSON),
+        (
+            "warning_audit",
+            config::repo_paths::WARNING_AUDIT_JSON,
+            true,
+        ),
+        ("abi_drift", config::repo_paths::ABI_DRIFT_REPORT_JSON, true),
         (
             "linux_abi_semantic_matrix",
             config::repo_paths::LINUX_ABI_SEMANTIC_MATRIX_JSON,
+            true,
         ),
         (
             "linux_abi_trend_dashboard",
             config::repo_paths::LINUX_ABI_TREND_DASHBOARD_JSON,
+            true,
         ),
         (
             "linux_abi_workload_catalog",
             config::repo_paths::LINUX_ABI_WORKLOAD_CATALOG_JSON,
+            true,
         ),
         (
             "linux_abi_workload_trend",
             config::repo_paths::LINUX_ABI_WORKLOAD_TREND_JSON,
+            true,
         ),
         (
             "glibc_compat_split",
             config::repo_paths::GLIBC_COMPAT_SPLIT_JSON,
+            true,
+        ),
+        (
+            "ubuntu_userspace_smoke",
+            config::repo_paths::UBUNTU_USERSPACE_SMOKE_JSON,
+            ubuntu_required,
         ),
     ];
 
     let mut checks = Vec::new();
-    for (id, rel) in specs {
+    for (id, rel, required) in specs {
         let path = root.join(rel);
         if !path.exists() {
             checks.push(BundleCheck {
                 id: id.to_string(),
-                ok: false,
-                detail: format!("missing report {}", rel),
+                ok: !required,
+                detail: if required {
+                    format!("missing report {}", rel)
+                } else {
+                    format!("optional report missing {}", rel)
+                },
             });
             continue;
         }
@@ -337,18 +398,24 @@ pub fn ci_bundle(strict: bool) -> Result<()> {
             .with_context(|| format!("failed reading CI bundle input: {}", path.display()))?;
         let doc: Value = serde_json::from_str(&text)
             .with_context(|| format!("failed parsing CI bundle input: {}", path.display()))?;
-        let ok = doc
-            .get("overall_ok")
-            .and_then(|value| value.as_bool())
-            .unwrap_or(true);
+        let (ok, detail) = evaluate_gate(rel, &doc).unwrap_or_else(|| {
+            let ok = doc
+                .get("overall_ok")
+                .and_then(|value| value.as_bool())
+                .unwrap_or(true);
+            (
+                ok,
+                if ok {
+                    "overall_ok=true".to_string()
+                } else {
+                    "overall_ok=false".to_string()
+                },
+            )
+        });
         checks.push(BundleCheck {
             id: id.to_string(),
             ok,
-            detail: if ok {
-                "overall_ok=true".to_string()
-            } else {
-                "overall_ok=false".to_string()
-            },
+            detail,
         });
     }
 
@@ -392,4 +459,45 @@ fn render_ci_bundle_md(bundle: &CiBundleDoc) -> String {
         ));
     }
     md
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn ubuntu_smoke_env_parser_accepts_truthy_values() {
+        assert!(ubuntu_smoke_required_from_raw(Some("1")));
+        assert!(ubuntu_smoke_required_from_raw(Some("true")));
+        assert!(ubuntu_smoke_required_from_raw(Some("YES")));
+        assert!(!ubuntu_smoke_required_from_raw(Some("0")));
+        assert!(!ubuntu_smoke_required_from_raw(Some("false")));
+        assert!(!ubuntu_smoke_required_from_raw(None));
+    }
+
+    #[test]
+    fn evaluate_gate_parses_ubuntu_smoke_variants() {
+        let overall_ok = json!({"overall_ok": true});
+        let ok = json!({"ok": true});
+        let status = json!({"status": "PASS"});
+        let fail = json!({"status": "fail"});
+
+        assert_eq!(
+            evaluate_gate(config::repo_paths::UBUNTU_USERSPACE_SMOKE_JSON, &overall_ok),
+            Some((true, "ubuntu_userspace_smoke".to_string()))
+        );
+        assert_eq!(
+            evaluate_gate(config::repo_paths::UBUNTU_USERSPACE_SMOKE_JSON, &ok),
+            Some((true, "ubuntu_userspace_smoke".to_string()))
+        );
+        assert_eq!(
+            evaluate_gate(config::repo_paths::UBUNTU_USERSPACE_SMOKE_JSON, &status),
+            Some((true, "ubuntu_userspace_smoke".to_string()))
+        );
+        assert_eq!(
+            evaluate_gate(config::repo_paths::UBUNTU_USERSPACE_SMOKE_JSON, &fail),
+            Some((false, "ubuntu_userspace_smoke".to_string()))
+        );
+    }
 }

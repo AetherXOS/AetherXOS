@@ -1,8 +1,6 @@
 #[cfg(feature = "dispatcher")]
 use crate::modules::dispatcher::selector::ActiveDispatcher;
 #[cfg(target_os = "none")]
-use crate::kernel::syscalls::syscalls_consts::x86;
-#[cfg(target_os = "none")]
 use crate::hal::common::irq_catalog::IrqLineKind;
 #[cfg(target_os = "none")]
 use crate::hal::common::irq_trace;
@@ -77,6 +75,13 @@ pub(super) fn try_dispatch_vector(vector: u8) -> bool {
 #[cfg(target_os = "none")]
 #[inline(always)]
 pub(super) fn dispatch_irq_vector(vector: u8) {
+    #[cfg(feature = "telemetry")]
+    {
+        use crate::kernel::cpu_local::CpuLocal;
+        let cpu = unsafe { CpuLocal::get() };
+        cpu.enter_kernel();
+    }
+
     let descriptor = super::metadata::irq_descriptor(vector);
     let allow_dispatch = crate::kernel::interrupt_guard::on_irq(vector);
     let is_timer = descriptor.kind == IrqLineKind::Timer;
@@ -113,5 +118,12 @@ pub(super) fn dispatch_irq_vector(vector: u8) {
     // Safety: local APIC EOI must be issued after IRQ handling on this CPU.
     unsafe {
         crate::hal::apic::eoi();
+    }
+
+    #[cfg(feature = "telemetry")]
+    {
+        use crate::kernel::cpu_local::CpuLocal;
+        let cpu = unsafe { CpuLocal::get() };
+        cpu.exit_kernel();
     }
 }

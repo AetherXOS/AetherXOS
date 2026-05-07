@@ -35,7 +35,10 @@ pub(crate) fn execute(limit: usize, strict: bool) -> Result<()> {
 
     let current = AbiTrendPoint {
         generated_utc: report::utc_now_iso(),
-        score: matrix_doc.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0),
+        score: matrix_doc
+            .get("score")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0),
         overall_ok: matrix_doc
             .get("overall_ok")
             .and_then(|v| v.as_bool())
@@ -44,8 +47,12 @@ pub(crate) fn execute(limit: usize, strict: bool) -> Result<()> {
 
     let history_path = root.join(config::repo_paths::LINUX_ABI_TREND_HISTORY_JSON);
     let mut history: Vec<AbiTrendPoint> = if history_path.exists() {
-        let text = fs::read_to_string(&history_path)
-            .with_context(|| format!("failed reading ABI trend history: {}", history_path.display()))?;
+        let text = fs::read_to_string(&history_path).with_context(|| {
+            format!(
+                "failed reading ABI trend history: {}",
+                history_path.display()
+            )
+        })?;
         serde_json::from_str(&text).unwrap_or_default()
     } else {
         Vec::new()
@@ -83,7 +90,10 @@ pub(crate) fn execute(limit: usize, strict: bool) -> Result<()> {
     md.push_str(&format!("- strict: {}\n", dashboard.strict));
     md.push_str(&format!("- overall_ok: {}\n", dashboard.overall_ok));
     md.push_str(&format!("- latest_score: {:.1}\n", dashboard.latest_score));
-    md.push_str(&format!("- regression_detected: {}\n\n", dashboard.regression_detected));
+    md.push_str(&format!(
+        "- regression_detected: {}\n\n",
+        dashboard.regression_detected
+    ));
     md.push_str("## Points\n\n");
     for point in &dashboard.points {
         md.push_str(&format!(

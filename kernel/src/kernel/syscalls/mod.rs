@@ -14,7 +14,6 @@ mod linux_dispatch;
 mod linux_misc;
 #[cfg(not(feature = "linux_compat"))]
 mod linux_process;
-#[cfg(not(feature = "linux_compat"))]
 mod linux_shim;
 mod stats_api;
 pub mod syscalls_consts;
@@ -23,8 +22,8 @@ mod user_access;
 mod vfs;
 
 use self::control_plane::*;
-pub(crate) use self::core_runtime::*;
-pub(crate) use self::dispatch_helpers::*;
+pub use self::core_runtime::*;
+pub use self::dispatch_helpers::*;
 #[cfg(test)]
 pub(crate) use self::dispatch_helpers::{
     encode_core_pressure_class, encode_scheduler_pressure_class, parse_process_priority,
@@ -34,15 +33,25 @@ pub(crate) use self::dispatch_helpers::{
 #[cfg(test)]
 pub(crate) use self::ipc_control::futex_key_from_ptr_or_hint;
 pub(crate) use self::ipc_control::*;
-#[cfg(all(test, not(feature = "linux_compat")))]
+#[cfg(not(feature = "linux_compat"))]
 pub(crate) use self::linux_shim::{
-    execve_stack_required_bytes, prepare_execve_user_stack, read_user_c_string_array,
+    LinuxRUsage, write_user_pod,
 };
+#[cfg(all(test, not(feature = "linux_compat")))]
+pub(crate) use self::linux_shim::process::exec_stack::{
+    execve_stack_required_bytes, prepare_execve_user_stack,
+};
+#[cfg(feature = "linux_compat")]
+pub(crate) use self::linux_shim::process::exec_stack::{
+    execve_stack_required_bytes, prepare_execve_user_stack, ExecveAuxEntry, ExecveAuxValue,
+};
+#[cfg(all(test, not(feature = "linux_compat")))]
+pub(crate) use self::user_access::read_user_c_string_array;
 pub use self::stats_api::{
     current_syscall_health, evaluate_syscall_health, recommended_syscall_health_action, stats,
     SyscallHealthAction, SyscallHealthReport, SyscallStats,
 };
-pub(crate) use self::user_access::*;
+pub use self::user_access::*;
 #[cfg(test)]
 pub(crate) use self::user_access::{
     require_control_plane_access, user_access_range_check_with, user_access_range_valid_with,
@@ -55,9 +64,7 @@ pub(crate) use crate::kernel::syscalls::syscalls_user::{
 use alloc::collections::BTreeMap;
 use lazy_static::lazy_static;
 
-#[cfg(not(feature = "linux_compat"))]
 #[allow(dead_code)]
-const LINUX_O_APPEND: usize = 0o2000;
 const SYSCALL_AFFINITY_MIGRATE_REQUIRED: usize = 1;
 const FUTEX_WORD_BYTES: usize = core::mem::size_of::<u32>();
 const FUTEX_WAIT_VALUE_MISMATCH: usize = 1;
@@ -77,6 +84,16 @@ pub(crate) fn clear_robust_list_for_tid(tid: usize) {
 
 pub(crate) fn set_robust_list_for_tid(tid: usize, head: usize, len: usize) {
     ROBUST_LISTS.lock().insert(tid, (head, len));
+}
+
+#[cfg(any(test, feature = "linux_compat"))]
+pub(crate) fn set_execve_new_stack(rsp: usize) {
+    EXECVE_NEW_STACK.store(rsp, Ordering::Relaxed);
+}
+
+#[cfg(any(test, feature = "linux_compat"))]
+pub(crate) fn set_execve_new_entry(rip: usize) {
+    EXECVE_NEW_ENTRY.store(rip, Ordering::Relaxed);
 }
 
 pub(crate) fn robust_list_for_tid(tid: usize) -> Option<(usize, usize)> {
@@ -120,6 +137,7 @@ pub(crate) fn linux_no_new_privs_for_tid(_tid: usize) -> bool {
 struct SyscallReturn {
     ret: usize,
     new_rip: usize,
+    new_rsp: usize,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -137,9 +155,11 @@ pub struct SyscallFrame {
     pub r12: u64,
     pub rbx: u64,
     pub rbp: u64,
+    pub rsp: u64,
 }
 
 static EXECVE_NEW_ENTRY: AtomicUsize = AtomicUsize::new(0);
+static EXECVE_NEW_STACK: AtomicUsize = AtomicUsize::new(0);
 
 /// Helper to handle syscalls in Rust
 #[unsafe(no_mangle)]
@@ -156,9 +176,34 @@ extern "C" fn rust_syscall_handler(
     frame_ptr: *mut SyscallFrame,
 ) -> SyscallReturn {
     use core::sync::atomic::Ordering;
+    use crate::kernel::cpu_local::CpuLocal;
+
+    #[cfg(feature = "telemetry")]
+    {
+        let cpu = unsafe { CpuLocal::get() };
+        cpu.enter_kernel();
+    }
 
     let args = [arg1, arg2, arg3, arg4, arg5, arg6];
     SYSCALL_TOTAL.fetch_add(1, Ordering::Relaxed);
+
+    // Hardening: Seccomp validation
+    #[cfg(not(feature = "linux_compat"))]
+    if !linux_misc::validate_syscall_for_current_task(syscall_id) {
+        crate::klog_warn!("Seccomp rejected syscall {} for task", syscall_id);
+        
+        #[cfg(feature = "telemetry")]
+        {
+            let cpu = unsafe { CpuLocal::get() };
+            cpu.exit_kernel();
+        }
+
+        return SyscallReturn {
+            ret: linux_errno(crate::modules::posix_consts::errno::EPERM),
+            new_rip: 0,
+            new_rsp: 0,
+        };
+    }
 
     if crate::config::KernelConfig::is_syscall_tracing_enabled() {
         crate::klog_trace!("SYSCALL START: id={} args={:x?} rip={:#x}", syscall_id, args, user_rip);
@@ -187,6 +232,11 @@ extern "C" fn rust_syscall_handler(
             crate::kernel::syscalls::vfs::sys_vfs_mount_overlay(arg1, arg2, arg3, arg4)
         }
         nr::VFS_LIST_MOUNTS => crate::kernel::syscalls::vfs::sys_vfs_list_mounts(arg1, arg2),
+        nr::VFS_GET_MOUNT_PATH => {
+            crate::kernel::syscalls::vfs::sys_vfs_get_mount_path(arg1, arg2, arg3)
+        }
+        nr::VFS_UNMOUNT => crate::kernel::syscalls::vfs::sys_vfs_unmount(arg1),
+        nr::VFS_GET_STATS => crate::kernel::syscalls::vfs::sys_vfs_get_stats(arg1, arg2),
         nr::GET_POWER_STATS => sys_get_power_stats(arg1, arg2),
         nr::SET_POWER_OVERRIDE => sys_set_power_override(arg1),
         nr::CLEAR_POWER_OVERRIDE => sys_clear_power_override(),
@@ -194,11 +244,6 @@ extern "C" fn rust_syscall_handler(
         nr::SET_NETWORK_POLLING => sys_set_network_polling(arg1),
         nr::TERMINATE_PROCESS => sys_terminate_process(arg1),
         nr::GET_PROCESS_LAUNCH_CONTEXT => sys_get_process_launch_context(arg1, arg2, arg3),
-        nr::VFS_GET_MOUNT_PATH => {
-            crate::kernel::syscalls::vfs::sys_vfs_get_mount_path(arg1, arg2, arg3)
-        }
-        nr::VFS_UNMOUNT => crate::kernel::syscalls::vfs::sys_vfs_unmount(arg1),
-        nr::VFS_GET_STATS => crate::kernel::syscalls::vfs::sys_vfs_get_stats(arg1, arg2),
         nr::NETWORK_RESET_STATS => sys_network_reset_stats(),
         nr::NETWORK_FORCE_POLL => sys_network_force_poll(),
         nr::SET_CSTATE_OVERRIDE => sys_set_cstate_override(arg1),
@@ -280,16 +325,32 @@ extern "C" fn rust_syscall_handler(
     crate::kernel::signal::check_signals(unsafe { &mut *frame_ptr });
 
     let new_rip = EXECVE_NEW_ENTRY.swap(0, Ordering::Relaxed);
+    let new_rsp = EXECVE_NEW_STACK.swap(0, Ordering::Relaxed);
+
+    #[cfg(feature = "telemetry")]
+    {
+        let cpu = unsafe { CpuLocal::get() };
+        cpu.exit_kernel();
+    }
+
     SyscallReturn {
         ret: normal_ret,
         new_rip,
+        new_rsp,
     }
 }
 
 #[inline(always)]
 #[allow(dead_code)]
-pub(super) fn linux_errno(errno: i32) -> usize {
+pub(crate) fn linux_errno(errno: i32) -> usize {
     (-(errno as isize)) as usize
+}
+
+#[cfg(test)]
+mod linux_errno_for_tests {
+    pub(crate) fn linux_errno(errno: i32) -> usize {
+        (-(errno as isize)) as usize
+    }
 }
 
 #[cfg(test)]

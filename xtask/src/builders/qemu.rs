@@ -45,6 +45,16 @@ pub fn iso_boot_args(memory_mb: u32, cores: u32, iso: &str, nographic: bool) -> 
     args
 }
 
+/// If a partitioned rootfs image exists in artifacts, append a virtio drive
+/// argument so QEMU exposes it as a block device to the guest.
+pub fn attach_rootfs_drive(args: &mut Vec<String>) {
+    let rootfs_img = crate::constants::paths::artifact_dir().join("aethercore-rootfs.img");
+    if rootfs_img.exists() {
+        args.push("-drive".to_string());
+        args.push(format!("file={},format=raw,if=virtio", rootfs_img.to_string_lossy()));
+    }
+}
+
 pub fn smoke_timeout_sec() -> u64 {
     std::env::var("AETHERCORE_QEMU_SMOKE_TIMEOUT_SEC")
         .ok()

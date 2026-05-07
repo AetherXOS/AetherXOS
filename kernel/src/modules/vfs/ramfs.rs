@@ -10,8 +10,6 @@ use crate::modules::vfs::path::normalize_path;
 use crate::modules::vfs::ramfs_support::{
     has_owner_access, is_child_of, make_meta, parent_dir, RamMeta, ROOT_TASK_ID,
 };
-#[cfg(feature = "vfs_telemetry")]
-use crate::modules::vfs::telemetry;
 use crate::modules::vfs::{File, FileSystem, SeekFrom};
 #[path = "ramfs/methods.rs"]
 mod methods;
@@ -86,11 +84,12 @@ impl File for RamFile {
             mode: 0o644,
             uid: 0,
             gid: 0,
-            atime: 0,
-            mtime: 0,
-            ctime: 0,
+            atime: Default::default(),
+            mtime: Default::default(),
+            ctime: Default::default(),
             blksize: 4096,
             blocks: 0,
+            ..crate::modules::vfs::types::FileStats::default()
         })
     }
 
@@ -265,11 +264,12 @@ impl File for RamFsHandle {
             mode: attrs.mode as u32,
             uid: attrs.uid,
             gid: attrs.gid,
-            atime: attrs.atime_sec as u64,
-            mtime: attrs.mtime_sec as u64,
-            ctime: attrs.ctime_sec as u64,
+            atime: crate::modules::vfs::types::VfsTimespec { sec: attrs.atime_sec as u64, nsec: 0 },
+            mtime: crate::modules::vfs::types::VfsTimespec { sec: attrs.mtime_sec as u64, nsec: 0 },
+            ctime: crate::modules::vfs::types::VfsTimespec { sec: attrs.ctime_sec as u64, nsec: 0 },
             blksize: 4096,
             blocks: (len + 511) / 512,
+            ..crate::modules::vfs::types::FileStats::default()
         })
     }
 
@@ -461,11 +461,12 @@ impl FileSystem for RamFs {
             mode: attrs.mode as u32,
             uid: attrs.uid,
             gid: attrs.gid,
-            atime: attrs.atime_sec as u64,
-            mtime: attrs.mtime_sec as u64,
-            ctime: attrs.ctime_sec as u64,
+            atime: crate::modules::vfs::types::VfsTimespec { sec: attrs.atime_sec as u64, nsec: 0 },
+            mtime: crate::modules::vfs::types::VfsTimespec { sec: attrs.mtime_sec as u64, nsec: 0 },
+            ctime: crate::modules::vfs::types::VfsTimespec { sec: attrs.ctime_sec as u64, nsec: 0 },
             blksize: 4096,
             blocks: (size + 511) / 512,
+            ..crate::modules::vfs::types::FileStats::default()
         })
     }
 

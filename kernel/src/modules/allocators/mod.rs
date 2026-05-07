@@ -3,7 +3,10 @@ pub mod bitmap_pmm;
 pub mod buddy;
 pub mod bump_allocator;
 pub mod linked_list_allocator;
+pub mod lockfree_slab;
 pub mod pool_allocator;
+pub mod quarantine;
+pub mod tiered;
 
 pub use advanced::{
     advanced_stats, advanced_tuning, compact_memory, hotplug_add_memory_pages, pick_oom_victim,
@@ -14,7 +17,15 @@ pub use bitmap_pmm::BitmapAllocator;
 pub use buddy::BuddyAllocator;
 pub use bump_allocator::BumpAllocator;
 pub use linked_list_allocator::LinkedListAllocator;
+pub use lockfree_slab::{lockfree_slab_stats, LockFreeSlabAllocator, LockFreeSlabStats};
 pub use pool_allocator::PoolAllocator;
+pub use tiered::{tiered_allocator_stats, AdaptiveTieredAllocator, TieredAllocator, TieredAllocatorStats};
+pub use quarantine::{
+    quarantine_free, 
+    flush_quarantine,
+    set_quarantine_enabled,
+    set_poison_byte
+};
 
 use crate::interfaces::memory::HeapAllocator;
 use core::alloc::{GlobalAlloc, Layout};
@@ -50,6 +61,9 @@ pub mod selector {
     #[cfg(param_allocator = "Slab")]
     pub type ActiveHeapAllocator = SlabAllocator;
 
+    #[cfg(param_allocator = "LockFreeSlab")]
+    pub type ActiveHeapAllocator = LockFreeSlabAllocator;
+
     #[cfg(param_allocator = "PoolAllocator")]
     pub type ActiveHeapAllocator = PoolAllocator;
 
@@ -58,6 +72,7 @@ pub mod selector {
         param_allocator = "LinkedListAllocator",
         param_allocator = "Buddy",
         param_allocator = "Slab",
+        param_allocator = "LockFreeSlab",
         param_allocator = "PoolAllocator"
     )))]
     pub type ActiveHeapAllocator = BumpAllocator; // Fallback to simplest
@@ -85,7 +100,7 @@ unsafe impl GlobalAlloc for JemallocLite {
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}
 }
 impl HeapAllocator for JemallocLite {
-    fn init(&self, _start: usize, _size: usize) {}
+    unsafe fn init(&mut self, _start: usize, _size: usize) {}
 }
 impl JemallocLite {
     pub const fn new() -> Self {

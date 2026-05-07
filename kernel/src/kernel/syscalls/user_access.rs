@@ -214,8 +214,13 @@ pub(crate) fn with_user_read_bytes<T>(
     if !user_readable_range_valid(ptr, len) {
         return Err(user_access_denied_arg());
     }
+    
+    crate::modules::security::allow_user_access();
     let slice = unsafe { core::slice::from_raw_parts(ptr as *const u8, len) };
-    Ok(f(slice))
+    let res = f(slice);
+    crate::modules::security::forbid_user_access();
+    
+    Ok(res)
 }
 
 #[inline(always)]
@@ -241,8 +246,13 @@ pub(crate) fn with_user_write_bytes<T>(
     if len == 0 || !user_writable_range_valid(ptr, len) {
         return Err(user_access_denied_arg());
     }
+    
+    crate::modules::security::allow_user_access();
     let slice = unsafe { core::slice::from_raw_parts_mut(ptr as *mut u8, len) };
-    Ok(f(slice))
+    let res = f(slice);
+    crate::modules::security::forbid_user_access();
+    
+    Ok(res)
 }
 
 #[inline(always)]
@@ -259,8 +269,13 @@ pub(crate) fn with_user_write_words<T>(
     if len < required || !user_writable_range_valid(ptr, len) {
         return Err(user_access_denied_arg());
     }
+    
+    crate::modules::security::allow_user_access();
     let words = unsafe { core::slice::from_raw_parts_mut(ptr as *mut usize, required_words) };
-    Ok(f(words))
+    let res = f(words);
+    crate::modules::security::forbid_user_access();
+    
+    Ok(res)
 }
 
 #[inline(always)]
@@ -277,8 +292,13 @@ pub(crate) fn with_user_write_words_exact<T>(
     if len < required || !user_writable_range_valid(ptr, len) {
         return Err(user_access_denied_arg());
     }
+    
+    crate::modules::security::allow_user_access();
     let words = unsafe { core::slice::from_raw_parts_mut(ptr as *mut usize, words_len) };
-    Ok(f(words))
+    let res = f(words);
+    crate::modules::security::forbid_user_access();
+    
+    Ok(res)
 }
 
 #[cfg(feature = "vfs")]
@@ -349,3 +369,78 @@ mod tests {
         assert!(!user_access_range_valid_with(0x0000, 512, UserAccessMode::Read, check));
     }
 }
+
+#[allow(dead_code)]
+#[inline(always)]
+pub(crate) fn read_user_c_string(
+    ptr: usize,
+    max_len: usize,
+) -> Result<alloc::string::String, usize> {
+    if !user_readable_range_valid(ptr, 1) {
+        return Err(user_access_denied_arg());
+    }
+
+    let mut out = alloc::vec::Vec::new();
+    for i in 0..max_len {
+        let addr = ptr.wrapping_add(i);
+        // We check every byte for page boundaries implicitly via the loop, 
+        // but for performance we usually check once per page.
+        // Here we just check valid range for simplicity and safety.
+        if !user_readable_range_valid(addr, 1) {
+             return Err(user_access_denied_arg());
+        }
+        let b = unsafe { *(addr as *const u8) };
+        if b == 0 {
+            return alloc::string::String::from_utf8(out)
+                .map_err(|_| invalid_arg());
+        }
+        out.push(b);
+    }
+    Err(invalid_arg())
+}
+
+#[inline(always)]
+pub(crate) fn read_user_c_string_bounded(
+    ptr: usize,
+    max_len: usize,
+) -> Result<alloc::string::String, usize> {
+    if max_len == 0 {
+        return Err(invalid_arg());
+    }
+    read_user_c_string(ptr, max_len)
+}
+
+#[allow(dead_code)]
+pub fn read_user_c_string_array(
+    ptr: usize,
+    max_items: usize,
+    max_item_len: usize,
+) -> Result<alloc::vec::Vec<alloc::string::String>, usize> {
+    if ptr == 0 {
+        return Ok(alloc::vec::Vec::new());
+    }
+    if max_items == 0 || max_item_len == 0 {
+        return Err(invalid_arg());
+    }
+
+    let mut out = alloc::vec::Vec::new();
+    let stride = core::mem::size_of::<usize>();
+    for i in 0..max_items {
+        let off = i.wrapping_mul(stride);
+        let item_ptr_ptr = ptr.wrapping_add(off);
+        
+        if !user_readable_range_valid(item_ptr_ptr, stride) {
+            return Err(user_access_denied_arg());
+        }
+        
+        let item_ptr = unsafe { *(item_ptr_ptr as *const usize) };
+        if item_ptr == 0 {
+            break;
+        }
+
+        let s = read_user_c_string(item_ptr, max_item_len)?;
+        out.push(s);
+    }
+    Ok(out)
+}
+

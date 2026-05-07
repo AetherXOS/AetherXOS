@@ -15,15 +15,32 @@ pub(super) fn sys_linux_wait4(
 ) -> usize {
     #[cfg(feature = "posix_process")]
     {
-        let nohang = match decode_wait_options(options) {
+        let _nohang = match decode_wait_options(options) {
             Ok(v) => v,
             Err(err) => return err,
         };
-        match crate::modules::posix::process::waitpid(pid as usize, nohang) {
-            Ok(Some(child_pid)) => {
+        let result = if pid == -1 {
+            crate::modules::posix::process::wait3(options as i32)
+        } else if pid < -1 {
+            // For now, treat as any child until PGID waiting is implemented
+            crate::modules::posix::process::wait3(options as i32)
+        } else if pid == 0 {
+            // For now, treat as any child until same-PGID waiting is implemented
+            crate::modules::posix::process::wait3(options as i32)
+        } else {
+            crate::modules::posix::process::wait4(pid as usize, options as i32)
+        };
+        match result {
+            Ok(Some((child_pid, status, posix_ru))) => {
                 if should_write_wait_status(wstatus_ptr) {
-                    if let Err(err) = write_wait_status(wstatus_ptr, 0) {
+                    if let Err(err) = write_wait_status(wstatus_ptr, status as u32) {
                         return err;
+                    }
+                }
+                if _rusage_ptr != 0 {
+                    let linux_ru = crate::kernel::syscalls::LinuxRUsage::from(posix_ru);
+                    if let Err(_) = crate::kernel::syscalls::write_user_pod(_rusage_ptr, &linux_ru) {
+                        return linux_errno(crate::modules::posix_consts::errno::EFAULT);
                     }
                 }
                 child_pid

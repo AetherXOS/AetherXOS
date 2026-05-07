@@ -5,6 +5,11 @@
 #![warn(unsafe_op_in_unsafe_fn)]
 #![warn(unused_must_use)]
 #![allow(clippy::all)]
+#![allow(dead_code)]
+#![allow(unexpected_cfgs)]
+#![allow(unused_assignments)]
+#![allow(unused_unsafe)]
+#![allow(private_interfaces)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 

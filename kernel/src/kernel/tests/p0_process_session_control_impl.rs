@@ -10,10 +10,20 @@
 
 use crate::interfaces::task::ProcessId;
 
+const EPERM: usize = 1;
+const ESRCH: usize = 3;
+const EBADF: usize = 9;
+const EINVAL: usize = 22;
+const ENOTTY: usize = 25;
+const ENOSYS: usize = 38;
+
+const FAKE_FD: i32 = 999;
+const TEST_PGRP: u32 = 1001;
+
 /// Test helper: spawn child process with controlled group membership
 #[cfg(test)]
 fn spawn_child_in_group(parent_pgrp: u32) -> ProcessId {
-    // TODO: fork() + optionally setpgid to parent_pgrp
+    // Note: fork() + optionally setpgid to parent_pgrp should be implemented when needed
     // Returns: child PID
     let _ = parent_pgrp;
     ProcessId(1) // Mock
@@ -40,7 +50,7 @@ fn p0_session_test_setpgrp_creates_group() {
         Err(e) => {
             // In constrained environments this can be denied.
             let errno = ProcessGroupErrorContext::setsid_errno(&e);
-            assert!(errno == 1 || errno == 22,
+            assert!(errno == EPERM || errno == EINVAL,
                 "setpgrp failure should map to EPERM/EINVAL in this harness");
         }
     }
@@ -89,7 +99,7 @@ fn p0_session_test_setsid_creates_session() {
         Err(e) => {
             // Expected to fail if already session leader
             let errno = ProcessGroupErrorContext::setsid_errno(&e);
-            assert_eq!(errno, 1, "setsid should return EPERM (1) if already session leader");
+            assert_eq!(errno, EPERM, "setsid should return EPERM if already session leader");
         }
     }
 }
@@ -148,7 +158,7 @@ fn p0_session_test_getsid_for_process() {
         }
         Err(e) => {
             let errno = ProcessGroupErrorContext::setsid_errno(&e);
-            assert!(errno == 1 || errno == 22,
+            assert!(errno == EPERM || errno == EINVAL,
                 "getsid fallback should map to EPERM/EINVAL in this harness");
         }
     }
@@ -163,14 +173,14 @@ fn p0_session_test_ioctl_tiocgpgrp() {
     // Verify error handling when not on terminal
     
     // Attempt with invalid fd
-    let result = sys_ioctl_tiocgpgrp(999, 0); // 999 = fake fd
+    let result = sys_ioctl_tiocgpgrp(FAKE_FD, 0);
     
     match result {
         Err(e) => {
             use crate::modules::linux_compat::errno_matrix::ProcessGroupErrorContext;
             let errno = ProcessGroupErrorContext::ioctl_errno(&e);
-            // Should be EBADF (9) or ENOTTY (25)
-            assert!(errno == 9 || errno == 25,
+            // Should be EBADF or ENOTTY
+            assert!(errno == EBADF || errno == ENOTTY,
                 "TIOCGPGRP on invalid fd should return EBADF or ENOTTY");
         }
         Ok(_) => {
@@ -185,14 +195,14 @@ fn p0_session_test_ioctl_tiocspgrp() {
     use crate::modules::linux_compat::process_group_syscalls::*;
     
     // Attempt to set foreground group on invalid fd
-    let result = sys_ioctl_tiocspgrp(999, 1001); // 999 = fake fd, 1001 = pgrp
+    let result = sys_ioctl_tiocspgrp(FAKE_FD, TEST_PGRP as usize);
     
     match result {
         Err(e) => {
             use crate::modules::linux_compat::errno_matrix::ProcessGroupErrorContext;
             let errno = ProcessGroupErrorContext::ioctl_errno(&e);
-            // Should be EBADF (9) or ENOTTY (25)
-            assert!(errno == 9 || errno == 25 || errno == 1,
+            // Should be EBADF or ENOTTY
+            assert!(errno == EBADF || errno == ENOTTY || errno == EPERM,
                 "TIOCSPGRP should validate fd and permissions");
         }
         Ok(_) => {

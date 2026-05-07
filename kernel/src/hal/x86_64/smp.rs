@@ -76,7 +76,19 @@ pub fn broadcast_tlb_shootdown(addr: u64) {
 pub extern "x86-interrupt" fn tlb_shootdown_handler(
     _stack_frame: x86_64::structures::idt::InterruptStackFrame,
 ) {
+    #[cfg(feature = "telemetry")]
+    {
+        let cpu = unsafe { CpuLocal::get() };
+        cpu.enter_kernel();
+    }
+
     tlb::handle_tlb_shootdown();
+
+    #[cfg(feature = "telemetry")]
+    {
+        let cpu = unsafe { CpuLocal::get() };
+        cpu.exit_kernel();
+    }
 }
 
 pub fn cpu_count() -> usize {

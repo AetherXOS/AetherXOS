@@ -4,10 +4,15 @@ use crate::hal::common::cpu_features::{field_at_least_u64, has_bit_u32};
 use crate::interfaces::cpu::CpuRegisters;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::{__cpuid, __cpuid_count, __rdtscp, _rdtsc};
+#[cfg(target_os = "none")]
+use x86_64::registers::model_specific::{GsBase, FsBase};
+#[cfg(target_os = "none")]
 use x86_64::registers::control::{Cr2, Cr3};
-use x86_64::registers::model_specific::{FsBase, GsBase};
+#[cfg(target_os = "none")]
 use x86_64::structures::paging::PhysFrame;
+#[cfg(target_os = "none")]
 use x86_64::PhysAddr;
+#[cfg(target_os = "none")]
 use x86_64::VirtAddr;
 
 // ── CPU Identification ────────────────────────────────────────────────────────
@@ -17,17 +22,31 @@ use x86_64::VirtAddr;
 /// The value is stored at offset 0 of the GS segment.
 #[inline(always)]
 pub fn id() -> usize {
-    let cpu_id: usize;
-    unsafe {
-        core::arch::asm!("mov {}, gs:[0]", out(reg) cpu_id, options(readonly, nostack));
+    #[cfg(target_os = "none")]
+    {
+        let cpu_id: usize;
+        unsafe {
+            core::arch::asm!("mov {}, gs:[0]", out(reg) cpu_id, options(readonly, nostack));
+        }
+        cpu_id
     }
-    cpu_id
+    #[cfg(not(target_os = "none"))]
+    {
+        0
+    }
 }
 
 /// Get the raw GS base pointer.
 #[inline(always)]
 pub unsafe fn get_per_cpu_ptr() -> *const () {
-    GsBase::read().as_u64() as *const ()
+    #[cfg(target_os = "none")]
+    {
+        GsBase::read().as_u64() as *const ()
+    }
+    #[cfg(not(target_os = "none"))]
+    {
+        core::ptr::null()
+    }
 }
 
 // ── Diagnostics and Features ──────────────────────────────────────────────────
@@ -139,34 +158,51 @@ pub fn pause() {
 /// Read a Model Specific Register (MSR).
 
 pub unsafe fn read_msr(msr: u32) -> u64 {
-    let (high, low): (u32, u32);
-
-    // Safety: caller guarantees the requested MSR is valid in the current execution mode.
-    unsafe {
-        core::arch::asm!("rdmsr", in("ecx") msr, out("eax") low, out("edx") high, options(nomem, nostack));
+    #[cfg(target_os = "none")]
+    {
+        let (high, low): (u32, u32);
+        // Safety: caller guarantees the requested MSR is valid in the current execution mode.
+        unsafe {
+            core::arch::asm!("rdmsr", in("ecx") msr, out("eax") low, out("edx") high, options(nomem, nostack));
+        }
+        ((high as u64) << 32) | (low as u64)
     }
-
-    ((high as u64) << 32) | (low as u64)
+    #[cfg(not(target_os = "none"))]
+    {
+        let _ = msr;
+        0
+    }
 }
 
 /// Write to a Model Specific Register (MSR).
 
 pub unsafe fn write_msr(msr: u32, value: u64) {
-    let low = value as u32;
-
-    let high = (value >> 32) as u32;
-
-    // Safety: caller guarantees the requested MSR is valid in the current execution mode.
-    unsafe {
-        core::arch::asm!("wrmsr", in("ecx") msr, in("eax") low, in("edx") high, options(nomem, nostack));
+    #[cfg(target_os = "none")]
+    {
+        let low = value as u32;
+        let high = (value >> 32) as u32;
+        // Safety: caller guarantees the requested MSR is valid in the current execution mode.
+        unsafe {
+            core::arch::asm!("wrmsr", in("ecx") msr, in("eax") low, in("edx") high, options(nomem, nostack));
+        }
+    }
+    #[cfg(not(target_os = "none"))]
+    {
+        let _ = msr;
+        let _ = value;
     }
 }
 
 #[inline(always)]
 
 pub fn invlpg(addr: u64) {
+    #[cfg(target_os = "none")]
     unsafe {
         core::arch::asm!("invlpg [{}]", in(reg) addr, options(nostack));
+    }
+    #[cfg(not(target_os = "none"))]
+    {
+        let _ = addr;
     }
 }
 
@@ -176,35 +212,84 @@ pub struct X86CpuRegisters;
 
 impl CpuRegisters for X86CpuRegisters {
     fn read_page_fault_addr() -> u64 {
-        Cr2::read().as_u64()
+        #[cfg(target_os = "none")]
+        {
+            Cr2::read().as_u64()
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            0
+        }
     }
 
     fn read_page_table_root() -> u64 {
-        let (frame, _) = Cr3::read();
-        frame.start_address().as_u64()
+        #[cfg(target_os = "none")]
+        {
+            let (frame, _) = Cr3::read();
+            frame.start_address().as_u64()
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            0
+        }
     }
 
     fn write_page_table_root(addr: u64) {
-        let frame = PhysFrame::containing_address(PhysAddr::new(addr));
-        let (_, flags) = Cr3::read();
-        unsafe {
-            Cr3::write(frame, flags);
+        #[cfg(target_os = "none")]
+        {
+            let frame = PhysFrame::containing_address(PhysAddr::new(addr));
+            let (_, flags) = Cr3::read();
+            unsafe {
+                Cr3::write(frame, flags);
+            }
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            let _ = addr;
         }
     }
 
     fn read_tls_base() -> u64 {
-        FsBase::read().as_u64()
+        #[cfg(target_os = "none")]
+        {
+            FsBase::read().as_u64()
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            0
+        }
     }
 
     fn write_tls_base(addr: u64) {
-        FsBase::write(VirtAddr::new(addr));
+        #[cfg(target_os = "none")]
+        {
+            FsBase::write(VirtAddr::new(addr));
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            let _ = addr;
+        }
     }
 
     fn read_per_cpu_base() -> u64 {
-        GsBase::read().as_u64()
+        #[cfg(target_os = "none")]
+        {
+            GsBase::read().as_u64()
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            0
+        }
     }
 
     fn write_per_cpu_base(addr: u64) {
-        GsBase::write(VirtAddr::new(addr));
+        #[cfg(target_os = "none")]
+        {
+            GsBase::write(VirtAddr::new(addr));
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            let _ = addr;
+        }
     }
 }

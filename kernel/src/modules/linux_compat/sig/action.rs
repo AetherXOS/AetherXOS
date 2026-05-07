@@ -62,12 +62,14 @@ pub fn sys_linux_rt_sigreturn(frame: &mut SyscallFrame) -> usize {
         // We expect the ucontext to be at [RSP + 8] because the return address is at [RSP].
         // However, many implementations point RSP directly to the frame.
 
-        let uctx_ptr = UserPtr::<LinuxUContext>::new(frame.rsi as usize);
+        // In x86_64 Linux, RSP points to the return address, so context is at RSP + 8
+        // However, if sa_restorer was used, RSP points directly to the frame or just after the restorer call.
+        let uctx_ptr = UserPtr::<LinuxUContext>::new(frame.rsp as usize);
         let uctx = match uctx_ptr.read() {
             Ok(c) => c,
             Err(_) => {
-                // Try offset if direct read fails (some glibc versions adjust RSP)
-                match UserPtr::<LinuxUContext>::new(frame.rsi as usize + 8).read() {
+                // Try +8 offset (standard return address alignment)
+                match UserPtr::<LinuxUContext>::new(frame.rsp as usize + 8).read() {
                     Ok(c) => c,
                     Err(_) => return linux_fault(),
                 }

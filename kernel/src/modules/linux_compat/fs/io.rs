@@ -4,8 +4,19 @@ use alloc::collections::BTreeMap;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
+/// FD_CLOEXEC flag value in Linux
 pub(crate) const LINUX_FD_CLOEXEC: usize = 0x1;
-const TIOCGWINSZ: usize = 0x5413;
+
+// ioctl command codes
+const TIOCGWINSZ: usize = 0x5413;  // Get terminal window size
+
+// Pipe and buffer size constants
+const PIPE_MIN_SIZE: usize = 4096;
+const PIPE_MAX_SIZE: usize = 1 << 20; // 1 MB
+
+// Terminal constants
+const TERMINAL_DEFAULT_ROWS: u16 = 24;
+const TERMINAL_DEFAULT_COLS: u16 = 80;
 
 lazy_static! {
     static ref LINUX_FD_FLAGS: Mutex<BTreeMap<u32, usize>> = Mutex::new(BTreeMap::new());
@@ -36,20 +47,22 @@ pub(crate) fn linux_fd_clear_descriptor_flags(fd: u32) {
 }
 
 pub(crate) fn close_cloexec_descriptors() -> usize {
-    let fds: alloc::vec::Vec<u32> = {
+    let entries: alloc::vec::Vec<(u32, bool)> = {
         let table = crate::modules::posix::fs::FILE_TABLE.lock();
-        table
-            .iter()
-            .filter_map(|(fd, desc)| {
-                let linux_flags = LINUX_FD_FLAGS.lock().get(fd).copied().unwrap_or(0);
-                if desc.cloexec || (linux_flags & LINUX_FD_CLOEXEC) != 0 {
-                    Some(*fd)
-                } else {
-                    None
-                }
-            })
-            .collect()
+        table.iter().map(|(fd, desc)| (*fd, desc.cloexec)).collect()
     };
+    let linux_flags = LINUX_FD_FLAGS.lock().clone();
+    let fds: alloc::vec::Vec<u32> = entries
+        .into_iter()
+        .filter_map(|(fd, cloexec)| {
+            let linux_flags = linux_flags.get(&fd).copied().unwrap_or(0);
+            if cloexec || (linux_flags & LINUX_FD_CLOEXEC) != 0 {
+                Some(fd)
+            } else {
+                None
+            }
+        })
+        .collect();
 
     let mut closed = 0usize;
     for fd in fds {
@@ -90,14 +103,10 @@ pub fn sys_linux_fcntl(fd: Fd, cmd: usize, arg: usize) -> usize {
     crate::require_posix_fs!((fd, cmd, arg) => {
         match cmd {
             f::F_GETFL => {
-                let flags = match crate::modules::posix::fs::fcntl_get_status_flags(fd.as_u32()) {
-                    Ok(f) => f as usize,
-                    Err(_) => {
-                        let fd_val = fd.as_usize();
-                        if fd_val == linux::STDIN_FILENO { 0 } else { 1 } // Fallback
-                    }
-                };
-                flags
+                match crate::modules::posix::fs::fcntl_get_status_flags(fd.as_u32()) {
+                    Ok(flags) => flags as usize,
+                    Err(e) => linux_errno(e.code()),
+                }
             }
             f::F_SETFL => {
                 match crate::modules::posix::fs::fcntl_set_status_flags(fd.as_u32(), arg as u32) {
@@ -133,7 +142,7 @@ pub fn sys_linux_fcntl(fd: Fd, cmd: usize, arg: usize) -> usize {
             f::F_GETOWN => crate::modules::posix::process::getpid() as usize,
             f::F_SETOWN => 0,
             f::F_GETPIPE_SZ => linux::PIPE_BUF_SIZE,
-            f::F_SETPIPE_SZ => arg.max(4096).min(1 << 20).next_power_of_two(),
+            f::F_SETPIPE_SZ => arg.max(PIPE_MIN_SIZE).min(PIPE_MAX_SIZE).next_power_of_two(),
             _ => linux_errno(crate::modules::posix_consts::errno::EINVAL),
         }
     })
@@ -166,6 +175,10 @@ mod tests {
             sys_linux_fcntl(Fd(424242), linux::fcntl::F_GETFD, 0),
             linux_errno(crate::modules::posix_consts::errno::EBADF)
         );
+        assert_eq!(
+            sys_linux_fcntl(Fd(424242), linux::fcntl::F_GETFL, 0),
+            linux_errno(crate::modules::posix_consts::errno::EBADF)
+        );
 
         let _ = crate::modules::posix::fs::close(fd);
         let _ = crate::modules::posix::fs::unmount(fs_id);
@@ -184,7 +197,10 @@ pub fn sys_linux_ioctl(fd: Fd, cmd: usize, arg: usize) -> usize {
                     let mut info: LinuxFbFixScreeninfo = unsafe { core::mem::zeroed() };
                     let id = b"hyperfb";
                     info.id[..id.len()].copy_from_slice(id);
-                    info.smem_start = fb.address.as_ptr().unwrap() as u64;
+                    info.smem_start = match fb.address.as_ptr() {
+                        Some(ptr) => ptr as u64,
+                        None => return linux_errno(crate::modules::posix_consts::errno::EBADF),
+                    };
                     info.smem_len = (fb.width * fb.height * (fb.bpp as u64 / 8)) as u32;
                     info.line_length = fb.pitch as u32;
                     let _ = with_user_write_bytes(
@@ -235,8 +251,8 @@ pub fn sys_linux_ioctl(fd: Fd, cmd: usize, arg: usize) -> usize {
     match cmd {
         TIOCGWINSZ => {
             let ws = LinuxWinsize {
-                ws_row: 24,
-                ws_col: 80,
+                ws_row: TERMINAL_DEFAULT_ROWS,
+                ws_col: TERMINAL_DEFAULT_COLS,
                 ws_xpixel: 0,
                 ws_ypixel: 0,
             };

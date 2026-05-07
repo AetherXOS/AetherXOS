@@ -10,69 +10,14 @@ use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use core::any::Any;
 
 use crate::interfaces::TaskId;
 use crate::modules::vfs::{
-    types::{DirEntry, File, FileStats, PollEvents},
+    types::{DirEntry, File, FileStats},
     FileSystem,
 };
 
-/// Simple read-only in-memory file for sysfs entries.
-struct SysFsEntry {
-    data: Vec<u8>,
-    pos: usize,
-}
-
-impl SysFsEntry {
-    fn from_str(s: &str) -> Self {
-        Self {
-            data: s.as_bytes().to_vec(),
-            pos: 0,
-        }
-    }
-}
-
-impl File for SysFsEntry {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, &'static str> {
-        if self.pos >= self.data.len() {
-            return Ok(0);
-        }
-        let n = buf.len().min(self.data.len() - self.pos);
-        buf[..n].copy_from_slice(&self.data[self.pos..self.pos + n]);
-        self.pos += n;
-        Ok(n)
-    }
-
-    fn write(&mut self, _buf: &[u8]) -> Result<usize, &'static str> {
-        Err("EROFS")
-    }
-
-    fn stat(&self) -> Result<FileStats, &'static str> {
-        Ok(FileStats {
-            size: self.data.len() as u64,
-            mode: 0o100444,
-            uid: 0,
-            gid: 0,
-            atime: 0,
-            mtime: 0,
-            ctime: 0,
-            blksize: 4096,
-            blocks: 0,
-        })
-    }
-
-    fn poll_events(&self) -> PollEvents {
-        PollEvents::IN
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
+use crate::modules::vfs::utils::ReadOnlyFile;
 
 // ── SysFs ───────────────────────────────────────────────────────────────────
 
@@ -94,12 +39,12 @@ impl FileSystem for SysFs {
 
         match clean {
             // /sys/kernel/
-            "kernel/osrelease" => Ok(Box::new(SysFsEntry::from_str(
+            "kernel/osrelease" => Ok(Box::new(ReadOnlyFile::from_str(
                 &format!("{}\n", crate::config::KernelConfig::linux_release()),
             ))),
-            "kernel/ostype" => Ok(Box::new(SysFsEntry::from_str("Linux\n"))),
-            "kernel/version" => Ok(Box::new(SysFsEntry::from_str("#1 SMP\n"))),
-            "kernel/hostname" => Ok(Box::new(SysFsEntry::from_str("aethercore\n"))),
+            "kernel/ostype" => Ok(Box::new(ReadOnlyFile::from_str("Linux\n"))),
+            "kernel/version" => Ok(Box::new(ReadOnlyFile::from_str("#1 SMP\n"))),
+            "kernel/hostname" => Ok(Box::new(ReadOnlyFile::from_str("aethercore\n"))),
 
             // /sys/devices/system/cpu/
             "devices/system/cpu/online" => {
@@ -109,10 +54,10 @@ impl FileSystem for SysFs {
                 } else {
                     String::from("0\n")
                 };
-                Ok(Box::new(SysFsEntry::from_str(&range)))
+                Ok(Box::new(ReadOnlyFile::from_str(&range)))
             }
             "devices/system/cpu/possible" => {
-                Ok(Box::new(SysFsEntry::from_str("0-255\n")))
+                Ok(Box::new(ReadOnlyFile::from_str("0-255\n")))
             }
             "devices/system/cpu/present" => {
                 let cpu_count = cpu_count();
@@ -121,23 +66,23 @@ impl FileSystem for SysFs {
                 } else {
                     String::from("0\n")
                 };
-                Ok(Box::new(SysFsEntry::from_str(&range)))
+                Ok(Box::new(ReadOnlyFile::from_str(&range)))
             }
 
             // /sys/fs/cgroup/
             "fs/cgroup/cgroup.controllers" => {
-                Ok(Box::new(SysFsEntry::from_str("cpu memory io pids\n")))
+                Ok(Box::new(ReadOnlyFile::from_str("cpu memory io pids\n")))
             }
             "fs/cgroup/cgroup.subtree_control" => {
-                Ok(Box::new(SysFsEntry::from_str("cpu memory io pids\n")))
+                Ok(Box::new(ReadOnlyFile::from_str("cpu memory io pids\n")))
             }
 
             // /sys/power/
-            "power/state" => Ok(Box::new(SysFsEntry::from_str("mem disk\n"))),
-            "power/wakeup_count" => Ok(Box::new(SysFsEntry::from_str("0\n"))),
+            "power/state" => Ok(Box::new(ReadOnlyFile::from_str("mem disk\n"))),
+            "power/wakeup_count" => Ok(Box::new(ReadOnlyFile::from_str("0\n"))),
 
             // /sys/class/ entries
-            "class/tty/tty0/type" => Ok(Box::new(SysFsEntry::from_str("4\n"))),
+            "class/tty/tty0/type" => Ok(Box::new(ReadOnlyFile::from_str("4\n"))),
 
             _ => Err("not found"),
         }
@@ -226,11 +171,11 @@ impl FileSystem for SysFs {
                 mode: 0o040555,
                 uid: 0,
                 gid: 0,
-                atime: 0,
-                mtime: 0,
-                ctime: 0,
-                blksize: 4096,
+                atime: Default::default(),
+                mtime: Default::default(),
+                ctime: Default::default(),
                 blocks: 0,
+                ..Default::default()
             });
         }
 
@@ -240,11 +185,11 @@ impl FileSystem for SysFs {
                 mode: 0o100444,
                 uid: 0,
                 gid: 0,
-                atime: 0,
-                mtime: 0,
-                ctime: 0,
-                blksize: 4096,
+                atime: Default::default(),
+                mtime: Default::default(),
+                ctime: Default::default(),
                 blocks: 0,
+                ..Default::default()
             }),
             Err(_) => Err("not found"),
         }

@@ -13,6 +13,13 @@ fn handle_common_exception(
     error_code: Option<u64>,
     fault_addr: Option<u64>,
 ) {
+    #[cfg(feature = "telemetry")]
+    {
+        use crate::kernel::cpu_local::CpuLocal;
+        let cpu = unsafe { CpuLocal::get() };
+        cpu.enter_kernel();
+    }
+
     let bytes = unsafe {
         core::slice::from_raw_parts(
             (&stack_frame as *const InterruptStackFrame).cast::<u8>(),
@@ -30,6 +37,12 @@ fn handle_common_exception(
     });
 
     if super::dispatch::try_dispatch_vector(vector) {
+        #[cfg(feature = "telemetry")]
+        {
+            use crate::kernel::cpu_local::CpuLocal;
+            let cpu = unsafe { CpuLocal::get() };
+            cpu.exit_kernel();
+        }
         return;
     }
 
@@ -68,6 +81,17 @@ pub(super) extern "x86-interrupt" fn page_fault_handler(
 ) {
     use crate::interfaces::cpu::CpuRegisters;
     let addr = crate::hal::cpu::X86CpuRegisters::read_page_fault_addr();
+    
+    // Check if the fault came from User Mode (CPL=3)
+    // PageFaultErrorCode::USER_MODE bit is 0x4
+    #[cfg(feature = "paging_enable")]
+    if error_code.contains(PageFaultErrorCode::USER_MODE) {
+        if let Ok(()) = crate::kernel::memory::handle_user_page_fault(addr, error_code) {
+            // Fault resolved! Return to user mode and retry the instruction.
+            return;
+        }
+    }
+
     let ex = super::metadata::exception_descriptor(x86::EXCEPTION_PAGE_FAULT);
     handle_common_exception(ex.label, ex.id, stack_frame, Some(error_code.bits()), Some(addr));
 }

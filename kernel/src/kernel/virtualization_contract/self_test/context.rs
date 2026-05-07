@@ -17,14 +17,29 @@ pub(super) struct VirtualizationContractContext {
 }
 
 pub(super) fn current_virtualization_contract_context() -> VirtualizationContractContext {
+    let status = crate::hal::platform::status();
+
+    let governor = current_virtualization_runtime_governor();
+
+    let scheduler_tuning = current_virtualization_scheduler_tuning();
+
+    let rebalance_tuning = current_virtualization_rebalance_tuning();
+
+    let power_tuning = current_virtualization_power_tuning();
+
+    let effective_execution = KernelConfig::virtualization_effective_execution_profile();
+    let effective_governor = KernelConfig::virtualization_effective_governor_profile();
+
+    let policy_snapshot = crate::kernel::policy::runtime_policy_snapshot();
+
     VirtualizationContractContext {
-        status: crate::hal::platform::status(),
-        governor: current_virtualization_runtime_governor(),
-        scheduler_tuning: current_virtualization_scheduler_tuning(),
-        rebalance_tuning: current_virtualization_rebalance_tuning(),
-        power_tuning: current_virtualization_power_tuning(),
-        effective_execution: KernelConfig::virtualization_effective_execution_profile(),
-        effective_governor: KernelConfig::virtualization_effective_governor_profile(),
-        policy_snapshot: crate::kernel::policy::runtime_policy_snapshot(),
+        status,
+        governor,
+        scheduler_tuning,
+        rebalance_tuning,
+        power_tuning,
+        effective_execution,
+        effective_governor,
+        policy_snapshot,
     }
 }

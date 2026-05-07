@@ -29,12 +29,14 @@ pub struct PosixStat {
     pub mode: u16,
     pub uid: u32,
     pub gid: u32,
+    pub nlink: u32,
     pub is_dir: bool,
     pub is_symlink: bool,
     pub ino: u64,
-    pub atime: i64,
-    pub mtime: i64,
-    pub ctime: i64,
+    pub atime: PosixTimespec,
+    pub mtime: PosixTimespec,
+    pub ctime: PosixTimespec,
+    pub btime: PosixTimespec,
 }
 
 pub struct SharedFile {

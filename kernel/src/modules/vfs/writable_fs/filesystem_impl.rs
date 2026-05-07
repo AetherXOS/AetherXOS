@@ -73,7 +73,9 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
                     drop(entries);
                     // Clear the page cache
                     if let Some(inode) = GLOBAL_INODE_CACHE.get(ino) {
-                        inode.pages.lock().clear();
+                        for shard in &inode.pages {
+                            shard.lock().clear();
+                        }
                     }
                     return self.open(path, tid);
                 }
@@ -133,6 +135,8 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
 
     fn remove(&self, path: &str, tid: TaskId) -> Result<(), &'static str> {
         let norm = Self::normalize(path);
+        let parent = Self::parent_path(path);
+        let name = Self::basename(path);
 
         // If in overlay, mark as whiteout
         let mut entries = self.entries.lock();
@@ -140,6 +144,14 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
             entry.whiteout = true;
             // Free inode from cache
             GLOBAL_INODE_CACHE.evict(entry.ino);
+            drop(entries);
+
+            if let Some(pp) = parent {
+                let mut children = self.dir_children.lock();
+                if let Some(existing) = children.get_mut(&pp) {
+                    existing.retain(|child| child != &name);
+                }
+            }
             return Ok(());
         }
         drop(entries);
@@ -150,6 +162,12 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
             let mut entry = OverlayEntry::new_file(ino, 0o644);
             entry.whiteout = true;
             self.entries.lock().insert(norm, entry);
+            if let Some(pp) = parent {
+                let mut children = self.dir_children.lock();
+                if let Some(existing) = children.get_mut(&pp) {
+                    existing.retain(|child| child != &name);
+                }
+            }
             return Ok(());
         }
 
@@ -188,6 +206,8 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
 
     fn rmdir(&self, path: &str, _tid: TaskId) -> Result<(), &'static str> {
         let norm = Self::normalize(path);
+        let parent = Self::parent_path(path);
+        let name = Self::basename(path);
 
         // Check if directory is empty in overlay
         let children = self.dir_children.lock();
@@ -205,6 +225,14 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
             }
             entry.whiteout = true;
             GLOBAL_INODE_CACHE.evict(entry.ino);
+            drop(entries);
+
+            if let Some(pp) = parent {
+                let mut children = self.dir_children.lock();
+                if let Some(existing) = children.get_mut(&pp) {
+                    existing.retain(|child| child != &name);
+                }
+            }
             return Ok(());
         }
 
@@ -249,11 +277,11 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
                 }
                 if let Some(entry) = self.entries.lock().get(&child_path) {
                     let kind = if entry.is_dir() {
-                        DT_DIR
+                        super::DT_DIR
                     } else if entry.is_symlink() {
-                        DT_LNK
+                        super::DT_LNK
                     } else {
-                        DT_REG
+                        super::DT_REG
                     };
                     result.push(DirEntry {
                         name: child_name.clone(),
@@ -293,7 +321,8 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
             if entry.whiteout {
                 return Err("file not found");
             }
-            entry.mode = (entry.mode & 0o170000) | (mode & 0o7777);
+            entry.mode = ((entry.mode as u32) & super::MODE_TYPE_MASK) as u16
+                | (mode & super::MODE_PERMS_MASK);
             return Ok(());
         }
         drop(entries);
@@ -302,7 +331,8 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
         self.copy_up(path, tid)?;
         let mut entries = self.entries.lock();
         if let Some(entry) = entries.get_mut(&norm) {
-            entry.mode = (entry.mode & 0o170000) | (mode & 0o7777);
+            entry.mode = ((entry.mode as u32) & super::MODE_TYPE_MASK) as u16
+                | (mode & super::MODE_PERMS_MASK);
         }
         Ok(())
     }
@@ -333,6 +363,10 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
     fn rename(&self, old_path: &str, new_path: &str, tid: TaskId) -> Result<(), &'static str> {
         let old_norm = Self::normalize(old_path);
         let new_norm = Self::normalize(new_path);
+        let old_parent = Self::parent_path(old_path);
+        let new_parent = Self::parent_path(new_path);
+        let old_name = Self::basename(old_path);
+        let new_name = Self::basename(new_path);
 
         // Copy-up if needed
         if !self.overlay_exists(&old_norm) {
@@ -352,6 +386,20 @@ impl<Base: FileSystem> FileSystem for WritableOverlayFs<Base> {
             wo.whiteout = true;
             entries2.insert(old_norm, wo);
             drop(entries2);
+
+            if let Some(parent) = old_parent.clone() {
+                let mut children = self.dir_children.lock();
+                if let Some(existing) = children.get_mut(&parent) {
+                    existing.retain(|child| child != &old_name);
+                }
+            }
+            if let Some(parent) = new_parent.clone() {
+                let mut children = self.dir_children.lock();
+                let entry = children.entry(parent).or_insert_with(Vec::new);
+                if !entry.iter().any(|child| child == &new_name) {
+                    entry.push(new_name.to_string());
+                }
+            }
 
             // Update ino mapping
             let mut ino_map = self.path_to_ino.lock();

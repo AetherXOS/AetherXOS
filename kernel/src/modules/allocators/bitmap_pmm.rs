@@ -1,4 +1,5 @@
 use crate::interfaces::{PageAllocator, PAGE_SIZE_4K};
+use crate::hal::common::mmio;
 use core::sync::atomic::{AtomicU64, Ordering};
 
 /// Bitmap Physical Memory Manager (PMM).
@@ -80,6 +81,46 @@ impl BitmapAllocator {
     /// Create with an explicit physical base.
     pub const fn with_base(start_addr: usize) -> Self {
         Self { start_addr }
+    }
+
+    /// Initialise (or re-initialise) the physical base used by this instance.
+    pub fn init(&mut self, start_addr: usize, _size: usize) {
+        self.start_addr = start_addr;
+        // Reserve kernel physical footprint if linker symbols are available.
+        // The linker provides `_kernel_start` and `_kernel_end` as virtual
+        // addresses (higher-half). Convert to physical using HHDM mapping
+        // and mark those frames as used so PMM won't hand them out.
+        unsafe extern "C" {
+            static _kernel_start: u8;
+            static _kernel_end: u8;
+        }
+
+        // SAFETY: reading addresses of linker-provided symbols is safe.
+        let kstart_v = unsafe { &_kernel_start as *const u8 as usize };
+        let kend_v = unsafe { &_kernel_end as *const u8 as usize };
+
+        if kend_v > kstart_v {
+            if let Some(kstart_phys) = mmio::virt_to_phys(kstart_v) {
+                if let Some(kend_phys) = mmio::virt_to_phys(kend_v.saturating_sub(1)) {
+                    let phys_start = kstart_phys as usize;
+                    let phys_end_excl = (kend_phys as usize).saturating_add(1);
+
+                    if phys_end_excl > self.start_addr {
+                        let start_frame = if phys_start <= self.start_addr {
+                            0usize
+                        } else {
+                            (phys_start - self.start_addr) / PAGE_SIZE_4K
+                        };
+                        let end_frame_excl = (phys_end_excl.saturating_sub(self.start_addr) + PAGE_SIZE_4K - 1) / PAGE_SIZE_4K;
+                        if end_frame_excl > start_frame {
+                            let count = end_frame_excl - start_frame;
+                            // Mark kernel pages as used in the bitmap so allocator won't reuse them.
+                            self.mark_used(start_frame, count);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Reserve a range of physical pages (e.g., kernel image, MMIO, ACPI tables).

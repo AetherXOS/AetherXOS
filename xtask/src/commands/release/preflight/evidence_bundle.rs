@@ -10,22 +10,7 @@ pub(super) fn run(strict: bool) -> Result<()> {
     println!("[release::evidence-bundle] Building release evidence bundle");
 
     let root = paths::repo_root();
-    let specs = [
-        (config::repo_paths::P_TIER_STATUS_JSON, true),
-        (
-            config::repo_paths::PRODUCTION_ACCEPTANCE_SCORECARD_JSON,
-            true,
-        ),
-        (config::repo_paths::REPRO_BUILD_EVIDENCE_JSON, true),
-        (config::repo_paths::SYSCALL_COVERAGE_SUMMARY, true),
-        (config::repo_paths::HOST_TOOL_VERIFY_JSON, true),
-        (config::repo_paths::CRITICAL_POLICY_GUARD_JSON, true),
-        (config::repo_paths::WARNING_AUDIT_JSON, true),
-        (config::repo_paths::RELEASE_DIAGNOSTICS_JSON, false),
-        (config::repo_paths::ABI_READINESS_SUMMARY, false),
-        (config::repo_paths::ERRNO_CONFORMANCE_SUMMARY, false),
-        (config::repo_paths::SHIM_ERRNO_SUMMARY, false),
-    ];
+    let specs = evidence_specs();
 
     let mut entries = Vec::with_capacity(specs.len());
     for (path, required) in specs {
@@ -91,4 +76,41 @@ pub(super) fn run(strict: bool) -> Result<()> {
 
     println!("[release::evidence-bundle] PASS");
     Ok(())
+}
+
+fn evidence_specs() -> Vec<(&'static str, bool)> {
+    vec![
+        (config::repo_paths::P_TIER_STATUS_JSON, true),
+        (
+            config::repo_paths::PRODUCTION_ACCEPTANCE_SCORECARD_JSON,
+            true,
+        ),
+        (config::repo_paths::REPRO_BUILD_EVIDENCE_JSON, true),
+        (config::repo_paths::SYSCALL_COVERAGE_SUMMARY, true),
+        (config::repo_paths::HOST_TOOL_VERIFY_JSON, true),
+        (config::repo_paths::CRITICAL_POLICY_GUARD_JSON, true),
+        (config::repo_paths::WARNING_AUDIT_JSON, true),
+        (config::repo_paths::RELEASE_DIAGNOSTICS_JSON, false),
+        (config::repo_paths::ABI_READINESS_SUMMARY, false),
+        (config::repo_paths::ERRNO_CONFORMANCE_SUMMARY, false),
+        (config::repo_paths::SHIM_ERRNO_SUMMARY, false),
+        (config::repo_paths::UBUNTU_USERSPACE_SMOKE_JSON, false),
+        (config::repo_paths::UBUNTU_USERSPACE_SMOKE_JUNIT_XML, false),
+    ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn evidence_specs_include_ubuntu_userspace_smoke_artifacts() {
+        let specs = evidence_specs();
+        assert!(specs.iter().any(|(path, required)| {
+            *path == config::repo_paths::UBUNTU_USERSPACE_SMOKE_JSON && !required
+        }));
+        assert!(specs.iter().any(|(path, required)| {
+            *path == config::repo_paths::UBUNTU_USERSPACE_SMOKE_JUNIT_XML && !required
+        }));
+    }
 }

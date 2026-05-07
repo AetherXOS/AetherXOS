@@ -24,6 +24,7 @@ static PENDING_HEAP_FINALIZE: AtomicBool = AtomicBool::new(false);
 pub(super) fn init_heap(
     allocator: &aethercore::modules::allocators::selector::ActiveHeapAllocator,
 ) {
+    use aethercore::interfaces::memory::HeapAllocator;
     use aethercore::generated_consts::MEM_HEAP_SIZE_MB;
 
     #[cfg(target_arch = "x86_64")]
@@ -77,7 +78,12 @@ pub(super) fn init_heap(
                 aethercore::hal::serial::write_raw(
                     "[EARLY SERIAL] heap allocator init begin\n",
                 );
-                allocator.init(virt_addr as usize, actual_size);
+                // SAFETY: This is only called once during early boot before multi-threading.
+                // The allocator uses atomics internally, so mutable access via const reference is safe.
+                unsafe {
+                    let allocator_mut = allocator as *const _ as *mut aethercore::modules::allocators::selector::ActiveHeapAllocator;
+                    (*allocator_mut).init(virt_addr as usize, actual_size);
+                }
                 #[cfg(target_arch = "x86_64")]
                 aethercore::hal::serial::write_raw(
                     "[EARLY SERIAL] heap allocator init complete\n",

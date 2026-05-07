@@ -35,7 +35,7 @@ lazy_static! {
     });
 }
 
-pub fn msgget(key: MsgKey, flags: u32) -> KernelResult<MsgId> {
+pub fn msgget(key: MsgKey, _flags: u32) -> KernelResult<MsgId> {
     let mut state = MSG_MANAGER.lock();
 
     if key != IPC_PRIVATE {
@@ -87,7 +87,10 @@ pub fn msgrcv(
         .iter()
         .position(|m| wanted_type == 0 || m.msg_type == wanted_type);
     if let Some(i) = idx {
-        let msg = q.messages.remove(i).unwrap();
+        let msg = q
+            .messages
+            .remove(i)
+            .ok_or(KernelError::InternalError)?;
         let len = core::cmp::min(buffer.len(), msg.data.len());
         buffer[..len].copy_from_slice(&msg.data[..len]);
         Ok((len, msg.msg_type))

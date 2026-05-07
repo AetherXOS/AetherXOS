@@ -105,6 +105,7 @@ fn register_mount_table_entry(mount_path: &str) {
         crate::modules::vfs::mount_table::MountFlags::RDONLY
             | crate::modules::vfs::mount_table::MountFlags::NOEXEC
             | crate::modules::vfs::mount_table::MountFlags::NODEV,
+        None,
     );
 }
 

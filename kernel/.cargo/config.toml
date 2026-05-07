@@ -1,15 +1,73 @@
+# AetherXOS — Kernel Build Configuration
+# Scope: Applies strictly to the kernel workspace and its bare-metal targets.
+# This file ensures deterministic builds across Windows, Linux, and macOS hosts.
+
+# ── x86_64 Bare-Metal Target (Higher-Half Kernel) ─────────────────────────────
 [target.x86_64-unknown-none]
-rustflags = ["-C", "link-arg=-z", "-C", "link-arg=max-page-size=0x1000"]
+# Force Cargo to use the built-in LLVM linker. This is CRITICAL for cross-compiling
+# from a Windows host without relying on external toolchains (like MinGW).
+linker = "rust-lld"
 
+rustflags = [
+    # Explicitly use the LLD linker flavor
+    "-C", "linker-flavor=ld.lld",
+
+    # Custom linker script mapping
+    "-C", "link-arg=-Tkernel/linker.ld",
+
+    # Page size alignment (required for correct ELF segment layout and Limine)
+    "-C", "link-arg=-z", "-C", "link-arg=max-page-size=0x1000",
+
+    # Security: Non-Executable Stack (NX Stack / PT_GNU_STACK RW)
+    "-C", "link-arg=-z", "-C", "link-arg=noexecstack",
+
+    # Optimization: Garbage collect unused sections to reduce binary size
+    "-C", "link-arg=--gc-sections",
+
+    # Disable Position Independent Executable (PIE) behavior
+    "-C", "link-arg=--no-pie",
+
+    # --- CRITICAL ARCHITECTURE FLAGS ---
+    # Kernel code model: Required for higher-half kernels loaded above 0xFFFFFFFF80000000
+    "-C", "code-model=kernel",
+    
+    # Static relocation: Forces ET_EXEC output and strips PT_DYNAMIC segments
+    "-C", "relocation-model=static",
+
+    # Disable FPU/SIMD instructions. Kernel interrupt handlers must not corrupt FP state.
+    "-C", "target-feature=-sse,-sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-avx,-avx2",
+]
+
+# ── AArch64 Bare-Metal Target (ARM64 Kernel) ──────────────────────────────────
 [target.aarch64-unknown-none]
-rustflags = ["-C", "link-arg=-z", "-C", "link-arg=max-page-size=0x1000"]
+# Use the built-in LLVM linker for ARM as well
+linker = "rust-lld"
 
-[target.aarch64-unknown-linux-gnu]
-linker = "aarch64-linux-gnu-gcc"
+rustflags = [
+    "-C", "linker-flavor=ld.lld",
+    
+    # You will need an ARM-specific linker script in the future
+    # "-C", "link-arg=-Tkernel/aarch64-linker.ld",
 
+    "-C", "link-arg=-z", "-C", "link-arg=max-page-size=0x1000",
+    "-C", "link-arg=-z", "-C", "link-arg=noexecstack",
+    "-C", "link-arg=--gc-sections",
+    
+    # Force static linking
+    "-C", "link-arg=-Bstatic",
+    
+    # Ensure no floating point hardware is used in the kernel (ARM equivalent)
+    "-C", "target-feature=+strict-align,-neon,-fp-armv8",
+]
+
+# ── Cargo Aliases (Kernel-local Shortcuts) ────────────────────────────────────
 [alias]
-xtask = "run --package xtask --target x86_64-unknown-linux-gnu --target-dir target/xtask --"
-kcheck = "check -Zbuild-std=core,alloc --target x86_64-unknown-none"
-acheck = "check -Zbuild-std=core,alloc --target aarch64-unknown-none"
-kbuild = "build -Zbuild-std=core,alloc --target x86_64-unknown-none"
-akbuild = "build -Zbuild-std=core,alloc --target aarch64-unknown-none"
+# Use build-std to compile `core`, `alloc`, and `compiler_builtins` from source.
+# The 'compiler-builtins-mem' feature provides memcpy/memset implementations 
+# necessary for a bare-metal environment where libc is missing.
+
+kcheck  = "check -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem --target x86_64-unknown-none"
+acheck  = "check -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem --target aarch64-unknown-none"
+
+kbuild  = "build -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem --target x86_64-unknown-none"
+akbuild = "build -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem --target aarch64-unknown-none"

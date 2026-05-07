@@ -1,6 +1,5 @@
 use crate::interfaces::task::ProcessId;
 use crate::kernel::sync::{IrqSafeMutex, WaitQueue};
-use crate::kernel::task::wake_tasks;
 use super::common::{suspend_on, wake_one_task};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
@@ -70,7 +69,7 @@ pub fn binder_transact(
 ) -> Result<(), &'static str> {
     let self_pid = unsafe {
         crate::kernel::cpu_local::CpuLocal::try_get()
-            .map(|cpu| ProcessId(crate::modules::posix::process::getpid()))
+            .map(|_cpu| ProcessId(crate::modules::posix::process::getpid()))
             .ok_or("no process context")?
     };
 
@@ -135,4 +134,16 @@ pub fn binder_stats() -> BinderStats {
     BinderStats {
         active_processes: BINDER_CONTEXTS.lock().len(),
     }
+}
+
+pub fn binder_acquire(_node_ptr: u64) -> Result<(), &'static str> {
+    Ok(())
+}
+
+pub fn binder_create(_node_ptr: u64, _cookie: u64) -> Result<(), &'static str> {
+    Ok(())
+}
+
+pub fn binder_release(_node_ptr: u64) -> Result<(), &'static str> {
+    Ok(())
 }

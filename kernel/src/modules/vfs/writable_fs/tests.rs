@@ -93,7 +93,7 @@ fn overlay_copy_up_persists_into_tmpfs_upper() {
     use crate::modules::vfs::{WritableOverlayFs, RamWritebackSink, overlay_registry, tmpfs};
 
     // Prepare a base filesystem and populate a file
-    let mut base = tmpfs::TmpFs::new();
+    let base = tmpfs::TmpFs::new();
     {
         let mut f = base.create("/greeting", TaskId(0)).expect("create base file");
         f.write(b"hello").expect("write base");
@@ -128,4 +128,58 @@ fn overlay_copy_up_persists_into_tmpfs_upper() {
         Ok(())
     })
     .expect("upper check");
+}
+
+#[test_case]
+fn overlay_rename_updates_directory_listing() {
+    use crate::interfaces::TaskId;
+    use crate::modules::vfs::{WritableOverlayFs, RamWritebackSink, overlay_registry, tmpfs};
+
+    let base = tmpfs::TmpFs::new();
+    base.create("/alpha", TaskId(0)).expect("create alpha");
+
+    let mount_id = 43usize;
+    let sink = alloc::sync::Arc::new(RamWritebackSink::new());
+    let overlay = WritableOverlayFs::new(base, mount_id, sink.clone());
+    let upper = tmpfs::TmpFs::new();
+    overlay_registry::register_overlay_with_upper(mount_id, Box::new(overlay), Some(Box::new(upper)));
+
+    overlay_registry::with_overlay(mount_id, |fs| {
+        fs.rename("/alpha", "/beta", TaskId(0)).expect("rename alpha to beta");
+        let entries = fs.readdir("/", TaskId(0)).expect("readdir overlay root");
+        assert!(entries.iter().any(|entry| entry.name == "beta"));
+        assert!(!entries.iter().any(|entry| entry.name == "alpha"));
+        Ok(())
+    })
+    .expect("overlay rename op");
+}
+
+#[test_case]
+fn overlay_remove_updates_directory_listing() {
+    use crate::interfaces::TaskId;
+    use crate::modules::vfs::{WritableOverlayFs, RamWritebackSink, overlay_registry, tmpfs};
+
+    let base = tmpfs::TmpFs::new();
+    base.create("/keep", TaskId(0)).expect("create keep");
+
+    let mount_id = 44usize;
+    let sink = alloc::sync::Arc::new(RamWritebackSink::new());
+    let overlay = WritableOverlayFs::new(base, mount_id, sink.clone());
+    let upper = tmpfs::TmpFs::new();
+    overlay_registry::register_overlay_with_upper(mount_id, Box::new(overlay), Some(Box::new(upper)));
+
+    overlay_registry::with_overlay(mount_id, |fs| {
+        fs.create("/drop", TaskId(0)).expect("create drop");
+        fs.mkdir("/tmpdir", TaskId(0)).expect("mkdir tmpdir");
+
+        fs.remove("/drop", TaskId(0)).expect("remove drop");
+        fs.rmdir("/tmpdir", TaskId(0)).expect("rmdir tmpdir");
+
+        let entries = fs.readdir("/", TaskId(0)).expect("readdir overlay root");
+        assert!(entries.iter().any(|entry| entry.name == "keep"));
+        assert!(!entries.iter().any(|entry| entry.name == "drop"));
+        assert!(!entries.iter().any(|entry| entry.name == "tmpdir"));
+        Ok(())
+    })
+    .expect("overlay remove op");
 }

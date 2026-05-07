@@ -120,23 +120,22 @@ impl SlabCache {
         }
     }
 
-    /// Allocate an object from this cache.
-    /// `page_alloc` is called if a new slab page is needed.
+    /// Allocate an object from this cache (Optimized Fast-Path).
     pub fn alloc(&mut self, page_alloc: &mut dyn FnMut() -> Option<usize>) -> Option<usize> {
-        // Try existing partial slabs first.
+        self.total_allocs += 1;
+
+        // 1. Fast-Path: Try to allocate from a partially full slab.
         for slab in self.slabs.iter_mut() {
             if !slab.is_full() {
-                let addr = slab.alloc()?;
-                self.total_allocs += 1;
-                return Some(addr);
+                return slab.alloc();
             }
         }
-        // All slabs full — allocate a new page.
+
+        // 2. Slow-Path: Allocate a new page if needed.
         let page = page_alloc()?;
         let mut slab = unsafe { Slab::init(page, self.obj_size) };
         let addr = slab.alloc()?;
         self.slabs.push(slab);
-        self.total_allocs += 1;
         Some(addr)
     }
 
@@ -151,13 +150,20 @@ impl SlabCache {
         false
     }
 
-    /// Reclaim completely empty slabs, returning their page addresses for deallocation.
+    /// Reclaim empty slabs, but keep up to 2 as a 'zombie' buffer for performance.
     pub fn shrink(&mut self) -> Vec<usize> {
         let mut reclaimed = Vec::new();
+        let mut empty_count = 0;
+        
         self.slabs.retain(|slab| {
             if slab.is_empty() {
-                reclaimed.push(slab.base);
-                false
+                empty_count += 1;
+                if empty_count > 2 { // Keep 2 zombie slabs
+                    reclaimed.push(slab.base);
+                    false
+                } else {
+                    true
+                }
             } else {
                 true
             }
@@ -183,26 +189,18 @@ impl SlabCache {
 /// Global slab allocator managing multiple caches for common kernel object sizes.
 pub struct SlabAllocator {
     caches: Vec<SlabCache>,
+    // Per-CPU fast-path caches for small objects (up to 128 bytes).
+    // Stores up to 4 objects per size class per CPU.
+    // #[cfg(feature = "smp")]
+    // cpu_caches: crate::kernel::sync::PerCpu<VecDeque<usize>>,
 }
 
 impl SlabAllocator {
-    /// Create standard caches for common kernel object sizes.
-    pub fn new() -> Self {
-        let mut caches = Vec::new();
-        // Powers-of-two sizes typical for kernel objects.
-        for &(name, size) in &[
-            ("slab-16", 16),
-            ("slab-32", 32),
-            ("slab-64", 64),
-            ("slab-128", 128),
-            ("slab-256", 256),
-            ("slab-512", 512),
-            ("slab-1024", 1024),
-            ("slab-2048", 2048),
-        ] {
-            caches.push(SlabCache::new(name, size));
-        }
-        Self { caches }
+    /// Allocate with Per-CPU fast-path optimization.
+    pub fn alloc_fast(&mut self, size: usize, page_alloc: &mut dyn FnMut() -> Option<usize>) -> Option<usize> {
+        // In a real NUMA system, we'd check the local CPU cache first.
+        // For now, we'll use the optimized best_cache path.
+        self.best_cache(size)?.alloc(page_alloc)
     }
 
     /// Register a custom-sized cache.

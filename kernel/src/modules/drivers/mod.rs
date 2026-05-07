@@ -1,4 +1,5 @@
 pub mod ahci;
+pub mod batched_driver;
 pub mod block;
 pub mod catalog;
 pub mod config;

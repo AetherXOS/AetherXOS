@@ -38,7 +38,7 @@ pub(crate) fn log_runtime_sections(telemetry: PlatformTelemetryConfig, telemetry
         super::super::log_dispatcher_vectored_runtime();
     }
 
-    #[cfg(feature = "dispatcher")]
+    #[cfg(all(feature = "dispatcher", feature = "ipc_message_passing"))]
     if telemetry_runtime && aethercore::config::KernelConfig::telemetry_ipc_enabled() {
         super::super::log_dispatcher_upcall_runtime();
     }

@@ -205,9 +205,8 @@ pub fn mmap_anonymous(len: usize, prot: u32, flags: u32) -> Result<u32, PosixErr
             len,
         },
     );
-    ANON_MAP_DATA
-        .lock()
-        .insert(map_id, Arc::new(Mutex::new(alloc::vec![0u8; len])));
+    // Note: We no longer populate ANON_MAP_DATA for truly anonymous mappings.
+    // The demand_paging system in the kernel core handles zero-filled page allocation on-demand.
     Ok(map_id)
 }
 

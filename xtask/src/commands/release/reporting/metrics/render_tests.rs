@@ -53,8 +53,12 @@ fn render_trend_dashboard_md_lists_points_in_order() {
 
     assert!(md.contains("# Trend Dashboard"));
     assert!(md.contains("latest_overall_ok: true"));
-    assert!(md.contains("2026-04-22T00:00:00Z :: overall_ok=false failed_count=3 completion_pct=76.9"));
-    assert!(md.contains("2026-04-23T00:00:00Z :: overall_ok=true failed_count=0 completion_pct=100.0"));
+    assert!(
+        md.contains("2026-04-22T00:00:00Z :: overall_ok=false failed_count=3 completion_pct=76.9")
+    );
+    assert!(
+        md.contains("2026-04-23T00:00:00Z :: overall_ok=true failed_count=0 completion_pct=100.0")
+    );
 }
 
 #[test]

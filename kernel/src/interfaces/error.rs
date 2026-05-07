@@ -39,6 +39,11 @@ pub enum KernelError {
 
     // Internal
     InternalError,
+    Invalid,
+    InvalidTask,
+    Again,
+    Interrupted,
+    Overflow,
 }
 
 impl KernelError {
@@ -66,8 +71,21 @@ impl KernelError {
             Self::ProcessTerminated => e::ECHILD,
             Self::ResourceExhausted => e::ENOMEM,
             Self::LimitExceeded => e::EMFILE,
+            Self::Invalid => e::EINVAL,
+            Self::InvalidTask => e::ESRCH,
+            Self::Again => e::EAGAIN,
             _ => e::EFAULT,
         }
+    }
+
+    pub fn code(&self) -> i32 {
+        self.to_posix_errno()
+    }
+}
+
+impl From<&'static str> for KernelError {
+    fn from(_: &'static str) -> Self {
+        Self::InternalError
     }
 }
 

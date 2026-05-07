@@ -320,11 +320,13 @@ pub extern "C" fn aarch64_ap_entry() -> ! {
         #[cfg(feature = "ring_protection")]
         kernel_stack_top: core::sync::atomic::AtomicUsize::new(allocate_kernel_stack_top()),
         current_task: core::sync::atomic::AtomicUsize::new(0),
+        is_user_mode: core::sync::atomic::AtomicBool::new(false),
         heartbeat_tick: core::sync::atomic::AtomicU64::new(0),
         idle_stack_pointer: core::sync::atomic::AtomicUsize::new(0),
         scheduler: crate::kernel::sync::IrqSafeMutex::new(
             crate::modules::selector::ActiveScheduler::new(),
         ),
+        kernel_mode_depth: core::sync::atomic::AtomicU32::new(1),
     }));
 
     unsafe {

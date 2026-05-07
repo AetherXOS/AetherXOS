@@ -1,9 +1,9 @@
+#[cfg(not(feature = "linux_compat"))]
 mod clone_ns;
+#[cfg(not(feature = "linux_compat"))]
 mod exec;
-mod exec_stack;
+pub mod exec_stack;
 
-#[cfg(all(test, not(feature = "linux_compat")))]
-pub(crate) use exec_stack::{execve_stack_required_bytes, prepare_execve_user_stack};
 
 #[cfg(not(feature = "linux_compat"))]
 pub(super) fn sys_linux_execve(path_ptr: usize, argv_ptr: usize, envp_ptr: usize) -> usize {

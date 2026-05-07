@@ -16,8 +16,8 @@ use alloc::collections::VecDeque;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use aethercore_common::{counter_inc, declare_counter_u64, telemetry};
-use core::sync::atomic::{AtomicU64, Ordering};
+use aethercore_common::{declare_counter_u64, telemetry};
+use core::sync::atomic::Ordering;
 use spin::Mutex;
 
 mod registry;
@@ -290,7 +290,11 @@ impl UnixSocket {
                 }
                 let n = buf.len().min(data.len());
                 for dst in buf[..n].iter_mut() {
-                    *dst = data.pop_front().unwrap();
+                    if let Some(byte) = data.pop_front() {
+                        *dst = byte;
+                    } else {
+                        return Err(KernelError::Busy);
+                    }
                 }
                 Ok(n)
             }
@@ -450,5 +454,36 @@ pub fn take_stats() -> UnixSocketStats {
         sockets_created: telemetry::take_u64(&STAT_CREATED),
         bytes_transferred: telemetry::take_u64(&STAT_BYTES),
         registered_names: registry::registered_names(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn stream_read_empty_returns_busy_then_eof_after_peer_shutdown() {
+        let (sock_a, sock_b) = unix_socketpair(UnixSocketType::Stream).expect("socketpair");
+
+        let mut buf = [0u8; 8];
+        let first = sock_a.read(&mut buf);
+        assert!(matches!(first, Err(KernelError::Busy)));
+
+        sock_b.shutdown(1).expect("shutdown write");
+        let second = sock_a.read(&mut buf).expect("read after shutdown");
+        assert_eq!(second, 0);
+    }
+
+    #[test_case]
+    fn stream_socketpair_roundtrip() {
+        let (sock_a, sock_b) = unix_socketpair(UnixSocketType::Stream).expect("socketpair");
+        let payload = b"hypercore";
+        let written = sock_a.write(payload).expect("write");
+        assert_eq!(written, payload.len());
+
+        let mut out = [0u8; 16];
+        let read = sock_b.read(&mut out).expect("read");
+        assert_eq!(read, payload.len());
+        assert_eq!(&out[..read], payload);
     }
 }

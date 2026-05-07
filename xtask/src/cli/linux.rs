@@ -22,4 +22,11 @@ pub enum LinuxAbiAction {
         #[arg(long)]
         strict: bool,
     },
+    UpdateBadges,
+}
+
+impl crate::utils::executable::Executable for LinuxAbiAction {
+    fn execute(&self) -> anyhow::Result<()> {
+        crate::commands::validation::linux_abi::execute(self)
+    }
 }

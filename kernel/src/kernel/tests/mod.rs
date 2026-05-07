@@ -114,3 +114,6 @@ mod ptrace_integration;
 #[cfg(all(test, target_os = "none"))]
 mod proc_sysctl_integration;
 
+#[cfg(all(test, target_os = "none"))]
+mod ubuntu_readiness;
+

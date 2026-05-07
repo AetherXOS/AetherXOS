@@ -20,6 +20,9 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use spin::Mutex;
 
 use crate::interfaces::TaskId;
+pub(super) use crate::modules::vfs::constants::{
+    DT_DIR, DT_LNK, DT_REG, MODE_DIR_DEFAULT, MODE_PERMS_MASK, MODE_TYPE_MASK,
+};
 use crate::modules::vfs::cache::{alloc_ino, CachePage, Inode, GLOBAL_INODE_CACHE};
 use crate::modules::vfs::types::{DirEntry, File, FileStats, FileSystem, SeekFrom};
 use crate::modules::vfs::writable_fs_support::{simple_hash, OverlayEntry};
@@ -34,9 +37,6 @@ pub use block_sink::{BlockDeviceAdapter, BlockWritebackSink, StorageManagerBlock
 pub use ram_sink::RamWritebackSink;
 
 const PAGE_SIZE: usize = PAGE_SIZE_4K;
-const DT_REG: u8 = 8;
-const DT_DIR: u8 = 4;
-const DT_LNK: u8 = 10;
 //  Block-Backed Writeback Sink 
 
 //  RAM-backed Writeback Sink (for testing / RamFS persistence) 
@@ -71,7 +71,7 @@ impl<Base: FileSystem> WritableOverlayFs<Base> {
 
         // Create root directory entry
         let root_ino = alloc_ino();
-        let root_entry = OverlayEntry::new_dir(root_ino, 0o755);
+        let root_entry = OverlayEntry::new_dir(root_ino, MODE_DIR_DEFAULT as u16);
 
         let mut entries = BTreeMap::new();
         entries.insert("/".to_string(), root_entry);
@@ -147,7 +147,11 @@ impl<Base: FileSystem> WritableOverlayFs<Base> {
         // Already in overlay?
         if self.overlay_exists(&norm) {
             let entries = self.entries.lock();
-            return Ok(entries.get(&norm).unwrap().ino);
+            if let Some(entry) = entries.get(&norm) {
+                return Ok(entry.ino);
+            } else {
+                return Err("overlay entry missing");
+            }
         }
 
         // Read from base
@@ -158,9 +162,9 @@ impl<Base: FileSystem> WritableOverlayFs<Base> {
         entry.size = base_stat.size;
         entry.uid = base_stat.uid;
         entry.gid = base_stat.gid;
-        entry.atime = base_stat.atime;
-        entry.mtime = base_stat.mtime;
-        entry.ctime = base_stat.ctime;
+        entry.atime = base_stat.atime.sec;
+        entry.mtime = base_stat.mtime.sec;
+        entry.ctime = base_stat.ctime.sec;
 
         // Read base file content into page cache
         let inode = Arc::new(Inode::new(ino, entry.mode));
@@ -189,13 +193,14 @@ impl<Base: FileSystem> WritableOverlayFs<Base> {
                     Ok(n) => {
                         // Write to inode's page cache (but don't mark dirty — this is copy-up, not a user write)
                         let idx = offset / PAGE_SIZE as u64;
-                        let mut cache = inode.pages.lock();
+                        let shard = inode.get_page_shard(idx);
+                        let mut cache = inode.pages[shard].lock();
                         let page = cache.entry(idx).or_insert_with(|| {
                             Arc::new(spin::Mutex::new(CachePage::new(idx * PAGE_SIZE as u64)))
                         });
                         let mut p = page.lock();
-                        let copy_len = n.min(p.data.len());
-                        p.data[..copy_len].copy_from_slice(&buf[..copy_len]);
+                        let copy_len = n.min(PAGE_SIZE);
+                        p.as_slice_mut()[..copy_len].copy_from_slice(&buf[..copy_len]);
                         p.referenced = true;
                         // NOT marking dirty here — the data matches the base
                         offset += n as u64;
@@ -255,25 +260,26 @@ impl File for OverlayFile {
         let mut written = 0usize;
         let mut cur = self.cursor;
 
-        let mut cache = self.inode.pages.lock();
         while written < buf.len() {
             let idx = cur / PAGE_SIZE as u64;
             let poff = (cur % PAGE_SIZE as u64) as usize;
+            let shard = self.inode.get_page_shard(idx);
+            let mut cache = self.inode.pages[shard].lock();
 
             let page = cache.entry(idx).or_insert_with(|| {
                 Arc::new(spin::Mutex::new(CachePage::new(idx * PAGE_SIZE as u64)))
-            });
+            }).clone();
+            drop(cache);
 
             let mut p = page.lock();
-            let chunk = (p.data.len() - poff).min(buf.len() - written);
-            p.data[poff..poff + chunk].copy_from_slice(&buf[written..written + chunk]);
+            let chunk = (PAGE_SIZE - poff).min(buf.len() - written);
+            p.as_slice_mut()[poff..poff + chunk].copy_from_slice(&buf[written..written + chunk]);
             p.dirty = true;
             p.referenced = true;
             writeback::mark_dirty(self.ino, idx);
             written += chunk;
             cur += chunk as u64;
         }
-        drop(cache);
 
         self.cursor = cur;
         if cur > self.size {
@@ -328,29 +334,31 @@ impl File for OverlayFile {
         } else {
             0
         };
-        let mut cache = self.inode.pages.lock();
 
-        // Remove pages beyond the new size
-        let remove_keys: Vec<u64> = cache
-            .keys()
-            .filter(|&&idx| size == 0 || idx > last_page)
-            .copied()
-            .collect();
-        for key in remove_keys {
-            cache.remove(&key);
-        }
+        for shard in &self.inode.pages {
+            let mut cache = shard.lock();
+            // Remove pages beyond the new size
+            let remove_keys: Vec<u64> = cache
+                .keys()
+                .filter(|&&idx| size == 0 || idx > last_page)
+                .copied()
+                .collect();
+            for key in remove_keys {
+                cache.remove(&key);
+            }
 
-        // Zero-fill the last page if needed
-        if size > 0 {
-            if let Some(page_arc) = cache.get(&last_page) {
-                let mut page = page_arc.lock();
-                let keep = (size % PAGE_SIZE as u64) as usize;
-                if keep > 0 && keep < PAGE_SIZE {
-                    for b in &mut page.data[keep..] {
-                        *b = 0;
+            // Zero-fill the last page if needed
+            if size > 0 {
+                if let Some(page_arc) = cache.get(&last_page) {
+                    let mut page = page_arc.lock();
+                    let keep = (size % PAGE_SIZE as u64) as usize;
+                    if keep > 0 && keep < PAGE_SIZE {
+                        for b in &mut page.as_slice_mut()[keep..] {
+                            *b = 0;
+                        }
+                        page.dirty = true;
+                        writeback::mark_dirty(self.ino, last_page);
                     }
-                    page.dirty = true;
-                    writeback::mark_dirty(self.ino, last_page);
                 }
             }
         }
@@ -364,11 +372,12 @@ impl File for OverlayFile {
             mode: 0o100644,
             uid: 0,
             gid: 0,
-            atime: 0,
-            mtime: 0,
-            ctime: 0,
+            atime: Default::default(),
+            mtime: Default::default(),
+            ctime: Default::default(),
             blksize: PAGE_SIZE as u32,
             blocks: (self.size + 511) / 512,
+            ..FileStats::default()
         })
     }
 

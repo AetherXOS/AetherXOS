@@ -25,12 +25,14 @@ pub fn stat(fs_id: u32, path: &str) -> Result<PosixStat, PosixErrno> {
             mode: md.mode as u16,
             uid: md.uid,
             gid: md.gid,
+            nlink: md.nlink,
             is_dir: (md.mode & 0o170000) == 0o040000,
             is_symlink: (md.mode & 0o170000) == 0o120000,
-            ino: 0,
-            atime: md.atime as i64,
-            mtime: md.mtime as i64,
-            ctime: md.ctime as i64,
+            ino: md.ino,
+            atime: PosixTimespec { sec: md.atime.sec as i64, nsec: md.atime.nsec as i32 },
+            mtime: PosixTimespec { sec: md.mtime.sec as i64, nsec: md.mtime.nsec as i32 },
+            ctime: PosixTimespec { sec: md.ctime.sec as i64, nsec: md.ctime.nsec as i32 },
+            btime: PosixTimespec { sec: md.btime.sec as i64, nsec: md.btime.nsec as i32 },
         });
     }
     let contexts = FS_CONTEXTS.lock();
@@ -41,12 +43,14 @@ pub fn stat(fs_id: u32, path: &str) -> Result<PosixStat, PosixErrno> {
         mode: md.mode as u16,
         uid: md.uid,
         gid: md.gid,
+        nlink: md.nlink,
         is_dir: (md.mode & 0o170000) == 0o040000,
         is_symlink: (md.mode & 0o170000) == 0o120000,
-        ino: 0,
-        atime: md.atime as i64,
-        mtime: md.mtime as i64,
-        ctime: md.ctime as i64,
+        ino: md.ino,
+        atime: PosixTimespec { sec: md.atime.sec as i64, nsec: md.atime.nsec as i32 },
+        mtime: PosixTimespec { sec: md.mtime.sec as i64, nsec: md.mtime.nsec as i32 },
+        ctime: PosixTimespec { sec: md.ctime.sec as i64, nsec: md.ctime.nsec as i32 },
+        btime: PosixTimespec { sec: md.btime.sec as i64, nsec: md.btime.nsec as i32 },
     })
 }
 
@@ -85,12 +89,14 @@ pub fn fstat(fd: u32) -> Result<PosixStat, PosixErrno> {
         mode: md.mode as u16,
         uid: md.uid,
         gid: md.gid,
+        nlink: md.nlink,
         is_dir: (md.mode as u32 & 0o170000) == 0o040000,
         is_symlink: (md.mode as u32 & 0o170000) == 0o120000,
-        ino: 0,
-        atime: md.atime as i64,
-        mtime: md.mtime as i64,
-        ctime: md.ctime as i64,
+        ino: md.ino,
+        atime: PosixTimespec { sec: md.atime.sec as i64, nsec: md.atime.nsec as i32 },
+        mtime: PosixTimespec { sec: md.mtime.sec as i64, nsec: md.mtime.nsec as i32 },
+        ctime: PosixTimespec { sec: md.ctime.sec as i64, nsec: md.ctime.nsec as i32 },
+        btime: PosixTimespec { sec: md.btime.sec as i64, nsec: md.btime.nsec as i32 },
     })
 }
 
@@ -104,12 +110,14 @@ pub fn lstat(fs_id: u32, path: &str) -> Result<PosixStat, PosixErrno> {
                 mode: 0o120777,
                 uid: 0,
                 gid: 0,
+                nlink: 1,
                 is_dir: false,
                 is_symlink: true,
                 ino: 0,
-                atime: 0,
-                mtime: 0,
-                ctime: 0,
+                atime: PosixTimespec { sec: 0, nsec: 0 },
+                mtime: PosixTimespec { sec: 0, nsec: 0 },
+                ctime: PosixTimespec { sec: 0, nsec: 0 },
+                btime: PosixTimespec { sec: 0, nsec: 0 },
             });
             out.is_dir = false;
             out.is_symlink = true;

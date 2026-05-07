@@ -77,7 +77,7 @@ impl KernelConfig {
         if override_value == 0 {
             DEFAULT_DRIVER_NETWORK_QUARANTINE_REBIND_FAILURES
         } else {
-            override_value.clamp(1, MAX_DRIVER_NETWORK_QUARANTINE_REBIND_FAILURES)
+            (override_value as u64).clamp(1, MAX_DRIVER_NETWORK_QUARANTINE_REBIND_FAILURES)
         }
     }
 
@@ -87,7 +87,7 @@ impl KernelConfig {
         if override_value == 0 {
             DEFAULT_DRIVER_NETWORK_QUARANTINE_COOLDOWN_SAMPLES
         } else {
-            override_value.clamp(1, MAX_DRIVER_NETWORK_QUARANTINE_COOLDOWN_SAMPLES)
+            (override_value as u64).clamp(1, MAX_DRIVER_NETWORK_QUARANTINE_COOLDOWN_SAMPLES)
         }
     }
 

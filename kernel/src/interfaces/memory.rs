@@ -16,7 +16,7 @@ pub trait PageAllocator {
 
 /// Heap Allocator interface (extends GlobalAlloc)
 pub trait HeapAllocator: GlobalAlloc {
-    fn init(&self, start: usize, size: usize);
+    unsafe fn init(&mut self, start: usize, size: usize);
 }
 
 pub mod page_flags {

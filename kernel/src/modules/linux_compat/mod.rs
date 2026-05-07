@@ -3,8 +3,13 @@
 
 extern crate alloc;
 
-pub(crate) use crate::kernel::syscalls::syscalls_consts::*;
-pub(crate) use crate::kernel::syscalls::*;
+pub use crate::kernel::syscalls::syscalls_consts::*;
+pub(crate) use crate::kernel::syscalls::{
+    current_process_id, execve_stack_required_bytes, prepare_execve_user_stack,
+    set_execve_new_entry, set_execve_new_stack, sys_exit, sys_yield, sys_futex_wait, sys_futex_wake,
+    user_readable_range_valid, with_user_read_bytes, with_user_write_bytes, ExecveAuxEntry,
+    ExecveAuxValue, SyscallFrame,
+};
 
 pub mod error;
 pub use self::error::*;
@@ -17,6 +22,8 @@ pub use self::types::*;
 #[macro_use]
 pub mod helpers;
 pub use self::helpers::*;
+pub use self::helpers::linux_errno;
+
 pub mod wrappers;
 pub use self::wrappers::*;
 
@@ -44,6 +51,8 @@ pub mod errno_matrix;
 pub use self::errno_matrix::*;
 pub mod process_group_syscalls;
 pub use self::process_group_syscalls::*;
+pub mod audit;
+pub use self::audit::*;
 pub mod standards;
 
 #[cfg(feature = "ring_protection")]
@@ -68,14 +77,21 @@ pub fn init() {
         crate::hal::serial::write_raw("[EARLY SERIAL] linux compat seed begin\n");
         let seed: u64 = {
             let mut v: u64 = 0xDEAD_BEEF_CAFE_BABE;
-            // SAFETY: rdrand is always present on our minimum target (Haswell+).
-            unsafe {
-                core::arch::asm!(
-                    "2: rdrand {v}",
-                    "jnc 2b",
-                    v = out(reg) v,
-                    options(nomem, nostack)
-                );
+            #[cfg(target_os = "none")]
+            {
+                // SAFETY: rdrand is always present on our minimum target (Haswell+).
+                unsafe {
+                    core::arch::asm!(
+                        "2: rdrand {v}",
+                        "jnc 2b",
+                        v = out(reg) v,
+                        options(nomem, nostack)
+                    );
+                }
+            }
+            #[cfg(not(target_os = "none"))]
+            {
+                v = 0x1234_5678_9ABC_DEF0; // Dummy seed for host
             }
             v
         };

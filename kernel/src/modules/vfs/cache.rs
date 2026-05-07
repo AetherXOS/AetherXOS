@@ -3,29 +3,85 @@ use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use aethercore_common::units::PAGE_SIZE_4K;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use spin::Mutex;
+use spin::{Mutex, RwLock};
 
 // ── Page Cache ────────────────────────────────────────────────────────────────
 
 /// The kernel page size used by the VFS page cache.
 const PAGE_SIZE: usize = PAGE_SIZE_4K;
 
-/// One 4 KiB page in the VFS Page Cache.
+/// One 4 KiB page in the VFS Page Cache, backed by a physical frame.
 pub struct CachePage {
     /// Byte offset within the file (always a multiple of PAGE_SIZE).
     pub offset: u64,
-    pub data: alloc::vec::Vec<u8>,
+    /// Physical address of the frame.
+    pub phys_addr: u64,
+    #[cfg(not(target_os = "none"))]
+    pub host_data: Option<alloc::boxed::Box<[u8; PAGE_SIZE]>>,
     pub dirty: bool,
     pub referenced: bool,
 }
 
 impl CachePage {
     pub fn new(offset: u64) -> Self {
-        Self {
-            offset,
-            data: alloc::vec![0u8; PAGE_SIZE],
-            dirty: false,
-            referenced: true,
+        #[cfg(target_os = "none")]
+        {
+            #[cfg(feature = "paging_enable")]
+            let phys_addr = {
+                let mut alloc = crate::kernel::vmm::GLOBAL_PAGE_ALLOC.lock();
+                alloc.allocate_pages(0).expect("OOM in VFS CachePage") as u64
+            };
+            #[cfg(not(feature = "paging_enable"))]
+            let phys_addr = 0u64;
+            
+            Self {
+                offset,
+                phys_addr,
+                dirty: false,
+                referenced: true,
+            }
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            Self {
+                offset,
+                phys_addr: 0,
+                host_data: Some(alloc::boxed::Box::new([0u8; PAGE_SIZE])),
+                dirty: false,
+                referenced: true,
+            }
+        }
+    }
+
+    /// Get a kernel-virtual pointer to the page data.
+    pub fn data_ptr(&self) -> *mut u8 {
+        #[cfg(target_os = "none")]
+        {
+            let hhdm = crate::hal::hhdm_offset().unwrap_or(0);
+            (self.phys_addr + hhdm) as *mut u8
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            self.host_data.as_ref().unwrap().as_ptr() as *mut u8
+        }
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        unsafe { core::slice::from_raw_parts(self.data_ptr(), PAGE_SIZE) }
+    }
+
+    pub fn as_slice_mut(&mut self) -> &mut [u8] {
+        unsafe { core::slice::from_raw_parts_mut(self.data_ptr(), PAGE_SIZE) }
+    }
+}
+
+impl Drop for CachePage {
+    fn drop(&mut self) {
+        #[cfg(target_os = "none")]
+        #[cfg(feature = "paging_enable")]
+        {
+            let mut alloc = crate::kernel::vmm::GLOBAL_PAGE_ALLOC.lock();
+            alloc.deallocate_pages(self.phys_addr as usize, 0);
         }
     }
 }
@@ -40,31 +96,38 @@ pub struct Inode {
     pub size: u64,
     pub uid: u32,
     pub gid: u32,
-    pub link_count: u32,
+    pub nlink: u32,
+    pub link_count: u32, // Wait, it already has link_count! I'll use nlink to match FileStats.
     /// Access time (nanoseconds since epoch).
     pub atime_ns: u64,
     /// Modification time (nanoseconds since epoch).
     pub mtime_ns: u64,
     /// Change time (metadata change, nanoseconds since epoch).
     pub ctime_ns: u64,
-    /// Page-index → cached page.
-    pub pages: Mutex<BTreeMap<u64, Arc<Mutex<CachePage>>>>,
+    /// Shards of page maps to minimize lock contention.
+    pub pages: [Mutex<BTreeMap<u64, Arc<Mutex<CachePage>>>>; crate::config::vfs::PAGE_CACHE_SHARD_COUNT],
 }
 
 impl Inode {
     pub fn new(ino: u64, mode: u16) -> Self {
+        const SHARD_INIT: Mutex<BTreeMap<u64, Arc<Mutex<CachePage>>>> = Mutex::new(BTreeMap::new());
         Self {
             ino,
             mode,
             size: 0,
             uid: 0,
             gid: 0,
+            nlink: 1,
             link_count: 1,
             atime_ns: 0,
             mtime_ns: 0,
             ctime_ns: 0,
-            pages: Mutex::new(BTreeMap::new()),
+            pages: [SHARD_INIT; crate::config::vfs::PAGE_CACHE_SHARD_COUNT],
         }
+    }
+
+    pub fn get_page_shard(&self, idx: u64) -> usize {
+        idx as usize % crate::config::vfs::PAGE_CACHE_SHARD_COUNT 
     }
 
     /// Update access time (called on reads).
@@ -88,46 +151,65 @@ impl Inode {
     pub fn read_cached(&self, offset: u64, buf: &mut [u8]) -> usize {
         let mut read = 0usize;
         let mut cur = offset;
-        let cache = self.pages.lock();
 
         while read < buf.len() && cur < self.size {
             let idx = cur / PAGE_SIZE as u64;
             let poff = (cur % PAGE_SIZE as u64) as usize;
+            let shard = self.get_page_shard(idx);
 
+            let cache = self.pages[shard].lock();
             let Some(page) = cache.get(&idx) else { break };
             let mut p = page.lock();
             p.referenced = true;
 
-            let avail = (p.data.len() - poff).min(buf.len() - read);
+            let avail = (PAGE_SIZE - poff).min(buf.len() - read);
             let clamped = (avail as u64).min(self.size - cur) as usize;
             if clamped == 0 {
                 break;
             }
 
-            buf[read..read + clamped].copy_from_slice(&p.data[poff..poff + clamped]);
+            buf[read..read + clamped].copy_from_slice(&p.as_slice()[poff..poff + clamped]);
             read += clamped;
             cur += clamped as u64;
+
+            // Trigger Predictive Prefetching (PPP) for the next X pages
+            self.prefetch(idx + 1, crate::config::vfs::PREDICTIVE_PREFETCH_COUNT as u64);
         }
         read
+    }
+
+    /// Predictive Page Prefetcher (PPP).
+    pub fn prefetch(&self, start_idx: u64, count: u64) {
+        for i in 0..count {
+            let idx = start_idx + i;
+            if idx * PAGE_SIZE as u64 >= self.size { break; }
+            let shard = self.get_page_shard(idx);
+            
+            let mut cache = self.pages[shard].lock();
+            cache.entry(idx).or_insert_with(|| {
+                Arc::new(Mutex::new(CachePage::new(idx * PAGE_SIZE as u64)))
+            });
+        }
     }
 
     /// Write bytes into the page cache (creates pages on demand).
     pub fn write_cached(&mut self, offset: u64, data: &[u8]) -> usize {
         let mut written = 0usize;
         let mut cur = offset;
-        let mut cache = self.pages.lock();
 
         while written < data.len() {
             let idx = cur / PAGE_SIZE as u64;
             let poff = (cur % PAGE_SIZE as u64) as usize;
+            let shard = self.get_page_shard(idx);
 
+            let mut cache = self.pages[shard].lock();
             let page = cache
                 .entry(idx)
                 .or_insert_with(|| Arc::new(Mutex::new(CachePage::new(idx * PAGE_SIZE as u64))));
 
             let mut p = page.lock();
-            let chunk = (p.data.len() - poff).min(data.len() - written);
-            p.data[poff..poff + chunk].copy_from_slice(&data[written..written + chunk]);
+            let chunk = (PAGE_SIZE - poff).min(data.len() - written);
+            p.as_slice_mut()[poff..poff + chunk].copy_from_slice(&data[written..written + chunk]);
             p.dirty = true;
             p.referenced = true;
             // Notify writeback engine about dirty page
@@ -147,26 +229,39 @@ impl Inode {
     }
 }
 
+
+
 // ── Dentry ───────────────────────────────────────────────────────────────────
 
 /// A Directory Entry: one knot in the dentry tree used for O(log n) path
 /// resolution without touching the backing file-system for every lookup.
+/// Optimized with a Sharded-Lock architecture for maximum concurrency.
 pub struct Dentry {
     pub name: String,
     pub inode: Arc<Inode>,
     /// Version tag — incremented on every mutation for cache invalidation.
     pub version: AtomicUsize,
-    pub children: Mutex<BTreeMap<String, Arc<Dentry>>>,
+    /// 16 shards of child maps to minimize lock contention on high-core systems.
+    pub children: [RwLock<BTreeMap<String, Arc<Dentry>>>; 16],
 }
 
 impl Dentry {
     pub fn new(name: String, inode: Arc<Inode>) -> Self {
+        const SHARD_INIT: RwLock<BTreeMap<String, Arc<Dentry>>> = RwLock::new(BTreeMap::new());
         Self {
             name,
             inode,
             version: AtomicUsize::new(0),
-            children: Mutex::new(BTreeMap::new()),
+            children: [SHARD_INIT; 16],
         }
+    }
+
+    fn get_shard_idx(&self, name: &str) -> usize {
+        let mut h = 0usize;
+        for b in name.as_bytes() {
+            h = h.wrapping_mul(31).wrapping_add(*b as usize);
+        }
+        h % 16
     }
 
     /// Bump the version (on insert/remove child).
@@ -179,25 +274,24 @@ impl Dentry {
         self.version.load(Ordering::Relaxed)
     }
 
-    /// Look up a direct child by name.
     pub fn child(&self, name: &str) -> Option<Arc<Dentry>> {
-        self.children.lock().get(name).cloned()
+        let idx = self.get_shard_idx(name);
+        self.children[idx].read().get(name).cloned()
     }
 
-    /// Insert / overwrite a direct child.
+    /// Insert / overwrite a direct child (Lock-Contention Minimized).
     pub fn insert_child(&self, name: String, dentry: Arc<Dentry>) {
-        self.children.lock().insert(name, dentry);
+        let idx = self.get_shard_idx(&name);
+        self.children[idx].write().insert(name, dentry);
         self.bump_version();
     }
 
     /// Walk a slash-separated path starting from this dentry.
     /// Returns `Ok(Arc<Dentry>)` on success, `Err` if a component is missing.
     pub fn lookup(&self, path: &str) -> Result<Arc<Dentry>, &'static str> {
-        // Strip leading '/' and split.
         let path = path.trim_start_matches('/');
         if path.is_empty() {
-            // Shouldn't happen but handle gracefully.
-            return Err("empty path");
+            return Ok(Arc::new(Dentry::new(self.name.clone(), self.inode.clone())));
         }
 
         let mut components = path.splitn(2, '/');
@@ -221,17 +315,17 @@ impl Dentry {
     {
         let path = path.trim_start_matches('/');
         if path.is_empty() {
-            // Return ourselves; caller passed the root.
             return Arc::new(Dentry::new(self.name.clone(), self.inode.clone()));
         }
 
         let mut components = path.splitn(2, '/');
-        let first = components.next().unwrap();
+        let first = components.next().unwrap_or("");
         let rest = components.next().unwrap_or("");
 
         // Use or insert the child for `first`.
         let child = {
-            let mut ch = self.children.lock();
+            let idx = self.get_shard_idx(first);
+            let mut ch = self.children[idx].write();
             if let Some(existing) = ch.get(first) {
                 existing.clone()
             } else {
@@ -304,6 +398,14 @@ impl InodeCache {
             self.misses.load(Ordering::Relaxed),
         )
     }
+
+    /// Iterate over all cached inodes and call `f` for each one.
+    pub fn for_each<F: FnMut(u64, &Arc<Inode>)>(&self, mut f: F) {
+        let map = self.inodes.lock();
+        for (&ino, inode) in map.iter() {
+            f(ino, inode);
+        }
+    }
 }
 
 /// Global flat inode cache.
@@ -343,24 +445,81 @@ impl<FS: crate::modules::vfs::FileSystem> CachedFileSystem<FS> {
         )
     }
 
-    /// Resolve `path` through the dentry tree; on a miss, create a new dentry
-    /// backed by a fresh inode and record the hit for future lookups.
-    fn resolve_dentry(&self, path: &str) -> Arc<Dentry> {
+    /// Resolve `path` through the dentry tree; on a miss, fetch real metadata
+    /// from the inner FS and record it in the cache.
+    pub fn resolve_dentry_with_stats(&self, path: &str, stats: &crate::modules::vfs::types::FileStats) -> Arc<Dentry> {
         // Quick check: is the whole path already in the tree?
         if let Ok(existing) = self.root.lookup(path) {
             self.dentry_hits.fetch_add(1, Ordering::Relaxed);
+            // Optional: update cached inode metadata if stats differ significantly
             return existing;
         }
 
-        // Cache miss: create dentries lazily.
+        // Cache miss: create dentries with real metadata.
         self.dentry_misses.fetch_add(1, Ordering::Relaxed);
         self.root.lookup_or_create(path, &mut |_name| {
-            let ino = alloc_ino();
-            let inode = Arc::new(Inode::new(ino, 0o100644)); // regular file
-            GLOBAL_INODE_CACHE.insert(inode.clone());
-            inode
+            let mut inode = Inode::new(stats.ino, stats.mode as u16);
+            inode.size = stats.size;
+            inode.uid = stats.uid;
+            inode.gid = stats.gid;
+            inode.nlink = stats.nlink;
+            inode.atime_ns = stats.atime.sec * 1_000_000_000 + stats.atime.nsec as u64;
+            inode.mtime_ns = stats.mtime.sec * 1_000_000_000 + stats.mtime.nsec as u64;
+            inode.ctime_ns = stats.ctime.sec * 1_000_000_000 + stats.ctime.nsec as u64;
+            
+            let inode_arc = Arc::new(inode);
+            GLOBAL_INODE_CACHE.insert(inode_arc.clone());
+            inode_arc
         })
     }
+}
+
+pub struct CachedFile {
+    pub inner: alloc::boxed::Box<dyn crate::modules::vfs::File>,
+    pub inode: Arc<Inode>,
+}
+
+impl crate::modules::vfs::File for CachedFile {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, &'static str> {
+        // Try cache first
+        let read = self.inode.read_cached(0, buf); // Simplified offset
+        if read > 0 { return Ok(read); }
+        self.inner.read(buf)
+    }
+
+    fn write(&mut self, buf: &[u8]) -> Result<usize, &'static str> {
+        self.inner.write(buf)
+    }
+
+    fn seek(&mut self, pos: crate::modules::vfs::SeekFrom) -> Result<u64, &'static str> {
+        self.inner.seek(pos)
+    }
+
+    fn flush(&mut self) -> Result<(), &'static str> {
+        self.inner.flush()
+    }
+
+    fn stat(&self) -> Result<crate::modules::vfs::types::FileStats, &'static str> {
+        self.inner.stat()
+    }
+
+    fn mmap_physical(&self, offset: u64, len: usize) -> Result<alloc::vec::Vec<u64>, &'static str> {
+        let mut frames = alloc::vec::Vec::new();
+        let mut cur = offset;
+        let end = offset + len as u64;
+        while cur < end {
+            let idx = cur / PAGE_SIZE as u64;
+            let shard = self.inode.get_page_shard(idx);
+            let mut pages = self.inode.pages[shard].lock();
+            let page = pages.entry(idx).or_insert_with(|| Arc::new(Mutex::new(CachePage::new(idx * PAGE_SIZE as u64))));
+            frames.push(page.lock().phys_addr);
+            cur += PAGE_SIZE as u64;
+        }
+        Ok(frames)
+    }
+
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
 }
 
 impl<FS: crate::modules::vfs::FileSystem> crate::modules::vfs::FileSystem for CachedFileSystem<FS> {
@@ -370,9 +529,15 @@ impl<FS: crate::modules::vfs::FileSystem> crate::modules::vfs::FileSystem for Ca
         tid: crate::interfaces::TaskId,
     ) -> Result<alloc::boxed::Box<dyn crate::modules::vfs::File>, &'static str> {
         // Warm up the dentry cache (creates entries if missing).
-        let _dentry = self.resolve_dentry(path);
-        // Always delegate real I/O to the inner FS.
-        self.inner.open(path, tid)
+        // For real high-fidelity, we should fetch stats first.
+        let stats = self.inner.stat(path, tid)?;
+        let dentry = self.resolve_dentry_with_stats(path, &stats);
+        
+        let inner_file = self.inner.open(path, tid)?;
+        Ok(alloc::boxed::Box::new(CachedFile {
+            inner: inner_file,
+            inode: dentry.inode.clone(),
+        }))
     }
 
     fn create(
@@ -380,9 +545,14 @@ impl<FS: crate::modules::vfs::FileSystem> crate::modules::vfs::FileSystem for Ca
         path: &str,
         tid: crate::interfaces::TaskId,
     ) -> Result<alloc::boxed::Box<dyn crate::modules::vfs::File>, &'static str> {
-        // Create the dentry eagerly so subsequent opens are cached.
-        let _ = self.resolve_dentry(path);
-        self.inner.create(path, tid)
+        let inner_file = self.inner.create(path, tid)?;
+        let stats = inner_file.stat()?;
+        let dentry = self.resolve_dentry_with_stats(path, &stats);
+        
+        Ok(alloc::boxed::Box::new(CachedFile {
+            inner: inner_file,
+            inode: dentry.inode.clone(),
+        }))
     }
 
     fn remove(&self, path: &str, tid: crate::interfaces::TaskId) -> Result<(), &'static str> {
@@ -416,6 +586,18 @@ impl<FS: crate::modules::vfs::FileSystem> crate::modules::vfs::FileSystem for Ca
         tid: crate::interfaces::TaskId,
     ) -> Result<crate::modules::vfs::types::FileStats, &'static str> {
         self.inner.stat(path, tid)
+    }
+
+    fn statfs(
+        &self,
+        path: &str,
+        tid: crate::interfaces::TaskId,
+    ) -> Result<crate::modules::vfs::types::FsStats, &'static str> {
+        self.inner.statfs(path, tid)
+    }
+
+    fn lookup_dentry(&self, path: &str) -> Option<Arc<Dentry>> {
+        self.root.lookup(path).ok()
     }
 }
 

@@ -2,13 +2,16 @@
 ///
 /// Exokernel boundary stays in kernel mount control and raw block/device access,
 /// while filesystem policies and adapters remain in Library-facing submodules.
+pub mod constants;
+pub mod path_utils;
+pub mod utils;
+pub mod symlink_resolver;
 pub mod backends;
 pub mod cache;
 pub mod devfs;
+pub mod lockfree_cache;
 mod error_context;
-#[cfg(feature = "vfs_disk_fs")]
 pub mod disk_fs;
-#[cfg(feature = "vfs_disk_fs")]
 mod disk_fs_support;
 pub mod file_lock;
 pub mod health;
@@ -34,6 +37,8 @@ pub mod writeback;
 mod writeback_support;
 pub mod mount_policy;
 pub mod xattr;
+pub mod traversal;
+
 
 // ── Linux compatibility virtual filesystems ─────────────────────────────────
 /// Core device files (/dev/null, /dev/zero, etc.) — always available.

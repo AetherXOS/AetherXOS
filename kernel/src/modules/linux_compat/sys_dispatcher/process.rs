@@ -245,7 +245,10 @@ pub fn dispatch_process(
             f.u5(),
         )),
         linux_nr::UNSHARE => Some(crate::modules::linux_compat::process::sys_linux_unshare(f.a1)),
+        linux_nr::SET_ROBUST_LIST => Some(crate::modules::linux_compat::sync::sys_linux_set_robust_list(f.a1, f.a2)),
+        linux_nr::GET_ROBUST_LIST => Some(crate::modules::linux_compat::sync::sys_linux_get_robust_list(f.a1 as i32, f.u2(), f.u3())),
         linux_nr::SETNS => Some(crate::modules::linux_compat::process::sys_linux_setns(f.fd1(), f.a2)),
+        linux_nr::GETRANDOM => Some(crate::modules::linux_compat::sys::sys_linux_getrandom(f.u1(), f.a2, f.a3)),
         _ => None,
     }
 }

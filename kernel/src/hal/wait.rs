@@ -27,7 +27,7 @@ fn arch_serial_descriptor() -> WaitPolicyDescriptor {
     WaitPolicyDescriptor {
         component: "serial",
         operation: "tx_fifo_wait",
-        max_spins: crate::hal::x86_64::serial::tx_timeout_spins(),
+        max_spins: crate::hal::serial::tx_timeout_spins(),
         fallback: WaitFallbackKind::Drop,
         timeout_events: s.tx_timeouts,
     }

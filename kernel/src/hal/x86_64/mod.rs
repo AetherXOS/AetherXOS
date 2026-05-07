@@ -29,7 +29,6 @@ pub mod paging;
 use core::mem::MaybeUninit;
 use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicBool, Ordering};
-use crate::kernel::bit_utils as bits;
 
 pub struct HAL;
 
@@ -108,9 +107,11 @@ unsafe fn bootstrap_bsp_cpu_local() -> &'static crate::kernel::cpu_local::CpuLoc
                 #[cfg(feature = "ring_protection")]
                 kernel_stack_top: core::sync::atomic::AtomicUsize::new(bootstrap_bsp_kernel_stack_top()),
                 current_task: core::sync::atomic::AtomicUsize::new(0),
+                is_user_mode: core::sync::atomic::AtomicBool::new(false),
                 heartbeat_tick: core::sync::atomic::AtomicU64::new(0),
                 idle_stack_pointer: core::sync::atomic::AtomicUsize::new(0),
                 scheduler,
+                kernel_mode_depth: core::sync::atomic::AtomicU32::new(1),
             });
         }
         serial::write_raw("[EARLY SERIAL] x86_64 bsp cpu local write returned\n");
@@ -197,16 +198,43 @@ impl HAL {
         use crate::interfaces::cpu::CpuRegisters;
         cpu::X86CpuRegisters::read_per_cpu_base() as usize
     }
+
+    pub fn get_time_ns() -> u64 {
+        crate::kernel::watchdog::global_tick() * crate::config::KernelConfig::time_slice()
+    }
+
+    #[inline(always)]
+    pub fn irq_save() -> usize {
+        <Self as HardwareAbstraction>::irq_save()
+    }
+
+    #[inline(always)]
+    pub fn irq_restore(flags: usize) {
+        <Self as HardwareAbstraction>::irq_restore(flags)
+    }
+
+    pub fn create_frame_allocator() -> paging::PageAllocWrapper {
+        paging::PageAllocWrapper::new()
+    }
+
+    #[inline(always)]
+    pub fn cpu_relax() {
+        unsafe {
+            core::arch::asm!("pause", options(nomem, nostack));
+        }
+    }
 }
 
 impl HardwareAbstraction for HAL {
     fn enable_interrupts() {
+        #[cfg(target_os = "none")]
         unsafe {
             core::arch::asm!("sti", options(nomem, nostack));
         }
     }
 
     fn disable_interrupts() {
+        #[cfg(target_os = "none")]
         unsafe {
             core::arch::asm!("cli", options(nomem, nostack));
         }
@@ -214,21 +242,29 @@ impl HardwareAbstraction for HAL {
 
     #[inline(always)]
     fn irq_save() -> usize {
-        let flags: usize;
-        unsafe {
-            core::arch::asm!(
-                "pushf",
-                "pop {}",
-                "cli",
-                out(reg) flags,
-                options(nomem, nostack)
-            );
+        #[cfg(target_os = "none")]
+        {
+            let flags: usize;
+            unsafe {
+                core::arch::asm!(
+                    "pushf",
+                    "pop {}",
+                    "cli",
+                    out(reg) flags,
+                    options(nomem, nostack)
+                );
+            }
+            flags
         }
-        flags
+        #[cfg(not(target_os = "none"))]
+        {
+            0
+        }
     }
 
     #[inline(always)]
     fn irq_restore(flags: usize) {
+        #[cfg(target_os = "none")]
         unsafe {
             core::arch::asm!(
                 "push {}",
@@ -237,9 +273,14 @@ impl HardwareAbstraction for HAL {
                 options(nomem, nostack)
             );
         }
+        #[cfg(not(target_os = "none"))]
+        {
+            let _ = flags;
+        }
     }
 
     fn halt() {
+        #[cfg(target_os = "none")]
         unsafe {
             core::arch::asm!("hlt", options(nomem, nostack));
         }
@@ -247,6 +288,7 @@ impl HardwareAbstraction for HAL {
 
     fn early_init() {
         // x86_64 early boot involves GDT and basic serial
+        #[cfg(target_os = "none")]
         unsafe {
             gdt::bootstrap_gdt_tss().load();
             serial::init();
@@ -254,37 +296,110 @@ impl HardwareAbstraction for HAL {
     }
 
     fn init_interrupts() {
+        #[cfg(target_os = "none")]
         idt::init();
     }
 
     fn init_timer() {
+        #[cfg(target_os = "none")]
         apic::init();
     }
 
     fn init_smp() {
+        #[cfg(target_os = "none")]
         Self::init_smp();
     }
 
     fn init_cpu_local(ptr: usize) {
-        use x86_64::registers::model_specific::GsBase;
-        use x86_64::VirtAddr;
-        GsBase::write(VirtAddr::new(ptr as u64));
+        #[cfg(target_os = "none")]
+        {
+            use x86_64::registers::model_specific::GsBase;
+            use x86_64::VirtAddr;
+            GsBase::write(VirtAddr::new(ptr as u64));
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            let _ = ptr;
+        }
     }
 
     fn set_performance_profile(profile: crate::interfaces::PerformanceProfile) {
-        use crate::interfaces::PerformanceProfile;
-        let ratio = match profile {
-            PerformanceProfile::HighPerformance => bits::perf::RATIO_HIGH,
-            PerformanceProfile::Balanced        => bits::perf::RATIO_BALANCED,
-            PerformanceProfile::PowerSaving     => bits::perf::RATIO_POWERSAVE,
-        };
-        unsafe {
-            cpu::write_msr(bits::perf::IA32_PERF_CTL, (ratio as u64) << 8);
+        #[cfg(target_os = "none")]
+        {
+            use crate::interfaces::PerformanceProfile;
+            use crate::kernel::bit_utils::perf;
+            let ratio = match profile {
+                PerformanceProfile::HighPerformance => perf::RATIO_HIGH,
+                PerformanceProfile::Balanced        => perf::RATIO_BALANCED,
+                PerformanceProfile::PowerSaving     => perf::RATIO_POWERSAVE,
+            };
+            unsafe {
+                cpu::write_msr(perf::IA32_PERF_CTL, (ratio as u64) << 8);
+            }
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            let _ = profile;
         }
     }
 
     fn serial_write_raw(s: &str) {
         serial::write_raw(s);
+    }
+
+    fn panic_with_report(info: &core::panic::PanicInfo, _report: &crate::kernel::CrashReport) -> ! {
+        crate::hal::serial::write_raw("\n!!! KERNEL PANIC !!!\n");
+        if let Some(location) = info.location() {
+            crate::hal::serial::write_raw("Location: ");
+            crate::hal::serial::write_raw(location.file());
+            crate::hal::serial::write_raw(":");
+            let mut line_buf = [0u8; 10];
+            let mut line = location.line();
+            let mut idx = 9;
+            if line == 0 {
+                line_buf[9] = b'0';
+                idx = 8;
+            } else {
+                while line > 0 && idx > 0 {
+                    line_buf[idx] = b'0' + (line % 10) as u8;
+                    line /= 10;
+                    idx -= 1;
+                }
+            }
+            crate::hal::serial::write_raw(unsafe { core::str::from_utf8_unchecked(&line_buf[idx+1..]) });
+            crate::hal::serial::write_raw("\n");
+        }
+        
+        crate::hal::serial::write_raw("Panic Count: ");
+        // (Just print basic stuff for now)
+        
+        #[cfg(target_os = "none")]
+        loop {
+            unsafe { core::arch::asm!("hlt"); }
+        }
+        #[cfg(not(target_os = "none"))]
+        panic!("kernel panic in host test");
+    }
+
+    fn fatal_halt(reason: &str) -> ! {
+        crate::hal::serial::write_raw("\nFATAL HALT: ");
+        crate::hal::serial::write_raw(reason);
+        crate::hal::serial::write_raw("\n");
+        #[cfg(target_os = "none")]
+        loop {
+            unsafe { core::arch::asm!("hlt"); }
+        }
+        #[cfg(not(target_os = "none"))]
+        panic!("fatal halt: {}", reason);
+    }
+
+    fn idle_once() {
+        #[cfg(target_os = "none")]
+        unsafe { core::arch::asm!("hlt"); }
+    }
+
+    fn get_time_ns() -> u64 {
+        Self::get_time_ns()
     }
 }
 

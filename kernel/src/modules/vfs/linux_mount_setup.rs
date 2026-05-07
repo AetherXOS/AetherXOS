@@ -169,97 +169,107 @@ pub fn setup_linux_vfs_mounts(config: &LinuxMountConfig) -> LinuxMountReport {
     // 1. /proc — Process information filesystem
     #[cfg(feature = "linux_compat")]
     if config.mount_proc {
+        let proc_fs = crate::modules::vfs::cache::CachedFileSystem::new(
+            crate::modules::vfs::procfs::ProcFs::new()
+        );
         let result = mount_table::mount(
             "/proc",
             "proc",
             FsType::Procfs,
             MountFlags::NOSUID | MountFlags::NODEV | MountFlags::NOEXEC,
+            Some(alloc::sync::Arc::new(proc_fs)),
         );
         report.record("/proc", "procfs", result);
 
         if result.is_ok() {
-            crate::klog_info!("linux_vfs: mounted /proc (procfs)");
+            crate::klog_info!("linux_vfs: mounted /proc (procfs) with metadata cache");
         }
     }
 
     // 2. /sys — System information filesystem
     #[cfg(feature = "linux_compat")]
     if config.mount_sys {
+        let sys_fs = crate::modules::vfs::cache::CachedFileSystem::new(
+            crate::modules::vfs::sysfs::SysFs::new()
+        );
         let result = mount_table::mount(
             "/sys",
             "sysfs",
             FsType::Sysfs,
             MountFlags::NOSUID | MountFlags::NODEV | MountFlags::NOEXEC,
+            Some(alloc::sync::Arc::new(sys_fs)),
         );
         report.record("/sys", "sysfs", result);
 
         if result.is_ok() {
-            crate::klog_info!("linux_vfs: mounted /sys (sysfs)");
+            crate::klog_info!("linux_vfs: mounted /sys (sysfs) with metadata cache");
         }
     }
 
-    // 3. /tmp — Temporary files (always available, not feature-gated)
+    // 3. /tmp — Temporary files
     if config.mount_tmp {
+        let tmp_fs = crate::modules::vfs::cache::CachedFileSystem::new(
+            crate::modules::vfs::tmpfs::TmpFs::with_max_size(config.tmp_size_limit)
+        );
         let result = mount_table::mount(
             "/tmp",
             "tmpfs",
             FsType::Tmpfs,
             MountFlags::NOSUID | MountFlags::NODEV,
+            Some(alloc::sync::Arc::new(tmp_fs)),
         );
         report.record("/tmp", "tmpfs", result);
 
         if result.is_ok() {
-            crate::klog_info!("linux_vfs: mounted /tmp (tmpfs)");
+            crate::klog_info!("linux_vfs: mounted /tmp (tmpfs) with page cache");
         }
     }
 
     // 4. /dev/pts — Pseudo-terminal directory
     #[cfg(feature = "linux_compat")]
     if config.mount_devpts {
-        // Initialize PTY subsystem
         crate::modules::vfs::pty::init_pty_subsystem();
-
+        let pts_fs = crate::modules::vfs::cache::CachedFileSystem::new(
+            crate::modules::vfs::pty::PtsFs::new()
+        );
         let result = mount_table::mount(
             "/dev/pts",
             "devpts",
-            FsType::Custom(1), // devpts type
+            FsType::Custom(1),
             MountFlags::NOSUID | MountFlags::NOEXEC,
+            Some(alloc::sync::Arc::new(pts_fs)),
         );
         report.record("/dev/pts", "devpts", result);
-
-        if result.is_ok() {
-            crate::klog_info!("linux_vfs: mounted /dev/pts (devpts)");
-        }
     }
 
     // 5. /dev/shm — POSIX shared memory
     if config.mount_devshm {
+        let shm_fs = crate::modules::vfs::cache::CachedFileSystem::new(
+            crate::modules::vfs::tmpfs::TmpFs::with_max_size(config.shm_size_limit)
+        );
         let result = mount_table::mount(
             "/dev/shm",
             "tmpfs",
             FsType::Tmpfs,
             MountFlags::NOSUID | MountFlags::NODEV,
+            Some(alloc::sync::Arc::new(shm_fs)),
         );
         report.record("/dev/shm", "tmpfs", result);
-
-        if result.is_ok() {
-            crate::klog_info!("linux_vfs: mounted /dev/shm (tmpfs)");
-        }
     }
 
     // 6. /run — Runtime data
     if config.mount_run {
+        let run_fs = crate::modules::vfs::cache::CachedFileSystem::new(
+            crate::modules::vfs::tmpfs::TmpFs::with_max_size(config.run_size_limit)
+        );
         let result = mount_table::mount(
             "/run",
             "tmpfs",
             FsType::Tmpfs,
             MountFlags::NOSUID | MountFlags::NODEV,
+            Some(alloc::sync::Arc::new(run_fs)),
         );
         report.record("/run", "tmpfs", result);
-
-        if result.is_ok() {
-            crate::klog_info!("linux_vfs: mounted /run (tmpfs)");
-        }
     }
 
     // Seed the PRNG for /dev/random & /dev/urandom

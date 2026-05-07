@@ -98,20 +98,23 @@ impl GdtTss {
     }
 
     pub unsafe fn load(&'static mut self) {
-        use x86_64::instructions::segmentation::{Segment, CS, DS, ES, SS};
-        use x86_64::instructions::tables::load_tss;
+        #[cfg(target_os = "none")]
+        {
+            use x86_64::instructions::segmentation::{Segment, CS, DS, ES, SS};
+            use x86_64::instructions::tables::load_tss;
 
-        let tss_ref: &'static TaskStateSegment = unsafe { core::mem::transmute(&self.tss) };
-        self.selectors.tss_selector = self.gdt.add_entry(Descriptor::tss_segment(tss_ref));
+            let tss_ref: &'static TaskStateSegment = unsafe { core::mem::transmute(&self.tss) };
+            self.selectors.tss_selector = self.gdt.add_entry(Descriptor::tss_segment(tss_ref));
 
-        self.gdt.load();
+            self.gdt.load();
 
-        unsafe { CS::set_reg(self.selectors.kernel_code_selector) };
-        unsafe { load_tss(self.selectors.tss_selector) };
+            unsafe { CS::set_reg(self.selectors.kernel_code_selector) };
+            unsafe { load_tss(self.selectors.tss_selector) };
 
-        unsafe { SS::set_reg(self.selectors.kernel_data_selector) };
-        unsafe { DS::set_reg(self.selectors.kernel_data_selector) };
-        unsafe { ES::set_reg(self.selectors.kernel_data_selector) };
+            unsafe { SS::set_reg(self.selectors.kernel_data_selector) };
+            unsafe { DS::set_reg(self.selectors.kernel_data_selector) };
+            unsafe { ES::set_reg(self.selectors.kernel_data_selector) };
+        }
     }
 }
 

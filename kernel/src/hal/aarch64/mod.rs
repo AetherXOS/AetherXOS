@@ -37,11 +37,13 @@ impl HAL {
             #[cfg(feature = "ring_protection")]
             kernel_stack_top: core::sync::atomic::AtomicUsize::new(smp::allocate_kernel_stack_top()),
             current_task: core::sync::atomic::AtomicUsize::new(0),
+            is_user_mode: core::sync::atomic::AtomicBool::new(false),
             heartbeat_tick: core::sync::atomic::AtomicU64::new(0),
             idle_stack_pointer: core::sync::atomic::AtomicUsize::new(0),
             scheduler: IrqSafeMutex::new(
                 crate::modules::selector::ActiveScheduler::new(),
             ),
+            kernel_mode_depth: core::sync::atomic::AtomicU32::new(1),
         }));
 
         unsafe {
@@ -155,6 +157,45 @@ impl HardwareAbstraction for HAL {
 
     fn serial_write_raw(s: &str) {
         serial::write_raw(s);
+    }
+
+    fn panic_with_report(info: &core::panic::PanicInfo, _report: &crate::kernel::CrashReport) -> ! {
+        crate::hal::serial::write_raw("\n!!! KERNEL PANIC !!!\n");
+        loop {
+            unsafe { core::arch::asm!("wfi"); }
+        }
+    }
+
+    fn fatal_halt(reason: &str) -> ! {
+        crate::hal::serial::write_raw("\nFATAL HALT: ");
+        crate::hal::serial::write_raw(reason);
+        crate::hal::serial::write_raw("\n");
+        loop {
+            unsafe { core::arch::asm!("wfi"); }
+        }
+    }
+
+    fn idle_once() {
+        unsafe { core::arch::asm!("wfi"); }
+    }
+
+    fn get_time_ns() -> u64 {
+        // Read the AArch64 Generic Timer physical counter and frequency.
+        // CNTPCT_EL0 gives ticks, CNTFRQ_EL0 gives ticks/second.
+        // Scale to nanoseconds: ticks * 1_000_000_000 / freq
+        let cnt: u64;
+        let freq: u64;
+        unsafe {
+            core::arch::asm!("mrs {}, cntpct_el0", out(reg) cnt, options(nomem, nostack));
+            core::arch::asm!("mrs {}, cntfrq_el0", out(reg) freq, options(nomem, nostack));
+        }
+        if freq == 0 {
+            return 0;
+        }
+        // Avoid 128-bit overflow by splitting: cnt = q*freq + r
+        let q = cnt / freq;
+        let r = cnt % freq;
+        q * 1_000_000_000u64 + r * 1_000_000_000u64 / freq
     }
 }
 

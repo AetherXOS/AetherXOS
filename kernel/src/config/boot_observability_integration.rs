@@ -6,6 +6,7 @@
 #[cfg(all(test, target_os = "none"))]
 mod boot_observability_examples {
     use crate::config::*;
+    use alloc::format;
 
     /// Example: x86_64 AP bootstrap sequence with autonomous serials
     /// 
@@ -34,9 +35,9 @@ mod boot_observability_examples {
             for ap_id in 0..2 {
                 let msg = serial_autonomous(
                     ObservabilityCategory::Boot,
-                    &format!("x86_64 ap {} starting", ap_id),
+                    &alloc::format!("x86_64 ap {} starting", ap_id),
                 );
-                assert!(msg.contains(&format!("[BOOT] x86_64 ap {} starting\n", ap_id)));
+                assert!(msg.contains(&alloc::format!("[BOOT] x86_64 ap {} starting\n", ap_id)));
             }
         }
     }
@@ -116,7 +117,7 @@ mod boot_observability_examples {
         // New way - using standard format!() with autonomous prefix:
         let cpu_id = 0;
         let timestamp = 1234;
-        let msg_formatted = format!(
+        let msg_formatted = alloc::format!(
             "{} cpu {} online at {}ms\n",
             ObservabilityCategory::Boot.as_str(),
             cpu_id,
@@ -126,11 +127,11 @@ mod boot_observability_examples {
         // Or more concisely, prepare with autonomous:
         let msg_autonomous = serial_autonomous(
             ObservabilityCategory::Boot,
-            &format!("cpu {} online at {}ms", cpu_id, timestamp),
+            &alloc::format!("cpu {} online at {}ms", cpu_id, timestamp),
         );
 
         // Both produce: "[BOOT] cpu 0 online at 1234ms\n"
-        assert_eq!(msg_autonomous, format!("[BOOT] {} online at {}ms\n", "cpu 0", timestamp));
+        assert_eq!(msg_autonomous, alloc::format!("[BOOT] {} online at {}ms\n", "cpu 0", timestamp));
     }
 
     /// Example: Conditional compilation with features

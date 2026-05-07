@@ -68,6 +68,8 @@ pub type Batch = CFS;
 pub type UserSpace = Cooperative;
 
 pub mod selector {
+    #[cfg(feature = "schedulers")]
+    #[allow(unused_imports)]
     use super::*;
 
     #[cfg(all(feature = "sched_round_robin", param_scheduler = "RoundRobin"))]

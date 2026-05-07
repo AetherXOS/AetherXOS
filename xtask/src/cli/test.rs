@@ -24,7 +24,7 @@ pub enum TestAction {
     /// Run a named CI tier locally or in GitHub Actions
     Tier {
         /// Tier name: fast, integration, nightly
-        tier: String,
+        tier: crate::types::TestTier,
         /// Use CI nextest profile and artifact-oriented behavior
         #[arg(long)]
         ci: bool,
@@ -63,4 +63,10 @@ pub enum TestAction {
         #[arg(long, default_value_t = crate::constants::defaults::audit::MAGIC_REPEAT_THRESHOLD)]
         magic_repeat_threshold: usize,
     },
+}
+
+impl crate::utils::executable::Executable for TestAction {
+    fn execute(&self) -> anyhow::Result<()> {
+        crate::commands::validation::test::execute(self)
+    }
 }

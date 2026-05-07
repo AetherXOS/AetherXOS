@@ -38,6 +38,7 @@ pub(crate) fn sys_spawn_process(
                     deadline as u64,
                     0,
                     kernel_stack_top,
+                    None,
                 );
 
                 match spawn {

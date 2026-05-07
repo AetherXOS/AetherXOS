@@ -1,4 +1,7 @@
 use super::*;
+use crate::kernel::task::TaskId;
+use crate::kernel::vfs_control::support::can_access_mount;
+use crate::kernel::vfs_control::support::normalize_mount_path;
 
 #[test_case]
 fn mount_access_policy_allows_owner_and_root_only() {

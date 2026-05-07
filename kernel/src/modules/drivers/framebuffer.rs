@@ -154,24 +154,10 @@ pub fn info() -> Option<FramebufferInfo> {
 
 // ─── Raw Pixel Operations ───────────────────────────────────────────
 
-/// Write a single pixel at (x, y) with the given color.
-#[inline]
-pub fn put_pixel(x: u32, y: u32, color: Color) {
-    let state = FB_STATE.lock();
-    let info = match state.info {
-        Some(ref i) => i,
-        None => return,
-    };
-    if x >= info.width || y >= info.height {
-        return;
-    }
-
-    let bpp = info.format.bytes_per_pixel();
-    let offset = (y as usize * info.pitch as usize) + (x as usize * bpp);
-    let base = info.virt_addr as *mut u8;
-
+#[inline(always)]
+unsafe fn write_pixel_raw(base: *mut u8, offset: usize, format: PixelFormat, color: Color) {
     unsafe {
-        match info.format {
+        match format {
             PixelFormat::Rgb888 => {
                 base.add(offset).write_volatile(color.r);
                 base.add(offset + 1).write_volatile(color.g);
@@ -196,6 +182,27 @@ pub fn put_pixel(x: u32, y: u32, color: Color) {
             }
         }
     }
+}
+
+/// Write a single pixel at (x, y) with the given color.
+#[inline]
+pub fn put_pixel(x: u32, y: u32, color: Color) {
+    let state = FB_STATE.lock();
+    let info = match state.info {
+        Some(ref i) => i,
+        None => return,
+    };
+    if x >= info.width || y >= info.height {
+        return;
+    }
+
+    let bpp = info.format.bytes_per_pixel();
+    let offset = (y as usize * info.pitch as usize) + (x as usize * bpp);
+    let base = info.virt_addr as *mut u8;
+
+    unsafe {
+        write_pixel_raw(base, offset, info.format, color);
+    }
 
     PIXELS_DRAWN.fetch_add(1, Ordering::Relaxed);
 }
@@ -217,35 +224,50 @@ pub fn fill_rect(x: u32, y: u32, w: u32, h: u32, color: Color) {
         for col in x..x_end {
             let offset = (row as usize * info.pitch as usize) + (col as usize * bpp);
             unsafe {
-                match info.format {
-                    PixelFormat::Rgb888 => {
-                        base.add(offset).write_volatile(color.r);
-                        base.add(offset + 1).write_volatile(color.g);
-                        base.add(offset + 2).write_volatile(color.b);
-                    }
-                    PixelFormat::Bgr888 => {
-                        base.add(offset).write_volatile(color.b);
-                        base.add(offset + 1).write_volatile(color.g);
-                        base.add(offset + 2).write_volatile(color.r);
-                    }
-                    PixelFormat::Rgba8888 => {
-                        base.add(offset).write_volatile(color.r);
-                        base.add(offset + 1).write_volatile(color.g);
-                        base.add(offset + 2).write_volatile(color.b);
-                        base.add(offset + 3).write_volatile(color.a);
-                    }
-                    PixelFormat::Bgra8888 => {
-                        base.add(offset).write_volatile(color.b);
-                        base.add(offset + 1).write_volatile(color.g);
-                        base.add(offset + 2).write_volatile(color.r);
-                        base.add(offset + 3).write_volatile(color.a);
-                    }
-                }
+                write_pixel_raw(base, offset, info.format, color);
             }
         }
     }
 
     PIXELS_DRAWN.fetch_add(((x_end - x) * (y_end - y)) as u64, Ordering::Relaxed);
+}
+
+
+
+/// Blit a rectangular buffer to the screen using optimized bulk memory copies.
+/// This is the primary path for high-performance graphics like Wayland compositors.
+pub fn blit_rect(x: u32, y: u32, w: u32, h: u32, data: &[u8]) {
+    let state = FB_STATE.lock();
+    let info = match state.info {
+        Some(ref i) => i,
+        None => return,
+    };
+
+    let x_end = core::cmp::min(x + w, info.width);
+    let y_end = core::cmp::min(y + h, info.height);
+    let actual_w = x_end - x;
+    let bpp = info.format.bytes_per_pixel();
+    let row_len = actual_w as usize * bpp;
+    let base = info.virt_addr as *mut u8;
+
+    for row_idx in 0..(y_end - y) {
+        let screen_row = y + row_idx;
+        let screen_offset = (screen_row as usize * info.pitch as usize) + (x as usize * bpp);
+        let data_offset = row_idx as usize * w as usize * bpp;
+
+        if data_offset + row_len <= data.len() {
+            unsafe {
+                core::ptr::copy_nonoverlapping(
+                    data.as_ptr().add(data_offset),
+                    base.add(screen_offset),
+                    row_len
+                );
+            }
+        }
+    }
+
+    PIXELS_DRAWN.fetch_add((actual_w * (y_end - y)) as u64, Ordering::Relaxed);
+    FRAMES_PRESENTED.fetch_add(1, Ordering::Relaxed);
 }
 
 /// Clear the entire screen with the given color.
@@ -336,14 +358,7 @@ pub fn console_write(s: &str) {
 
         match byte {
             b'\n' => {
-                let mut state = FB_STATE.lock();
-                state.console_col = 0;
-                state.console_row += 1;
-                if state.console_row >= rows {
-                    state.console_row = rows - 1;
-                    drop(state);
-                    scroll_up(FONT_HEIGHT, bg);
-                }
+                console_new_line(rows, bg);
             }
             b'\r' => {
                 FB_STATE.lock().console_col = 0;
@@ -352,13 +367,8 @@ pub fn console_write(s: &str) {
                 let mut state = FB_STATE.lock();
                 state.console_col = (state.console_col + 4) & !3;
                 if state.console_col >= cols {
-                    state.console_col = 0;
-                    state.console_row += 1;
-                    if state.console_row >= rows {
-                        state.console_row = rows - 1;
-                        drop(state);
-                        scroll_up(FONT_HEIGHT, bg);
-                    }
+                    drop(state);
+                    console_new_line(rows, bg);
                 }
             }
             ch => {
@@ -369,16 +379,22 @@ pub fn console_write(s: &str) {
                 let mut state = FB_STATE.lock();
                 state.console_col += 1;
                 if state.console_col >= cols {
-                    state.console_col = 0;
-                    state.console_row += 1;
-                    if state.console_row >= rows {
-                        state.console_row = rows - 1;
-                        drop(state);
-                        scroll_up(FONT_HEIGHT, bg);
-                    }
+                    drop(state);
+                    console_new_line(rows, bg);
                 }
             }
         }
+    }
+}
+
+fn console_new_line(rows: u32, bg: Color) {
+    let mut state = FB_STATE.lock();
+    state.console_col = 0;
+    state.console_row += 1;
+    if state.console_row >= rows {
+        state.console_row = rows - 1;
+        drop(state);
+        scroll_up(FONT_HEIGHT, bg);
     }
 }
 

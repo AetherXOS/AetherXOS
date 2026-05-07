@@ -96,7 +96,27 @@ pub(super) fn write_production_acceptance_scorecard(root: &Path) -> Result<()> {
     let qemu_smoke_junit_ok = fs::read_to_string(root.join("artifacts/qemu_smoke_junit.xml"))
         .map(|text| text.contains("failures=\"0\"") && text.contains("errors=\"0\""))
         .unwrap_or(false);
-    let qemu_markers_ok = qemu_log_markers_ok || qemu_smoke_junit_ok;
+    let ubuntu_smoke_json_ok =
+        read_json(root.join(crate::config::repo_paths::UBUNTU_USERSPACE_SMOKE_JSON))
+            .map(|doc| {
+                doc.get("overall_ok")
+                    .and_then(|v| v.as_bool())
+                    .or_else(|| doc.get("ok").and_then(|v| v.as_bool()))
+                    .or_else(|| {
+                        doc.get("status")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.eq_ignore_ascii_case("ok") || s.eq_ignore_ascii_case("pass"))
+                    })
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false);
+    let ubuntu_smoke_junit_ok =
+        fs::read_to_string(root.join(crate::config::repo_paths::UBUNTU_USERSPACE_SMOKE_JUNIT_XML))
+            .map(|text| text.contains("failures=\"0\"") && text.contains("errors=\"0\""))
+            .unwrap_or(false);
+    let ubuntu_userspace_smoke_ok = ubuntu_smoke_json_ok || ubuntu_smoke_junit_ok;
+
+    let qemu_markers_ok = qemu_log_markers_ok || qemu_smoke_junit_ok || ubuntu_userspace_smoke_ok;
     let (
         security_release_profile_gate_ok,
         security_release_gate_context,
@@ -150,6 +170,7 @@ pub(super) fn write_production_acceptance_scorecard(root: &Path) -> Result<()> {
             "runtime_retry_policy": runtime_retry_ok,
             "runtime_flutter_closure_audit": runtime_flutter_ok,
             "qemu_boot_markers": qemu_markers_ok,
+            "ubuntu_userspace_smoke": ubuntu_userspace_smoke_ok,
             "security_release_profile_gate": security_release_profile_gate_ok
         }
     });
@@ -173,6 +194,10 @@ pub(super) fn write_production_acceptance_scorecard(root: &Path) -> Result<()> {
         security_release_gate_context,
         security_release_gate_reason_count,
         !security_release_profile_gate_ok
+    ));
+    md.push_str(&format!(
+        "- ubuntu_userspace_smoke_ok: `{}`\n",
+        ubuntu_userspace_smoke_ok
     ));
 
     fs::write(scorecard_md, md)?;

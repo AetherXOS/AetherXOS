@@ -20,7 +20,7 @@ mod drivers_init;
 mod heap;
 #[path = "kernel_runtime/interrupts/mod.rs"]
 mod interrupts;
-#[path = "kernel_runtime/main_loop.rs"]
+#[path = "kernel_runtime/main_loop/mod.rs"]
 mod main_loop;
 #[path = "kernel_runtime/networking/mod.rs"]
 mod networking;

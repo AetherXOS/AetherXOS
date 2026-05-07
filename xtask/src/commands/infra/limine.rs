@@ -9,7 +9,7 @@ use std::path::Path;
 pub fn generate_configs(
     stage_dir: &Path,
     kernel_name: &str,
-    initramfs_name: &str,
+    initramfs_name: Option<&str>,
     append_args: &str,
 ) -> Result<()> {
     let conf_path = stage_dir.join("limine.conf");
@@ -20,7 +20,8 @@ pub fn generate_configs(
         "Generating configuration",
         &[("path", &conf_path.to_string_lossy())],
     );
-    let conf = render_config(kernel_name, initramfs_name, append_args);
+    let probe_append = append_probe_args(append_args);
+    let conf = render_config(kernel_name, initramfs_name, &probe_append);
     fs::write(&conf_path, &conf)
         .with_context(|| format!("Failed to write {}", conf_path.display()))?;
 
@@ -29,7 +30,6 @@ pub fn generate_configs(
         "Generating configuration",
         &[("path", &probe_path.to_string_lossy())],
     );
-    let probe_append = append_probe_args(append_args);
     let probe_conf = render_config(kernel_name, initramfs_name, &probe_append);
     fs::write(&probe_path, &probe_conf)
         .with_context(|| format!("Failed to write {}", probe_path.display()))?;
@@ -43,8 +43,8 @@ pub fn generate_configs(
 }
 
 /// Render the limine.conf content string.
-fn render_config(kernel_name: &str, initramfs_name: &str, append: &str) -> String {
-    format!(
+fn render_config(kernel_name: &str, initramfs_name: Option<&str>, append: &str) -> String {
+    let mut conf = format!(
         "default_entry: 1\n\
          timeout: 0\n\
          verbose: yes\n\
@@ -54,10 +54,15 @@ fn render_config(kernel_name: &str, initramfs_name: &str, append: &str) -> Strin
          \n\
          /AetherXOS\n\
          \x20   protocol: limine\n\
-         \x20   kernel_path: boot():/boot/{kernel_name}\n\
-         \x20   module_path: boot():/boot/{initramfs_name}\n\
-         \x20   kernel_cmdline: {append}\n"
-    )
+         \x20   kernel_path: boot():/boot/{kernel_name}\n"
+    );
+
+    if let Some(initrd) = initramfs_name {
+        conf.push_str(&format!(" \x20   module_path: boot():/boot/{initrd}\n"));
+    }
+
+    conf.push_str(&format!(" \x20   kernel_cmdline: {append}\n"));
+    conf
 }
 
 /// Append the probe-mode flag to the kernel command line.

@@ -175,8 +175,6 @@ mod tests {
     fn test_process() -> Process {
         Process::new(
             b"tls-test",
-            #[cfg(feature = "paging_enable")]
-            x86_64::PhysAddr::new(0),
         )
     }
 

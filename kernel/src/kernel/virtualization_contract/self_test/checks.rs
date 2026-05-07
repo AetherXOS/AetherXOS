@@ -23,16 +23,21 @@ pub(super) fn run_contract_checks(
         }};
     }
 
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT START 5001\n");
     check!(
         5001,
         virtualization_effective_execution_contract_holds(),
         "virtualization effective execution profile contract is inconsistent"
     );
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT CHECK 5001 done\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT START 5002\n");
     check!(
         5002,
         virtualization_effective_governor_contract_holds(),
         "virtualization effective governor profile contract is inconsistent"
     );
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT CHECK 5002 done\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT START 5003\n");
     check!(
         5003,
         virtualization_dispatch_contract_holds(
@@ -43,6 +48,7 @@ pub(super) fn run_contract_checks(
         ),
         "virtualization dispatch contract expects lane/window to match dispatch and preemption policy"
     );
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT START 5004\n");
     check!(
         5004,
         ctx.governor.governor_class == ctx.status.virt_runtime_governor_class
@@ -50,6 +56,8 @@ pub(super) fn run_contract_checks(
             && ctx.governor.energy_bias == ctx.status.virt_runtime_energy_bias,
         "platform status must mirror the effective runtime governor"
     );
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT CHECK 5004 done\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT START 5005\n");
     check!(
         5005,
         ctx.scheduler_tuning == ctx.governor.scheduler
@@ -57,6 +65,7 @@ pub(super) fn run_contract_checks(
             && ctx.power_tuning == ctx.governor.power,
         "virtualization tuning helpers must match the effective governor bundle"
     );
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT START 5006\n");
     check!(
         5006,
         virtualization_governor_bias_contract_holds(
@@ -66,6 +75,8 @@ pub(super) fn run_contract_checks(
         ),
         "virtualization governor class/bias/energy contract is inconsistent"
     );
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT CHECK 5006 done\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT START 5007\n");
     check!(
         5007,
         execution_profile_matches_status(
@@ -74,6 +85,7 @@ pub(super) fn run_contract_checks(
         ),
         "platform execution profile must match effective config"
     );
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT START 5008\n");
     check!(
         5008,
         ctx.status.virt_runtime_governor_profile == ctx.effective_governor.governor_class.as_str()
@@ -81,6 +93,8 @@ pub(super) fn run_contract_checks(
                 == expected_runtime_governor_class(ctx.effective_governor.governor_class),
         "platform governor profile/class must match effective config"
     );
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT CHECK 5008 done\n");
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT START 5009\n");
     check!(
         5009,
         ctx.policy_snapshot.virtualization_execution_profile
@@ -91,6 +105,7 @@ pub(super) fn run_contract_checks(
             && ctx.policy_snapshot.virtualization_latency_bias == ctx.governor.latency_bias,
         "runtime policy snapshot must match effective virtualization execution/governor state"
     );
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT START 5010\n");
     check!(
         5010,
         virtualization_runtime_mode_contract_holds(
@@ -101,4 +116,5 @@ pub(super) fn run_contract_checks(
         ),
         "runtime selected_mode/operation_class/blocked/policy-limited contract is inconsistent"
     );
+    crate::hal::serial::write_raw("[EARLY SERIAL] VIRT CHECK 5010 done\n");
 }

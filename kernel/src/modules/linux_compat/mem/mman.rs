@@ -52,7 +52,10 @@ pub fn sys_linux_mmap(
     let fd_val = fd.as_usize();
     if fd_val == linux::FB_FD {
         if let Some(fb) = crate::hal::framebuffer() {
-            return fb.address.as_ptr().unwrap() as usize;
+            if let Some(ptr) = fb.address.as_ptr() {
+                return ptr as usize;
+            }
+            return linux_errno(crate::modules::posix_consts::errno::EBADF);
         }
     }
 

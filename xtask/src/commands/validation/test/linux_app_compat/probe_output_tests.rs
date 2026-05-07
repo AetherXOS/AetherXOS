@@ -47,9 +47,18 @@ fn build_desktop_probes_emits_expected_contract_keys() {
     let snapshot = sample_snapshot();
     let probes = build_desktop_probes(&snapshot);
 
-    assert_eq!(probes.get("wayland_probe_ok").and_then(|v| v.as_bool()), Some(true));
-    assert_eq!(probes.get("x11_probe_ok").and_then(|v| v.as_bool()), Some(true));
-    assert_eq!(probes.get("package_stack_ok").and_then(|v| v.as_bool()), Some(true));
+    assert_eq!(
+        probes.get("wayland_probe_ok").and_then(|v| v.as_bool()),
+        Some(true)
+    );
+    assert_eq!(
+        probes.get("x11_probe_ok").and_then(|v| v.as_bool()),
+        Some(true)
+    );
+    assert_eq!(
+        probes.get("package_stack_ok").and_then(|v| v.as_bool()),
+        Some(true)
+    );
     assert_eq!(
         probes
             .get("runtime_seeded_retry_timeout_available")

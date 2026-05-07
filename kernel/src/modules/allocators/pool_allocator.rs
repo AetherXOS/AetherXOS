@@ -134,7 +134,7 @@ unsafe impl GlobalAlloc for PoolAllocator {
 }
 
 impl HeapAllocator for PoolAllocator {
-    fn init(&self, start: usize, size: usize) {
+    unsafe fn init(&mut self, start: usize, size: usize) {
         let block_size = crate::generated_consts::MEM_POOL_BLOCK_SIZE;
         let mut head = self.head.lock();
 

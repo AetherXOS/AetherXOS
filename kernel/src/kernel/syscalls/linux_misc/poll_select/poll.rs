@@ -116,6 +116,20 @@ fn build_poll_request(in_fds: &[LinuxPollFdCompat]) -> alloc::vec::Vec<crate::mo
         .collect()
 }
 
+fn generic_vfs_poll_revents(fd: i32) -> u16 {
+    let process = match crate::kernel::launch::current_process_arc() {
+        Some(p) => p,
+        None => return 0,
+    };
+
+    let files = process.files.lock();
+    if let Some(file) = files.get(&(fd as usize)) {
+        file.poll_events().bits() as u16
+    } else {
+        0x0008 // POLLERR
+    }
+}
+
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 fn apply_synthetic_revents(
     in_fds: &[LinuxPollFdCompat],
@@ -130,20 +144,23 @@ fn apply_synthetic_revents(
         let synthetic_revents = crate::kernel::syscalls::linux_shim::net::userspace_display_poll_revents(
             p.fd as u32,
             p.events as u16,
-        ) | super::super::timerfd_poll_revents(p.fd as u32, p.events as u16);
+        ) | super::super::timerfd_poll_revents(p.fd as u32, p.events as u16)
+          | generic_vfs_poll_revents(p.fd);
+
         if synthetic_revents == 0 {
             continue;
         }
 
         let was_empty = poll_fds[i].revents.is_empty();
         poll_fds[i].revents |=
-            crate::modules::libnet::PosixPollEvents::from_bits_truncate(synthetic_revents);
+            crate::modules::libnet::PosixPollEvents::from_bits_truncate(synthetic_revents & p.events as u16);
         if was_empty && !poll_fds[i].revents.is_empty() {
             synthetic_ready = synthetic_ready.saturating_add(1);
         }
     }
     synthetic_ready
 }
+
 
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
 fn write_poll_fds_to_user(
@@ -227,13 +244,13 @@ fn sys_linux_poll_with_retries(fds_ptr: usize, nfds: usize, retries: usize) -> u
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(crate) fn sys_linux_poll(fds_ptr: usize, nfds: usize, timeout: usize) -> usize {
+pub fn sys_linux_poll(fds_ptr: usize, nfds: usize, timeout: usize) -> usize {
     let retries = poll_timeout_to_retries(timeout);
     sys_linux_poll_with_retries(fds_ptr, nfds, retries)
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub(crate) fn sys_linux_ppoll(
+pub fn sys_linux_ppoll(
     fds_ptr: usize,
     nfds: usize,
     timeout_ptr: usize,

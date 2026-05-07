@@ -20,6 +20,12 @@ pub trait HardwareAbstraction {
 
     // Diagnostics
     fn serial_write_raw(s: &str);
+    fn panic_with_report(info: &core::panic::PanicInfo, report: &crate::kernel::CrashReport) -> !;
+    fn fatal_halt(reason: &str) -> !;
+    fn idle_once();
+    
+    // Time
+    fn get_time_ns() -> u64;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
