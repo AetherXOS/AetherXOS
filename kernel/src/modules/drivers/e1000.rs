@@ -30,6 +30,7 @@ const E1000_TDLEN: usize = 0x3808;
 const E1000_TDH: usize = 0x3810;
 const E1000_TDT: usize = 0x3818;
 
+use aethercore_common::bits::BitField32;
 const E1000_CTRL_RST: BitField32 = BitField32::new(26, 1);
 const E1000_CTRL_SLU: BitField32 = BitField32::new(6, 1); // Set Link Up
 

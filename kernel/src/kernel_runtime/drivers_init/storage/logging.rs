@@ -53,7 +53,7 @@ pub(super) fn log_driver_wait_policy() {
 }
 
 fn wait_policy_segment(
-    wait: &aethercore::modules::drivers::DriverWaitPolicySnapshotEntry,
+    wait: &aethercore::modules::drivers::DriverWaitPolicySnapshot,
 ) -> String {
     format!(
         "{}::{} max_spins={} fallback={:?} timeouts={}",
