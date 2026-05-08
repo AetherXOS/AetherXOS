@@ -1,7 +1,6 @@
 use anyhow::{Result, bail};
 use std::path::Path;
-use std::process::Command;
-use crate::utils::{logging, paths, process};
+use crate::utils::process;
 
 pub fn ensure_iso_tools() -> Result<()> {
     if process::which("xorriso") || process::which("mkisofs") || process::which("oscdimg") {
