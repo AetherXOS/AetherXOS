@@ -1,9 +1,9 @@
-use anyhow::Result;
-use inquire::{Select, Text};
-use crate::utils::config;
-use indicatif::{ProgressBar, ProgressStyle};
-use std::time::Duration;
 use super::orchestrator::MULTI_PROGRESS;
+use crate::utils::config;
+use anyhow::Result;
+use indicatif::{ProgressBar, ProgressStyle};
+use inquire::{Select, Text};
+use std::time::Duration;
 
 /// Interactively select an item from a list.
 pub fn select<'a, T: std::fmt::Display>(prompt: &str, options: &'a [T]) -> Result<&'a T> {

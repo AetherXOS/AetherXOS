@@ -1,9 +1,9 @@
+use crate::utils::fs::hash::HashAlgo;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use crate::utils::fs::hash::HashAlgo;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistroRegistry {
@@ -98,7 +98,13 @@ impl DistroRegistry {
                 for (varname, variant) in &version.variants {
                     for (arch, images) in variant {
                         for img in images {
-                            results.push((dname.clone(), vname.clone(), varname.clone(), arch.clone(), img.clone()));
+                            results.push((
+                                dname.clone(),
+                                vname.clone(),
+                                varname.clone(),
+                                arch.clone(),
+                                img.clone(),
+                            ));
                         }
                     }
                 }

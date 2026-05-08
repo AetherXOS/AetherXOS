@@ -1,10 +1,26 @@
-use strum::{Display, EnumString, EnumIter, IntoStaticStr, AsRefStr};
 use aethercore_common::TargetArch;
+use strum::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
 
 /// Unified architecture type for all xtask operations.
 pub type Arch = TargetArch;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, clap::ValueEnum, Display, EnumString, EnumIter, IntoStaticStr, AsRefStr)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    clap::ValueEnum,
+    Display,
+    EnumString,
+    EnumIter,
+    IntoStaticStr,
+    AsRefStr,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum Bootloader {
     #[default]
@@ -20,7 +36,23 @@ impl Bootloader {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, clap::ValueEnum, Display, EnumString, EnumIter, IntoStaticStr, AsRefStr)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    clap::ValueEnum,
+    Display,
+    EnumString,
+    EnumIter,
+    IntoStaticStr,
+    AsRefStr,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum ImageFormat {
     #[default]
@@ -35,7 +67,23 @@ impl ImageFormat {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, clap::ValueEnum, Display, EnumString, EnumIter, IntoStaticStr, AsRefStr)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    clap::ValueEnum,
+    Display,
+    EnumString,
+    EnumIter,
+    IntoStaticStr,
+    AsRefStr,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum TestTier {
     #[default]
@@ -50,7 +98,23 @@ impl TestTier {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, clap::ValueEnum, Display, EnumString, EnumIter, IntoStaticStr, AsRefStr)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    clap::ValueEnum,
+    Display,
+    EnumString,
+    EnumIter,
+    IntoStaticStr,
+    AsRefStr,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum BuildProfile {
     #[default]

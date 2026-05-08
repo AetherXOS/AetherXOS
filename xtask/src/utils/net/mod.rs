@@ -1,26 +1,29 @@
+use crate::utils::core::config;
+use crate::utils::fs::hash::{HashAlgo, hash_file};
+use crate::utils::ui::orchestrator::MULTI_PROGRESS;
 use anyhow::{Result, bail};
+use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
-use indicatif::{ProgressBar, ProgressStyle};
 use std::thread;
 use std::time::Duration;
-use crate::utils::core::config;
-use crate::utils::ui::orchestrator::MULTI_PROGRESS;
-use crate::utils::fs::hash::{HashAlgo, hash_file};
 
 pub fn download_file(url: &str, destination: &Path) -> Result<()> {
     if !url.starts_with("https://") {
-        bail!("Insecure URL blocked: {}. Only HTTPS is allowed for premium builds.", url);
+        bail!(
+            "Insecure URL blocked: {}. Only HTTPS is allowed for premium builds.",
+            url
+        );
     }
 
     let client = reqwest::blocking::Client::builder()
         .use_rustls_tls()
         .build()?;
-    
+
     // We use a .part file for atomic-like resume and final move
     let part_path = destination.with_extension("part");
-    
+
     let mut downloaded: u64 = 0;
     let mut file = if part_path.exists() {
         downloaded = fs::metadata(&part_path)?.len();
@@ -29,16 +32,19 @@ pub fn download_file(url: &str, destination: &Path) -> Result<()> {
         fs::File::create(&part_path)?
     };
 
-    let mut response = client.get(url)
+    let mut response = client
+        .get(url)
         .header(reqwest::header::RANGE, format!("bytes={}-", downloaded))
         .send()?;
 
     if response.status() == reqwest::StatusCode::OK && downloaded > 0 {
         downloaded = 0;
         file = fs::File::create(&part_path)?;
-    } else if !response.status().is_success() && response.status() != reqwest::StatusCode::PARTIAL_CONTENT {
+    } else if !response.status().is_success()
+        && response.status() != reqwest::StatusCode::PARTIAL_CONTENT
+    {
         if response.status() == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
-            // Already finished or invalid range? 
+            // Already finished or invalid range?
             // If part exists, let's assume it might be done or we need a clean start
         } else {
             bail!("Download failed: HTTP {}", response.status());
@@ -63,7 +69,9 @@ pub fn download_file(url: &str, destination: &Path) -> Result<()> {
     let mut buffer = [0u8; 32768]; // 32KB buffer for speed
     loop {
         let n = response.read(&mut buffer)?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         file.write_all(&buffer[..n])?;
         downloaded += n as u64;
         pb.set_position(downloaded);
@@ -80,33 +88,44 @@ pub fn download_file(url: &str, destination: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn download_if_needed(url: &str, destination: &Path, expected_size: Option<u64>, expected_hash: Option<(&str, HashAlgo)>) -> Result<()> {
+pub fn download_if_needed(
+    url: &str,
+    destination: &Path,
+    expected_size: Option<u64>,
+    expected_hash: Option<(&str, HashAlgo)>,
+) -> Result<()> {
     if destination.exists() {
         let actual_size = fs::metadata(destination)?.len();
         let mut ok = true;
 
         if let Some(size) = expected_size {
-            if actual_size != size { ok = false; }
+            if actual_size != size {
+                ok = false;
+            }
         }
 
         if ok {
             if let Some((hash, algo)) = expected_hash {
                 let actual_hash = hash_file(destination, algo)?;
-                if actual_hash != hash { ok = false; }
+                if actual_hash != hash {
+                    ok = false;
+                }
             }
         }
 
-        if ok { return Ok(()); }
-        
-        // If not ok, we don't necessarily delete (might resume), 
+        if ok {
+            return Ok(());
+        }
+
+        // If not ok, we don't necessarily delete (might resume),
         // but for distro ISOs we might want a clean start if hash fails.
         if let Some((_, _)) = expected_hash {
-             fs::remove_file(destination)?;
+            fs::remove_file(destination)?;
         }
     }
 
     download_file(url, destination)?;
-    
+
     // Verify after download if hash provided
     if let Some((hash, algo)) = expected_hash {
         let actual_hash = hash_file(destination, algo)?;

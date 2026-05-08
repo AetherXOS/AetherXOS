@@ -51,7 +51,10 @@ pub fn attach_rootfs_drive(args: &mut Vec<String>) {
     let rootfs_img = crate::constants::paths::artifact_dir().join("aethercore-rootfs.img");
     if rootfs_img.exists() {
         args.push("-drive".to_string());
-        args.push(format!("file={},format=raw,if=virtio", rootfs_img.to_string_lossy()));
+        args.push(format!(
+            "file={},format=raw,if=virtio",
+            rootfs_img.to_string_lossy()
+        ));
     }
 }
 

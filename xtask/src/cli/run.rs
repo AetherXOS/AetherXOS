@@ -29,16 +29,16 @@ pub enum RunAction {
         port: u16,
     },
     /// 🐧 Boot your kernel with a full Linux distribution (Ubuntu, Debian, Fedora, Alpine, etc.)
-    /// 
+    ///
     /// Supports downloading distros from a registry, caching them locally, or using a custom rootfs tarball.
     /// Automatically creates a partitioned disk image and attaches it to QEMU.
-    /// 
+    ///
     /// Examples:
     ///   cargo xtask run guest --distro ubuntu-24.04 --download
     ///   cargo xtask run guest --distro fedora-40 --download --refresh
     ///   cargo xtask run guest --rootfs ~/my-rootfs.tar.gz
     ///   cargo xtask run guest --distro debian-12 --download --firmware uefi
-    /// 
+    ///
     /// See `GUEST_GUIDE.md` for detailed documentation and troubleshooting.
     Guest {
         /// Distribution identifier from built-in registry (e.g., "ubuntu-24.04", "ubuntu-lts", "debian", "fedora-40", "alpine", etc.)

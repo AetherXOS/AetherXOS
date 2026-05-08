@@ -37,22 +37,33 @@ pub struct InterruptHealth {
 }
 
 pub fn detect_interrupt_health(stream: &str) -> Option<InterruptHealth> {
-    if let Some(line) = stream.lines().rev().find(|line| line.contains("x86_64 irq stats:")) {
+    if let Some(line) = stream
+        .lines()
+        .rev()
+        .find(|line| line.contains("x86_64 irq stats:"))
+    {
         let total = extract_u64_kv(line, "total")?;
         let timer = extract_u64_kv(line, "timer")?;
         let non_timer = extract_u64_kv(line, "non_timer")?;
         let dropped = extract_u64_kv(line, "dropped")?;
         let dispatch_attempted = extract_u64_kv(line, "dispatch_attempted")?;
         let dispatch_handled = extract_u64_kv(line, "dispatch_handled")?;
-        return Some(InterruptHealth { total, timer, non_timer, dropped, dispatch_attempted, dispatch_handled });
+        return Some(InterruptHealth {
+            total,
+            timer,
+            non_timer,
+            dropped,
+            dispatch_attempted,
+            dispatch_handled,
+        });
     }
     None
 }
 
 pub fn validate_interrupt_health(health: InterruptHealth) -> bool {
-    health.total >= health.timer.saturating_add(health.non_timer) &&
-    health.dispatch_attempted >= health.dispatch_handled &&
-    health.dropped <= health.total
+    health.total >= health.timer.saturating_add(health.non_timer)
+        && health.dispatch_attempted >= health.dispatch_handled
+        && health.dropped <= health.total
 }
 
 fn extract_u64_kv(line: &str, key: &str) -> Option<u64> {

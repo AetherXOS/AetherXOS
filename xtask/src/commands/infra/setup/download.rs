@@ -1,6 +1,6 @@
 use crate::constants;
 use crate::utils::{logging, paths};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::{Read, Write};
@@ -37,10 +37,10 @@ const LIMINE_TARBALL_URL: &str =
 /// Files we must copy to `artifacts/limine/bin/` after extraction.
 /// Second field: SHA-256 expected hash (hex). Empty = skip verification.
 const REQUIRED_FILES: &[(&str, &str)] = &[
-    ("limine-bios.sys",    ""),
+    ("limine-bios.sys", ""),
     ("limine-bios-cd.bin", ""),
     ("limine-uefi-cd.bin", ""),
-    ("BOOTX64.EFI",        ""),
+    ("BOOTX64.EFI", ""),
 ];
 
 /// The prefix directory name inside the tarball (verified from real v12 tarball).
@@ -66,20 +66,26 @@ pub fn fetch_limine_binaries() -> Result<()> {
     // downloaded tarball), copy directly from there — no internet required.
     let local_extracted = crate::utils::paths::resolve("artifacts/limine-binary");
     if local_extracted.is_dir() {
-        logging::info("limine", "local tarball extract found — skipping download", &[
-            ("path", &local_extracted.to_string_lossy()),
-        ]);
+        logging::info(
+            "limine",
+            "local tarball extract found — skipping download",
+            &[("path", &local_extracted.to_string_lossy())],
+        );
         return install_from_local_dir(&local_extracted, &dest_dir);
     }
 
-    logging::info("limine", "fetching Limine release tarball", &[
-        ("url",  LIMINE_TARBALL_URL),
-        ("dest", &dest_dir.to_string_lossy()),
-    ]);
+    logging::info(
+        "limine",
+        "fetching Limine release tarball",
+        &[
+            ("url", LIMINE_TARBALL_URL),
+            ("dest", &dest_dir.to_string_lossy()),
+        ],
+    );
 
     // Step 1: Download
-    let tarball_bytes = download_tarball(LIMINE_TARBALL_URL)
-        .context("Tarball download stage failed")?;
+    let tarball_bytes =
+        download_tarball(LIMINE_TARBALL_URL).context("Tarball download stage failed")?;
 
     // Step 2+3: Decompress & walk tar
     let extracted = extract_required_files(&tarball_bytes, REQUIRED_FILES, TARBALL_PREFIX)
@@ -91,10 +97,14 @@ pub fn fetch_limine_binaries() -> Result<()> {
         write_atomic(data, &dest)
             .with_context(|| format!("Failed writing '{}'", dest.display()))?;
 
-        logging::info("limine", "installed binary", &[
-            ("file",  filename.as_str()),
-            ("bytes", &data.len().to_string()),
-        ]);
+        logging::info(
+            "limine",
+            "installed binary",
+            &[
+                ("file", filename.as_str()),
+                ("bytes", &data.len().to_string()),
+            ],
+        );
     }
 
     // Step 5: Verify presence + minimum size
@@ -103,15 +113,21 @@ pub fn fetch_limine_binaries() -> Result<()> {
     // Step 6: Optional SHA-256 verification
     hash_verify_files(&dest_dir).context("Cryptographic verification failed")?;
 
-    logging::info("limine", "all binaries installed and verified successfully", &[]);
+    logging::info(
+        "limine",
+        "all binaries installed and verified successfully",
+        &[],
+    );
     Ok(())
 }
 
 /// Copy required files from a pre-extracted `limine-binary/` directory.
 fn install_from_local_dir(src_dir: &std::path::Path, dest_dir: &std::path::Path) -> Result<()> {
-    logging::info("limine", "installing from local directory", &[
-        ("src", &src_dir.to_string_lossy()),
-    ]);
+    logging::info(
+        "limine",
+        "installing from local directory",
+        &[("src", &src_dir.to_string_lossy())],
+    );
 
     for (filename, _) in REQUIRED_FILES {
         let src = src_dir.join(filename);
@@ -119,12 +135,15 @@ fn install_from_local_dir(src_dir: &std::path::Path, dest_dir: &std::path::Path)
             bail!(
                 "Required file '{}' not found in local extract dir '{}'.\n  \
                  Delete '{}' to trigger a fresh download.",
-                filename, src_dir.display(), src_dir.display()
+                filename,
+                src_dir.display(),
+                src_dir.display()
             );
         }
 
         let size = std::fs::metadata(&src)
-            .with_context(|| format!("Cannot stat '{}'", src.display()))?.len();
+            .with_context(|| format!("Cannot stat '{}'", src.display()))?
+            .len();
 
         if size < 4096 {
             bail!(
@@ -134,20 +153,21 @@ fn install_from_local_dir(src_dir: &std::path::Path, dest_dir: &std::path::Path)
         }
 
         let dest = dest_dir.join(filename);
-        std::fs::copy(&src, &dest)
-            .with_context(|| format!("Failed to copy '{}' → '{}'", src.display(), dest.display()))?;
+        std::fs::copy(&src, &dest).with_context(|| {
+            format!("Failed to copy '{}' → '{}'", src.display(), dest.display())
+        })?;
 
-        logging::info("limine", "copied from local extract", &[
-            ("file",  filename),
-            ("bytes", &size.to_string()),
-        ]);
+        logging::info(
+            "limine",
+            "copied from local extract",
+            &[("file", filename), ("bytes", &size.to_string())],
+        );
     }
 
     hash_verify_files(dest_dir).context("Cryptographic verification failed")?;
     logging::info("limine", "all binaries installed from local directory", &[]);
     Ok(())
 }
-
 
 // ─── Download ────────────────────────────────────────────────────────────────
 
@@ -187,7 +207,9 @@ fn download_tarball(url: &str) -> Result<Vec<u8>> {
         let n = response
             .read(&mut chunk)
             .context("I/O error reading tarball stream")?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         buf.extend_from_slice(&chunk[..n]);
         pb.inc(n as u64);
     }
@@ -198,10 +220,11 @@ fn download_tarball(url: &str) -> Result<Vec<u8>> {
         bail!("Downloaded tarball is empty — server returned no data.");
     }
 
-    logging::info("limine", "download complete", &[
-        ("url",   url),
-        ("bytes", &buf.len().to_string()),
-    ]);
+    logging::info(
+        "limine",
+        "download complete",
+        &[("url", url), ("bytes", &buf.len().to_string())],
+    );
 
     Ok(buf)
 }
@@ -215,26 +238,27 @@ fn extract_required_files(
     wanted: &[(&str, &str)],
     prefix: &str,
 ) -> Result<Vec<(String, Vec<u8>)>> {
-    logging::info("limine", "decompressing tarball (flate2 + tar)", &[
-        ("input_bytes", &tarball.len().to_string()),
-        ("prefix",       prefix),
-    ]);
+    logging::info(
+        "limine",
+        "decompressing tarball (flate2 + tar)",
+        &[
+            ("input_bytes", &tarball.len().to_string()),
+            ("prefix", prefix),
+        ],
+    );
 
     let gz = GzDecoder::new(tarball);
     let mut archive = tar::Archive::new(gz);
 
-    let required_names: std::collections::HashSet<&str> =
-        wanted.iter().map(|(n, _)| *n).collect();
+    let required_names: std::collections::HashSet<&str> = wanted.iter().map(|(n, _)| *n).collect();
 
     let mut found: Vec<(String, Vec<u8>)> = Vec::new();
     let mut skipped_errors: Vec<String> = Vec::new();
 
-    let entries = archive
-        .entries()
-        .context(
-            "Failed to iterate tar entries — the archive may be corrupt, \
-             truncated, or not a valid tar.gz"
-        )?;
+    let entries = archive.entries().context(
+        "Failed to iterate tar entries — the archive may be corrupt, \
+             truncated, or not a valid tar.gz",
+    )?;
 
     for entry_result in entries {
         let mut entry = match entry_result {
@@ -266,14 +290,12 @@ fn extract_required_files(
         }
 
         let mut data: Vec<u8> = Vec::new();
-        entry
-            .read_to_end(&mut data)
-            .with_context(|| {
-                format!(
-                    "I/O error reading tar entry for '{filename}' \
+        entry.read_to_end(&mut data).with_context(|| {
+            format!(
+                "I/O error reading tar entry for '{filename}' \
                      (flate2 decompression or tar parsing failed)"
-                )
-            })?;
+            )
+        })?;
 
         if data.is_empty() {
             bail!(
@@ -282,10 +304,11 @@ fn extract_required_files(
             );
         }
 
-        logging::info("limine", "extracted", &[
-            ("file",  filename),
-            ("bytes", &data.len().to_string()),
-        ]);
+        logging::info(
+            "limine",
+            "extracted",
+            &[("file", filename), ("bytes", &data.len().to_string())],
+        );
 
         found.push((filename.to_owned(), data));
     }
@@ -303,7 +326,10 @@ fn extract_required_files(
                  The Limine tarball layout may have changed. \
                  Expected prefix: '{}'. \
                  Actual tarball URL: {}",
-                req, prefix, prefix, LIMINE_TARBALL_URL
+                req,
+                prefix,
+                prefix,
+                LIMINE_TARBALL_URL
             );
         }
     }
@@ -376,10 +402,8 @@ fn hash_verify_files(dest_dir: &Path) -> Result<()> {
             continue;
         }
 
-        let actual = crate::utils::hash_file(
-            &dest_dir.join(filename),
-            crate::utils::HashAlgo::Sha256,
-        )?;
+        let actual =
+            crate::utils::hash_file(&dest_dir.join(filename), crate::utils::HashAlgo::Sha256)?;
 
         if &actual != expected_hash {
             std::fs::remove_file(dest_dir.join(filename)).ok();
@@ -388,7 +412,9 @@ fn hash_verify_files(dest_dir: &Path) -> Result<()> {
                  Expected : {}\n  \
                  Actual   : {}\n  \
                  File removed. Possible supply-chain attack or disk corruption.",
-                filename, expected_hash, actual
+                filename,
+                expected_hash,
+                actual
             );
         }
 

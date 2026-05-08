@@ -84,7 +84,7 @@ pub fn resolve_distro_urls(distro: &str) -> Vec<String> {
         (distro, None)
     };
     let parts: Vec<&str> = base_spec.split('-').collect();
-    
+
     let mut urls = Vec::new();
 
     // Try exact match
@@ -126,8 +126,9 @@ pub fn resolve_distro_urls(distro: &str) -> Vec<String> {
     for (_, entry) in &registry.distros {
         if let Some(aliases) = &entry.aliases {
             for alias in aliases {
-                if alias.starts_with(&format!("{}-", parts[0])) || 
-                   (parts.len() >= 2 && alias.contains(&format!("-{}", parts[1]))) {
+                if alias.starts_with(&format!("{}-", parts[0]))
+                    || (parts.len() >= 2 && alias.contains(&format!("-{}", parts[1])))
+                {
                     if let Some(version_entry) = entry.versions.get(&parts[1..].join("-")) {
                         urls.extend(extract_urls_from_version(version_entry, variant_filter));
                         if !urls.is_empty() {
@@ -222,10 +223,16 @@ mod tests {
         match load_registry() {
             Ok(registry) => {
                 assert!(!registry.distros.is_empty());
-                println!("Registry loaded successfully with {} distros", registry.distros.len());
+                println!(
+                    "Registry loaded successfully with {} distros",
+                    registry.distros.len()
+                );
             }
             Err(e) => {
-                eprintln!("Note: Registry not found (OK in some build contexts): {}", e);
+                eprintln!(
+                    "Note: Registry not found (OK in some build contexts): {}",
+                    e
+                );
             }
         }
     }

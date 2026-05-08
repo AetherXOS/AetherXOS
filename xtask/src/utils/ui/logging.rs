@@ -9,7 +9,7 @@ use super::orchestrator::MULTI_PROGRESS;
 pub fn print_header(about: &str, system: &str, target: &str) {
     let width = 60;
     let bar = "━".repeat(width).bright_black();
-    
+
     let header = format!(
         "\n  {}\n  {}  {} {}\n  {}  {} {}\n  {}  {} {}\n  {}\n",
         bar,
@@ -51,21 +51,33 @@ pub fn log(level: &str, module: &str, message: &str, kv: &[(&str, &str)]) {
     let ts = get_timestamp().dimmed();
     let lvl_styled = match level {
         "ERROR" => " ERROR ".on_red().white().bold(),
-        "WARN"  => "  WARN ".on_yellow().black().bold(),
-        "EXEC"  => "  EXEC ".on_magenta().white().bold(),
+        "WARN" => "  WARN ".on_yellow().black().bold(),
+        "EXEC" => "  EXEC ".on_magenta().white().bold(),
         "READY" => " READY ".on_green().black().bold(),
-        "STEP"  => "  STEP ".on_cyan().black().bold(),
-        _       => "  INFO ".on_blue().white().bold(),
+        "STEP" => "  STEP ".on_cyan().black().bold(),
+        _ => "  INFO ".on_blue().white().bold(),
     };
 
     let mod_styled = format!(" {:<8} ", module).on_bright_black().white();
 
-    let main_line = format!("{} {} {} {}", ts, lvl_styled, mod_styled, message.white().bold());
+    let main_line = format!(
+        "{} {} {} {}",
+        ts,
+        lvl_styled,
+        mod_styled,
+        message.white().bold()
+    );
     MULTI_PROGRESS.println(main_line).ok();
 
     if !kv.is_empty() {
         for (k, v) in kv {
-            let kv_line = format!("         {} {} {}: {}", "│".dimmed(), "▹".dimmed(), k.dimmed(), v.cyan());
+            let kv_line = format!(
+                "         {} {} {}: {}",
+                "│".dimmed(),
+                "▹".dimmed(),
+                k.dimmed(),
+                v.cyan()
+            );
             MULTI_PROGRESS.println(kv_line).ok();
         }
     }
@@ -170,5 +182,10 @@ pub fn ready<D: ReadyDetails>(module: &str, message: &str, details: D) {
 }
 
 pub fn status(module: &str, message: &str) {
-    let _ = MULTI_PROGRESS.println(format!("  {} {} {}", "→".blue().bold(), module.dimmed(), message));
+    let _ = MULTI_PROGRESS.println(format!(
+        "  {} {} {}",
+        "→".blue().bold(),
+        module.dimmed(),
+        message
+    ));
 }

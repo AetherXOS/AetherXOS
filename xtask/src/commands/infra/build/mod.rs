@@ -1,7 +1,7 @@
-use anyhow::{Context, Result};
 use crate::cli::BuildAction;
 use crate::constants;
 use crate::utils::logging;
+use anyhow::{Context, Result};
 
 pub mod app;
 pub mod distro;
@@ -33,10 +33,16 @@ pub fn execute(action: &BuildAction) -> Result<()> {
                 ],
             );
 
-            kernel::build_kernel(*arch, *release, *features).context("Failed to compile kernel component")?;
+            kernel::build_kernel(*arch, *release, *features)
+                .context("Failed to compile kernel component")?;
             build_initramfs().context("Failed to generate initramfs structure")?;
-            image::bundle_image(*arch, bootloader, format, rootfs.as_deref().map(|s| std::path::Path::new(s)))
-                .context("Failed to assemble bootable image hierarchy")?;
+            image::bundle_image(
+                *arch,
+                bootloader,
+                format,
+                rootfs.as_deref().map(|s| std::path::Path::new(s)),
+            )
+            .context("Failed to assemble bootable image hierarchy")?;
         }
         BuildAction::Image { bootloader, format } => {
             logging::info(
@@ -50,8 +56,13 @@ pub fn execute(action: &BuildAction) -> Result<()> {
             image::bundle_image(constants::defaults::build::ARCH, bootloader, format, None)
                 .context("Failed to assemble specific bootable image format")?;
         }
-        BuildAction::Kernel { arch, features, release } => {
-            kernel::build_kernel(*arch, *release, *features).context("Failed to natively compile kernel")?;
+        BuildAction::Kernel {
+            arch,
+            features,
+            release,
+        } => {
+            kernel::build_kernel(*arch, *release, *features)
+                .context("Failed to natively compile kernel")?;
         }
         BuildAction::Initramfs => {
             build_initramfs().context("Failed to pack initramfs")?;
@@ -69,7 +80,12 @@ pub fn execute(action: &BuildAction) -> Result<()> {
             distro::build_distro_iso(distro.clone(), version.clone(), variant.clone(), *arch)
                 .context("Failed to build distro-based ISO")?;
         }
-        BuildAction::UpdateIsoKernel { iso, kernel, out, workdir } => {
+        BuildAction::UpdateIsoKernel {
+            iso,
+            kernel,
+            out,
+            workdir,
+        } => {
             update_iso_kernel(iso, kernel.as_deref(), out.as_deref(), workdir.as_deref())
                 .context("Failed to update kernel inside ISO")?;
         }
@@ -99,10 +115,14 @@ fn update_iso_kernel(
     out_iso: Option<&str>,
     workdir: Option<&str>,
 ) -> Result<()> {
-    use std::process::Command;
     use std::path::PathBuf;
+    use std::process::Command;
 
-    logging::info("update-iso", "starting kernel-in-ISO update", &[("iso", iso_path)]);
+    logging::info(
+        "update-iso",
+        "starting kernel-in-ISO update",
+        &[("iso", iso_path)],
+    );
 
     let iso = PathBuf::from(iso_path);
     if !iso.exists() {
@@ -117,21 +137,31 @@ fn update_iso_kernel(
         }
         kp
     } else {
-        logging::info("update-iso", "no kernel provided — rebuilding kernel (debug)", &[]);
+        logging::info(
+            "update-iso",
+            "no kernel provided — rebuilding kernel (debug)",
+            &[],
+        );
         // Rebuild using existing kernel builder (default arch)
         crate::commands::infra::build::kernel::build_kernel(
-            constants::defaults::build::ARCH, 
-            false, 
-            aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS | aethercore_common::KernelFeatures::LOGGING
+            constants::defaults::build::ARCH,
+            false,
+            aethercore_common::KernelFeatures::VFS
+                | aethercore_common::KernelFeatures::DRIVERS
+                | aethercore_common::KernelFeatures::LOGGING,
         )
-            .context("Rebuilding kernel for injection failed")?;
+        .context("Rebuilding kernel for injection failed")?;
 
         // Resolve built kernel path (debug)
         let triple = constants::defaults::build::ARCH.to_bare_metal_triple();
         crate::utils::paths::resolve(&format!("target/{}/debug/aethercore", triple))
     };
 
-    logging::info("update-iso", "kernel resolved for injection", &[("kernel", &kernel_elf.to_string_lossy())]);
+    logging::info(
+        "update-iso",
+        "kernel resolved for injection",
+        &[("kernel", &kernel_elf.to_string_lossy())],
+    );
 
     if workdir.is_some() {
         logging::warn("update-iso", "`--workdir` is ignored in in-place mode", &[]);
@@ -155,7 +185,11 @@ fn update_iso_kernel(
     let iso_arg = crate::commands::infra::iso::iso_paths::maybe_msys_path(&iso, &xorriso);
     let kernel_arg = crate::commands::infra::iso::iso_paths::maybe_msys_path(&kernel_elf, &xorriso);
 
-    logging::info("update-iso", "updating kernel entry in-place via xorriso", &[("iso", &iso_arg)]);
+    logging::info(
+        "update-iso",
+        "updating kernel entry in-place via xorriso",
+        &[("iso", &iso_arg)],
+    );
     let output = Command::new(&xorriso)
         .args([
             "-abort_on",
@@ -180,7 +214,11 @@ fn update_iso_kernel(
         );
     }
 
-    logging::ready("update-iso", "ISO kernel updated in-place", &iso.to_string_lossy());
+    logging::ready(
+        "update-iso",
+        "ISO kernel updated in-place",
+        &iso.to_string_lossy(),
+    );
 
     Ok(())
 }
@@ -214,7 +252,11 @@ fn build_initramfs() -> Result<()> {
 ///
 /// Useful for rapid iteration: `cargo xtask build verify-elf` is much faster
 /// than a full `cargo xtask build distro-iso`.
-fn verify_elf_action(arch: aethercore_common::TargetArch, release: bool, elf_path: Option<&str>) -> Result<()> {
+fn verify_elf_action(
+    arch: aethercore_common::TargetArch,
+    release: bool,
+    elf_path: Option<&str>,
+) -> Result<()> {
     use std::time::Instant;
 
     let t0 = Instant::now();
@@ -225,17 +267,28 @@ fn verify_elf_action(arch: aethercore_common::TargetArch, release: bool, elf_pat
         if !p.exists() {
             anyhow::bail!("Supplied ELF path does not exist: {}", p.display());
         }
-        logging::info("verify-elf", "using pre-built binary (skipping rebuild)", &[
-            ("path", path),
-        ]);
+        logging::info(
+            "verify-elf",
+            "using pre-built binary (skipping rebuild)",
+            &[("path", path)],
+        );
         p
     } else {
         // Rebuild the kernel first
-        logging::info("verify-elf", "rebuilding kernel before verification", &[
-            ("arch",    arch.as_str()),
-            ("profile", if release { "release" } else { "debug" }),
-        ]);
-        kernel::build_kernel(arch, release, aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS).context("Kernel rebuild failed")?;
+        logging::info(
+            "verify-elf",
+            "rebuilding kernel before verification",
+            &[
+                ("arch", arch.as_str()),
+                ("profile", if release { "release" } else { "debug" }),
+            ],
+        );
+        kernel::build_kernel(
+            arch,
+            release,
+            aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS,
+        )
+        .context("Kernel rebuild failed")?;
 
         // Resolve the output ELF path
         let triple = arch.to_bare_metal_triple();
@@ -243,9 +296,11 @@ fn verify_elf_action(arch: aethercore_common::TargetArch, release: bool, elf_pat
         crate::utils::paths::resolve(&format!("target/{}/{}/aethercore", triple, profile))
     };
 
-    logging::info("verify-elf", "running ELF security audit", &[
-        ("file", &elf.to_string_lossy()),
-    ]);
+    logging::info(
+        "verify-elf",
+        "running ELF security audit",
+        &[("file", &elf.to_string_lossy())],
+    );
 
     match crate::utils::elf::validate_elf(&elf) {
         Ok(()) => {
@@ -257,9 +312,11 @@ fn verify_elf_action(arch: aethercore_common::TargetArch, release: bool, elf_pat
             );
         }
         Err(e) => {
-            logging::warn("verify-elf", "ELF integrity audit FAILED", &[
-                ("reason", &e.to_string()),
-            ]);
+            logging::warn(
+                "verify-elf",
+                "ELF integrity audit FAILED",
+                &[("reason", &e.to_string())],
+            );
             return Err(e);
         }
     }

@@ -71,7 +71,9 @@ fn quality_gate() -> Result<()> {
         arch: constants::defaults::build::ARCH,
         bootloader: crate::cli::Bootloader::Limine,
         format: crate::cli::ImageFormat::Iso,
-        features: aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS | aethercore_common::KernelFeatures::LOGGING,
+        features: aethercore_common::KernelFeatures::VFS
+            | aethercore_common::KernelFeatures::DRIVERS
+            | aethercore_common::KernelFeatures::LOGGING,
         release: false,
         rootfs: None,
     })?;

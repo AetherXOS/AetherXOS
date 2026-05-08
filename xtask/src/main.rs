@@ -21,16 +21,27 @@ fn main() -> Result<()> {
 
     let about = format!("Aether X OS xtask v{} ({})", version, rustc_version);
     let system = format!("{} {} ({})", env::consts::OS, env::consts::ARCH, cpu_model);
-    let target = format!("AetherX - Mode: {}", if cfg!(debug_assertions) { "Development" } else { "Release" });
+    let target = format!(
+        "AetherX - Mode: {}",
+        if cfg!(debug_assertions) {
+            "Development"
+        } else {
+            "Release"
+        }
+    );
 
     logging::print_header(&about, &system, &target);
 
     // Initial check for no args or explicit help
     let args_vec: Vec<String> = env::args().collect();
-    if args_vec.len() == 1 || args_vec.iter().any(|a| a == "--help" || a == "-h" || a == "help") {
+    if args_vec.len() == 1
+        || args_vec
+            .iter()
+            .any(|a| a == "--help" || a == "-h" || a == "help")
+    {
         utils::help::print_autonomous_help();
         if args_vec.len() == 1 || args_vec.contains(&"help".to_string()) {
-             return Ok(());
+            return Ok(());
         }
     }
 
@@ -59,7 +70,12 @@ fn get_cpu_model() -> String {
         if let Ok(content) = std::fs::read_to_string("/proc/cpuinfo") {
             for line in content.lines() {
                 if line.contains("model name") {
-                    return line.split(':').nth(1).unwrap_or("Unknown CPU").trim().to_string();
+                    return line
+                        .split(':')
+                        .nth(1)
+                        .unwrap_or("Unknown CPU")
+                        .trim()
+                        .to_string();
                 }
             }
         }
@@ -67,16 +83,27 @@ fn get_cpu_model() -> String {
 
     #[cfg(target_os = "macos")]
     {
-        if let Ok(output) = std::process::Command::new("sysctl").args(["-n", "machdep.cpu.brand_string"]).output() {
+        if let Ok(output) = std::process::Command::new("sysctl")
+            .args(["-n", "machdep.cpu.brand_string"])
+            .output()
+        {
             return String::from_utf8_lossy(&output.stdout).trim().to_string();
         }
     }
 
     #[cfg(target_os = "windows")]
     {
-        if let Ok(output) = std::process::Command::new("wmic").args(["cpu", "get", "name"]).output() {
+        if let Ok(output) = std::process::Command::new("wmic")
+            .args(["cpu", "get", "name"])
+            .output()
+        {
             let s = String::from_utf8_lossy(&output.stdout);
-            return s.lines().nth(1).unwrap_or("Generic Windows CPU").trim().to_string();
+            return s
+                .lines()
+                .nth(1)
+                .unwrap_or("Generic Windows CPU")
+                .trim()
+                .to_string();
         }
     }
 

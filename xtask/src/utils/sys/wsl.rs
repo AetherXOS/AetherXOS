@@ -1,12 +1,12 @@
-use anyhow::{Result, anyhow, Context};
-use std::path::Path;
-use crate::utils::ui::logging;
 use crate::utils::sys::process;
+use crate::utils::ui::logging;
+use anyhow::{Context, Result, anyhow};
+use std::path::Path;
 
 /// Converts a Windows path (e.g. C:\foo) to a WSL path (e.g. /mnt/c/foo or /mnt/host/c/foo).
 pub fn to_wsl_path(p: &Path) -> Result<String> {
     let s = p.to_string_lossy().replace('\\', "/");
-    
+
     let output = std::process::Command::new("wsl")
         .args(["wslpath", "-a", "-u"])
         .arg(&s)
@@ -41,10 +41,7 @@ pub fn run_in_wsl(script: &str, tools: &[&str]) -> Result<()> {
         ));
     }
 
-    let full_script = format!(
-        "set -e\n{}\n{}",
-        tool_check, script
-    );
+    let full_script = format!("set -e\n{}\n{}", tool_check, script);
 
     logging::info("wsl", "Executing script in WSL environment", &[]);
     process::run_checked("wsl", ["-e", "sh", "-c", &full_script])

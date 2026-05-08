@@ -1,10 +1,14 @@
-use anyhow::{Result, Context};
-use crate::constants::{cargo as cargo_consts};
-use crate::utils::{logging};
+use crate::constants::cargo as cargo_consts;
+use crate::utils::logging;
 use aethercore_common::TargetArch;
+use anyhow::{Context, Result};
 
 /// Compiles the kernel ELF payload for the explicitly defined target architecture.
-pub fn build_kernel(arch: TargetArch, is_release: bool, features: aethercore_common::KernelFeatures) -> Result<()> {
+pub fn build_kernel(
+    arch: TargetArch,
+    is_release: bool,
+    features: aethercore_common::KernelFeatures,
+) -> Result<()> {
     logging::info(
         "kernel",
         "processing standard kernel build",

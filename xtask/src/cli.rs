@@ -9,9 +9,9 @@ pub mod secureboot;
 pub mod setup;
 pub mod test;
 
+use crate::utils::executable::Executable;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use crate::utils::executable::Executable;
 
 pub use crate::types::{Bootloader, ImageFormat};
 

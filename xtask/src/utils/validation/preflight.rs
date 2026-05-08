@@ -1,14 +1,15 @@
-use crate::utils::ui::logging;
 use crate::utils::sys::process;
-use anyhow::{Result, Context};
+use crate::utils::ui::logging;
+use anyhow::{Context, Result};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 
 /// Orchestrates a comprehensive system health audit before pipeline initiation.
 pub fn run_audit() -> Result<()> {
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner()
-        .template("{spinner:.magenta} {msg:.bold.white}")?);
+    pb.set_style(
+        ProgressStyle::default_spinner().template("{spinner:.magenta} {msg:.bold.white}")?,
+    );
     pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
     pb.set_message("Auditing binary dependencies...");
@@ -36,8 +37,11 @@ fn check_binary_dependencies(pb: &ProgressBar) -> Result<()> {
 
     for tool in required {
         if !process::which(tool) {
-            pb.println(format!("  {} Recommendation: '{}' is missing from PATH.",
-                "⚠️".yellow(), tool));
+            pb.println(format!(
+                "  {} Recommendation: '{}' is missing from PATH.",
+                "⚠️".yellow(),
+                tool
+            ));
         }
     }
     Ok(())
@@ -48,8 +52,11 @@ fn check_crypto_tools(pb: &ProgressBar) -> Result<()> {
         let tools = ["sha256sum", "md5sum", "sha1sum"];
         for tool in tools {
             if !process::which(tool) {
-                pb.println(format!("  {} Optimization: Cryptographic tool '{}' not found.",
-                    "ℹ".blue(), tool));
+                pb.println(format!(
+                    "  {} Optimization: Cryptographic tool '{}' not found.",
+                    "ℹ".blue(),
+                    tool
+                ));
             }
         }
     }
@@ -59,8 +66,11 @@ fn check_crypto_tools(pb: &ProgressBar) -> Result<()> {
 pub fn check_disk_space(needed_gb: u64) -> Result<()> {
     if cfg!(windows) {
         let output = std::process::Command::new("powershell")
-            .args(&["-NoProfile", "-Command",
-                "Get-PSDrive C | Select-Object -ExpandProperty Free"])
+            .args(&[
+                "-NoProfile",
+                "-Command",
+                "Get-PSDrive C | Select-Object -ExpandProperty Free",
+            ])
             .output()
             .context("Failed to query storage metrics via PowerShell")?;
 
@@ -72,10 +82,14 @@ pub fn check_disk_space(needed_gb: u64) -> Result<()> {
         let free_gb = free_bytes / 1024 / 1024 / 1024;
 
         if free_gb < needed_gb {
-            logging::warn("preflight", "constrained storage capacity", &[
-                ("needed",    &format!("{}GB", needed_gb)),
-                ("available", &format!("{}GB", free_gb)),
-            ]);
+            logging::warn(
+                "preflight",
+                "constrained storage capacity",
+                &[
+                    ("needed", &format!("{}GB", needed_gb)),
+                    ("available", &format!("{}GB", free_gb)),
+                ],
+            );
         }
     }
     Ok(())

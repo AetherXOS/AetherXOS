@@ -18,7 +18,8 @@ pub fn build_distro_iso(
     let reg = registry::DistroRegistry::load_default()?;
 
     // 2. Interactive Flow if not fully specified
-    let non_interactive = distro.is_some() && version.is_some() && variant.is_some() && arch.is_some();
+    let non_interactive =
+        distro.is_some() && version.is_some() && variant.is_some() && arch.is_some();
     let (selected_distro, selected_ver, selected_var, selected_arch) =
         resolve_distro_interactively(&reg, distro, version, variant, arch)?;
 
@@ -34,7 +35,11 @@ pub fn build_distro_iso(
     );
 
     // 3. Compile our kernel first
-    super::kernel::build_kernel(selected_arch, false, aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS)?;
+    super::kernel::build_kernel(
+        selected_arch,
+        false,
+        aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS,
+    )?;
 
     let arch_norm = selected_arch.as_str().replace('-', "_");
     let image = find_image(
@@ -91,8 +96,7 @@ pub fn build_distro_iso(
                 if !download_needed && !hashes.is_empty() {
                     logging::info("distro-iso", "verifying cached image hashes", &[]);
                     let algos: Vec<_> = hashes.keys().copied().collect();
-                    let actual_hashes =
-                        crate::utils::calculate_hashes(&target_archive, &algos)?;
+                    let actual_hashes = crate::utils::calculate_hashes(&target_archive, &algos)?;
                     for (algo, expected) in &hashes {
                         if let Some(actual) = actual_hashes.get(algo) {
                             if actual != expected {
@@ -140,7 +144,9 @@ pub fn build_distro_iso(
                                 let choice = ui::select("How do you want to proceed?", &options)?;
                                 match *choice {
                                     "Redownload" => download_needed = true,
-                                    "Abort" => bail!("Operation aborted by user due to size mismatch"),
+                                    "Abort" => {
+                                        bail!("Operation aborted by user due to size mismatch")
+                                    }
                                     _ => logging::info(
                                         "distro-iso",
                                         "proceeding with existing image despite size mismatch",
@@ -210,7 +216,11 @@ pub fn build_distro_iso(
                 logging::warn("distro-iso", "download failed", &[("err", &e.to_string())]);
                 if non_interactive {
                     if download_attempts >= max_download_attempts {
-                        bail!("Download failed after {} attempts: {}", download_attempts, e);
+                        bail!(
+                            "Download failed after {} attempts: {}",
+                            download_attempts,
+                            e
+                        );
                     } else {
                         logging::info(
                             "distro-iso",
@@ -256,7 +266,10 @@ pub fn build_distro_iso(
                 if mismatch {
                     if non_interactive {
                         if download_attempts >= max_download_attempts {
-                            bail!("Hash mismatch persisted after {} attempts", download_attempts);
+                            bail!(
+                                "Hash mismatch persisted after {} attempts",
+                                download_attempts
+                            );
                         }
                         logging::warn("distro-iso", "hash mismatch; scheduling redownload", &[]);
                         download_needed = true;
@@ -292,10 +305,14 @@ pub fn build_distro_iso(
     // 6. Copy our kernel
     let target_triple = selected_arch.to_bare_metal_triple();
     let kernel_src = paths::resolve(&format!("target/{}/debug/aethercore", target_triple));
-    
-    logging::info("distro-iso", "validating kernel ELF integrity", &[("path", &kernel_src.to_string_lossy())]);
+
+    logging::info(
+        "distro-iso",
+        "validating kernel ELF integrity",
+        &[("path", &kernel_src.to_string_lossy())],
+    );
     crate::utils::elf::validate_elf(&kernel_src)?;
-    
+
     fs::copy(&kernel_src, stage_dir.join("aethercore.elf"))?;
 
     // 7. Copy Limine binaries — with self-healing auto-fetch
@@ -306,10 +323,19 @@ pub fn build_distro_iso(
 
     let bios_sys = limine_bin_dir.join("limine-bios.sys");
     // Copy to /boot (stage dir)
-    fs::copy(limine_bin_dir.join("limine-bios-cd.bin"), stage_dir.join("limine-bios-cd.bin"))?;
+    fs::copy(
+        limine_bin_dir.join("limine-bios-cd.bin"),
+        stage_dir.join("limine-bios-cd.bin"),
+    )?;
     fs::copy(&bios_sys, stage_dir.join("limine-bios.sys"))?;
-    fs::copy(limine_bin_dir.join("limine-uefi-cd.bin"), stage_dir.join("limine-uefi-cd.bin"))?;
-    fs::copy(limine_bin_dir.join("BOOTX64.EFI"), iso_root.join("EFI/BOOT/BOOTX64.EFI"))?;
+    fs::copy(
+        limine_bin_dir.join("limine-uefi-cd.bin"),
+        stage_dir.join("limine-uefi-cd.bin"),
+    )?;
+    fs::copy(
+        limine_bin_dir.join("BOOTX64.EFI"),
+        iso_root.join("EFI/BOOT/BOOTX64.EFI"),
+    )?;
 
     // Also mirror limine-bios.sys to ISO root for BIOS boot compatibility
     fs::copy(&bios_sys, iso_root.join("limine-bios.sys"))?;
@@ -335,7 +361,11 @@ pub fn build_distro_iso(
             }
             final_initrd = Some("initrd.cpio.gz");
         } else {
-            logging::warn("distro-iso", "initramfs source missing, skipping initrd", &[]);
+            logging::warn(
+                "distro-iso",
+                "initramfs source missing, skipping initrd",
+                &[],
+            );
         }
     } else {
         logging::info("distro-iso", "skipping initramfs as requested", &[]);
@@ -343,16 +373,19 @@ pub fn build_distro_iso(
 
     // 9. Finalize
     crate::commands::infra::limine::generate_configs(
-        &stage_dir, 
-        "aethercore.elf", 
-        final_initrd, 
-        constants::defaults::run::KERNEL_APPEND
+        &stage_dir,
+        "aethercore.elf",
+        final_initrd,
+        constants::defaults::run::KERNEL_APPEND,
     )?;
-    
+
     // Copy limine.conf to root as well for backup
     fs::copy(stage_dir.join("limine.conf"), iso_root.join("limine.conf"))?;
 
-    let out_iso = context::out_dir().join(format!("aetherxos-{}-{}.iso", selected_distro, selected_var));
+    let out_iso = context::out_dir().join(format!(
+        "aetherxos-{}-{}.iso",
+        selected_distro, selected_var
+    ));
     crate::commands::infra::iso::finalize_iso_from_root(iso_root, &out_iso)?;
 
     logging::ready(
@@ -412,9 +445,15 @@ fn resolve_distro_interactively(
             // direct contains
             if let Some(k) = keys.iter().find(|k| k.to_ascii_lowercase() == v_norm) {
                 k.clone()
-            } else if let Some(k) = keys.iter().find(|k| k.to_ascii_lowercase().contains(&v_norm)) {
+            } else if let Some(k) = keys
+                .iter()
+                .find(|k| k.to_ascii_lowercase().contains(&v_norm))
+            {
                 k.clone()
-            } else if let Some(k) = keys.iter().find(|k| v_norm.contains(&k.to_ascii_lowercase())) {
+            } else if let Some(k) = keys
+                .iter()
+                .find(|k| v_norm.contains(&k.to_ascii_lowercase()))
+            {
                 k.clone()
             } else {
                 // try replacing -/_ variants
@@ -428,7 +467,8 @@ fn resolve_distro_interactively(
                     if keys_sorted.len() == 1 {
                         keys_sorted[0].clone()
                     } else {
-                        ui::select(&format!("Select {} Variant", selected_distro), &keys_sorted)?.to_string()
+                        ui::select(&format!("Select {} Variant", selected_distro), &keys_sorted)?
+                            .to_string()
                     }
                 }
             }
@@ -509,12 +549,18 @@ fn ensure_limine_binaries(limine_bin_dir: &std::path::Path) -> Result<()> {
     }
 
     if needs_fetch {
-        logging::info("limine", "auto-fetching missing or corrupt Limine binaries", &[]);
-        crate::commands::infra::setup::download::fetch_limine_binaries()
-            .map_err(|e| anyhow::anyhow!(
+        logging::info(
+            "limine",
+            "auto-fetching missing or corrupt Limine binaries",
+            &[],
+        );
+        crate::commands::infra::setup::download::fetch_limine_binaries().map_err(|e| {
+            anyhow::anyhow!(
                 "Limine auto-fetch failed: {}\n\
-                 Tip: Check your internet connection, then run 'cargo xtask setup limine'.", e
-            ))?;
+                 Tip: Check your internet connection, then run 'cargo xtask setup limine'.",
+                e
+            )
+        })?;
 
         // Re-verify after fetch
         for name in REQUIRED {

@@ -1,6 +1,6 @@
-use std::sync::OnceLock;
-use std::path::{Path, PathBuf};
 use crate::utils::context;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 static WORKSPACE_ROOT: OnceLock<PathBuf> = OnceLock::new();
 
@@ -17,17 +17,27 @@ pub fn resolve(relative: impl AsRef<Path>) -> PathBuf {
     }
 }
 
-pub fn kernel_src(rel: impl AsRef<Path>) -> PathBuf { resolve("kernel/src").join(rel) }
-pub fn artifacts() -> PathBuf { resolve("artifacts") }
-pub fn staging() -> PathBuf { artifacts().join("stage") }
+pub fn kernel_src(rel: impl AsRef<Path>) -> PathBuf {
+    resolve("kernel/src").join(rel)
+}
+pub fn artifacts() -> PathBuf {
+    resolve("artifacts")
+}
+pub fn staging() -> PathBuf {
+    artifacts().join("stage")
+}
 
 pub fn userspace_src(name: impl AsRef<Path>) -> PathBuf {
     resolve("kernel/src/userspace").join(name)
 }
 
 // Compatibility wrappers for existing code
-pub fn resolve_str(p: &str) -> PathBuf { resolve(p) }
-pub fn kernel_src_rel(rel: &str) -> PathBuf { kernel_src(rel) }
+pub fn resolve_str(p: &str) -> PathBuf {
+    resolve(p)
+}
+pub fn kernel_src_rel(rel: &str) -> PathBuf {
+    kernel_src(rel)
+}
 
 pub fn ensure_dir(dir: &Path) -> std::io::Result<()> {
     if !dir.exists() {

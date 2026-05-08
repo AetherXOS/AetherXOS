@@ -28,7 +28,7 @@ impl<'a> CommandOptions<'a> {
     }
 }
 
-fn format_args<I, S>(args: I) -> String 
+fn format_args<I, S>(args: I) -> String
 where
     I: IntoIterator<Item = S> + Clone,
     S: AsRef<str>,
@@ -47,7 +47,9 @@ fn ensure_success(
 ) -> Result<()> {
     if !status.success() {
         let exit_code = status.code().unwrap_or(-1);
-        let cwd_str = cwd.map(|d| format!(" cwd={}", d.display())).unwrap_or_default();
+        let cwd_str = cwd
+            .map(|d| format!(" cwd={}", d.display()))
+            .unwrap_or_default();
         bail!(
             "command_failed: program={} exit_code={}{} args={}",
             program,
@@ -59,11 +61,7 @@ fn ensure_success(
     Ok(())
 }
 
-fn run_internal<I, S>(
-    program: &str,
-    args: I,
-    options: CommandOptions<'_>,
-) -> Result<ExitStatus> 
+fn run_internal<I, S>(program: &str, args: I, options: CommandOptions<'_>) -> Result<ExitStatus>
 where
     I: IntoIterator<Item = S> + Clone,
     S: AsRef<str>,
@@ -80,7 +78,7 @@ where
     for arg in args {
         cmd.arg(arg.as_ref());
     }
-    
+
     if let Some(dir) = options.cwd {
         cmd.current_dir(dir);
     }
@@ -89,7 +87,10 @@ where
     }
 
     cmd.status().with_context(|| {
-        let cwd_str = options.cwd.map(|d| format!(" cwd={}", d.display())).unwrap_or_default();
+        let cwd_str = options
+            .cwd
+            .map(|d| format!(" cwd={}", d.display()))
+            .unwrap_or_default();
         format!(
             "command_spawn_failed: program={}{} args={}",
             program, cwd_str, rendered
@@ -98,7 +99,7 @@ where
 }
 
 /// Run a command and capture its stdout and stderr as strings.
-pub fn run_with_output<I, S>(program: &str, args: I) -> Result<(ExitStatus, String, String)> 
+pub fn run_with_output<I, S>(program: &str, args: I) -> Result<(ExitStatus, String, String)>
 where
     I: IntoIterator<Item = S> + Clone,
     S: AsRef<str>,
@@ -111,7 +112,9 @@ where
         cmd.arg(arg.as_ref());
     }
 
-    let output = cmd.output().with_context(|| format!("Failed to spawn {}", program))?;
+    let output = cmd
+        .output()
+        .with_context(|| format!("Failed to spawn {}", program))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -125,7 +128,7 @@ pub const fn npm_bin() -> &'static str {
 }
 
 /// Run an arbitrary command, only checking for success.
-pub fn run_checked<I, S>(program: &str, args: I) -> Result<()> 
+pub fn run_checked<I, S>(program: &str, args: I) -> Result<()>
 where
     I: IntoIterator<Item = S> + Clone,
     S: AsRef<str>,
@@ -141,7 +144,7 @@ pub fn run_checked_owned(program: &str, args: &[String]) -> Result<()> {
 }
 
 /// Run a command with explicit environment variables.
-pub fn run_checked_with_env<I, S>(program: &str, args: I, envs: &[(&str, &str)]) -> Result<()> 
+pub fn run_checked_with_env<I, S>(program: &str, args: I, envs: &[(&str, &str)]) -> Result<()>
 where
     I: IntoIterator<Item = S> + Clone,
     S: AsRef<str>,
@@ -160,7 +163,7 @@ pub fn run_checked_with_env_owned(
 }
 
 /// Run an arbitrary command in a specific working directory.
-pub fn run_checked_in_dir<I, S>(program: &str, args: I, cwd: &Path) -> Result<()> 
+pub fn run_checked_in_dir<I, S>(program: &str, args: I, cwd: &Path) -> Result<()>
 where
     I: IntoIterator<Item = S> + Clone,
     S: AsRef<str>,
@@ -171,7 +174,7 @@ where
 }
 
 /// Run a command and return whether it succeeded, without bubbling up launch failures.
-pub fn run_best_effort<I, S>(program: &str, args: I) -> bool 
+pub fn run_best_effort<I, S>(program: &str, args: I) -> bool
 where
     I: IntoIterator<Item = S> + Clone,
     S: AsRef<str>,
@@ -182,7 +185,7 @@ where
 }
 
 /// Run a command in a directory and return whether it succeeded, without bubbling up launch failures.
-pub fn run_best_effort_in_dir<I, S>(program: &str, args: I, cwd: &Path) -> bool 
+pub fn run_best_effort_in_dir<I, S>(program: &str, args: I, cwd: &Path) -> bool
 where
     I: IntoIterator<Item = S> + Clone,
     S: AsRef<str>,
@@ -193,11 +196,7 @@ where
 }
 
 /// Run a command in a specific directory and return raw exit status.
-pub fn run_status_in_dir<I, S>(
-    program: &str,
-    args: I,
-    cwd: &Path,
-) -> Result<ExitStatus> 
+pub fn run_status_in_dir<I, S>(program: &str, args: I, cwd: &Path) -> Result<ExitStatus>
 where
     I: IntoIterator<Item = S> + Clone,
     S: AsRef<str>,

@@ -19,13 +19,13 @@ pub fn init(outdir: PathBuf) -> Result<()> {
         .parent()
         .expect("xtask must be nested one level under repo root")
         .to_path_buf();
-    
+
     let outdir_abs = if outdir.is_absolute() {
         outdir
     } else {
         repo_root.join(outdir)
     };
-    
+
     let host_target = detect_host_triple()?;
 
     APP_CONTEXT

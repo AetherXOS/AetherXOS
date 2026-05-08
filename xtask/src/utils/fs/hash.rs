@@ -1,8 +1,8 @@
 use anyhow::{Result, anyhow};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HashAlgo {
@@ -31,10 +31,7 @@ impl HashAlgo {
 }
 
 /// Calculate multiple hashes for a file in a single pass.
-pub fn calculate_hashes(
-    path: &Path,
-    algos: &[HashAlgo],
-) -> Result<HashMap<HashAlgo, String>> {
+pub fn calculate_hashes(path: &Path, algos: &[HashAlgo]) -> Result<HashMap<HashAlgo, String>> {
     use blake2::Blake2b512;
     use md5::Md5;
     use sha1::Sha1;

@@ -2,13 +2,26 @@ use anyhow::Result;
 use std::env;
 
 use crate::constants::{cargo as cargo_consts, test as test_consts, tools};
-use crate::utils::{cargo, process};
 use crate::types::TestTier;
+use crate::utils::{cargo, process};
 
 const CLIPPY_LINT_ARGS: &[&str] = &[
-    "-A", "warnings", "-A", "unused", "-A", "dead_code", "-A", "unused_imports",
-    "-A", "unused_variables", "-A", "unused_mut", "-A", "unsafe_op_in_unsafe_fn",
-    "-A", "clippy::all",
+    "-A",
+    "warnings",
+    "-A",
+    "unused",
+    "-A",
+    "dead_code",
+    "-A",
+    "unused_imports",
+    "-A",
+    "unused_variables",
+    "-A",
+    "unused_mut",
+    "-A",
+    "unsafe_op_in_unsafe_fn",
+    "-A",
+    "clippy::all",
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
