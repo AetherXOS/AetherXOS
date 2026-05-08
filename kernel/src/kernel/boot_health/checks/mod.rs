@@ -3,6 +3,7 @@ mod core;
 mod driver;
 mod virtualization;
 
+use super::codes::BootErrorCode;
 use super::self_test::BootHealthReport;
 
 pub(super) fn run_boot_config_checks(report: &mut BootHealthReport) {
@@ -12,11 +13,11 @@ pub(super) fn run_boot_config_checks(report: &mut BootHealthReport) {
     virtualization::run_virtualization_checks(report);
 }
 
-fn check(report: &mut BootHealthReport, code: u32, cond: bool, msg: &str) {
+fn check(report: &mut BootHealthReport, code: BootErrorCode, cond: bool, msg: &str) {
     report.checks = report.checks.saturating_add(1);
     if !cond {
         report.failures = report.failures.saturating_add(1);
-        report.last_error_code = code;
-        crate::klog_error!("[BOOT SELFTEST] E{}: {}", code, msg);
+        report.last_error_code = code as u32;
+        crate::klog_error!("[BOOT SELFTEST] Error {}: {}", code, msg);
     }
 }

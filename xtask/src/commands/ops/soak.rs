@@ -115,7 +115,8 @@ mod tests {
     fn dry_run_summary_matches_fixture() {
         let summary = dry_run_summary("2026-04-02T00:00:00Z".to_string());
         let json = serde_json::to_string_pretty(&summary).expect("dry-run summary must serialize");
-        let expected = fs::read_to_string(paths::xtask_test_fixture("soak_dry_run_summary.json"))
+        let fixture_path = paths::resolve("xtask/tests/fixtures/soak_dry_run_summary.json");
+        let expected = fs::read_to_string(&fixture_path)
             .expect("fixture must be readable");
         let expected = expected.replace("\r\n", "\n");
         assert_eq!(json, expected.trim_end());
