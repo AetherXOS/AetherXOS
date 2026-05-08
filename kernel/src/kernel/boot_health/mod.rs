@@ -1,3 +1,4 @@
+pub mod codes;
 mod checks;
 mod contracts;
 mod self_test;

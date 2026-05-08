@@ -10,6 +10,15 @@ impl BootHealthReport {
     pub const fn passed(self) -> bool {
         self.failures == 0
     }
+
+    #[inline(always)]
+    pub fn merge_raw(&mut self, checks: u32, failures: u32, last_error_code: u32) {
+        self.checks = self.checks.saturating_add(checks);
+        self.failures = self.failures.saturating_add(failures);
+        if failures > 0 {
+            self.last_error_code = last_error_code;
+        }
+    }
 }
 
 pub fn run_boot_self_tests() -> BootHealthReport {

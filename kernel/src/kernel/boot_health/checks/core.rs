@@ -1,5 +1,6 @@
 use super::check;
 use super::BootHealthReport;
+use crate::kernel::boot_health::codes::BootErrorCode;
 use crate::config::KernelConfig;
 use crate::generated_consts::KERNEL_MAX_CPUS;
 #[cfg(feature = "sched_lottery")]
@@ -8,62 +9,62 @@ use crate::generated_consts::SCHED_LOTTERY_REPLAY_TRACE_CAPACITY;
 pub(super) fn run_core_checks(report: &mut BootHealthReport) {
     check(
         report,
-        1001,
+        BootErrorCode::TimeSliceInvalid,
         KernelConfig::time_slice() > 0,
         "time_slice_ns must be > 0",
     );
     check(
         report,
-        1002,
+        BootErrorCode::StackSizeInvalid,
         KernelConfig::stack_size() > 0,
         "stack_size must be > 0",
     );
     check(
         report,
-        1003,
+        BootErrorCode::WatchdogHardStallInvalid,
         KernelConfig::watchdog_hard_stall_ns() >= KernelConfig::time_slice(),
         "watchdog_hard_stall_ns must be >= time_slice_ns",
     );
     check(
         report,
-        1004,
+        BootErrorCode::SoftWatchdogStallInvalid,
         !KernelConfig::is_soft_watchdog_enabled() || KernelConfig::soft_watchdog_stall_ticks() > 0,
         "soft watchdog enabled but stall ticks is 0",
     );
     check(
         report,
-        1005,
+        BootErrorCode::IrqVectorBaseInvalid,
         KernelConfig::irq_vector_base() >= 32 && KernelConfig::irq_vector_base() <= 240,
         "irq_vector_base out of [32,240]",
     );
     check(
         report,
-        1006,
+        BootErrorCode::LaunchMaxProcessNameLenInvalid,
         KernelConfig::launch_max_process_name_len() > 0
             && KernelConfig::launch_max_process_name_len() <= 32,
         "launch_max_process_name_len out of bounds",
     );
     check(
         report,
-        1007,
+        BootErrorCode::LaunchMaxBootImageBytesInvalid,
         KernelConfig::launch_max_boot_image_bytes() > 0,
         "launch_max_boot_image_bytes must be > 0",
     );
     check(
         report,
-        1008,
+        BootErrorCode::VfsMaxMountPathInvalid,
         KernelConfig::vfs_max_mount_path() > 0 && KernelConfig::vfs_max_mount_path() <= 4096,
         "vfs_max_mount_path out of bounds",
     );
     check(
         report,
-        1009,
+        BootErrorCode::KernelMaxCpusInvalid,
         KERNEL_MAX_CPUS > 0,
         "kernel max cpus must be > 0",
     );
     check(
         report,
-        1010,
+        BootErrorCode::RebalancePreferLocalSkipBudgetHigh,
         KernelConfig::rebalance_prefer_local_skip_budget()
             <= KernelConfig::rebalance_batch_size().saturating_mul(16),
         "rebalance_prefer_local_skip_budget is unreasonably high for batch size",
@@ -71,7 +72,7 @@ pub(super) fn run_core_checks(report: &mut BootHealthReport) {
     #[cfg(feature = "sched_lottery")]
     check(
         report,
-        1301,
+        BootErrorCode::SchedLotteryReplayTraceCapacityInvalid,
         SCHED_LOTTERY_REPLAY_TRACE_CAPACITY > 0,
         "lottery replay trace capacity must be > 0",
     );
@@ -83,7 +84,7 @@ pub(super) fn run_core_checks(report: &mut BootHealthReport) {
     heap_test_vec.push(0xAA);
     check(
         report,
-        1011,
+        BootErrorCode::HeapAllocatorConstraintFailed,
         heap_test_vec.pop() == Some(0xAA),
         "Dynamic Heap Allocator (Vec) failed memory flow constraints",
     );
