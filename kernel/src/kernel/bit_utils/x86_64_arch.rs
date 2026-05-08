@@ -11,16 +11,17 @@ pub const PAGE_FAULT_STACK_SIZE: usize = 4096 * 5;
 
 /// CR0 Register Bits.
 pub mod cr0 {
-    pub const PE: u64 = 1 << 0;  // Protection Enable
-    pub const MP: u64 = 1 << 1;  // Monitor Coprocessor
-    pub const EM: u64 = 1 << 2;  // Emulation
-    pub const TS: u64 = 1 << 3;  // Task Switched
-    pub const NE: u64 = 1 << 5;  // Numeric Error
-    pub const WP: u64 = 1 << 16; // Write Protect
-    pub const AM: u64 = 1 << 18; // Alignment Mask
-    pub const NW: u64 = 1 << 29; // Not Write-through
-    pub const CD: u64 = 1 << 30; // Cache Disable
-    pub const PG: u64 = 1 << 31; // Paging
+    use aethercore_common::bits::BitField64;
+    pub const PE: BitField64 = BitField64::new(1, 0);  // Protection Enable
+    pub const MP: BitField64 = BitField64::new(1, 1);  // Monitor Coprocessor
+    pub const EM: BitField64 = BitField64::new(1, 2);  // Emulation
+    pub const TS: BitField64 = BitField64::new(1, 3);  // Task Switched
+    pub const NE: BitField64 = BitField64::new(1, 5);  // Numeric Error
+    pub const WP: BitField64 = BitField64::new(1, 16); // Write Protect
+    pub const AM: BitField64 = BitField64::new(1, 18); // Alignment Mask
+    pub const NW: BitField64 = BitField64::new(1, 29); // Not Write-through
+    pub const CD: BitField64 = BitField64::new(1, 30); // Cache Disable
+    pub const PG: BitField64 = BitField64::new(1, 31); // Paging
 }
 
 /// CR4 Register Bits.
@@ -49,11 +50,12 @@ pub mod cr4 {
 
 /// EFER Register Bits.
 pub mod efer {
-    pub const SCE: u64 = 1 << 0;  // System Call Extensions
-    pub const LME: u64 = 1 << 8;  // Long Mode Enable
-    pub const LMA: u64 = 1 << 10; // Long Mode Active
-    pub const NXE: u64 = 1 << 11; // No-Execute Enable
-    pub const SVME: u64 = 1 << 12; // Secure Virtual Machine Enable
-    pub const LMSLE: u64 = 1 << 13; // Long Mode Segment Limit Enable
-    pub const FFXSR: u64 = 1 << 14; // Fast FXSAVE/FXRSTOR
+    use aethercore_common::bits::BitField64;
+    pub const SCE: BitField64 = BitField64::new(1, 0);  // System Call Extensions
+    pub const LME: BitField64 = BitField64::new(1, 8);  // Long Mode Enable
+    pub const LMA: BitField64 = BitField64::new(1, 10); // Long Mode Active
+    pub const NXE: BitField64 = BitField64::new(1, 11); // No-Execute Enable
+    pub const SVME: BitField64 = BitField64::new(1, 12); // Secure Virtual Machine Enable
+    pub const LMSLE: BitField64 = BitField64::new(1, 13); // Long Mode Segment Limit Enable
+    pub const FFXSR: BitField64 = BitField64::new(1, 14); // Fast FXSAVE/FXRSTOR
 }

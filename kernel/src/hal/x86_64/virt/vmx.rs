@@ -40,13 +40,14 @@ pub(super) fn try_enable_vmx() -> bool {
 
     #[cfg(target_os = "none")]
     {
-        let mut cr4: u64 = 0;
+        use crate::kernel::bit_utils::x86_64_arch::cr4;
+        let mut cr4_val: u64 = 0;
         unsafe {
-            core::arch::asm!("mov {}, cr4", out(reg) cr4, options(nostack, nomem));
+            core::arch::asm!("mov {}, cr4", out(reg) cr4_val, options(nostack, nomem));
         }
-        cr4 |= 1 << 13;
+        cr4_val = cr4::VMXE.set_bit(cr4_val, true);
         unsafe {
-            core::arch::asm!("mov cr4, {}", in(reg) cr4, options(nostack, nomem));
+            core::arch::asm!("mov cr4, {}", in(reg) cr4_val, options(nostack, nomem));
         }
     }
 

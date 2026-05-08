@@ -16,9 +16,10 @@ pub(super) fn prepare_vmcb_region() -> bool {
 
 #[cfg(target_arch = "x86_64")]
 pub(super) fn try_enable_svm() -> bool {
-    let mut efer = support::rdmsr(IA32_EFER);
-    efer |= 1 << 12;
-    support::wrmsr(IA32_EFER, efer);
+    use crate::kernel::bit_utils::x86_64_arch::efer;
+    let mut efer_val = support::rdmsr(IA32_EFER);
+    efer_val = efer::SVME.set_bit(efer_val, true);
+    support::wrmsr(IA32_EFER, efer_val);
     true
 }
 
