@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use std::env;
 
 use crate::constants::{cargo as cargo_consts, test as test_consts, tools};

@@ -54,31 +54,24 @@ fn cargo_subcommand_probe_names_match_tooling_contracts() {
 
 #[test]
 fn run_all_accepts_core_tiers_in_order() {
-    let tiers = ["fast", "integration", "nightly"];
+    let tiers = [TestTier::Fast, TestTier::Integration, TestTier::Nightly];
     let host = "x86_64-unknown-linux-gnu";
 
     let labels: Vec<_> = tiers
         .into_iter()
-        .flat_map(|tier| tier_specs(tier, false, host).unwrap())
+        .flat_map(|tier| tier_specs(tier, false, host))
         .map(|spec| spec.label)
         .collect();
 
     assert_eq!(labels.first().copied(), Some("nextest"));
     assert!(labels.len() >= 3);
-    assert_eq!(tier_specs("fast", false, host).unwrap()[0].label, "nextest");
+    assert_eq!(tier_specs(TestTier::Fast, false, host)[0].label, "nextest");
     assert_eq!(
-        tier_specs("integration", false, host).unwrap()[0].label,
+        tier_specs(TestTier::Integration, false, host)[0].label,
         "nextest"
     );
     assert_eq!(
-        tier_specs("nightly", false, host).unwrap()[0].label,
+        tier_specs(TestTier::Nightly, false, host)[0].label,
         "nextest"
     );
-}
-
-#[test]
-fn tier_specs_rejects_unknown_phase_names() {
-    let err = tier_specs("p0", false, "x86_64-unknown-linux-gnu").unwrap_err();
-    let text = format!("{err:#}");
-    assert!(text.contains("unknown test phase"));
 }
