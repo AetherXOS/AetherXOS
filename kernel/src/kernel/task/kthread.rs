@@ -60,16 +60,9 @@ where
         let mut t = task_arc.lock();
         t.name = alloc::string::String::from(name);
         t.state = TaskState::Ready;
-        // Store the closure pointer in rdi (x86_64) or x0 (aarch64) so the
-        // trampoline receives it as its first argument.
-        #[cfg(target_arch = "x86_64")]
-        {
-            t.context.rdi = data_ptr;
-        }
-        #[cfg(target_arch = "aarch64")]
-        {
-            t.context.x[0] = data_ptr;
-        }
+        // Store the closure pointer in the first argument register
+        // (RDI on x86_64, X0 on aarch64) using the CpuContext API.
+        t.context.set_arg_register_0(data_ptr);
     }
 
     crate::klog_info!("[KTHREAD] Spawned kernel thread '{}'", name);

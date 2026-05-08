@@ -91,7 +91,7 @@ impl VirtIoBlock {
     #[cfg(target_arch = "x86_64")]
     fn write8(&self, offset: u16, val: u8) {
         unsafe {
-            x86_64::instructions::port::Port::<u8>::new(self.io_base as u16 + offset).write(val)
+            crate::hal::port::Port::<u8>::new(self.io_base as u16 + offset).write(val)
         }
     }
     #[cfg(not(target_arch = "x86_64"))]
@@ -100,7 +100,7 @@ impl VirtIoBlock {
     #[cfg(target_arch = "x86_64")]
     fn write16(&self, offset: u16, val: u16) {
         unsafe {
-            x86_64::instructions::port::Port::<u16>::new(self.io_base as u16 + offset).write(val)
+            crate::hal::port::Port::<u16>::new(self.io_base as u16 + offset).write(val)
         }
     }
     #[cfg(not(target_arch = "x86_64"))]
@@ -109,7 +109,7 @@ impl VirtIoBlock {
     #[cfg(target_arch = "x86_64")]
     fn write32(&self, offset: u16, val: u32) {
         unsafe {
-            x86_64::instructions::port::Port::<u32>::new(self.io_base as u16 + offset).write(val)
+            crate::hal::port::Port::<u32>::new(self.io_base as u16 + offset).write(val)
         }
     }
     #[cfg(not(target_arch = "x86_64"))]
@@ -229,7 +229,7 @@ impl VirtIoBlock {
             self.write16(VIRTIO_PCI_QUEUE_NOTIFY, 0);
         }
 
-        let q = self.queue.as_mut().unwrap(); // Re-borrow after self.write16
+        let q = self.queue.as_mut().ok_or("queue not initialized")?; // Re-borrow after self.write16
 
         // Poll used ring until the device returns our descriptor
         const IO_POLL_TIMEOUT: u64 = 10_000_000;

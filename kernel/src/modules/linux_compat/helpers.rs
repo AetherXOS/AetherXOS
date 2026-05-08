@@ -175,15 +175,7 @@ macro_rules! resolve_at {
 #[macro_export]
 macro_rules! require_posix_fs {
     (($($arg:ident),*) => $body:expr) => {
-        {
-            #[cfg(feature = "posix_fs")]
-            return { $body };
-            #[cfg(not(feature = "posix_fs"))]
-            return {
-                $(let _ = $arg;)*
-                $crate::modules::linux_compat::helpers::linux_nosys()
-            };
-        }
+        $crate::require_feature!("posix_fs", ($($arg),*) => $body)
     };
 }
 
@@ -232,25 +224,74 @@ macro_rules! write_user_struct {
 #[macro_export]
 macro_rules! require_posix_net {
     (($($arg:ident),*) => $body:expr) => {
-        {
-            #[cfg(feature = "posix_net")]
-            return { $body };
-            #[cfg(not(feature = "posix_net"))]
-            return {
-                $(let _ = $arg;)*
-                $crate::modules::linux_compat::helpers::linux_nosys()
-            };
-        }
+        $crate::require_feature!("posix_net", ($($arg),*) => $body)
     };
 }
 
 #[macro_export]
 macro_rules! require_posix_process {
     (($($arg:ident),*) => $body:expr) => {
+        $crate::require_feature!("posix_process", ($($arg),*) => $body)
+    };
+}
+
+#[macro_export]
+macro_rules! require_posix_time {
+    (($($arg:ident),*) => $body:expr) => {
+        $crate::require_feature!("posix_time", ($($arg),*) => $body)
+    };
+}
+
+#[macro_export]
+macro_rules! require_posix_ipc {
+    (($($arg:ident),*) => $body:expr) => {
+        $crate::require_feature!("posix_ipc", ($($arg),*) => $body)
+    };
+}
+
+#[macro_export]
+macro_rules! require_posix_thread {
+    (($($arg:ident),*) => $body:expr) => {
+        $crate::require_feature!("posix_thread", ($($arg),*) => $body)
+    };
+}
+
+#[macro_export]
+macro_rules! require_posix_signal {
+    (($($arg:ident),*) => $body:expr) => {
+        $crate::require_feature!("posix_signal", ($($arg),*) => $body)
+    };
+}
+
+#[macro_export]
+macro_rules! require_posix_pipe {
+    (($($arg:ident),*) => $body:expr) => {
+        $crate::require_feature!("posix_pipe", ($($arg),*) => $body)
+    };
+}
+
+#[macro_export]
+macro_rules! require_posix_io {
+    (($($arg:ident),*) => $body:expr) => {
+        $crate::require_feature!("posix_io", ($($arg),*) => $body)
+    };
+}
+
+#[macro_export]
+macro_rules! require_posix_mman {
+    (($($arg:ident),*) => $body:expr) => {
+        $crate::require_feature!("posix_mman", ($($arg),*) => $body)
+    };
+}
+
+// Unified macro for all posix feature checks
+#[macro_export]
+macro_rules! require_feature {
+    ($feature:literal, ($($arg:ident),*) => $body:expr) => {
         {
-            #[cfg(feature = "posix_process")]
+            #[cfg(feature = $feature)]
             return { $body };
-            #[cfg(not(feature = "posix_process"))]
+            #[cfg(not(feature = $feature))]
             return {
                 $(let _ = $arg;)*
                 crate::modules::linux_compat::helpers::linux_nosys()

@@ -16,8 +16,8 @@ pub use crate::modules::vfs::dev_special::{
 
 const PTY_BUF_SIZE: usize = 4096;
 
-pub const TIOCSPTLCK: u32 = 0x40045431;
-pub const TIOCGPTN: u32 = 0x80045430;
+pub const PTY_IOCTL_TIOCSPTLCK: u32 = 0x40045431;
+pub const PTY_IOCTL_TIOCGPTN: u32 = 0x80045430;
 pub(crate) const SIGWINCH: i32 = 28;
 
 mod runtime;

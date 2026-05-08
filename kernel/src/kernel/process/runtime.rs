@@ -64,13 +64,7 @@ pub(super) fn allocate_user_vaddr(process: &Process, len: usize) -> Result<u64, 
         return Err("invalid length");
     }
     let page_size = crate::interfaces::memory::PAGE_SIZE_4K as u64;
-    let pages = ((len as u64) + page_size - 1) / page_size;
-    let bytes = pages.checked_mul(page_size).ok_or("overflow")?;
-    let prev = process
-        .next_mapping_hint
-        .fetch_add(bytes, Ordering::Relaxed);
-    let start = (prev + (page_size - 1)) & !(page_size - 1);
-    Ok(start)
+    process.find_free_vaddr(len as u64, page_size)
 }
 
 pub(super) fn register_mapping(
@@ -81,43 +75,11 @@ pub(super) fn register_mapping(
     prot: u32,
     flags: u32,
 ) -> Result<(), &'static str> {
-    if start >= end {
-        return Err("invalid range");
-    }
-    let page_size = crate::interfaces::memory::PAGE_SIZE_4K as u64;
-    if (start & (page_size - 1)) != 0 || (end & (page_size - 1)) != 0 {
-        return Err("unaligned range");
-    }
-    let page_count = ((end - start) / page_size) as usize;
-
-    let mut m = process.mappings.lock();
-    m.push(MappingRecord {
-        map_id,
-        start,
-        end,
-        prot,
-        flags,
-    });
-    process.mapped_regions.fetch_add(1, Ordering::Relaxed);
-    process
-        .mapped_pages
-        .fetch_add(page_count, Ordering::Relaxed);
-    Ok(())
+    process.register_mapping(map_id, start, end, prot, flags)
 }
 
 pub(super) fn remove_mapping_record(process: &Process, map_id: u32) -> Option<MappingRecord> {
-    let mut m = process.mappings.lock();
-    if let Some(pos) = m.iter().position(|r| r.map_id == map_id) {
-        let record = m.remove(pos);
-        let page_size = crate::interfaces::memory::PAGE_SIZE_4K as u64;
-        let page_count = ((record.end - record.start) / page_size) as usize;
-        process.mapped_regions.fetch_sub(1, Ordering::Relaxed);
-        process
-            .mapped_pages
-            .fetch_sub(page_count, Ordering::Relaxed);
-        return Some(record);
-    }
-    None
+    process.remove_mapping_record(map_id)
 }
 
 pub(super) fn lifecycle_state(process: &Process) -> Option<ProcessLifecycleState> {

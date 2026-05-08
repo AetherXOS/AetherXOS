@@ -1,4 +1,3 @@
-use core::fmt;
 use strum::{Display, EnumString, EnumIter, IntoStaticStr, AsRefStr};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Display, EnumString, EnumIter, IntoStaticStr, AsRefStr)]

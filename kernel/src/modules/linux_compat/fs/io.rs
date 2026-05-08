@@ -7,8 +7,22 @@ use spin::Mutex;
 /// FD_CLOEXEC flag value in Linux
 pub(crate) const LINUX_FD_CLOEXEC: usize = 0x1;
 
-// ioctl command codes
-const TIOCGWINSZ: usize = 0x5413;  // Get terminal window size
+// Terminal ioctl command codes (from <asm/ioctls.h>)
+const TIOCGWINSZ:  usize = 0x5413; // Get terminal window size
+const TIOCSWINSZ:  usize = 0x5414; // Set terminal window size
+const TIOCGPGRP:   usize = 0x540F; // Get foreground process group
+const TIOCSPGRP:   usize = 0x5410; // Set foreground process group
+const TCGETS:      usize = 0x5401; // Get termios
+const TCSETS:      usize = 0x5402; // Set termios (immediate)
+const TCSETSW:     usize = 0x5403; // Set termios (drain first)
+const TCSETSF:     usize = 0x5404; // Set termios (flush first)
+const TIOCSCTTY:   usize = 0x540E; // Set controlling terminal
+const TIOCGPTN:    usize = 0x8004_5430; // Get pty number
+const TIOCSPTLCK:  usize = 0x4004_5431; // Lock/unlock pty
+const TIOCGSERIAL: usize = 0x541E; // Get serial settings (stub)
+const FIONREAD:    usize = 0x541B; // Get bytes available to read
+const FIONBIO:     usize = 0x5421; // Set non-blocking mode
+const TIOCNOTTY:   usize = 0x5422; // Detach from controlling terminal
 
 // Pipe and buffer size constants
 const PIPE_MIN_SIZE: usize = 4096;
@@ -247,14 +261,25 @@ pub fn sys_linux_ioctl(fd: Fd, cmd: usize, arg: usize) -> usize {
         }
     }
 
-    // Terminal IOCTLs (TIOCGWINSZ etc)
+    // Terminal IOCTLs
     match cmd {
         TIOCGWINSZ => {
-            let ws = LinuxWinsize {
-                ws_row: TERMINAL_DEFAULT_ROWS,
-                ws_col: TERMINAL_DEFAULT_COLS,
-                ws_xpixel: 0,
-                ws_ypixel: 0,
+            let registry = crate::kernel::tty::GLOBAL_TTY_REGISTRY.lock();
+            let ws = if let Some(tty) = registry.get(crate::kernel::tty::TtyId::new(0)) {
+                let kws = tty.get_winsize();
+                LinuxWinsize {
+                    ws_row: kws.ws_row,
+                    ws_col: kws.ws_col,
+                    ws_xpixel: kws.ws_xpixel,
+                    ws_ypixel: kws.ws_ypixel,
+                }
+            } else {
+                LinuxWinsize {
+                    ws_row: TERMINAL_DEFAULT_ROWS,
+                    ws_col: TERMINAL_DEFAULT_COLS,
+                    ws_xpixel: 0,
+                    ws_ypixel: 0,
+                }
             };
             return with_user_write_bytes(arg, core::mem::size_of::<LinuxWinsize>(), |dst| {
                 let ptr = &ws as *const _ as *const u8;
@@ -265,6 +290,131 @@ pub fn sys_linux_ioctl(fd: Fd, cmd: usize, arg: usize) -> usize {
             })
             .map(|_| 0)
             .unwrap_or_else(|e| e);
+        }
+        TIOCSWINSZ => {
+            if arg == 0 { return linux_fault(); }
+            let mut ws: LinuxWinsize = unsafe { core::mem::zeroed() };
+            let _ = crate::kernel::syscalls::with_user_read_bytes(arg, core::mem::size_of::<LinuxWinsize>(), |src| {
+                let ptr = &mut ws as *mut _ as *mut u8;
+                unsafe { core::ptr::copy_nonoverlapping(src.as_ptr(), ptr, core::mem::size_of::<LinuxWinsize>()); }
+                0
+            });
+            let registry = crate::kernel::tty::GLOBAL_TTY_REGISTRY.lock();
+            if let Some(tty) = registry.get(crate::kernel::tty::TtyId::new(0)) {
+                tty.set_winsize(crate::kernel::tty::WinSize {
+                    ws_row: ws.ws_row,
+                    ws_col: ws.ws_col,
+                    ws_xpixel: ws.ws_xpixel,
+                    ws_ypixel: ws.ws_ypixel,
+                });
+            }
+            return 0;
+        }
+        TIOCGPGRP => {
+            return match crate::modules::linux_compat::process_group_syscalls::sys_ioctl_tiocgpgrp(fd_val, arg) {
+                Ok(pgrp) => {
+                    let _ = crate::kernel::syscalls::write_user_pod(arg, &(pgrp as i32));
+                    0
+                }
+                Err(_) => linux_errno(crate::modules::posix_consts::errno::ENOTTY),
+            };
+        }
+        TIOCSPGRP => {
+            let mut pgrp: i32 = 0;
+            if let Err(e) = crate::kernel::syscalls::read_user_pod(arg, &mut pgrp) { return e; }
+            return match crate::modules::linux_compat::process_group_syscalls::sys_ioctl_tiocspgrp(fd_val, pgrp as usize) {
+                Ok(()) => 0,
+                Err(_) => linux_errno(crate::modules::posix_consts::errno::ENOTTY),
+            };
+        }
+        TCGETS => {
+            let termios = LinuxTermios::default();
+            return with_user_write_bytes(arg, core::mem::size_of::<LinuxTermios>(), |dst| {
+                let ptr = &termios as *const _ as *const u8;
+                dst.copy_from_slice(unsafe {
+                    core::slice::from_raw_parts(ptr, core::mem::size_of::<LinuxTermios>())
+                });
+                0
+            }).map(|_| 0).unwrap_or_else(|e| e);
+        }
+        TCSETS | TCSETSW | TCSETSF => {
+            // Accept and apply - update the TTY device's termios
+            if fd_val <= 2 {
+                let mut termios = LinuxTermios::default();
+                if let Err(e) = with_user_read_bytes(arg, core::mem::size_of::<LinuxTermios>(), |src| {
+                    let ptr = &mut termios as *mut _ as *mut u8;
+                    unsafe {
+                        ptr.copy_from_nonoverlapping(src.as_ptr(), core::mem::size_of::<LinuxTermios>());
+                    }
+                    Ok(())
+                }) {
+                    return e;
+                }
+                let registry = crate::kernel::tty::GLOBAL_TTY_REGISTRY.lock();
+                if let Some(tty) = registry.get(crate::kernel::tty::TtyId::new(0)) {
+                    tty.set_termios(termios);
+                }
+            }
+            return 0;
+        }
+        TIOCSCTTY => {
+            // Associate this TTY with current session
+            // arg = 1 means steal from another session
+            let registry = crate::kernel::tty::GLOBAL_TTY_REGISTRY.lock();
+            if let Some(tty) = registry.get(crate::kernel::tty::TtyId::new(0)) {
+                #[cfg(feature = "posix_process")]
+                {
+                    let sid = crate::modules::posix::process::getsid(0).unwrap_or(0);
+                    tty.set_session_id(Some(crate::kernel::tty::SessionId(
+                        crate::interfaces::task::ProcessId(sid)
+                    )));
+                }
+            }
+            return 0;
+        }
+        TIOCNOTTY => {
+            // Detach from controlling terminal
+            return 0;
+        }
+        FIONREAD => {
+            if arg == 0 { return linux_fault(); }
+            // For now return 0 bytes available (non-blocking hint)
+            let available: i32 = 0;
+            let _ = crate::kernel::syscalls::write_user_pod(arg, &available);
+            return 0;
+        }
+        FIONBIO => {
+            // Set/clear non-blocking mode on fd
+            if arg != 0 {
+                let flag: i32 = if unsafe { *(arg as *const i32) } != 0 { 1 } else { 0 };
+                #[cfg(feature = "posix_fs")]
+                {
+                    let mut flags = crate::modules::posix::fs::fcntl_get_status_flags(fd.as_u32())
+                        .unwrap_or(0);
+                    if flag != 0 {
+                        flags |= crate::modules::posix_consts::fs::O_NONBLOCK as u32;
+                    } else {
+                        flags &= !(crate::modules::posix_consts::fs::O_NONBLOCK as u32);
+                    }
+                    let _ = crate::modules::posix::fs::fcntl_set_status_flags(fd.as_u32(), flags);
+                }
+            }
+            return 0;
+        }
+        TIOCGPTN => {
+            // Get PTY number - return 0 for now (pts/0)
+            if arg == 0 { return linux_fault(); }
+            let pty_num: u32 = 0;
+            let _ = crate::kernel::syscalls::write_user_pod(arg, &pty_num);
+            return 0;
+        }
+        TIOCSPTLCK => {
+            // Lock/unlock PTY - accept and ignore
+            return 0;
+        }
+        TIOCGSERIAL => {
+            // Serial settings - return ENOTTY for non-serial fds (correct behavior)
+            return linux_errno(crate::modules::posix_consts::errno::ENOTTY);
         }
         _ => {}
     }

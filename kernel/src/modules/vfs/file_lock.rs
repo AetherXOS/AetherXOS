@@ -214,22 +214,20 @@ pub fn init_lock_manager() {
 /// Perform a POSIX fcntl lock operation.
 pub fn fcntl_setlk(ino: u64, lock: PosixLock) -> Result<(), usize> {
     let mut guard = GLOBAL_LOCK_MANAGER.lock();
-    guard.as_mut().ok_or(0usize)?.fcntl_setlk(ino, lock)
+    let mgr = guard.as_mut().ok_or(0usize)?;
+    mgr.fcntl_setlk(ino, lock)
 }
 
 /// Query a POSIX lock.
 pub fn fcntl_getlk(ino: u64, query: &PosixLock) -> Option<PosixLock> {
-    let guard = GLOBAL_LOCK_MANAGER.lock();
-    guard.as_ref().map(|mgr| mgr.fcntl_getlk(ino, query))
+    GLOBAL_LOCK_MANAGER.lock().as_ref().map(|mgr| mgr.fcntl_getlk(ino, query))
 }
 
 /// Place a BSD flock lock.
 pub fn flock(ino: u64, lock: FlockLock) -> Result<(), &'static str> {
     let mut guard = GLOBAL_LOCK_MANAGER.lock();
-    guard
-        .as_mut()
-        .ok_or("lock manager not initialized")?
-        .flock(ino, lock)
+    let mgr = guard.as_mut().ok_or("lock manager not initialized")?;
+    mgr.flock(ino, lock)
 }
 
 /// Release all locks for a process (on process exit).

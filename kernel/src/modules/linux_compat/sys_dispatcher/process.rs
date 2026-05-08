@@ -11,6 +11,10 @@ pub fn dispatch_process(
         linux_nr::ARCH_PRCTL => Some(crate::modules::linux_compat::process::sys_linux_arch_prctl(
             f.a1, f.a2,
         )),
+        linux_nr::PRCTL => Some(crate::modules::linux_compat::process::sys_linux_prctl(
+            f.a1, f.a2, f.a3, f.a4, f.a5,
+        )),
+        linux_nr::GETTID => Some(crate::modules::linux_compat::cred::sys_linux_gettid()),
         linux_nr::BRK => Some(sys_linux_brk(f.a1)),
 
         // ── Thread/Process Lifecycle ──────────────────────────────────────────
@@ -24,6 +28,9 @@ pub fn dispatch_process(
             f.a3,
             f.a4,
             f.a5,
+        )),
+        linux_nr::EXIT => Some(crate::modules::linux_compat::process::sys_linux_exit(
+            f.a1,
         )),
         linux_nr::EXIT_GROUP => Some(crate::modules::linux_compat::process::sys_linux_exit_group(
             f.a1,

@@ -1,5 +1,6 @@
 // --- Foundations & Utilities ---
 pub mod bit_utils;
+pub mod boot_logger;
 pub mod log;
 pub mod debug_trace;
 pub mod cpu_local;
@@ -24,7 +25,6 @@ pub mod process;
 #[cfg(feature = "process_abstraction")]
 pub mod fork;
 #[cfg(feature = "process_abstraction")]
-#[cfg(feature = "process_abstraction")]
 pub mod process_registry {
     pub use super::process::registry::*;
 }
@@ -36,6 +36,13 @@ pub mod rt_preemption;
 // --- Execution & Loading ---
 pub mod launch;
 pub mod startup;
+pub mod boot_manager;
+pub mod boot_subsystems;
+pub mod device_manager;
+pub mod runtime_manager;
+pub mod scheduler_extensions;
+pub mod memory_extensions;
+pub mod vfs_extensions;
 pub mod dynamic_linker;
 pub mod module_loader;
 

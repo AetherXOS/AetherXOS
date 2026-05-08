@@ -244,24 +244,37 @@ pub fn terminate_process_with_status(process_id: ProcessId, status: i32) -> bool
 pub fn terminate_task(task_id: TaskId) -> bool {
     TERMINATE_BY_TASK_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
 
-    let process_id = {
-        let registry = PROCESS_REGISTRY.lock();
-        registry
-            .iter()
-            .find(|entry| entry.task_id == task_id)
-            .map(|entry| entry.process_id)
-    };
-
-    let Some(process_id) = process_id else {
+    let task_arc = crate::kernel::task::get_task(task_id);
+    let Some(task_arc) = task_arc else {
         TERMINATE_BY_TASK_FAILURES.fetch_add(1, Ordering::Relaxed);
         return false;
     };
 
-    if terminate_process_with_status(process_id, 0) {
-        TERMINATE_BY_TASK_SUCCESS.fetch_add(1, Ordering::Relaxed);
-        true
-    } else {
-        TERMINATE_BY_TASK_FAILURES.fetch_add(1, Ordering::Relaxed);
-        false
+    let process_id_opt = task_arc.lock().process_id;
+
+    if let Some(process_id) = process_id_opt {
+        if let Some(process) = crate::kernel::process::registry::get_process(process_id) {
+            let mut threads = process.threads.lock();
+            if let Some(pos) = threads.iter().position(|&tid| tid == task_id) {
+                threads.remove(pos);
+            }
+
+            if threads.is_empty() {
+                drop(threads);
+                return terminate_process_with_status(process_id, 0);
+            }
+        }
     }
+
+    // Single thread exit logic
+    wrappers::finalize_task_user_exit_state(task_id);
+
+    let cpus = crate::hal::smp::CPUS.lock();
+    for cpu in cpus.iter() {
+        let mut scheduler = cpu.scheduler.lock();
+        scheduler.remove_task(task_id);
+    }
+
+    TERMINATE_BY_TASK_SUCCESS.fetch_add(1, Ordering::Relaxed);
+    true
 }

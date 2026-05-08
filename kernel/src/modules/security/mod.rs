@@ -97,6 +97,7 @@ pub fn active_profile() -> SecurityProfile {
         if crate::config::KernelConfig::capability_enforcement_enabled() {
             return SecurityProfile::Capabilities;
         }
+        return SecurityProfile::Null;
     }
     #[cfg(all(
         not(feature = "security_sel4"),

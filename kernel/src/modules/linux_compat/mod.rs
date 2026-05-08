@@ -5,10 +5,9 @@ extern crate alloc;
 
 pub use crate::kernel::syscalls::syscalls_consts::*;
 pub(crate) use crate::kernel::syscalls::{
-    current_process_id, execve_stack_required_bytes, prepare_execve_user_stack,
-    set_execve_new_entry, set_execve_new_stack, sys_exit, sys_yield, sys_futex_wait, sys_futex_wake,
-    user_readable_range_valid, with_user_read_bytes, with_user_write_bytes, ExecveAuxEntry,
-    ExecveAuxValue, SyscallFrame,
+    current_process_id, execve_stack_required_bytes, prepare_execve_user_stack, sys_exit, sys_yield,
+    sys_futex_wait, sys_futex_wake, user_readable_range_valid, with_user_read_bytes,
+    with_user_write_bytes, ExecveAuxEntry, ExecveAuxValue, SyscallFrame,
 };
 
 pub mod error;

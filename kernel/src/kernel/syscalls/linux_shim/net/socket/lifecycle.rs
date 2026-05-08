@@ -169,6 +169,11 @@ pub(crate) fn userspace_display_epoll_revents(fd: u32, requested: u32) -> u32 {
 pub(crate) fn sys_linux_socket(domain: usize, sock_type: usize, protocol: usize) -> usize {
     #[cfg(feature = "posix_net")]
     {
+        // Phase 7: Socket creation hook
+        if let Err(_) = crate::kernel_runtime::service_integration::on_socket_create(domain, sock_type, protocol, 0) {
+            return linux_errno(crate::modules::posix_consts::errno::EAFNOSUPPORT);
+        }
+        
         match crate::modules::posix::net::socket_raw_errno(
             domain as i32,
             sock_type as i32,
@@ -198,6 +203,14 @@ pub(crate) fn sys_linux_connect(fd: usize, addr_ptr: usize, addr_len: usize) -> 
             Ok(v) => v,
             Err(e) => return e,
         };
+        
+        // Phase 7: Connect hook - extract address/port and check policy
+        let remote_addr = "0.0.0.0"; // Placeholder - would extract from addr in production
+        let remote_port = (addr.port as u16);
+        if let Err(_) = crate::kernel_runtime::service_integration::on_socket_connect(2, remote_addr, remote_port, 0) {
+            return linux_errno(crate::modules::posix_consts::errno::EACCES);
+        }
+        
         match crate::modules::libnet::posix_connect_errno(fd as u32, addr) {
             Ok(()) => 0,
             Err(err) => linux_errno(err.code()),
@@ -223,6 +236,13 @@ pub(crate) fn sys_linux_bind(fd: usize, addr_ptr: usize, addr_len: usize) -> usi
             Ok(v) => v,
             Err(e) => return e,
         };
+        
+        // Phase 7: Bind hook - extract port and check privileges
+        let port = (addr.port as u16);
+        if let Err(_) = crate::kernel_runtime::service_integration::on_socket_bind(port, 0) {
+            return linux_errno(crate::modules::posix_consts::errno::EACCES);
+        }
+        
         match crate::modules::libnet::posix_bind_errno(fd as u32, addr) {
             Ok(()) => 0,
             Err(err) => linux_errno(err.code()),
@@ -248,6 +268,11 @@ pub(crate) fn sys_linux_listen(fd: usize, backlog: usize) -> usize {
             }
             let _ = backlog;
             return 0;
+        }
+
+        // Phase 7: Listen hook
+        if let Err(_) = crate::kernel_runtime::service_integration::on_socket_listen(fd, backlog, 0) {
+            return linux_errno(crate::modules::posix_consts::errno::EINVAL);
         }
 
         match crate::modules::libnet::posix_listen_errno(fd as u32, backlog) {
@@ -308,6 +333,13 @@ pub(crate) fn sys_linux_accept(
 
         if addr_ptr != 0 && len_ptr != 0 {
             if let Ok(peer) = crate::modules::libnet::posix_getpeername_errno(new_fd) {
+                // Phase 7: Accept hook - check if we should accept this connection
+                let remote_addr = "0.0.0.0"; // Placeholder
+                if let Err(_) = crate::kernel_runtime::service_integration::on_socket_accept(fd, 0, remote_addr) {
+                    // Connection denied - return error
+                    return linux_errno(crate::modules::posix_consts::errno::EACCES);
+                }
+                
                 let wr = write_sockaddr_in(addr_ptr, len_ptr, peer);
                 if wr != 0 {
                     return wr;

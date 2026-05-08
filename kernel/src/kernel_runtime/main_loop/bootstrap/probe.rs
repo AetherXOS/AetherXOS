@@ -1,5 +1,4 @@
 use core::sync::atomic::Ordering;
-use super::super::*;
 
 #[cfg(feature = "process_abstraction")]
 include!(concat!(env!("OUT_DIR"), "/linked_probe_image.rs"));

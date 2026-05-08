@@ -47,6 +47,7 @@ pub(super) fn materialize_write_u64_at(
 }
 
 #[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
+#[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
 pub(super) fn install_runtime_init_trampoline(
     process: &crate::kernel::process::Process,
     hooks: &crate::kernel::process::RuntimeLifecycleHooks,
@@ -57,71 +58,52 @@ pub(super) fn install_runtime_init_trampoline(
     next_runtime_trampoline_map_id: &core::sync::atomic::AtomicU64,
     page_size: u64,
 ) -> Option<u64> {
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        let _ = (
-            process,
-            hooks,
-            original_entry,
-            mappings,
-            page_manager,
-            frame_allocator,
-            next_runtime_trampoline_map_id,
-            page_size,
-        );
-        None
+    let ordered_hooks = hooks.ordered_init_calls();
+    if ordered_hooks.is_empty() {
+        return None;
     }
 
-    #[cfg(target_arch = "x86_64")]
-    {
-        let ordered_hooks = hooks.ordered_init_calls();
-        if ordered_hooks.is_empty() {
-            return None;
-        }
+    let max_end = mappings
+        .iter()
+        .map(|m| m.end)
+        .max()
+        .unwrap_or(original_entry);
+    let tramp_start = super::module_loader_support::align_up(max_end, page_size)?;
+    let tramp_end =
+        super::module_loader_support::align_up(tramp_start + page_size, page_size)?;
+    let prot_write = crate::modules::posix_consts::mman::PROT_READ
+        | crate::modules::posix_consts::mman::PROT_WRITE;
+    super::materialize_virtual_mapping_range(
+        tramp_start,
+        tramp_end,
+        prot_write as u32,
+        page_manager,
+        frame_allocator,
+    )
+    .ok()?;
 
-        let max_end = mappings
-            .iter()
-            .map(|m| m.end)
-            .max()
-            .unwrap_or(original_entry);
-        let tramp_start = super::module_loader_support::align_up(max_end, page_size)?;
-        let tramp_end =
-            super::module_loader_support::align_up(tramp_start + page_size, page_size)?;
-        let prot_write = crate::modules::posix_consts::mman::PROT_READ
-            | crate::modules::posix_consts::mman::PROT_WRITE;
-        super::materialize_virtual_mapping_range(
-            tramp_start,
-            tramp_end,
-            prot_write as u32,
-            page_manager,
-            frame_allocator,
-        )
-        .ok()?;
+    let mut trampoline = [0u8; super::module_loader_support::PAGE_SIZE as usize];
+    let used = crate::hal::platforms::get_platform().encode_init_trampoline(&mut trampoline, &ordered_hooks, original_entry)?;
+    materialize_write_bytes_at(tramp_start, &trampoline[..used], mappings).ok()?;
 
-        let mut trampoline = [0u8; super::module_loader_support::PAGE_SIZE as usize];
-        let used =
-            encode_x86_64_runtime_init_trampoline(&mut trampoline, &ordered_hooks, original_entry)?;
-        materialize_write_bytes_at(tramp_start, &trampoline[..used], mappings).ok()?;
+    use x86_64::structures::paging::PageTableFlags;
+    let target_flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
+    let _ = page_manager.remap_range(tramp_start, tramp_end, target_flags.bits() as u32, frame_allocator);
 
-        use x86_64::structures::paging::PageTableFlags;
-        let target_flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
-        let _ = page_manager.remap_range(tramp_start, tramp_end, target_flags.bits() as u32, frame_allocator);
-
-        let map_id = next_runtime_trampoline_map_id
-            .fetch_add(1, core::sync::atomic::Ordering::Relaxed) as u32;
-        let prot_exec = crate::modules::posix_consts::mman::PROT_READ
-            | crate::modules::posix_consts::mman::PROT_EXEC;
-        let map_flags = crate::modules::posix_consts::mman::MAP_PRIVATE as u32;
-        let _ =
-            process.register_mapping(map_id, tramp_start, tramp_end, prot_exec as u32, map_flags);
-        mappings.push(super::VirtualMappingPlan {
-            start: tramp_start,
-            end: tramp_end,
-            virtual_addr: tramp_start, mem_size: tramp_end - tramp_start, file_bytes: used as u64,
-            zero_fill_bytes: tramp_end.saturating_sub(tramp_start + used as u64), file_offset: 0,
-        });
-        Some(tramp_start)
-    }
+    let map_id = next_runtime_trampoline_map_id
+        .fetch_add(1, core::sync::atomic::Ordering::Relaxed) as u32;
+    let prot_exec = crate::modules::posix_consts::mman::PROT_READ
+        | crate::modules::posix_consts::mman::PROT_EXEC;
+    let map_flags = crate::modules::posix_consts::mman::MAP_PRIVATE as u32;
+    let _ =
+        process.register_mapping(map_id, tramp_start, tramp_end, prot_exec as u32, map_flags);
+    mappings.push(super::VirtualMappingPlan {
+        start: tramp_start,
+        end: tramp_end,
+        virtual_addr: tramp_start, mem_size: tramp_end - tramp_start, file_bytes: used as u64,
+        zero_fill_bytes: tramp_end.saturating_sub(tramp_start + used as u64), file_offset: 0,
+    });
+    Some(tramp_start)
 }
 
 #[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
@@ -134,128 +116,46 @@ pub(super) fn install_runtime_fini_trampoline(
     next_runtime_trampoline_map_id: &core::sync::atomic::AtomicU64,
     page_size: u64,
 ) -> Option<u64> {
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        let _ = (
-            process,
-            hooks,
-            mappings,
-            page_manager,
-            frame_allocator,
-            next_runtime_trampoline_map_id,
-            page_size,
-        );
-        None
+    let ordered_hooks = hooks.ordered_fini_calls();
+    if ordered_hooks.is_empty() {
+        return None;
     }
 
-    #[cfg(target_arch = "x86_64")]
-    {
-        let ordered_hooks = hooks.ordered_fini_calls();
-        if ordered_hooks.is_empty() {
-            return None;
-        }
+    let max_end = mappings.iter().map(|m| m.end).max().unwrap_or(0);
+    let tramp_start = super::module_loader_support::align_up(max_end, page_size)?;
+    let tramp_end =
+        super::module_loader_support::align_up(tramp_start + page_size, page_size)?;
+    let prot_write = crate::modules::posix_consts::mman::PROT_READ
+        | crate::modules::posix_consts::mman::PROT_WRITE;
+    super::materialize_virtual_mapping_range(
+        tramp_start,
+        tramp_end,
+        prot_write as u32,
+        page_manager,
+        frame_allocator,
+    )
+    .ok()?;
 
-        let max_end = mappings.iter().map(|m| m.end).max().unwrap_or(0);
-        let tramp_start = super::module_loader_support::align_up(max_end, page_size)?;
-        let tramp_end =
-            super::module_loader_support::align_up(tramp_start + page_size, page_size)?;
-        let prot_write = crate::modules::posix_consts::mman::PROT_READ
-            | crate::modules::posix_consts::mman::PROT_WRITE;
-        super::materialize_virtual_mapping_range(
-            tramp_start,
-            tramp_end,
-            prot_write as u32,
-            page_manager,
-            frame_allocator,
-        )
-        .ok()?;
+    let mut trampoline = [0u8; super::module_loader_support::PAGE_SIZE as usize];
+    let used = crate::hal::platforms::get_platform().encode_fini_trampoline(&mut trampoline, &ordered_hooks)?;
+    materialize_write_bytes_at(tramp_start, &trampoline[..used], mappings).ok()?;
 
-        let mut trampoline = [0u8; super::module_loader_support::PAGE_SIZE as usize];
-        let used = encode_x86_64_runtime_fini_trampoline(&mut trampoline, &ordered_hooks)?;
-        materialize_write_bytes_at(tramp_start, &trampoline[..used], mappings).ok()?;
+    use x86_64::structures::paging::PageTableFlags;
+    let target_flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
+    let _ = page_manager.remap_range(tramp_start, tramp_end, target_flags.bits() as u32, frame_allocator);
 
-        use x86_64::structures::paging::PageTableFlags;
-        let target_flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
-        let _ = page_manager.remap_range(tramp_start, tramp_end, target_flags.bits() as u32, frame_allocator);
-
-        let map_id = next_runtime_trampoline_map_id
-            .fetch_add(1, core::sync::atomic::Ordering::Relaxed) as u32;
-        let prot_exec = crate::modules::posix_consts::mman::PROT_READ
-            | crate::modules::posix_consts::mman::PROT_EXEC;
-        let map_flags = crate::modules::posix_consts::mman::MAP_PRIVATE as u32;
-        let _ =
-            process.register_mapping(map_id, tramp_start, tramp_end, prot_exec as u32, map_flags);
-        mappings.push(super::VirtualMappingPlan {
-            start: tramp_start,
-            end: tramp_end,
-            virtual_addr: tramp_start, mem_size: tramp_end - tramp_start, file_bytes: used as u64,
-            zero_fill_bytes: tramp_end.saturating_sub(tramp_start + used as u64), file_offset: 0,
-        });
-        Some(tramp_start)
-    }
-}
-
-#[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
-pub(super) fn encode_x86_64_runtime_init_trampoline(
-    buf: &mut [u8],
-    hooks: &[u64],
-    final_entry: u64,
-) -> Option<usize> {
-    fn push_bytes(buf: &mut [u8], off: &mut usize, bytes: &[u8]) -> Option<()> {
-        let end = off.checked_add(bytes.len())?;
-        if end > buf.len() {
-            return None;
-        }
-        buf[*off..end].copy_from_slice(bytes);
-        *off = end;
-        Some(())
-    }
-
-    fn push_mov_rax_imm64(buf: &mut [u8], off: &mut usize, imm: u64) -> Option<()> {
-        push_bytes(buf, off, &[0x48, 0xB8])?;
-        push_bytes(buf, off, &imm.to_le_bytes())
-    }
-
-    let mut off = 0usize;
-    for hook in hooks {
-        push_mov_rax_imm64(buf, &mut off, *hook)?;
-        push_bytes(buf, &mut off, &[0x48, 0x85, 0xC0])?;
-        push_bytes(buf, &mut off, &[0x74, 0x02])?;
-        push_bytes(buf, &mut off, &[0xFF, 0xD0])?;
-    }
-    push_mov_rax_imm64(buf, &mut off, final_entry)?;
-    push_bytes(buf, &mut off, &[0xFF, 0xE0])?;
-    Some(off)
-}
-
-#[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
-pub(super) fn encode_x86_64_runtime_fini_trampoline(
-    buf: &mut [u8],
-    hooks: &[u64],
-) -> Option<usize> {
-    fn push_bytes(buf: &mut [u8], off: &mut usize, bytes: &[u8]) -> Option<()> {
-        let end = off.checked_add(bytes.len())?;
-        if end > buf.len() {
-            return None;
-        }
-        buf[*off..end].copy_from_slice(bytes);
-        *off = end;
-        Some(())
-    }
-
-    fn push_mov_rax_imm64(buf: &mut [u8], off: &mut usize, imm: u64) -> Option<()> {
-        push_bytes(buf, off, &[0x48, 0xB8])?;
-        push_bytes(buf, off, &imm.to_le_bytes())
-    }
-
-    let mut off = 0usize;
-    for hook in hooks {
-        push_mov_rax_imm64(buf, &mut off, *hook)?;
-        push_bytes(buf, &mut off, &[0x48, 0x85, 0xC0])?;
-        push_bytes(buf, &mut off, &[0x74, 0x02])?;
-        push_bytes(buf, &mut off, &[0xFF, 0xD0])?;
-    }
-    push_bytes(buf, &mut off, &[0x31, 0xC0])?; // xor eax,eax
-    push_bytes(buf, &mut off, &[0xC3])?; // ret
-    Some(off)
+    let map_id = next_runtime_trampoline_map_id
+        .fetch_add(1, core::sync::atomic::Ordering::Relaxed) as u32;
+    let prot_exec = crate::modules::posix_consts::mman::PROT_READ
+        | crate::modules::posix_consts::mman::PROT_EXEC;
+    let map_flags = crate::modules::posix_consts::mman::MAP_PRIVATE as u32;
+    let _ =
+        process.register_mapping(map_id, tramp_start, tramp_end, prot_exec as u32, map_flags);
+    mappings.push(super::VirtualMappingPlan {
+        start: tramp_start,
+        end: tramp_end,
+        virtual_addr: tramp_start, mem_size: tramp_end - tramp_start, file_bytes: used as u64,
+        zero_fill_bytes: tramp_end.saturating_sub(tramp_start + used as u64), file_offset: 0,
+    });
+    Some(tramp_start)
 }

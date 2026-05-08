@@ -1,7 +1,7 @@
 use super::super::*;
 use crate::kernel::syscalls::{
     current_process_id, execve_stack_required_bytes, prepare_execve_user_stack,
-    set_execve_new_entry, set_execve_new_stack, ExecveAuxEntry, ExecveAuxValue, SyscallFrame,
+    ExecveAuxEntry, ExecveAuxValue, SyscallFrame,
 };
 use core::sync::atomic::Ordering;
 
@@ -80,7 +80,7 @@ pub(crate) fn execve_with_path(
                                         let random_ptr = stack_end - 16;
 
                                         use crate::kernel::syscalls::syscalls_consts::linux::*;
-                                        let auxv_entries = alloc::vec![
+                                        let mut auxv_entries = alloc::vec![
                                             ExecveAuxEntry {
                                                 key: linux::AT_PHDR as usize,
                                                 value: ExecveAuxValue::Word(phdr_addr as usize),
@@ -127,15 +127,27 @@ pub(crate) fn execve_with_path(
                                             },
                                             ExecveAuxEntry {
                                                 key: linux::AT_RANDOM as usize,
-                                                value: ExecveAuxValue::Word(random_ptr as usize),
+                                                value: ExecveAuxValue::Bytes(&random_bytes),
                                             },
                                             ExecveAuxEntry {
                                                 key: linux::AT_HWCAP as usize,
                                                 value: ExecveAuxValue::Word(0),
                                             },
                                             ExecveAuxEntry {
+                                                key: linux::AT_HWCAP2 as usize,
+                                                value: ExecveAuxValue::Word(0),
+                                            },
+                                            ExecveAuxEntry {
                                                 key: linux::AT_CLKTCK as usize,
                                                 value: ExecveAuxValue::Word(100),
+                                            },
+                                            ExecveAuxEntry {
+                                                key: linux::AT_PLATFORM as usize,
+                                                value: ExecveAuxValue::CString("x86_64"),
+                                            },
+                                            ExecveAuxEntry {
+                                                key: linux::AT_EXECFN as usize,
+                                                value: ExecveAuxValue::CString(&path),
                                             },
                                             ExecveAuxEntry {
                                                 key: linux::AT_SYSINFO_EHDR as usize,
@@ -150,7 +162,7 @@ pub(crate) fn execve_with_path(
                                             &envp,
                                             &auxv_entries,
                                         ) {
-                                            set_execve_new_stack(new_rsp as usize);
+                                            frame.rsp = new_rsp;
                                             
                                             // Update task user stack pointer for scheduling
                                             if let Some(cpu) = unsafe { crate::kernel::cpu_local::CpuLocal::try_get() } {
@@ -168,7 +180,6 @@ pub(crate) fn execve_with_path(
 
                                 let entry = proc.image_entry.load(Ordering::Relaxed);
                                 frame.rip = entry as u64;
-                                set_execve_new_entry(entry);
                                 0
                             }
                             Err(err) => linux_errno(err.code()),

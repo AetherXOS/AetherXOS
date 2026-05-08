@@ -2,7 +2,7 @@ use core::any::Any;
 
 use crate::modules::vfs::types::{File, FileStats, PollEvents};
 
-use super::ioctl::{handle_common_ioctl, PtyIoctlSide};
+use super::ioctl::{handle_common_ioctl, ioctl_read, ioctl_write, PtyIoctlSide};
 use super::pair::PtyPair;
 use super::{TIOCGPTN, TIOCSPTLCK};
 
@@ -62,23 +62,11 @@ impl File for PtyMaster {
 
     fn ioctl(&mut self, cmd: u32, arg: u64) -> Result<isize, &'static str> {
         match cmd {
-            TIOCGPTN => {
-                if arg == 0 {
-                    return Err("EFAULT");
-                }
-                let ptr = arg as *mut u32;
-                unsafe { core::ptr::write_volatile(ptr, self.index) };
-                Ok(0)
-            }
-            TIOCSPTLCK => {
-                if arg == 0 {
-                    return Err("EFAULT");
-                }
-                let ptr = arg as *const i32;
-                let lock = unsafe { core::ptr::read_volatile(ptr) };
+            TIOCGPTN => ioctl_write!(arg, u32, self.index).ok_or("ENOTTY"),
+            TIOCSPTLCK => ioctl_read!(arg, i32, |lock| {
                 self.pair.set_locked(lock != 0);
-                Ok(0)
-            }
+                Some(0)
+            }).ok_or("ENOTTY"),
             _ => match handle_common_ioctl(&self.pair, PtyIoctlSide::Master, cmd, arg)? {
                 Some(result) => Ok(result),
                 None => Err("ENOTTY"),

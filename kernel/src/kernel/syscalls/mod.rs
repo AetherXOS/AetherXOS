@@ -1,7 +1,7 @@
 #[cfg(target_arch = "x86_64")]
 use crate::interfaces::cpu::CpuRegisters;
 use crate::interfaces::Scheduler;
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::sync::atomic::Ordering;
 // use x86_64::registers::control::Cr3;
 // Removed x86 specific imports
 
@@ -86,15 +86,6 @@ pub(crate) fn set_robust_list_for_tid(tid: usize, head: usize, len: usize) {
     ROBUST_LISTS.lock().insert(tid, (head, len));
 }
 
-#[cfg(any(test, feature = "linux_compat"))]
-pub(crate) fn set_execve_new_stack(rsp: usize) {
-    EXECVE_NEW_STACK.store(rsp, Ordering::Relaxed);
-}
-
-#[cfg(any(test, feature = "linux_compat"))]
-pub(crate) fn set_execve_new_entry(rip: usize) {
-    EXECVE_NEW_ENTRY.store(rip, Ordering::Relaxed);
-}
 
 pub(crate) fn robust_list_for_tid(tid: usize) -> Option<(usize, usize)> {
     ROBUST_LISTS.lock().get(&tid).copied()
@@ -134,11 +125,7 @@ pub(crate) fn linux_no_new_privs_for_tid(_tid: usize) -> bool {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct SyscallReturn {
-    ret: usize,
-    new_rip: usize,
-    new_rsp: usize,
-}
+struct SyscallReturn(usize);
 
 #[derive(Debug, Clone, Copy, Default)]
 #[repr(C)]
@@ -158,8 +145,6 @@ pub struct SyscallFrame {
     pub rsp: u64,
 }
 
-static EXECVE_NEW_ENTRY: AtomicUsize = AtomicUsize::new(0);
-static EXECVE_NEW_STACK: AtomicUsize = AtomicUsize::new(0);
 
 /// Helper to handle syscalls in Rust
 #[unsafe(no_mangle)]
@@ -198,11 +183,7 @@ extern "C" fn rust_syscall_handler(
             cpu.exit_kernel();
         }
 
-        return SyscallReturn {
-            ret: linux_errno(crate::modules::posix_consts::errno::EPERM),
-            new_rip: 0,
-            new_rsp: 0,
-        };
+        return SyscallReturn(linux_errno(crate::modules::posix_consts::errno::EPERM));
     }
 
     if crate::config::KernelConfig::is_syscall_tracing_enabled() {
@@ -324,20 +305,13 @@ extern "C" fn rust_syscall_handler(
     // Professional Signal Delivery: Check signals before returning to user-space
     crate::kernel::signal::check_signals(unsafe { &mut *frame_ptr });
 
-    let new_rip = EXECVE_NEW_ENTRY.swap(0, Ordering::Relaxed);
-    let new_rsp = EXECVE_NEW_STACK.swap(0, Ordering::Relaxed);
-
     #[cfg(feature = "telemetry")]
     {
         let cpu = unsafe { CpuLocal::get() };
         cpu.exit_kernel();
     }
 
-    SyscallReturn {
-        ret: normal_ret,
-        new_rip,
-        new_rsp,
-    }
+    SyscallReturn(normal_ret)
 }
 
 #[inline(always)]

@@ -207,17 +207,20 @@ pub fn materialize_process_image(
 
 pub fn preflight_module_image(data: &[u8]) -> Result<(), &'static str> {
     PREFLIGHT_ATTEMPTS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-    if data.len() < core::mem::size_of::<Elf64Header>() {
-        PREFLIGHT_FAILURES.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-        return Err("data too small for ELF header");
-    }
-
-    let header = unsafe { &*(data.as_ptr() as *const Elf64Header) };
     
-    // Validate ELF Magic: 0x7F 'E' 'L' 'F'
-    if &header.ident[0..4] != b"\x7FELF" {
+    // Parse using xmas_elf
+    let elf = match xmas_elf::ElfFile::new(data) {
+        Ok(e) => e,
+        Err(_) => {
+            PREFLIGHT_FAILURES.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+            return Err("invalid ELF file or too small");
+        }
+    };
+
+    // Validate ELF Magic & Class (64-bit)
+    if elf.header.pt1.class() != xmas_elf::header::Class::SixtyFour {
         PREFLIGHT_FAILURES.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-        return Err("invalid ELF magic");
+        return Err("only 64-bit ELF images supported");
     }
 
     // Fingerprint for stats tracking (simple sum of bytes for now)
@@ -243,37 +246,7 @@ pub use plan::{build_load_plan, snapshot_module_image};
 // The process loader path is implemented directly above to avoid relying on
 // the incomplete sibling module during bootstrap.
 
-/// ELF Header (x86_64)
-#[repr(C)]
-struct Elf64Header {
-    ident: [u8; 16],
-    elf_type: u16,
-    machine: u16,
-    version: u32,
-    entry: u64,
-    phoff: u64,
-    shoff: u64,
-    flags: u32,
-    ehsize: u16,
-    phentsize: u16,
-    phnum: u16,
-    shentsize: u16,
-    shnum: u16,
-    shstrndx: u16,
-}
-
-/// ELF Program Header
-#[repr(C)]
-struct Elf64Phdr {
-    p_type: u32,
-    p_flags: u32,
-    p_offset: u64,
-    p_vaddr: u64,
-    p_paddr: u64,
-    p_filesz: u64,
-    p_memsz: u64,
-    p_align: u64,
-}
+// ELF types are now handled via xmas_elf
 
 pub struct KernelModule {
     pub name: String,
@@ -294,48 +267,48 @@ lazy_static::lazy_static! {
 
 /// High-Fidelity ELF Module Loader.
 pub fn load_module(name: &str, data: &[u8]) -> Result<(), &'static str> {
-    if data.len() < core::mem::size_of::<Elf64Header>() {
-        return Err("data too small for ELF header");
-    }
-
-    let header = unsafe { &*(data.as_ptr() as *const Elf64Header) };
+    use xmas_elf::program::Type;
+    let elf = xmas_elf::ElfFile::new(data).map_err(|_| "failed to parse ELF")?;
     
-    // Validate ELF Magic: 0x7F 'E' 'L' 'F'
-    if &header.ident[0..4] != b"\x7FELF" {
-        return Err("invalid ELF magic");
+    // Validate ELF Magic & Machine
+    if !crate::kernel::module_loader::support::elf_machine_matches_target(elf.header.pt2.machine().as_machine()) {
+        return Err("unsupported machine type");
     }
 
-    // Iterate Program Headers and map segments
+    // Iterate Program Headers and calculate module size
     let mut module_size = 0u64;
-    for i in 0..header.phnum {
-        let phdr_ptr = data.as_ptr().wrapping_add(header.phoff as usize + (i as usize * header.phentsize as usize));
-        let phdr = unsafe { &*(phdr_ptr as *const Elf64Phdr) };
-
-        if phdr.p_type == 1 { // PT_LOAD
-            let end = phdr.p_vaddr + phdr.p_memsz;
+    for phdr in elf.program_iter() {
+        if phdr.get_type() == Ok(Type::Load) {
+            let end = phdr.virtual_addr() + phdr.mem_size();
             if end > module_size { module_size = end; }
             
-            // Here we would use the HugePage-aware VMM to map the segment
-            // For now, we simulate the memory allocation and copy
-            crate::klog_info!("[ELF] Mapping segment at {:#x}, size {:#x}", phdr.p_vaddr, phdr.p_memsz);
+            crate::klog_info!("[ELF] Mapping segment at {:#x}, size {:#x}", phdr.virtual_addr(), phdr.mem_size());
         }
     }
 
+    // In a real system, we'd allocate from the kernel heap or a dedicated module area.
+    // For this implementation, we'll assume the module is loaded at its preferred address (or 0 if PIC)
+    // for demonstration, or we'd have a VMM call here.
+    let module_base = 0; // Placeholder for actual allocation
+
     let module = Arc::new(KernelModule {
         name: name.to_string(),
-        base_addr: 0, // Assigned by VMM
+        base_addr: module_base,
         size: module_size as usize,
-        entry_point: header.entry,
+        entry_point: elf.header.pt2.entry_point(),
     });
 
+    // Apply relocations if any
+    apply_relocations(module_base, &elf)?;
+
     GLOBAL_MODULE_REGISTRY.lock().modules.insert(name.to_string(), module);
-    crate::klog_info!("[MODULE] Successfully loaded ELF module '{}', entry: {:#x}", name, header.entry);
+    crate::klog_info!("[MODULE] Successfully loaded ELF module '{}', entry: {:#x}", name, elf.header.pt2.entry_point());
     Ok(())
 }
 
 pub fn unload_module(name: &str) -> Result<(), &'static str> {
-    crate::klog_info!("[MODULE] Unloading dynamic module '{}'", name);
-    GLOBAL_MODULE_REGISTRY.lock().modules.remove(name).ok_or("module not found")?;
+    crate::klog_info!("[MODULE] Unloading dynamic module {}", name);
+    GLOBAL_MODULE_REGISTRY.lock().modules.remove(name).ok_or("module not in registry")?;
     Ok(())
 }
 
@@ -353,74 +326,61 @@ impl Elf64Rela {
 }
 
 /// Apply ELF Relocations (Linking the module to the kernel).
-fn apply_relocations(module_base: u64, data: &[u8], header: &Elf64Header) -> Result<(), &'static str> {
-    for i in 0..header.shnum {
-        let shdr_ptr = data.as_ptr().wrapping_add(header.shoff as usize + (i as usize * header.shentsize as usize));
-        let shdr = unsafe { &*(shdr_ptr as *const Elf64Shdr) };
+fn apply_relocations(module_base: u64, elf: &xmas_elf::ElfFile<'_>) -> Result<(), &'static str> {
+    use xmas_elf::sections::{ShType, SectionData};
+    use xmas_elf::symbol_table::Entry;
 
-        if shdr.sh_type == 4 { // SHT_RELA
-            let rela_count = shdr.sh_size / shdr.sh_entsize;
-            for j in 0..rela_count {
-                let rela_ptr = data.as_ptr().wrapping_add(shdr.sh_offset as usize + (j as usize * shdr.sh_entsize as usize));
-                let rela = unsafe { &*(rela_ptr as *const Elf64Rela) };
+    for sect in elf.section_iter() {
+        if sect.get_type() == Ok(ShType::Rela) {
+            let data = sect.get_data(elf).map_err(|_| "failed to parse relocation")?;
+            if let SectionData::Rela64(relas) = data {
+                // The sh_link of a relocation section points to the symbol table
+                let symtab_idx = sect.link();
+                let symtab_sect = elf.section_header(symtab_idx as u16).map_err(|_| "invalid symtab index")?;
+                let symtab_data = symtab_sect.get_data(elf).map_err(|_| "failed to parse symbols")?;
                 
-                // --- Real Symbol Name Resolution ---
-                // 1. Find the symbol table (usually shdr.sh_link points to the strtab)
-                let symtab_shdr = unsafe { &*(data.as_ptr().wrapping_add(header.shoff as usize + (header.shnum as usize - 2) * header.shentsize as usize) as *const Elf64Shdr) };
-                let strtab_shdr = unsafe { &*(data.as_ptr().wrapping_add(header.shoff as usize + (header.shnum as usize - 1) * header.shentsize as usize) as *const Elf64Shdr) };
-                
-                let sym_ptr = data.as_ptr().wrapping_add(symtab_shdr.sh_offset as usize + (rela.r_sym() as usize * 24));
-                let sym_st_name = unsafe { *(sym_ptr as *const u32) };
-                
-                let str_ptr = data.as_ptr().wrapping_add(strtab_shdr.sh_offset as usize + sym_st_name as usize);
-                let sym_name = unsafe { core::str::from_utf8_unchecked(core::ffi::CStr::from_ptr(str_ptr as *const i8).to_bytes()) };
 
-                let sym_val = crate::kernel::symbols::KSYMTAB.lock()
-                    .resolve(sym_name)
-                    .ok_or_else(|| {
-                        crate::klog_err!("[ELF] Undefined symbol: {}", sym_name);
-                        "undefined symbol"
-                    })?;
-                
-                let target_addr = module_base + rela.r_offset;
-                unsafe {
 
-                    match rela.r_type() {
-                        1 => { // R_X86_64_64
-                            *(target_addr as *mut u64) = sym_val + rela.r_addend as u64;
-                        }
-                        2 => { // R_X86_64_PC32
-                            let val = (sym_val as i64 + rela.r_addend) - target_addr as i64;
-                            *(target_addr as *mut u32) = val as u32;
-                        }
-                        4 => { // R_X86_64_PLT32
-                            // In a kernel module, PLT32 is often treated like PC32
-                            let val = (sym_val as i64 + rela.r_addend) - target_addr as i64;
-                            *(target_addr as *mut u32) = val as u32;
-                        }
-                        _ => {
-                            crate::klog_warn!("[ELF] Unsupported relocation type {}", rela.r_type());
+                if let SectionData::SymbolTable64(symbols) = symtab_data {
+                    for rela in relas {
+                        let sym = &symbols[rela.get_symbol_table_index() as usize];
+                        let sym_name = sym.get_name(elf).map_err(|_| "failed to get symbol name")?;
+                        
+                        let sym_val = if sym.shndx() == 0 { // STN_UNDEF
+                            crate::kernel::symbols::KSYMTAB.lock()
+                                .resolve(sym_name)
+                                .ok_or_else(|| {
+                                    crate::klog_err!("[ELF] Unresolved symbol: {}", sym_name);
+                                    "kernel symbol not resolved"
+                                })?
+                        } else {
+                            module_base + sym.value()
+                        };
+                        
+                        let target_addr = module_base + rela.get_offset();
+                        unsafe {
+                            match rela.get_type() {
+                                1 => { // R_X86_64_64
+                                    *(target_addr as *mut u64) = sym_val.wrapping_add(rela.get_addend() as u64);
+                                }
+                                2 => { // R_X86_64_PC32
+                                    let val = (sym_val as i64 + rela.get_addend() as i64) - target_addr as i64;
+                                    *(target_addr as *mut u32) = val as u32;
+                                }
+                                4 => { // R_X86_64_PLT32
+                                    let val = (sym_val as i64 + rela.get_addend() as i64) - target_addr as i64;
+                                    *(target_addr as *mut u32) = val as u32;
+                                }
+                                _ => {
+                                    crate::klog_warn!("[ELF] Unsupported relocation type {}", rela.get_type());
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
+    // Elf64Rela and Elf64Shdr are now handled via xmas_elf
     Ok(())
 }
-
-/// ELF Section Header (Mock for apply_relocations)
-#[repr(C)]
-struct Elf64Shdr {
-    sh_name: u32,
-    sh_type: u32,
-    sh_flags: u64,
-    sh_addr: u64,
-    sh_offset: u64,
-    sh_size: u64,
-    sh_link: u32,
-    sh_info: u32,
-    sh_addralign: u64,
-    sh_entsize: u64,
-}
-

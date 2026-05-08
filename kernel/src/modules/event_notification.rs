@@ -381,22 +381,7 @@ impl UltraAioContext {
 
     #[inline(always)]
     fn read_tsc(&self) -> u64 {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            let mut low: u32;
-            let mut high: u32;
-            core::arch::asm!(
-                "rdtsc",
-                out("eax") low,
-                out("edx") high,
-                options(nomem, nostack, preserves_flags)
-            );
-            ((high as u64) << 32) | (low as u64)
-        }
-        #[cfg(not(target_arch = "x86_64"))]
-        {
-            0
-        }
+        crate::hal::cpu::rdtsc()
     }
 }
 

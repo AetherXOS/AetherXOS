@@ -693,10 +693,12 @@ pub fn userspace_driver_stats() -> DriverStats {
     fn test_userspace_driver_framework() {
         let framework = UserspaceDriverFramework::new();
         
+        const TEST_USERSPACE_ADDR: u64 = 0x7fff0000;
+        
         let region_id = framework.alloc_shared_region(4096, 0).unwrap();
         assert_ne!(region_id, 0);
         
-        framework.map_to_userspace(region_id, 0x7fff0000).unwrap();
+        framework.map_to_userspace(region_id, TEST_USERSPACE_ADDR).unwrap();
         
         let data = b"hello";
         let result = framework.zero_copy_io(region_id, 0, data, true);

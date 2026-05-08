@@ -92,8 +92,8 @@ pub fn check_signals(frame: &mut SyscallFrame) {
             return;
         }
 
-        // Use rbp as the current user stack pointer reference (syscall frame doesn't store rsp)
-        let mut sp = frame.rbp;
+        // Use rsp from frame if available, else fallback to rbp (approximation)
+        let mut sp = if frame.rsp != 0 { frame.rsp } else { frame.rbp };
         sp = sp.saturating_sub(core::mem::size_of::<LinuxRTFrame>() as u64 + 128);
         sp &= !15u64;
 
@@ -107,7 +107,7 @@ pub fn check_signals(frame: &mut SyscallFrame) {
         uc.mcontext.rbx = frame.rbx;
         uc.mcontext.eflags = frame.rflags;
         uc.mcontext.rip = frame.rip;
-        uc.mcontext.rsp = frame.rbp; // best approximation without saved rsp
+        uc.mcontext.rsp = if frame.rsp != 0 { frame.rsp } else { frame.rbp };
 
         let rt_frame = LinuxRTFrame {
             pretcode: action.restorer,
@@ -286,7 +286,7 @@ pub fn check_signals(frame: &mut SyscallFrame) {
 
         let mut sp = signal_stack
             .map(|stack| stack.ss_sp.saturating_add(stack.ss_size))
-            .unwrap_or(frame.rbp);
+            .unwrap_or_else(|| if frame.rsp != 0 { frame.rsp } else { frame.rbp });
         sp = sp.saturating_sub(core::mem::size_of::<LinuxRTFrameCompat>() as u64 + 128);
         sp &= !15u64;
 
@@ -308,7 +308,7 @@ pub fn check_signals(frame: &mut SyscallFrame) {
                     rdx: frame.rdx,
                     rax: frame.rax,
                     rcx: 0,
-                    rsp: frame.rbp,
+                    rsp: if frame.rsp != 0 { frame.rsp } else { frame.rbp },
                     rip: frame.rip,
                     eflags: frame.rflags,
                     ..Default::default()

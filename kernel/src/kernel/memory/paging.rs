@@ -2,8 +2,7 @@
 //! Delegated to the Hardware Abstraction Layer (HAL) for platform-specifics.
 
 use crate::kernel::bit_utils::paging as bits;
-#[cfg(target_arch = "x86_64")]
-use x86_64::registers::control::Cr3;
+
 pub use crate::hal::paging::PageManager;
 
 #[derive(Debug, Clone, Copy)]
@@ -132,6 +131,14 @@ impl PageManager {
             self.update_page_flags(va, flags).map_err(|_| ApplyMappingError::MappingFailed)?;
         }
         Ok(())
+    }
+
+    pub fn unmap_page_with_alloc(
+        &mut self,
+        va: u64,
+        _alloc: &mut crate::hal::paging::PageAllocWrapper,
+    ) -> Result<u64, &'static str> {
+        self.unmap_page(va).map(|f| f.start_address().as_u64())
     }
 }
 

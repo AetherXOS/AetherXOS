@@ -172,35 +172,32 @@ fn normalize_runtime_key(key: &str) -> String {
     String::from(out.trim_matches('_'))
 }
 
-pub(super) fn set_bool(value: Option<ConfigValue>, setter: fn(Option<bool>)) -> Result<(), ConfigSetError> {
-    match value {
-        None => {
-            setter(None);
-            Ok(())
+macro_rules! impl_setter {
+    ($name:ident, $ty:ty, $variant:ident) => {
+        pub(super) fn $name(value: Option<ConfigValue>, setter: fn(Option<$ty>)) -> Result<(), ConfigSetError> {
+            match value {
+                None => {
+                    setter(None);
+                    Ok(())
+                }
+                Some(ConfigValue::$variant(v)) => {
+                    setter(Some(v));
+                    Ok(())
+                }
+                _ => Err(ConfigSetError::TypeMismatch),
+            }
         }
-        Some(ConfigValue::Bool(v)) => {
-            setter(Some(v));
-            Ok(())
-        }
-        _ => Err(ConfigSetError::TypeMismatch),
-    }
+    };
 }
 
-pub(super) fn set_u8(value: Option<ConfigValue>, setter: fn(Option<u8>)) -> Result<(), ConfigSetError> {
-    match value {
-        None => {
-            setter(None);
-            Ok(())
-        }
-        Some(ConfigValue::U8(v)) => {
-            setter(Some(v));
-            Ok(())
-        }
-        _ => Err(ConfigSetError::TypeMismatch),
-    }
-}
+impl_setter!(set_bool, bool, Bool);
+impl_setter!(set_u8, u8, U8);
+impl_setter!(set_u16, u16, U16);
+impl_setter!(set_u32, u32, U32);
+impl_setter!(set_u64, u64, U64);
+impl_setter!(set_usize, usize, Usize);
 
-pub(super) fn set_u16(value: Option<ConfigValue>, setter: fn(Option<u16>)) -> Result<(), ConfigSetError> {
+pub(super) fn set_u16_from_u64(value: Option<ConfigValue>, setter: fn(Option<u16>)) -> Result<(), ConfigSetError> {
     match value {
         None => {
             setter(None);
@@ -218,7 +215,7 @@ pub(super) fn set_u16(value: Option<ConfigValue>, setter: fn(Option<u16>)) -> Re
     }
 }
 
-pub(super) fn set_u32(value: Option<ConfigValue>, setter: fn(Option<u32>)) -> Result<(), ConfigSetError> {
+pub(super) fn set_u32_from_u64(value: Option<ConfigValue>, setter: fn(Option<u32>)) -> Result<(), ConfigSetError> {
     match value {
         None => {
             setter(None);
@@ -236,21 +233,7 @@ pub(super) fn set_u32(value: Option<ConfigValue>, setter: fn(Option<u32>)) -> Re
     }
 }
 
-pub(super) fn set_u64(value: Option<ConfigValue>, setter: fn(Option<u64>)) -> Result<(), ConfigSetError> {
-    match value {
-        None => {
-            setter(None);
-            Ok(())
-        }
-        Some(ConfigValue::U64(v)) => {
-            setter(Some(v));
-            Ok(())
-        }
-        _ => Err(ConfigSetError::TypeMismatch),
-    }
-}
-
-pub(super) fn set_usize(value: Option<ConfigValue>, setter: fn(Option<usize>)) -> Result<(), ConfigSetError> {
+pub(super) fn set_usize_from_u64(value: Option<ConfigValue>, setter: fn(Option<usize>)) -> Result<(), ConfigSetError> {
     match value {
         None => {
             setter(None);

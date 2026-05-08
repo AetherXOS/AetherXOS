@@ -177,7 +177,14 @@ pub trait File: Send + Sync {
 
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    /// Clone this file handle (increment reference count on the underlying resource).
+    /// Used for fork() and dup().
+    fn try_clone(&self) -> Result<Box<dyn File>, &'static str> {
+        Err("clone not supported for this file type")
+    }
 }
+
 
 pub trait FileSystem: Send + Sync {
     fn open(&self, path: &str, tid: TaskId) -> Result<Box<dyn File>, &'static str>;

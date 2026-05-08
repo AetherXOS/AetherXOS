@@ -13,6 +13,36 @@ fn nanos_i64_to_i32(nsec: i64) -> Result<i32, usize> {
     Ok(nsec as i32)
 }
 
+macro_rules! read_timespec {
+    ($ptr:expr) => {
+        match $ptr.read() {
+            Ok(v) => v,
+            Err(e) => return e,
+        }
+    };
+}
+
+macro_rules! read_timeval {
+    ($ptr:expr) => {
+        match $ptr.read() {
+            Ok(v) => v,
+            Err(e) => return e,
+        }
+    };
+}
+
+macro_rules! write_timespec {
+    ($ptr:expr, $sec:expr, $nsec:expr) => {
+        let src = LinuxTimespec {
+            tv_sec: $sec,
+            tv_nsec: $nsec as i64,
+        };
+        if let Err(e) = $ptr.write(&src) {
+            return e;
+        }
+    };
+}
+
 pub fn sys_linux_clock_getres(clock_id: usize, res: UserPtr<LinuxTimespec>) -> usize {
     crate::require_posix_time!((clock_id, res) => {
         let ts = match crate::modules::posix::time::clock_getres_raw(clock_id as i32) {
@@ -20,11 +50,7 @@ pub fn sys_linux_clock_getres(clock_id: usize, res: UserPtr<LinuxTimespec>) -> u
                     Err(e) => return linux_errno(e.code()),
                 };
                 if !res.is_null() {
-                    let src = LinuxTimespec {
-                        tv_sec: ts.sec,
-                        tv_nsec: ts.nsec as i64,
-                    };
-                    if let Err(e) = res.write(&src) { return e; }
+                    write_timespec!(res, ts.sec, ts.nsec);
                 }
                 0
     })
@@ -36,12 +62,8 @@ pub fn sys_linux_clock_gettime(clock_id: usize, ts_ptr: UserPtr<LinuxTimespec>) 
                     Ok(v) => v,
                     Err(err) => return linux_errno(err.code()),
                 };
-
-                let src = LinuxTimespec {
-                    tv_sec: spec.sec,
-                    tv_nsec: spec.nsec as i64,
-                };
-                ts_ptr.write(&src).map(|_| 0usize).unwrap_or_else(|e| e)
+                write_timespec!(ts_ptr, spec.sec, spec.nsec);
+                0
     })
 }
 
@@ -52,10 +74,7 @@ pub fn sys_linux_clock_nanosleep(
     rem_ptr: UserPtr<LinuxTimespec>,
 ) -> usize {
     crate::require_posix_time!((clock_id, flags, req_ptr, rem_ptr) => {
-        let req = match req_ptr.read() {
-                    Ok(v) => v,
-                    Err(e) => return e,
-                };
+        let req = read_timespec!(req_ptr);
 
                 let req_ts = crate::modules::posix::time::PosixTimespec {
                     sec: req.tv_sec,
@@ -161,10 +180,7 @@ pub fn sys_linux_alarm(seconds: usize) -> usize {
 
 pub fn sys_linux_clock_settime(clock_id: usize, ts_ptr: UserPtr<LinuxTimespec>) -> usize {
     crate::require_posix_time!((clock_id, ts_ptr) => {
-        let ts = match ts_ptr.read() {
-                    Ok(v) => v,
-                    Err(e) => return e,
-                };
+        let ts = read_timespec!(ts_ptr);
                 let pts = crate::modules::posix::time::PosixTimespec {
                     sec: ts.tv_sec,
                     nsec: match nanos_i64_to_i32(ts.tv_nsec) {
@@ -184,10 +200,7 @@ pub fn sys_linux_settimeofday(tv_ptr: UserPtr<LinuxTimeval>, tz_ptr: UserPtr<u8>
         let _ = tz_ptr;
                 if tv_ptr.is_null() { return 0; }
 
-                let tv = match tv_ptr.read() {
-                    Ok(v) => v,
-                    Err(e) => return e,
-                };
+                let tv = read_timeval!(tv_ptr);
 
                 let pts = crate::modules::posix::time::PosixTimespec {
                     sec: tv.tv_sec,
@@ -220,7 +233,7 @@ pub fn sys_linux_nanosleep(
     rem_ptr: UserPtr<LinuxTimespec>,
 ) -> usize {
     crate::require_posix_time!((req_ptr, rem_ptr) => {
-        let req = match req_ptr.read() { Ok(v) => v, Err(e) => return e };
+        let req = read_timespec!(req_ptr);
                 let ts = crate::modules::posix::time::PosixTimespec {
                     sec: req.tv_sec,
                     nsec: match nanos_i64_to_i32(req.tv_nsec) {

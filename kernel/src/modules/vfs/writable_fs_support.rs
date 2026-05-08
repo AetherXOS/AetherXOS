@@ -98,12 +98,16 @@ impl OverlayEntry {
     }
 }
 
+// FNV-1a hash constants
+pub const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+pub const FNV_PRIME: u64 = 0x100000001b3;
+
 /// Simple FNV-1a hash for dentry names.
 pub(super) fn simple_hash(s: &str) -> u64 {
-    let mut hash: u64 = 0xcbf29ce484222325;
+    let mut hash: u64 = FNV_OFFSET_BASIS;
     for b in s.bytes() {
         hash ^= b as u64;
-        hash = hash.wrapping_mul(0x100000001b3);
+        hash = hash.wrapping_mul(FNV_PRIME);
     }
     hash
 }

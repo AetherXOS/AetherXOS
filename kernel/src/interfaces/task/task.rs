@@ -1,9 +1,11 @@
 use super::context::*;
 use super::ids::*;
 use super::state::*;
+use crate::core::log;
 use crate::interfaces::security::{ResourceLimits, SecurityContext};
 use crate::kernel::sync::IrqSafeMutex;
 use alloc::sync::Arc;
+use alloc::format;
 
 /// Simplified Task Structure
 #[derive(Debug, Clone)]
@@ -129,8 +131,7 @@ impl KernelTask {
 
     #[inline(never)]
     pub fn new_from_spec(spec: KernelTaskBootstrapSpec) -> Self {
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_raw("[EARLY SERIAL] task.new raw begin\n");
+        log::trace(&format!("Task creation starting (id={})", spec.id.0));
         crate::kernel::debug_trace::record_with_metadata(
             "task.new",
             "begin",
@@ -139,55 +140,41 @@ impl KernelTask {
             crate::kernel::debug_trace::TraceSeverity::Trace,
             crate::kernel::debug_trace::TraceCategory::Task,
         );
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_trace("task.new", "begin");
+        log::trace("task.new: begin");
         let mut ctx = Context::default();
 
-        #[cfg(target_arch = "x86_64")]
-        {
-            use crate::kernel::syscalls::syscalls_consts::x86;
-            ctx.rip = spec.entry;
-            crate::kernel::debug_trace::record_with_metadata(
-                "task.new",
-                "stack_prep_begin",
-                Some(spec.entry),
-                false,
-                crate::kernel::debug_trace::TraceSeverity::Trace,
-                crate::kernel::debug_trace::TraceCategory::Task,
-            );
-            #[cfg(target_os = "none")]
-            crate::hal::serial::write_trace("task.new", "stack_prep_begin");
-            let prepared_stack = if spec.kernel_stack != 0 {
-                unsafe { Self::prepare_initial_kernel_stack_frame(spec.kernel_stack, spec.entry) }
-            } else {
-                0
-            };
-            crate::kernel::debug_trace::record_with_metadata(
-                "task.new",
-                "stack_prep_returned",
-                Some(prepared_stack),
-                false,
-                crate::kernel::debug_trace::TraceSeverity::Trace,
-                crate::kernel::debug_trace::TraceCategory::Task,
-            );
-            #[cfg(target_os = "none")]
-            crate::hal::serial::write_trace("task.new", "stack_prep_returned");
-            ctx.rsp = prepared_stack;
-            ctx.rflags = x86::RFLAGS_IF_RESERVED;
-        }
+        // Set entry point and prepare stack in an architecture-agnostic way
+        ctx.set_instruction_pointer(spec.entry);
 
-        #[cfg(target_arch = "aarch64")]
-        {
-            ctx.elr = spec.entry;
-            ctx.sp = spec.kernel_stack;
-            ctx.spsr = 0x3c5;
-        }
+        crate::kernel::debug_trace::record_with_metadata(
+            "task.new",
+            "stack_prep_begin",
+            Some(spec.entry),
+            false,
+            crate::kernel::debug_trace::TraceSeverity::Trace,
+            crate::kernel::debug_trace::TraceCategory::Task,
+        );
+        log::trace("task.new: stack_prep_begin");
 
-        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-        {
-            ctx.pc = spec.entry;
-            ctx.sp = spec.kernel_stack;
-        }
+        let prepared_stack = if spec.kernel_stack != 0 {
+            unsafe { Self::prepare_initial_kernel_stack_frame(spec.kernel_stack, spec.entry) }
+        } else {
+            spec.kernel_stack
+        };
+
+        crate::kernel::debug_trace::record_with_metadata(
+            "task.new",
+            "stack_prep_returned",
+            Some(prepared_stack),
+            false,
+            crate::kernel::debug_trace::TraceSeverity::Trace,
+            crate::kernel::debug_trace::TraceCategory::Task,
+        );
+        log::trace("task.new: stack_prep_returned");
+
+        ctx.set_stack_pointer(prepared_stack);
+        // Set a safe default for flags; HAL may override later as needed
+        ctx.set_flags(0);
 
         let task = Self {
             id: spec.id,
@@ -234,16 +221,7 @@ impl KernelTask {
             #[cfg(feature = "ring_protection")]
             user_tls_base: 0,
 
-            kernel_stack_pointer: {
-                #[cfg(target_arch = "x86_64")]
-                {
-                    ctx.rsp
-                }
-                #[cfg(not(target_arch = "x86_64"))]
-                {
-                    spec.kernel_stack
-                }
-            },
+            kernel_stack_pointer: ctx.stack_pointer(),
             page_table_root: spec.cr3,
             context: ctx,
             signal_stack: None,
@@ -264,8 +242,7 @@ impl KernelTask {
             crate::kernel::debug_trace::TraceSeverity::Trace,
             crate::kernel::debug_trace::TraceCategory::Task,
         );
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_trace("task.new", "returned");
+        log::trace("task.new: returned");
         task
     }
 
@@ -291,8 +268,7 @@ impl KernelTask {
 
     #[inline(never)]
     pub fn new_shared_from_spec(spec: KernelTaskBootstrapSpec) -> Arc<IrqSafeMutex<Self>> {
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_raw("[EARLY SERIAL] task.shared raw begin\n");
+        log::trace(&format!("Task shared creation starting (id={})", spec.id.0));
         crate::kernel::debug_trace::record_with_metadata(
             "task.shared",
             "begin",
@@ -301,8 +277,7 @@ impl KernelTask {
             crate::kernel::debug_trace::TraceSeverity::Trace,
             crate::kernel::debug_trace::TraceCategory::Task,
         );
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_trace("task.shared", "begin");
+        log::trace("task.shared: begin");
         let task = Self::new_from_spec(spec);
         crate::kernel::debug_trace::record_with_metadata(
             "task.shared",
@@ -312,8 +287,7 @@ impl KernelTask {
             crate::kernel::debug_trace::TraceSeverity::Trace,
             crate::kernel::debug_trace::TraceCategory::Task,
         );
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_trace("task.shared", "task_ready");
+        log::trace("task.shared: task_ready");
         crate::kernel::debug_trace::record_with_metadata(
             "task.shared",
             "mutex_wrap_begin",
@@ -357,8 +331,7 @@ impl KernelTask {
             crate::kernel::debug_trace::TraceSeverity::Trace,
             crate::kernel::debug_trace::TraceCategory::Task,
         );
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_raw("[EARLY SERIAL] task.shared returned\n");
+        log::trace("task.shared: returned");
         shared_clone
     }
 
@@ -392,12 +365,10 @@ impl KernelTask {
         cr3: u64,
         entry: u64,
     ) -> Arc<IrqSafeMutex<Self>> {
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_raw("[EARLY SERIAL] task.shared direct begin\n");
+        log::trace(&format!("Task shared direct creation starting (id={})", id.0));
         let spec =
             Self::bootstrap_spec(id, priority, deadline, burst_time, kernel_stack, cr3, entry);
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_raw("[EARLY SERIAL] task.shared direct spec returned\n");
+        log::trace("Task shared direct spec creation returned");
         Self::new_shared_from_spec(spec)
     }
 

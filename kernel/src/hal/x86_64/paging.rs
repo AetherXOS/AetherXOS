@@ -44,9 +44,9 @@ impl PageManager {
         let x86_flags = convert_flags(flags);
         unsafe {
             match self.mapper.map_to(page, frame, x86_flags, alloc) {
-                Ok(tlb) => { 
+                Ok(_tlb) => { 
                     #[cfg(target_os = "none")]
-                    tlb.flush(); 
+                    _tlb.flush(); 
                     Ok(()) 
                 }
                 Err(_) => Err("Mapping failed"),
@@ -71,10 +71,10 @@ impl PageManager {
                     unsafe {
                         core::ptr::copy_nonoverlapping(old_virt.as_ptr::<u8>(), new_virt.as_mut_ptr::<u8>(), 4096);
                         let new_flags = (flags | X86Flags::WRITABLE) & X86Flags::from_bits_truncate(!COW_BIT);
-                        let flush = self.mapper.unmap(page).unwrap().1;
+                        let _flush = self.mapper.unmap(page).unwrap().1;
                         #[cfg(target_os = "none")]
                         flush.flush();
-                        let flush = self.mapper.map_to(page, new_frame, new_flags, alloc).unwrap();
+                        let _flush = self.mapper.map_to(page, new_frame, new_flags, alloc).unwrap();
                         #[cfg(target_os = "none")]
                         flush.flush();
                     }
@@ -86,9 +86,9 @@ impl PageManager {
                 let frame = alloc.allocate_frame().ok_or("Out of memory")?;
                 let flags = X86Flags::PRESENT | X86Flags::WRITABLE | X86Flags::USER_ACCESSIBLE;
                 unsafe { 
-                    let flush = self.mapper.map_to(page, frame, flags, alloc).unwrap();
+                    let _flush = self.mapper.map_to(page, frame, flags, alloc).unwrap();
                     #[cfg(target_os = "none")]
-                    flush.flush();
+                    _flush.flush();
                 }
                 Ok(())
             }
@@ -100,12 +100,26 @@ impl PageManager {
         let x86_flags = convert_flags(flags);
         unsafe {
             match self.mapper.update_flags(page, x86_flags) {
-                Ok(tlb) => { 
+                Ok(_tlb) => { 
                     #[cfg(target_os = "none")]
-                    tlb.flush(); 
+                    _tlb.flush(); 
                     Ok(()) 
                 }
                 Err(_) => Err("Update flags failed"),
+            }
+        }
+    }
+
+    pub fn unmap_page(&mut self, va: u64) -> Result<PhysFrame<Size4KiB>, &'static str> {
+        let page = Page::<Size4KiB>::containing_address(VirtAddr::new(va));
+        unsafe {
+            match self.mapper.unmap(page) {
+                Ok((frame, _tlb)) => {
+                    #[cfg(target_os = "none")]
+                    _tlb.flush();
+                    Ok(frame)
+                }
+                Err(_) => Err("Unmapping failed"),
             }
         }
     }
@@ -123,9 +137,9 @@ impl PageManager {
         let x86_flags = convert_flags(flags) | X86Flags::HUGE_PAGE;
         unsafe {
             match self.mapper.map_to(page, frame, x86_flags, alloc) {
-                Ok(tlb) => { 
+                Ok(_tlb) => { 
                     #[cfg(target_os = "none")]
-                    tlb.flush(); 
+                    _tlb.flush(); 
                     Ok(()) 
                 }
                 Err(_) => Err("Mapping failed"),
@@ -147,6 +161,15 @@ impl PageAllocWrapper {
 
     pub fn allocate_huge_frame(&mut self) -> Option<PhysFrame<x86_64::structures::paging::Size2MiB>> {
         <Self as X86FrameAllocator<x86_64::structures::paging::Size2MiB>>::allocate_frame(self)
+    }
+
+    pub fn deallocate_frame(&mut self, _frame: PhysFrame<Size4KiB>) {
+        #[cfg(feature = "paging_enable")]
+        {
+            crate::kernel::vmm::GLOBAL_PAGE_ALLOC
+                .lock()
+                .deallocate_pages(frame.start_address().as_u64() as usize, 0);
+        }
     }
 }
 

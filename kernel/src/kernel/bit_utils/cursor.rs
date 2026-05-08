@@ -2,8 +2,21 @@
 //! Provides high-performance, lazy, and endian-aware data manipulation.
 //! Supports both checked (safe) and unchecked (fast-path) operations.
 
-use core::convert::TryInto;
-use super::{BitField32, BitField64};
+use super::{BitField32, BitField64, PacketRead, PacketWrite};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Endian {
+    Big,
+    Little,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CursorError {
+    Overflow,
+    InvalidData,
+}
+
+pub type Result<T> = core::result::Result<T, CursorError>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct DataCursor<'a> {
@@ -19,56 +32,127 @@ impl<'a> DataCursor<'a> {
 
     #[inline(always)] pub fn pos(&self) -> usize { self.pos }
     #[inline(always)] pub fn set_pos(&mut self, pos: usize) { self.pos = pos; }
-    #[inline(always)] pub fn skip(&mut self, len: usize) { self.pos += len; }
+    #[inline(always)] pub fn skip(&mut self, len: usize) -> Result<()> {
+        if self.pos + len > self.data.len() { return Err(CursorError::Overflow); }
+        self.pos += len;
+        Ok(())
+    }
     #[inline(always)] pub fn remaining(&self) -> usize { self.data.len().saturating_sub(self.pos) }
     #[inline(always)] pub fn is_empty(&self) -> bool { self.pos >= self.data.len() }
-
-    pub fn read_u8(&mut self) -> Option<u8> {
-        let val = *self.data.get(self.pos)?;
-        self.pos += 1;
-        Some(val)
+    
+    #[inline(always)]
+    pub fn remaining_slice(&self) -> &'a [u8] {
+        &self.data[self.pos..]
     }
 
-    pub fn read_i8(&mut self) -> Option<i8> {
-        self.read_u8().map(|v| v as i8)
+    // --- Generic Checked Reads ---
+    
+    pub fn read<T: PacketRead>(&mut self, endian: Endian) -> Result<T> {
+        let size = core::mem::size_of::<T>();
+        if self.pos + size > self.data.len() {
+            return Err(CursorError::Overflow);
+        }
+        let val = unsafe {
+            match endian {
+                Endian::Big => T::read_be(self.data, self.pos),
+                Endian::Little => T::read_le(self.data, self.pos),
+            }
+        };
+        self.pos += size;
+        Ok(val)
     }
 
-    pub fn read_bytes(&mut self, len: usize) -> Option<&'a [u8]> {
-        let slice = self.data.get(self.pos..self.pos+len)?;
-        self.pos += len;
-        Some(slice)
+    #[inline(always)] pub fn read_be<T: PacketRead>(&mut self) -> Result<T> { self.read(Endian::Big) }
+    #[inline(always)] pub fn read_le<T: PacketRead>(&mut self) -> Result<T> { self.read(Endian::Little) }
+
+    // --- Generic Peek Methods ---
+
+    pub fn peek<T: PacketRead>(&self, endian: Endian, offset: usize) -> Result<T> {
+        let size = core::mem::size_of::<T>();
+        let p = self.pos + offset;
+        if p + size > self.data.len() {
+            return Err(CursorError::Overflow);
+        }
+        let val = unsafe {
+            match endian {
+                Endian::Big => T::read_be(self.data, p),
+                Endian::Little => T::read_le(self.data, p),
+            }
+        };
+        Ok(val)
     }
+
+    #[inline(always)] pub fn peek_be<T: PacketRead>(&self, offset: usize) -> Result<T> { self.peek(Endian::Big, offset) }
+    #[inline(always)] pub fn peek_le<T: PacketRead>(&self, offset: usize) -> Result<T> { self.peek(Endian::Little, offset) }
+
+    // --- Unchecked Fast-Path ---
 
     /// # Safety
     /// Caller must ensure that the cursor has enough remaining bytes for this operation.
     #[inline(always)]
-    pub unsafe fn read_u8_unchecked(&mut self) -> u8 {
-        let val = unsafe { *self.data.get_unchecked(self.pos) };
-        self.pos += 1;
+    pub unsafe fn read_unchecked<T: PacketRead>(&mut self, endian: Endian) -> T {
+        let size = core::mem::size_of::<T>();
+        let val = unsafe {
+            match endian {
+                Endian::Big => T::read_be(self.data, self.pos),
+                Endian::Little => T::read_le(self.data, self.pos),
+            }
+        };
+        self.pos += size;
         val
     }
 
     /// # Safety
     /// Caller must ensure that the cursor has enough remaining bytes for this operation.
     #[inline(always)]
-    pub unsafe fn read_bytes_unchecked(&mut self, len: usize) -> &'a [u8] {
-        let slice = unsafe { core::slice::from_raw_parts(self.data.as_ptr().add(self.pos), len) };
+    pub unsafe fn peek_unchecked<T: PacketRead>(&self, endian: Endian, offset: usize) -> T {
+        let p = self.pos + offset;
+        unsafe {
+            match endian {
+                Endian::Big => T::read_be(self.data, p),
+                Endian::Little => T::read_le(self.data, p),
+            }
+        }
+    }
+
+
+    // --- Specific Types (Compatibility & Convenience) ---
+
+    pub fn read_u8(&mut self) -> Result<u8> { self.read_be() }
+    pub fn read_i8(&mut self) -> Result<i8> { self.read_be() }
+    
+    pub fn read_bytes(&mut self, len: usize) -> Result<&'a [u8]> {
+        let slice = self.data.get(self.pos..self.pos+len).ok_or(CursorError::Overflow)?;
         self.pos += len;
-        slice
+        Ok(slice)
     }
 
-    pub fn peek_u8(&self, offset: usize) -> Option<u8> {
-        self.data.get(self.pos + offset).copied()
+    // --- Variable Length Integers (LEB128) ---
+
+    pub fn read_varint_u64(&mut self) -> Result<u64> {
+        let mut res = 0u64;
+        let mut shift = 0;
+        loop {
+            let byte = self.read_u8()?;
+            res |= ((byte & 0x7F) as u64) << shift;
+            if byte & 0x80 == 0 {
+                return Ok(res);
+            }
+            shift += 7;
+            if shift >= 64 { return Err(CursorError::InvalidData); }
+        }
     }
 
-    pub fn read_bitfield32(&mut self, field: BitField32) -> Option<u32> {
-        let val = self.read_u32_be()?;
-        Some(field.read(val))
+    // --- Bitfield Support ---
+
+    pub fn read_bitfield32(&mut self, field: BitField32) -> Result<u32> {
+        let val: u32 = self.read_be()?;
+        Ok(field.read(val))
     }
 
-    pub fn read_bitfield64(&mut self, field: BitField64) -> Option<u64> {
-        let val = self.read_u64_be()?;
-        Some(field.read(val))
+    pub fn read_bitfield64(&mut self, field: BitField64) -> Result<u64> {
+        let val: u64 = self.read_be()?;
+        Ok(field.read(val))
     }
 }
 
@@ -85,85 +169,145 @@ impl<'a> DataWriter<'a> {
 
     #[inline(always)] pub fn pos(&self) -> usize { self.pos }
     #[inline(always)] pub fn set_pos(&mut self, pos: usize) { self.pos = pos; }
-    #[inline(always)] pub fn skip(&mut self, len: usize) { self.pos += len; }
+    #[inline(always)] pub fn skip(&mut self, len: usize) -> Result<()> {
+        if self.pos + len > self.data.len() { return Err(CursorError::Overflow); }
+        self.pos += len;
+        Ok(())
+    }
     #[inline(always)] pub fn remaining(&self) -> usize { self.data.len().saturating_sub(self.pos) }
 
-    pub fn write_u8(&mut self, val: u8) -> Result<(), &'static str> {
-        if self.pos + 1 > self.data.len() { return Err("buffer overflow"); }
-        self.data[self.pos] = val;
-        self.pos += 1;
+    // --- Generic Checked Writes ---
+
+    pub fn write<T: PacketWrite>(&mut self, val: T, endian: Endian) -> Result<()> {
+        let size = core::mem::size_of::<T>();
+        if self.pos + size > self.data.len() {
+            return Err(CursorError::Overflow);
+        }
+        unsafe {
+            match endian {
+                Endian::Big => val.write_be(self.data, self.pos),
+                Endian::Little => val.write_le(self.data, self.pos),
+            }
+        }
+        self.pos += size;
         Ok(())
     }
 
-    pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), &'static str> {
-        if self.pos + bytes.len() > self.data.len() { return Err("buffer overflow"); }
+    #[inline(always)] pub fn write_be<T: PacketWrite>(&mut self, val: T) -> Result<()> { self.write(val, Endian::Big) }
+    #[inline(always)] pub fn write_le<T: PacketWrite>(&mut self, val: T) -> Result<()> { self.write(val, Endian::Little) }
+
+    pub fn write_u8(&mut self, val: u8) -> Result<()> { self.write_be(val) }
+    
+    pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<()> {
+        if self.pos + bytes.len() > self.data.len() { return Err(CursorError::Overflow); }
         self.data[self.pos..self.pos+bytes.len()].copy_from_slice(bytes);
         self.pos += bytes.len();
         Ok(())
     }
 
-    pub fn write_bitfield32(&mut self, field: BitField32, val: u32, field_val: u32) -> Result<(), &'static str> {
-        self.write_u32_be(field.write(val, field_val))
-    }
+    // --- Variable Length Integers (LEB128) ---
 
-    pub fn write_bitfield64(&mut self, field: BitField64, val: u64, field_val: u64) -> Result<(), &'static str> {
-        self.write_u64_be(field.write(val, field_val))
+    pub fn write_varint_u64(&mut self, mut val: u64) -> Result<()> {
+        loop {
+            let mut byte = (val & 0x7F) as u8;
+            val >>= 7;
+            if val != 0 {
+                byte |= 0x80;
+            }
+            self.write_u8(byte)?;
+            if val == 0 { break; }
+        }
+        Ok(())
     }
 }
 
-macro_rules! impl_cursor_methods {
-    ($ty:ident, $read_be:ident, $read_le:ident, $read_be_unchecked:ident, $peek_be:ident, $peek_le:ident, $write_be:ident, $write_le:ident) => {
-        impl<'a> DataCursor<'a> {
-            pub fn $read_be(&mut self) -> Option<$ty> {
-                let val = $ty::from_be_bytes(self.data.get(self.pos..self.pos+core::mem::size_of::<$ty>())?.try_into().ok()?);
-                self.pos += core::mem::size_of::<$ty>();
-                Some(val)
-            }
-            pub fn $read_le(&mut self) -> Option<$ty> {
-                let val = $ty::from_le_bytes(self.data.get(self.pos..self.pos+core::mem::size_of::<$ty>())?.try_into().ok()?);
-                self.pos += core::mem::size_of::<$ty>();
-                Some(val)
-            }
-            /// # Safety
-            /// Caller must ensure that the cursor has enough remaining bytes for this operation.
-            #[inline(always)]
-            pub unsafe fn $read_be_unchecked(&mut self) -> $ty {
-                let ptr = unsafe { self.data.as_ptr().add(self.pos) } as *const [u8; core::mem::size_of::<$ty>()];
-                let val = $ty::from_be_bytes(unsafe { core::ptr::read_unaligned(ptr) });
-                self.pos += core::mem::size_of::<$ty>();
-                val
-            }
-            pub fn $peek_be(&self, offset: usize) -> Option<$ty> {
-                let p = self.pos + offset;
-                Some($ty::from_be_bytes(self.data.get(p..p+core::mem::size_of::<$ty>())?.try_into().ok()?))
-            }
-            pub fn $peek_le(&self, offset: usize) -> Option<$ty> {
-                let p = self.pos + offset;
-                Some($ty::from_le_bytes(self.data.get(p..p+core::mem::size_of::<$ty>())?.try_into().ok()?))
-            }
-        }
-        
-        impl<'a> DataWriter<'a> {
-            pub fn $write_be(&mut self, val: $ty) -> Result<(), &'static str> {
-                if self.pos + core::mem::size_of::<$ty>() > self.data.len() { return Err("buffer overflow"); }
-                self.data[self.pos..self.pos+core::mem::size_of::<$ty>()].copy_from_slice(&val.to_be_bytes());
-                self.pos += core::mem::size_of::<$ty>();
-                Ok(())
-            }
-            pub fn $write_le(&mut self, val: $ty) -> Result<(), &'static str> {
-                if self.pos + core::mem::size_of::<$ty>() > self.data.len() { return Err("buffer overflow"); }
-                self.data[self.pos..self.pos+core::mem::size_of::<$ty>()].copy_from_slice(&val.to_le_bytes());
-                self.pos += core::mem::size_of::<$ty>();
-                Ok(())
-            }
-        }
-    };
+/// BitCursor: High-performance bit-level stream processor.
+pub struct BitCursor<'a> {
+    cursor: DataCursor<'a>,
+    bit_pos: u8,
+    current_byte: u8,
 }
 
-impl_cursor_methods!(u16, read_u16_be, read_u16_le, read_u16_be_unchecked, peek_u16_be, peek_u16_le, write_u16_be, write_u16_le);
-impl_cursor_methods!(i16, read_i16_be, read_i16_le, read_i16_be_unchecked, peek_i16_be, peek_i16_le, write_i16_be, write_i16_le);
-impl_cursor_methods!(u32, read_u32_be, read_u32_le, read_u32_be_unchecked, peek_u32_be, peek_u32_le, write_u32_be, write_u32_le);
-impl_cursor_methods!(i32, read_i32_be, read_i32_le, read_i32_be_unchecked, peek_i32_be, peek_i32_le, write_i32_be, write_i32_le);
-impl_cursor_methods!(u64, read_u64_be, read_u64_le, read_u64_be_unchecked, peek_u64_be, peek_u64_le, write_u64_be, write_u64_le);
-impl_cursor_methods!(i64, read_i64_be, read_i64_le, read_i64_be_unchecked, peek_i64_be, peek_i64_le, write_i64_be, write_i64_le);
+impl<'a> BitCursor<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self {
+            cursor: DataCursor::new(data),
+            bit_pos: 8,
+            current_byte: 0,
+        }
+    }
+
+    pub fn read_bit(&mut self) -> Result<bool> {
+        if self.bit_pos == 8 {
+            self.current_byte = self.cursor.read_u8()?;
+            self.bit_pos = 0;
+        }
+        let bit = (self.current_byte & (1 << (7 - self.bit_pos))) != 0;
+        self.bit_pos += 1;
+        Ok(bit)
+    }
+
+    pub fn read_bits(&mut self, mut count: u8) -> Result<u64> {
+        if count > 64 { return Err(CursorError::InvalidData); }
+        let mut res = 0u64;
+        while count > 0 {
+            res <<= 1;
+            if self.read_bit()? {
+                res |= 1;
+            }
+            count -= 1;
+        }
+        Ok(res)
+    }
+}
+
+/// BitWriter: High-performance bit-level stream encoder.
+pub struct BitWriter<'a> {
+    writer: DataWriter<'a>,
+    bit_pos: u8,
+    current_byte: u8,
+}
+
+impl<'a> BitWriter<'a> {
+    pub fn new(data: &'a mut [u8]) -> Self {
+        Self {
+            writer: DataWriter::new(data),
+            bit_pos: 0,
+            current_byte: 0,
+        }
+    }
+
+    pub fn write_bit(&mut self, bit: bool) -> Result<()> {
+        if bit {
+            self.current_byte |= 1 << (7 - self.bit_pos);
+        }
+        self.bit_pos += 1;
+        if self.bit_pos == 8 {
+            self.writer.write_u8(self.current_byte)?;
+            self.bit_pos = 0;
+            self.current_byte = 0;
+        }
+        Ok(())
+    }
+
+    pub fn write_bits(&mut self, val: u64, mut count: u8) -> Result<()> {
+        if count > 64 { return Err(CursorError::InvalidData); }
+        while count > 0 {
+            let bit = (val & (1 << (count - 1))) != 0;
+            self.write_bit(bit)?;
+            count -= 1;
+        }
+        Ok(())
+    }
+
+    /// Flushes any remaining bits to the underlying buffer.
+    pub fn flush(&mut self) -> Result<()> {
+        if self.bit_pos > 0 {
+            self.writer.write_u8(self.current_byte)?;
+            self.bit_pos = 0;
+            self.current_byte = 0;
+        }
+        Ok(())
+    }
+}
 

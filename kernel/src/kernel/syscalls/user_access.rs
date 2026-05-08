@@ -316,17 +316,19 @@ pub(super) fn with_user_vfs_path<T>(
     )
 }
 
-#[inline(always)]
-pub(crate) fn invalid_arg() -> usize {
-    SYSCALL_INVALID_ARGS.fetch_add(1, Ordering::Relaxed);
-    SYSCALL_ERR_INVALID_ARG
+#[macro_export]
+macro_rules! syscall_error {
+    ($name:ident, $counter:ident, $error_code:expr) => {
+        #[inline(always)]
+        pub(crate) fn $name() -> usize {
+            $counter.fetch_add(1, Ordering::Relaxed);
+            $error_code
+        }
+    };
 }
 
-#[inline(always)]
-pub(super) fn user_access_denied_arg() -> usize {
-    SYSCALL_USER_ACCESS_DENIED.fetch_add(1, Ordering::Relaxed);
-    SYSCALL_ERR_USER_ACCESS_DENIED
-}
+syscall_error!(invalid_arg, SYSCALL_INVALID_ARGS, SYSCALL_ERR_INVALID_ARG);
+syscall_error!(user_access_denied_arg, SYSCALL_USER_ACCESS_DENIED, SYSCALL_ERR_USER_ACCESS_DENIED);
 
 #[inline(always)]
 pub(super) fn user_word_unaligned_denied_arg() -> usize {
@@ -334,11 +336,7 @@ pub(super) fn user_word_unaligned_denied_arg() -> usize {
     user_access_denied_arg()
 }
 
-#[inline(always)]
-pub(crate) fn permission_denied_arg() -> usize {
-    SYSCALL_USER_ACCESS_DENIED.fetch_add(1, Ordering::Relaxed);
-    SYSCALL_ERR_PERMISSION_DENIED
-}
+syscall_error!(permission_denied_arg, SYSCALL_USER_ACCESS_DENIED, SYSCALL_ERR_PERMISSION_DENIED);
 
 #[inline(always)]
 pub(crate) fn require_control_plane_access(resource: u64) -> Result<(), usize> {

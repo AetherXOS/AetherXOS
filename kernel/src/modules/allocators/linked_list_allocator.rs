@@ -42,12 +42,10 @@ unsafe impl GlobalAlloc for LinkedListAllocator {
 
 impl HeapAllocator for LinkedListAllocator {
     unsafe fn init(&mut self, start: usize, size: usize) {
-        #[cfg(target_arch = "x86_64")]
-        crate::hal::serial::write_raw("[EARLY SERIAL] linked list heap init begin\n");
+        crate::core::log::trace("Linked list allocator initialization starting");
         unsafe {
             self.heap.lock().init(start as *mut u8, size);
         }
-        #[cfg(target_arch = "x86_64")]
-        crate::hal::serial::write_raw("[EARLY SERIAL] linked list heap init returned\n");
+        crate::core::log::trace("Linked list allocator initialization complete");
     }
 }

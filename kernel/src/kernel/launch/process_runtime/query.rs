@@ -78,11 +78,9 @@ pub fn process_mapping_state(process_id: ProcessId) -> Option<(usize, usize)> {
 
 #[cfg(feature = "process_abstraction")]
 pub fn process_id_by_task(task_id: TaskId) -> Option<ProcessId> {
-    let registry = PROCESS_REGISTRY.lock();
-    registry
-        .iter()
-        .find(|entry| entry.task_id == task_id)
-        .map(|entry| entry.process_id)
+    crate::kernel::task::get_task(task_id).and_then(|task_arc| {
+        task_arc.lock().process_id
+    })
 }
 
 #[cfg(feature = "process_abstraction")]
@@ -90,9 +88,6 @@ pub fn current_process_arc() -> Option<Arc<Process>> {
     let tid =
         unsafe { CpuLocal::try_get().map(|cpu| TaskId(cpu.current_task.load(Ordering::Relaxed))) }?;
 
-    let registry = PROCESS_REGISTRY.lock();
-    registry
-        .iter()
-        .find(|e| e.task_id == tid)
-        .map(|e| e.process.clone())
+    let pid = process_id_by_task(tid)?;
+    process_arc_by_id(pid)
 }

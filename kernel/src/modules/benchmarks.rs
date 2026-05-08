@@ -88,22 +88,7 @@ impl BenchmarkRunner {
     /// Read timestamp counter (TSC)
     #[inline(always)]
     fn read_tsc(&self) -> u64 {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            let mut low: u32;
-            let mut high: u32;
-            core::arch::asm!(
-                "rdtsc",
-                out("eax") low,
-                out("edx") high,
-                options(nomem, nostack, preserves_flags)
-            );
-            ((high as u64) << 32) | (low as u64)
-        }
-        #[cfg(not(target_arch = "x86_64"))]
-        {
-            0
-        }
+        crate::hal::cpu::rdtsc()
     }
 
     /// Get all results
@@ -134,84 +119,52 @@ pub mod memory_benchmarks {
 
     pub fn benchmark_tiny_allocations(runner: &mut BenchmarkRunner) {
         runner.run("tiny_alloc_16b", 10000, || {
-            let start = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let start = crate::hal::cpu::rdtsc();
             let layout = core::alloc::Layout::from_size_align(16, 8).unwrap();
             let ptr = unsafe { alloc::alloc::alloc(layout) };
             if !ptr.is_null() {
                 unsafe { alloc::alloc::dealloc(ptr, layout) };
             }
-            let end = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let end = crate::hal::cpu::rdtsc();
             end - start
         });
     }
 
     pub fn benchmark_small_allocations(runner: &mut BenchmarkRunner) {
         runner.run("small_alloc_512b", 10000, || {
-            let start = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let start = crate::hal::cpu::rdtsc();
             let layout = core::alloc::Layout::from_size_align(512, 8).unwrap();
             let ptr = unsafe { alloc::alloc::alloc(layout) };
             if !ptr.is_null() {
                 unsafe { alloc::alloc::dealloc(ptr, layout) };
             }
-            let end = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let end = crate::hal::cpu::rdtsc();
             end - start
         });
     }
 
     pub fn benchmark_medium_allocations(runner: &mut BenchmarkRunner) {
         runner.run("medium_alloc_8kb", 10000, || {
-            let start = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let start = crate::hal::cpu::rdtsc();
             let layout = core::alloc::Layout::from_size_align(8192, 8).unwrap();
             let ptr = unsafe { alloc::alloc::alloc(layout) };
             if !ptr.is_null() {
                 unsafe { alloc::alloc::dealloc(ptr, layout) };
             }
-            let end = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let end = crate::hal::cpu::rdtsc();
             end - start
         });
     }
 
     pub fn benchmark_large_allocations(runner: &mut BenchmarkRunner) {
         runner.run("large_alloc_64kb", 10000, || {
-            let start = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let start = crate::hal::cpu::rdtsc();
             let layout = core::alloc::Layout::from_size_align(65536, 8).unwrap();
             let ptr = unsafe { alloc::alloc::alloc(layout) };
             if !ptr.is_null() {
                 unsafe { alloc::alloc::dealloc(ptr, layout) };
             }
-            let end = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let end = crate::hal::cpu::rdtsc();
             end - start
         });
     }
@@ -227,17 +180,9 @@ pub mod ipc_benchmarks {
         let msg = b"Hello, World!";
         
         runner.run("ipc_send", 100000, || {
-            let start = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let start = crate::hal::cpu::rdtsc();
             let _ = rb.try_send(msg);
-            let end = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let end = crate::hal::cpu::rdtsc();
             end - start
         });
     }
@@ -249,19 +194,11 @@ pub mod ipc_benchmarks {
         let mut buf = [0u8; 256];
         
         runner.run("ipc_recv", 100000, || {
-            let start = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let start = crate::hal::cpu::rdtsc();
             let _ = rb.try_recv(&mut buf);
             // Re-send for next iteration
             rb.try_send(msg);
-            let end = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let end = crate::hal::cpu::rdtsc();
             end - start
         });
     }
@@ -272,18 +209,10 @@ pub mod ipc_benchmarks {
         let mut buf = [0u8; 256];
         
         runner.run("ipc_roundtrip", 100000, || {
-            let start = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let start = crate::hal::cpu::rdtsc();
             rb.try_send(msg);
             rb.try_recv(&mut buf);
-            let end = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let end = crate::hal::cpu::rdtsc();
             end - start
         });
     }
@@ -305,11 +234,11 @@ pub mod scheduler_benchmarks {
             let start: u64;
             let end: u64;
             unsafe {
-                core::arch::asm!("rdtsc; shl rdx, 32; or rax, rdx", out("rax") start, out("rdx") _, options(nostack, nomem));
+                start = crate::hal::cpu::rdtsc();
             }
             let _ = sched.pick_next();
             unsafe {
-                core::arch::asm!("rdtsc; shl rdx, 32; or rax, rdx", out("rax") end, out("rdx") _, options(nostack, nomem));
+                end = crate::hal::cpu::rdtsc();
             }
             end.saturating_sub(start)
         });
@@ -324,15 +253,9 @@ pub mod scheduler_benchmarks {
     pub fn benchmark_add_task(runner: &mut BenchmarkRunner) {
         let mut sched = CFSScheduler::new();
         runner.run("add_task", 100000, || {
-            let start: u64;
-            let end: u64;
-            unsafe {
-                core::arch::asm!("rdtsc; shl rdx, 32; or rax, rdx", out("rax") start, out("rdx") _, options(nostack, nomem));
-            }
+            let start = crate::hal::cpu::rdtsc();
             let _ = sched.pick_next();
-            unsafe {
-                core::arch::asm!("rdtsc; shl rdx, 32; or rax, rdx", out("rax") end, out("rdx") _, options(nostack, nomem));
-            }
+            let end = crate::hal::cpu::rdtsc();
             end.saturating_sub(start)
         });
     }
@@ -351,54 +274,30 @@ pub mod syscall_benchmarks {
 
     pub fn benchmark_syscall_getpid(runner: &mut BenchmarkRunner) {
         runner.run("syscall_getpid", 1000000, || {
-            let start = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let start = crate::hal::cpu::rdtsc();
             let _ = inline_syscall(SyscallNumber::Getpid, &[]);
-            let end = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let end = crate::hal::cpu::rdtsc();
             end - start
         });
     }
 
     pub fn benchmark_syscall_yield(runner: &mut BenchmarkRunner) {
         runner.run("syscall_yield", 1000000, || {
-            let start = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let start = crate::hal::cpu::rdtsc();
             let _ = inline_syscall(SyscallNumber::SchedYield, &[]);
-            let end = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let end = crate::hal::cpu::rdtsc();
             end - start
         });
     }
 
     pub fn benchmark_atomic_add(runner: &mut BenchmarkRunner) {
         runner.run("atomic_add", 1000000, || {
-            let start = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let start = crate::hal::cpu::rdtsc();
             let counter = AtomicUsize::new(0);
             for _ in 0..1000 {
                 counter.fetch_add(1, Ordering::Relaxed);
             }
-            let end = unsafe {
-                let mut tsc: u64;
-                core::arch::asm!("rdtsc", out("rax") tsc, options(nomem, nostack));
-                tsc
-            };
+            let end = crate::hal::cpu::rdtsc();
             end - start
         });
     }

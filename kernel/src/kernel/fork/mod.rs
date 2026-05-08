@@ -191,6 +191,9 @@ pub fn do_fork(
     #[cfg(not(feature = "paging_enable"))]
     let mut child_proc = crate::kernel::process::Process::new(&child_name);
 
+    child_proc.parent_id.store(parent_pid.0, Ordering::Relaxed);
+    child_proc.pgid.store(parent.pgid.load(Ordering::Relaxed), Ordering::Relaxed);
+    child_proc.sid.store(parent.sid.load(Ordering::Relaxed), Ordering::Relaxed);
     child_proc.security_level = parent.security_level;
     child_proc.resource_limits = parent.resource_limits;
     child_proc.namespace_id.store(
@@ -210,13 +213,25 @@ pub fn do_fork(
         }
     }
 
-    // Shallow FD copy: for now we don't duplicate File objects (no CoW FDT).
-    // A real implementation would clone Arc<File> references here.
+    // 5. Duplicate FD table (POSIX: shared file objects, independent FD table)
+    {
+        let src = parent.files.lock();
+        let mut dst = child_proc.files.lock();
+        for (&fd, file) in src.iter() {
+            if let Ok(cloned) = file.try_clone() {
+                dst.insert(fd, cloned);
+            } else {
+                crate::klog_warn!("fork: failed to clone fd {} for pid {}", fd, child_proc.id.0);
+            }
+        }
+    }
 
     let child_pid = child_proc.id;
 
     // ── 5. Register child process ───────────────────────────────────────────
-    crate::kernel::process_registry::register_process(alloc::sync::Arc::new(child_proc));
+    let child_proc_arc = alloc::sync::Arc::new(child_proc);
+    crate::kernel::process_registry::register_process(child_proc_arc.clone());
+    parent.children.lock().push(child_pid);
 
     // ── 6. Allocate child thread ────────────────────────────────────────────
     let child_tid = alloc_tid();
@@ -313,14 +328,7 @@ pub fn do_exec(pid: ProcessId, new_entry: u64) -> Result<(), ForkError> {
     // ── 5. Rewrite the primary thread's instruction pointer ─────────────────
     if let Some(task_arc) = get_task(primary_tid) {
         let mut task = task_arc.lock();
-        #[cfg(target_arch = "x86_64")]
-        {
-            task.context.rip = new_entry;
-        }
-        #[cfg(target_arch = "aarch64")]
-        {
-            task.context.elr = new_entry;
-        }
+        task.context.set_instruction_pointer(new_entry);
         // Make sure it's runnable.
         task.state = TaskState::Ready;
         task.priority = parent_task.priority;

@@ -66,6 +66,10 @@ pub struct Process {
     pub interpreter_base: AtomicU64,
     pub heap_start: AtomicU64,
     pub heap_break: AtomicU64,
+    pub children: IrqSafeMutex<Vec<ProcessId>>,
+
+    pub pgid: AtomicU32,
+    pub sid: AtomicU32,
 }
 
 
@@ -125,6 +129,9 @@ impl Process {
             interpreter_base: AtomicU64::new(0),
             heap_start: AtomicU64::new(0),
             heap_break: AtomicU64::new(0),
+            children: IrqSafeMutex::new(Vec::new()),
+            pgid: AtomicU32::new(0),
+            sid: AtomicU32::new(0),
         }
     }
 
@@ -155,7 +162,33 @@ impl Process {
         self.exit_status.store(status, Ordering::SeqCst);
         self.lifecycle_state
             .store(ProcessLifecycleState::Exited as u8, Ordering::SeqCst);
+
+        // Re-parent children to init (PID 1)
+        let mut children = self.children.lock();
+        if !children.is_empty() {
+            if let Some(init_proc) = crate::kernel::process::registry::get_process(ProcessId(1)) {
+                let mut init_children = init_proc.children.lock();
+                for child_pid in children.drain(..) {
+                    if let Some(child_proc) = crate::kernel::process::registry::get_process(child_pid) {
+                        child_proc.parent_id.store(1, Ordering::SeqCst);
+                        init_children.push(child_pid);
+                    }
+                }
+            } else {
+                // Init not found? Just clear children to avoid leaks
+                children.clear();
+            }
+        }
+
         self.exit_wait_queue.wake_all();
+
+        // Notify parent that a child has exited
+        let ppid = self.parent_id.load(Ordering::SeqCst);
+        if ppid != 0 {
+            if let Some(parent) = crate::kernel::process::registry::get_process(ProcessId(ppid)) {
+                parent.exit_wait_queue.wake_all();
+            }
+        }
     }
 
 
@@ -191,6 +224,12 @@ impl Process {
         if mappings.iter().any(|m| m.map_id == id) {
             return Err("mapping id already exists");
         }
+        
+        // Hardening: Ensure no overlaps
+        if mappings.iter().any(|m| m.start < end && m.end > start) {
+            return Err("virtual address range overlap");
+        }
+
         mappings.push(MappingRecord {
             map_id: id,
             start,
@@ -198,10 +237,37 @@ impl Process {
             prot,
             flags,
         });
+        
+        // Keep mappings sorted for efficient searching and gap detection
+        mappings.sort_by_key(|m| m.start);
+
         self.mapped_regions.fetch_add(1, Ordering::Relaxed);
         let pages = ((end - start) as usize + 4095) / 4096;
         self.mapped_pages.fetch_add(pages, Ordering::Relaxed);
         Ok(())
+    }
+
+    /// Find a free virtual address range of the specified size.
+    pub fn find_free_vaddr(&self, size: u64, alignment: u64) -> Result<u64, &'static str> {
+        let mappings = self.mappings.lock();
+        // Mappings are kept sorted by register_mapping
+        
+        let mut current = 0x400000; // Start searching above 4MB (standard user base)
+        for m in mappings.iter() {
+            let aligned_current = (current + alignment - 1) & !(alignment - 1);
+            if aligned_current + size <= m.start {
+                return Ok(aligned_current);
+            }
+            current = m.end;
+        }
+        
+        let aligned_current = (current + alignment - 1) & !(alignment - 1);
+        // Ensure we don't hit the canonical hole or kernel space (x86_64)
+        if aligned_current + size < 0x0000_7FFF_FFFF_F000 {
+            Ok(aligned_current)
+        } else {
+            Err("out of virtual address space")
+        }
     }
 
     pub fn overlapping_mappings(&self, start: u64, end: u64) -> Vec<MappingRecord> {
@@ -479,9 +545,29 @@ impl Process {
                 }
             }
         } else if new_page_end < old_page_end {
-            // Shrinking: Unmap pages (deferred - requires PageManager unmap implementation)
-            // For now, we update the boundary but don't unmap to avoid complex page table surgery
-            // unless we have a robust VMA system.
+            // Shrinking: Unmap pages
+            #[cfg(feature = "paging_enable")]
+            {
+                let hhdm = crate::hal::hhdm_offset().unwrap_or(0);
+                let offset = x86_64::VirtAddr::new(hhdm);
+                let lvl4 = unsafe { &mut *( (self.cr3.as_u64() + hhdm) as *mut x86_64::structures::paging::PageTable ) };
+                let mut page_manager = crate::kernel::memory::paging::PageManager {
+                    mapper: unsafe { x86_64::structures::paging::OffsetPageTable::new(lvl4, offset) },
+                    physical_memory_offset: offset,
+                };
+                let mut frame_allocator = crate::hal::HAL::create_frame_allocator();
+
+                let mut curr = old_page_end;
+                while curr > new_page_end {
+                    curr -= page_size;
+                    if let Ok(frame_phys) = page_manager.unmap_page(curr, &mut frame_allocator) {
+                        let frame = x86_64::structures::paging::PhysFrame::containing_address(
+                            x86_64::PhysAddr::new(frame_phys)
+                        );
+                        frame_allocator.deallocate_frame(frame);
+                    }
+                }
+            }
         }
 
         self.heap_break.store(new_brk, Ordering::SeqCst);

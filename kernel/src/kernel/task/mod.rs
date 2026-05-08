@@ -9,6 +9,7 @@
 pub use crate::interfaces::task::*;
 use alloc::sync::Arc;
 use crate::kernel::sync::IrqSafeMutex;
+use crate::core::log;
 
 pub use crate::interfaces::task::KernelTask as Task;
 
@@ -16,6 +17,12 @@ pub use crate::interfaces::task::KernelTask as Task;
 pub fn spawn_task(task: Arc<IrqSafeMutex<KernelTask>>) -> TaskId {
     let id = task.lock().id;
     register_task_arc(task.clone());
+    
+    // PHASE 6 TASK 7: Initialize task in scheduler
+    if let Err(e) = crate::kernel_runtime::syscall_integration::on_task_spawn(id) {
+        log::warn(&format!("Failed to initialize task {} in scheduler: {}", id.0, e));
+    }
+    
     wake_task(id);
     id
 }
@@ -23,6 +30,22 @@ pub fn spawn_task(task: Arc<IrqSafeMutex<KernelTask>>) -> TaskId {
 pub fn alloc_tid() -> TaskId {
     static NEXT_TID: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(1000);
     TaskId(NEXT_TID.fetch_add(1, core::sync::atomic::Ordering::SeqCst))
+}
+
+/// Get the ID of the currently executing task on the local CPU.
+pub fn current_task_id() -> TaskId {
+    unsafe {
+        crate::kernel::cpu_local::CpuLocal::try_get()
+            .map(|cpu| TaskId(cpu.current_task.load(core::sync::atomic::Ordering::Relaxed)))
+            .unwrap_or(TaskId(0))
+    }
+}
+
+/// Get the security context of the currently executing task.
+pub fn current_security_context() -> crate::interfaces::security::SecurityContext {
+    get_task(current_task_id())
+        .map(|t| t.lock().security_ctx)
+        .unwrap_or(crate::interfaces::security::SecurityContext::kernel())
 }
 
 

@@ -171,10 +171,7 @@ pub fn sys_linux_getrandom(buf_ptr: usize, buflen: usize, _flags: usize) -> usiz
 
     // Mix per-call context and monotonic state to avoid deterministic same-seed outputs.
     let mut seed = ((cpu_id as u64) << 32) ^ tid ^ (buf_ptr as u64) ^ (buf_len as u64);
-    #[cfg(target_arch = "x86_64")]
-    {
-        seed ^= unsafe { core::arch::x86_64::_rdtsc() };
-    }
+    seed ^= crate::hal::cpu::rdtsc();
     seed ^= GETRANDOM_STATE.fetch_add(0x9E3779B97F4A7C15, Ordering::Relaxed);
     let mut prng_state = mix64(seed);
 

@@ -3,5 +3,6 @@ pub enum TaskState {
     Ready,
     Running,
     Blocked,
+    Stopped,
     Terminated,
 }

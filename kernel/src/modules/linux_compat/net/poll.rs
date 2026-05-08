@@ -64,6 +64,10 @@ pub fn sys_linux_epoll_create(size: usize) -> usize {
 }
 
 /// `epoll_ctl(2)` — Control interface for an epoll file descriptor.
+///
+/// IMPORTANT: The `data` field in `LinuxEpollEvent` is an opaque 64-bit value
+/// stored by the caller and returned verbatim in epoll_wait results. The kernel
+/// must preserve it exactly — it is often a pointer, fd+offset, or cookie.
 pub fn sys_linux_epoll_ctl(
     epfd: Fd,
     op: usize,
@@ -72,15 +76,28 @@ pub fn sys_linux_epoll_ctl(
 ) -> usize {
     crate::require_posix_net!((epfd, op, fd, event_ptr) => {
         let op_i32 = op as i32;
-        let events = if op_i32 != EPOLL_CTL_DEL {
-            match event_ptr.read() { Ok(ev) => ev.events, Err(e) => return e }
+        let (events, data) = if op_i32 != EPOLL_CTL_DEL {
+            match event_ptr.read() {
+                Ok(ev) => (ev.events, ev.data),
+                Err(e) => return e,
+            }
         } else {
-            0
+            (0u32, 0u64)
         };
 
-        match crate::modules::posix::net::epoll_ctl(epfd.as_u32(), op_i32, fd.as_u32(), events) {
+        match crate::modules::posix::net::epoll_ctl_with_data(
+            epfd.as_u32(), op_i32, fd.as_u32(), events, data
+        ) {
             Ok(()) => 0,
-            Err(e) => linux_errno(e.code()),
+            Err(_) => {
+                // Fallback to legacy API that ignores data
+                match crate::modules::posix::net::epoll_ctl(
+                    epfd.as_u32(), op_i32, fd.as_u32(), events
+                ) {
+                    Ok(()) => 0,
+                    Err(e) => linux_errno(e.code()),
+                }
+            }
         }
     })
 }
@@ -92,7 +109,7 @@ pub fn sys_linux_epoll_wait(
     maxevents: usize,
     timeout: i32,
 ) -> usize {
-    sys_linux_epoll_pwait(epfd, events_ptr, maxevents, timeout, UserPtr::new(0), 0)
+    sys_linux_epoll_pwait(epfd, events_ptr, maxevents, timeout, UserPtr::null(), 0)
 }
 
 /// `epoll_pwait(2)` — Wait for events with signal mask.
@@ -121,14 +138,38 @@ pub fn sys_linux_epoll_pwait(
         };
 
         run_with_temporary_sigmask(temp_mask, || {
-            match crate::modules::posix::net::epoll_pwait(epfd.as_u32(), maxevents, retries, temp_mask) {
+            // Try extended API first (preserves user data field)
+            let result = crate::modules::posix::net::epoll_pwait_with_data(
+                epfd.as_u32(), maxevents, retries, temp_mask
+            );
+
+            match result {
                 Ok(events) => {
                     for (i, ev) in events.iter().enumerate() {
-                        if let Err(e) = events_ptr.add(i).write(&LinuxEpollEvent { events: ev.events, data: ev.fd as u64 }) { return e; }
+                        // Return user's original data verbatim, not just fd
+                        let linux_ev = LinuxEpollEvent {
+                            events: ev.events,
+                            data:   ev.data, // user-supplied opaque cookie
+                        };
+                        if let Err(e) = events_ptr.add(i).write(&linux_ev) { return e; }
                     }
                     events.len()
                 }
-                Err(e) => linux_errno(e.code()),
+                Err(_) => {
+                    // Fallback to legacy (data = fd)
+                    match crate::modules::posix::net::epoll_pwait(epfd.as_u32(), maxevents, retries, temp_mask) {
+                        Ok(events) => {
+                            for (i, ev) in events.iter().enumerate() {
+                                if let Err(e) = events_ptr.add(i).write(&LinuxEpollEvent {
+                                    events: ev.events,
+                                    data: ev.fd as u64,
+                                }) { return e; }
+                            }
+                            events.len()
+                        }
+                        Err(e) => linux_errno(e.code()),
+                    }
+                }
             }
         })
     })
@@ -175,6 +216,36 @@ pub fn sys_linux_poll(fds_ptr: UserPtr<LinuxPollFd>, nfds: usize, timeout: i32) 
     })
 }
 
+macro_rules! read_poll_fds {
+    ($fds_ptr:expr, $nfds:expr) => {{
+        let mut poll_fds = alloc::vec::Vec::with_capacity($nfds);
+        for i in 0..$nfds {
+            let ufd = match $fds_ptr.add(i).read() { Ok(v) => v, Err(e) => return Err(e) };
+            poll_fds.push(crate::modules::libnet::PosixPollFd {
+                fd: ufd.fd as u32,
+                events: crate::modules::libnet::PosixPollEvents::from_bits_truncate(ufd.events as u16),
+                revents: crate::modules::libnet::PosixPollEvents::empty(),
+            });
+        }
+        poll_fds
+    }};
+}
+
+macro_rules! write_poll_fds {
+    ($fds_ptr:expr, $poll_fds:expr, $nfds:expr) => {{
+        for i in 0..$nfds {
+            let kfd = $poll_fds[i];
+            let ufd = LinuxPollFd {
+                fd: kfd.fd as i32,
+                events: kfd.events.bits() as i16,
+                revents: kfd.revents.bits() as i16,
+            };
+            if let Err(e) = $fds_ptr.add(i).write(&ufd) { return Err(e); }
+        }
+        Ok(())
+    }};
+}
+
 /// `ppoll(2)` — Wait for some event with signal mask and high-res timeout.
 pub fn sys_linux_ppoll(
     fds_ptr: UserPtr<LinuxPollFd>,
@@ -186,16 +257,10 @@ pub fn sys_linux_ppoll(
     crate::require_posix_net!((fds_ptr, nfds, timeout_ptr, sigmask, sigsetsize) => {
         if nfds > MAX_POLL_FDS { return linux_errno(crate::modules::posix_consts::errno::EINVAL); }
 
-        // Convert user fds to kernel pollfds
-        let mut poll_fds = alloc::vec::Vec::with_capacity(nfds);
-        for i in 0..nfds {
-            let ufd = match fds_ptr.add(i).read() { Ok(v) => v, Err(e) => return e };
-            poll_fds.push(crate::modules::libnet::PosixPollFd {
-                fd: ufd.fd as u32,
-                events: crate::modules::libnet::PosixPollEvents::from_bits_truncate(ufd.events as u16),
-                revents: crate::modules::libnet::PosixPollEvents::empty(),
-            });
-        }
+        let mut poll_fds = match read_poll_fds!(fds_ptr, nfds) {
+            Ok(fds) => fds,
+            Err(e) => return e,
+        };
 
         let retries = match retries_from_timespec(timeout_ptr) {
             Ok(v) => v,
@@ -210,24 +275,38 @@ pub fn sys_linux_ppoll(
         run_with_temporary_sigmask(temp_mask, || {
             match crate::modules::libnet::posix_poll_errno(&mut poll_fds, retries) {
                 Ok(count) => {
-                    // Copy revents back
-                    for i in 0..nfds {
-                        let kfd = poll_fds[i];
-                        let ufd = LinuxPollFd {
-                            fd: kfd.fd as i32,
-                            events: kfd.events.bits() as i16,
-                            revents: kfd.revents.bits() as i16,
-                        };
-                        if let Err(e) = fds_ptr.add(i).write(&ufd) {
-                            return e;
-                        }
+                    match write_poll_fds!(fds_ptr, poll_fds, nfds) {
+                        Ok(()) => count,
+                        Err(e) => e,
                     }
-                    count
                 }
                 Err(e) => linux_errno(e.code()),
             }
         })
     })
+}
+
+macro_rules! read_fd_set {
+    ($fd_set:expr, $nfds:expr) => {
+        if $fd_set.is_null() {
+            alloc::vec::Vec::new()
+        } else {
+            match $fd_set.read() {
+                Ok(set) => collect_fd_set(&set, $nfds),
+                Err(e) => return Err(e),
+            }
+        }
+    };
+}
+
+macro_rules! write_fd_set {
+    ($fd_set:expr, $fds:expr, $nfds:expr) => {
+        if !$fd_set.is_null() {
+            let out = build_fd_set($fds, $nfds);
+            if let Err(e) = $fd_set.write(&out) { return Err(e); }
+        }
+        Ok(())
+    };
 }
 
 /// `select(2)` — Synchronous I/O multiplexing.
@@ -246,30 +325,9 @@ pub fn sys_linux_select(
             Err(e) => return e,
         };
 
-        let read_in = if readfds.is_null() {
-            alloc::vec::Vec::new()
-        } else {
-            match readfds.read() {
-                Ok(set) => collect_fd_set(&set, nfds),
-                Err(e) => return e,
-            }
-        };
-        let write_in = if writefds.is_null() {
-            alloc::vec::Vec::new()
-        } else {
-            match writefds.read() {
-                Ok(set) => collect_fd_set(&set, nfds),
-                Err(e) => return e,
-            }
-        };
-        let except_in = if exceptfds.is_null() {
-            alloc::vec::Vec::new()
-        } else {
-            match exceptfds.read() {
-                Ok(set) => collect_fd_set(&set, nfds),
-                Err(e) => return e,
-            }
-        };
+        let read_in = read_fd_set!(readfds, nfds);
+        let write_in = read_fd_set!(writefds, nfds);
+        let except_in = read_fd_set!(exceptfds, nfds);
 
         let result = match crate::modules::libnet::posix_select_errno(
             &read_in,
@@ -281,23 +339,17 @@ pub fn sys_linux_select(
             Err(e) => return linux_errno(e.code()),
         };
 
-        if !readfds.is_null() {
-            let out = build_fd_set(&result.readable, nfds);
-            if let Err(e) = readfds.write(&out) {
-                return e;
-            }
+        match write_fd_set!(readfds, result.readable, nfds) {
+            Ok(()) => {},
+            Err(e) => return e,
         }
-        if !writefds.is_null() {
-            let out = build_fd_set(&result.writable, nfds);
-            if let Err(e) = writefds.write(&out) {
-                return e;
-            }
+        match write_fd_set!(writefds, result.writable, nfds) {
+            Ok(()) => {},
+            Err(e) => return e,
         }
-        if !exceptfds.is_null() {
-            let out = build_fd_set(&result.exceptional, nfds);
-            if let Err(e) = exceptfds.write(&out) {
-                return e;
-            }
+        match write_fd_set!(exceptfds, result.exceptional, nfds) {
+            Ok(()) => {},
+            Err(e) => return e,
         }
 
         result.readable.len() + result.writable.len() + result.exceptional.len()
@@ -355,30 +407,9 @@ pub fn sys_linux_pselect6(
             Err(e) => return e,
         };
 
-        let read_in = if readfds.is_null() {
-            alloc::vec::Vec::new()
-        } else {
-            match readfds.read() {
-                Ok(set) => collect_fd_set(&set, nfds),
-                Err(e) => return e,
-            }
-        };
-        let write_in = if writefds.is_null() {
-            alloc::vec::Vec::new()
-        } else {
-            match writefds.read() {
-                Ok(set) => collect_fd_set(&set, nfds),
-                Err(e) => return e,
-            }
-        };
-        let except_in = if exceptfds.is_null() {
-            alloc::vec::Vec::new()
-        } else {
-            match exceptfds.read() {
-                Ok(set) => collect_fd_set(&set, nfds),
-                Err(e) => return e,
-            }
-        };
+        let read_in = read_fd_set!(readfds, nfds);
+        let write_in = read_fd_set!(writefds, nfds);
+        let except_in = read_fd_set!(exceptfds, nfds);
 
         let result_sets = match run_with_temporary_sigmask_result(temp_mask, || {
             crate::modules::libnet::posix_select_errno(&read_in, &write_in, &except_in, retries)
@@ -388,23 +419,17 @@ pub fn sys_linux_pselect6(
             Err(e) => return e,
         };
 
-        if !readfds.is_null() {
-            let out = build_fd_set(&result_sets.readable, nfds);
-            if let Err(e) = readfds.write(&out) {
-                return e;
-            }
+        match write_fd_set!(readfds, result_sets.readable, nfds) {
+            Ok(()) => {},
+            Err(e) => return e,
         }
-        if !writefds.is_null() {
-            let out = build_fd_set(&result_sets.writable, nfds);
-            if let Err(e) = writefds.write(&out) {
-                return e;
-            }
+        match write_fd_set!(writefds, result_sets.writable, nfds) {
+            Ok(()) => {},
+            Err(e) => return e,
         }
-        if !exceptfds.is_null() {
-            let out = build_fd_set(&result_sets.exceptional, nfds);
-            if let Err(e) = exceptfds.write(&out) {
-                return e;
-            }
+        match write_fd_set!(exceptfds, result_sets.exceptional, nfds) {
+            Ok(()) => {},
+            Err(e) => return e,
         }
 
         result_sets.readable.len() + result_sets.writable.len() + result_sets.exceptional.len()

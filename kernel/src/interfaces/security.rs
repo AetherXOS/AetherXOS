@@ -104,6 +104,32 @@ impl_enum_u8_default_conversions!(SecurityLevel {
     KernelOnly,
 }, default = Unclassified);
 
+/// Security execution mode (compile-time selectable, runtime switch possible)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SecurityMode {
+    /// No security checks (zero overhead)
+    Disabled = 0,
+    /// Capability-based authorization only
+    CapabilityOnly = 1,
+    /// Full policy enforcement with audit trail
+    PolicyEnforcement = 2,
+}
+
+impl SecurityMode {
+    /// Check if capabilities should be checked
+    #[inline(always)]
+    pub fn has_capabilities(&self) -> bool {
+        matches!(self, SecurityMode::CapabilityOnly | SecurityMode::PolicyEnforcement)
+    }
+
+    /// Check if policy/audit should be enforced
+    #[inline(always)]
+    pub fn has_policy(&self) -> bool {
+        matches!(self, SecurityMode::PolicyEnforcement)
+    }
+}
+
 /// Capability flags — first 64 capabilities as a bitmask for fast inline checks.
 /// Capabilities beyond 64 use the extended capability set.
 pub mod cap_flags {
@@ -146,40 +172,45 @@ pub mod cap_flags {
     pub const CAP_NONE: u64 = 0;
 }
 
-/// Per-task security context.
+/// Per-task security context (optional capabilities via feature flag).
 /// Carried by every task and inspected by the security monitor on each access check.
 #[derive(Debug, Clone, Copy)]
 pub struct SecurityContext {
-    /// Task identity.
-    pub task_id: TaskId,
-    /// Owning process identity.
-    pub process_id: ProcessId,
-    /// Effective user ID (POSIX uid).
-    pub euid: u32,
-    /// Effective group ID (POSIX gid).
-    pub egid: u32,
-    /// Real user ID.
-    pub ruid: u32,
-    /// Real group ID.
-    pub rgid: u32,
-    /// Saved user ID (for setuid).
-    pub suid: u32,
-    /// Saved group ID (for setgid).
-    pub sgid: u32,
-    /// Base capability bitmask (first 64 capabilities).
-    pub capabilities: u64,
-    /// Ambient capability set — inherited across exec.
-    pub ambient_caps: u64,
-    /// MAC security level of the task.
-    pub security_level: SecurityLevel,
-    /// Namespace identifier (0 = root/default namespace).
-    pub namespace_id: u32,
-    /// Whether this context is in a privileged (admin/root) mode.
-    pub privileged: bool,
-    /// Whether security checks should be audited for this task.
-    pub audit_enabled: bool,
+    // Always present
+    pub euid: u32,              // Effective user ID (POSIX uid)
+    pub egid: u32,              // Effective group ID (POSIX gid)
+    
+    // Optional via feature flag: security_capabilities
+    #[cfg(feature = "capability_system")]
+    pub task_id: TaskId,        // Task identity
+    #[cfg(feature = "capability_system")]
+    pub process_id: ProcessId,  // Owning process identity
+    #[cfg(feature = "capability_system")]
+    pub ruid: u32,              // Real user ID
+    #[cfg(feature = "capability_system")]
+    pub rgid: u32,              // Real group ID
+    #[cfg(feature = "capability_system")]
+    pub suid: u32,              // Saved user ID (for setuid)
+    #[cfg(feature = "capability_system")]
+    pub sgid: u32,              // Saved group ID (for setgid)
+    #[cfg(feature = "capability_system")]
+    pub capabilities: u64,      // Base capability bitmask (first 64 capabilities)
+    #[cfg(feature = "capability_system")]
+    pub ambient_caps: u64,      // Ambient capability set — inherited across exec
+    
+    // Optional via feature flag: policy_enforcement
+    #[cfg(feature = "policy_enforcement")]
+    pub security_level: SecurityLevel,  // MAC security level
+    #[cfg(feature = "policy_enforcement")]
+    pub namespace_id: u32,              // Namespace identifier (0 = root)
+    #[cfg(feature = "policy_enforcement")]
+    pub privileged: bool,               // Privileged mode flag
+    #[cfg(feature = "policy_enforcement")]
+    pub audit_enabled: bool,            // Audit this task's security events
 }
 
+// Impl for capability_system feature
+#[cfg(feature = "capability_system")]
 impl SecurityContext {
     /// Create a kernel-level (fully privileged) context.
     pub const fn kernel() -> Self {
@@ -194,9 +225,13 @@ impl SecurityContext {
             sgid: 0,
             capabilities: cap_flags::CAP_ALL,
             ambient_caps: cap_flags::CAP_ALL,
+            #[cfg(feature = "policy_enforcement")]
             security_level: SecurityLevel::KernelOnly,
+            #[cfg(feature = "policy_enforcement")]
             namespace_id: 0,
+            #[cfg(feature = "policy_enforcement")]
             privileged: true,
+            #[cfg(feature = "policy_enforcement")]
             audit_enabled: false,
         }
     }
@@ -214,9 +249,13 @@ impl SecurityContext {
             sgid: gid,
             capabilities: cap_flags::CAP_NONE,
             ambient_caps: cap_flags::CAP_NONE,
+            #[cfg(feature = "policy_enforcement")]
             security_level: SecurityLevel::Unclassified,
+            #[cfg(feature = "policy_enforcement")]
             namespace_id: 0,
+            #[cfg(feature = "policy_enforcement")]
             privileged: false,
+            #[cfg(feature = "policy_enforcement")]
             audit_enabled: true,
         }
     }
@@ -224,7 +263,14 @@ impl SecurityContext {
     /// Check if this context holds a specific capability.
     #[inline(always)]
     pub fn has_capability(&self, cap: u64) -> bool {
-        self.privileged || (self.capabilities & cap) == cap
+        #[cfg(feature = "policy_enforcement")]
+        {
+            self.privileged || (self.capabilities & cap) == cap
+        }
+        #[cfg(all(feature = "capability_system", not(feature = "policy_enforcement")))]
+        {
+            (self.capabilities & cap) == cap
+        }
     }
 
     /// Check if this context is running as root (euid 0).
@@ -232,11 +278,33 @@ impl SecurityContext {
     pub fn is_root(&self) -> bool {
         self.euid == 0
     }
+}
 
+// Impl for policy_enforcement feature only
+#[cfg(feature = "policy_enforcement")]
+impl SecurityContext {
     /// Check if this context can access the given security level.
     #[inline(always)]
     pub fn can_access_level(&self, required: SecurityLevel) -> bool {
         self.security_level >= required
+    }
+}
+
+// Impl for contexts without capability_system (minimal)
+#[cfg(not(feature = "capability_system"))]
+impl SecurityContext {
+    /// Create a minimal context for lightweight systems.
+    pub const fn minimal(uid: u32, gid: u32) -> Self {
+        Self {
+            euid: uid,
+            egid: gid,
+        }
+    }
+
+    /// Check if this context is running as root (euid 0).
+    #[inline(always)]
+    pub fn is_root(&self) -> bool {
+        self.euid == 0
     }
 }
 
@@ -389,5 +457,160 @@ pub trait SecurityMonitor {
     /// Return the name of the security policy backend.
     fn policy_name(&self) -> &'static str {
         "unknown"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_security_mode_variants() {
+        assert_eq!(SecurityMode::Disabled as u8, 0);
+        assert_eq!(SecurityMode::CapabilityOnly as u8, 1);
+        assert_eq!(SecurityMode::PolicyEnforcement as u8, 2);
+    }
+
+    #[test]
+    fn test_security_mode_checks() {
+        assert!(!SecurityMode::Disabled.has_capabilities());
+        assert!(!SecurityMode::Disabled.has_policy());
+
+        assert!(SecurityMode::CapabilityOnly.has_capabilities());
+        assert!(!SecurityMode::CapabilityOnly.has_policy());
+
+        assert!(SecurityMode::PolicyEnforcement.has_capabilities());
+        assert!(SecurityMode::PolicyEnforcement.has_policy());
+    }
+
+    #[test]
+    fn test_capability_flags() {
+        // Verify individual capability bits
+        assert_eq!(cap_flags::CAP_CHOWN, 1 << 0);
+        assert_eq!(cap_flags::CAP_SETUID, 1 << 3);
+        assert_eq!(cap_flags::CAP_SYS_ADMIN, 1 << 10);
+
+        // Verify bitwise operations
+        let caps = cap_flags::CAP_CHOWN | cap_flags::CAP_SETUID;
+        assert_eq!(caps & cap_flags::CAP_CHOWN, cap_flags::CAP_CHOWN);
+        assert_eq!(caps & cap_flags::CAP_SETUID, cap_flags::CAP_SETUID);
+        assert_eq!(caps & cap_flags::CAP_SYS_ADMIN, 0);
+    }
+
+    #[test]
+    fn test_security_verdict_is_allowed() {
+        assert!(SecurityVerdict::Allow.is_allowed());
+        assert!(SecurityVerdict::AuditAllow.is_allowed());
+        assert!(!SecurityVerdict::Deny.is_allowed());
+        assert!(!SecurityVerdict::AuditDeny.is_allowed());
+    }
+
+    #[test]
+    fn test_security_verdict_should_audit() {
+        assert!(!SecurityVerdict::Allow.should_audit());
+        assert!(SecurityVerdict::AuditAllow.should_audit());
+        assert!(!SecurityVerdict::Deny.should_audit());
+        assert!(SecurityVerdict::AuditDeny.should_audit());
+    }
+
+    #[test]
+    fn test_security_level_ordering() {
+        assert!(SecurityLevel::Unclassified < SecurityLevel::Confidential);
+        assert!(SecurityLevel::Confidential < SecurityLevel::Secret);
+        assert!(SecurityLevel::Secret < SecurityLevel::TopSecret);
+        assert!(SecurityLevel::TopSecret < SecurityLevel::KernelOnly);
+    }
+
+    #[cfg(feature = "capability_system")]
+    #[test]
+    fn test_security_context_is_root() {
+        let root = SecurityContext::user(TaskId(1), ProcessId(1), 0, 0);
+        assert!(root.is_root());
+
+        let user = SecurityContext::user(TaskId(2), ProcessId(2), 1000, 1000);
+        assert!(!user.is_root());
+    }
+
+    #[cfg(feature = "capability_system")]
+    #[test]
+    fn test_security_context_kernel() {
+        let ctx = SecurityContext::kernel();
+        assert_eq!(ctx.euid, 0);
+        assert_eq!(ctx.egid, 0);
+        assert_eq!(ctx.capabilities, cap_flags::CAP_ALL);
+        assert_eq!(ctx.ambient_caps, cap_flags::CAP_ALL);
+    }
+
+    #[cfg(feature = "capability_system")]
+    #[test]
+    fn test_security_context_user() {
+        let ctx = SecurityContext::user(TaskId(42), ProcessId(100), 1000, 1000);
+        assert_eq!(ctx.task_id, TaskId(42));
+        assert_eq!(ctx.process_id, ProcessId(100));
+        assert_eq!(ctx.euid, 1000);
+        assert_eq!(ctx.egid, 1000);
+        assert_eq!(ctx.capabilities, cap_flags::CAP_NONE);
+        assert_eq!(ctx.ambient_caps, cap_flags::CAP_NONE);
+    }
+
+    #[cfg(all(feature = "capability_system", feature = "policy_enforcement"))]
+    #[test]
+    fn test_security_context_privileged_bypass() {
+        let mut root = SecurityContext::kernel();
+        // Kernel context is privileged
+        assert!(root.has_capability(cap_flags::CAP_CHOWN));
+        assert!(root.has_capability(cap_flags::CAP_SYS_ADMIN));
+    }
+
+    #[cfg(feature = "capability_system")]
+    #[test]
+    fn test_security_context_capability_check() {
+        let mut ctx = SecurityContext::user(TaskId(1), ProcessId(1), 1000, 1000);
+        #[cfg(feature = "policy_enforcement")]
+        {
+            ctx.privileged = false;
+        }
+        // Unprivileged user should fail capability checks
+        assert!(!ctx.has_capability(cap_flags::CAP_CHOWN));
+        assert!(!ctx.has_capability(cap_flags::CAP_SYS_ADMIN));
+    }
+
+    #[cfg(feature = "policy_enforcement")]
+    #[test]
+    fn test_security_context_can_access_level() {
+        let root = SecurityContext::kernel();
+        assert!(root.can_access_level(SecurityLevel::Unclassified));
+        assert!(root.can_access_level(SecurityLevel::KernelOnly));
+
+        let mut user = SecurityContext::user(TaskId(1), ProcessId(1), 1000, 1000);
+        user.security_level = SecurityLevel::Confidential;
+        assert!(user.can_access_level(SecurityLevel::Unclassified));
+        assert!(user.can_access_level(SecurityLevel::Confidential));
+        assert!(!user.can_access_level(SecurityLevel::Secret));
+    }
+
+    #[cfg(not(feature = "capability_system"))]
+    #[test]
+    fn test_security_context_minimal() {
+        let ctx = SecurityContext::minimal(1000, 1000);
+        assert_eq!(ctx.euid, 1000);
+        assert_eq!(ctx.egid, 1000);
+    }
+
+    #[test]
+    fn test_resource_limits_defaults() {
+        let limits = ResourceLimits::default();
+        assert_eq!(limits.max_open_files, 1024);
+        assert_eq!(limits.max_vm_bytes, 256 * 1024 * 1024);
+        assert_eq!(limits.max_threads, 64);
+        assert_eq!(limits.max_stack_bytes, 2 * 1024 * 1024);
+    }
+
+    #[test]
+    fn test_resource_limits_stack_heap() {
+        let limits = ResourceLimits::default();
+        assert_eq!(limits.max_heap_bytes, 128 * 1024 * 1024);
+        assert_eq!(limits.max_ipc_channels, 256);
+        assert_eq!(limits.max_children, 128);
     }
 }

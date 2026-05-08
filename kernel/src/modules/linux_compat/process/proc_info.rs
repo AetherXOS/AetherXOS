@@ -1,6 +1,12 @@
 use super::super::*;
 use crate::kernel::syscalls::with_user_write_bytes;
 
+macro_rules! read_u64 {
+    ($ptr:expr) => {
+        match $ptr.read() { Ok(v) => v, Err(e) => return e }
+    };
+}
+
 const LINUX_SIGNAL_MAX: i32 = 64;
 const PRLIMIT_FALLBACK_SOFT: u64 = 1024;
 const PRLIMIT_FALLBACK_HARD: u64 = 4096;
@@ -92,8 +98,8 @@ pub fn sys_linux_prlimit64(
 
         // 2. Set new limits
         if !new_limit.is_null() {
-            let soft = match new_limit.read() { Ok(v) => v, Err(e) => return e };
-            let hard = match new_limit.offset(1).read() { Ok(v) => v, Err(e) => return e };
+            let soft = read_u64!(new_limit);
+            let hard = read_u64!(new_limit.offset(1));
             let _ = crate::modules::posix::process::prlimit(target_pid, resource as i32, Some((soft, hard)));
         }
         0

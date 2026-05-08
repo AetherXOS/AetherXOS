@@ -24,48 +24,89 @@ pub fn clone_current_address_space() -> Result<u64, &'static str> {
     let new_l4_phys = new_l4_frame.start_address().as_u64();
     let new_l4_virt = (new_l4_phys + hhdm) as *mut x86_64::structures::paging::PageTable;
 
-    // 2. Clear and setup kernel mappings (higher half)
     unsafe {
         let current_l4 = crate::kernel::memory::paging::active_level_4_table(hhdm);
         let new_l4 = &mut *new_l4_virt;
         new_l4.zero();
 
-        // Copy kernel mappings (entries 256..512 for x86_64)
+        // 2. Setup Kernel Mappings (Entries 256..512) - Shallow Copy
         for i in 256..512 {
             new_l4[i] = current_l4[i].clone();
         }
+
+        // 3. Deep Clone User Mappings (Entries 0..256)
+        for i in 0..256 {
+            if current_l4[i].is_unused() {
+                continue;
+            }
+            let _ = recursive_clone_table(hhdm, &current_l4[i], &mut new_l4[i], 4, &mut frame_alloc);
+        }
     }
 
-    // 3. Mark all user-space writable pages as COW in BOTH parent and child
+    // 4. Mark all user-space writable pages as COW in the PARENT (Current) space
     let pid = current_process_id().ok_or("no process")?;
-    let process = crate::kernel::launch::process_arc_by_id(pid).ok_or("no process arc")?;
-    let mappings = process.mappings.lock().clone();
+    if let Some(process) = crate::kernel::launch::process_arc_by_id(pid) {
+        let mappings = process.mappings.lock().clone();
+        unsafe {
+            let mut pmgr = crate::kernel::memory::paging::PageManager::new(
+                VirtAddr::new(hhdm),
+                crate::kernel::memory::paging::active_level_4_table(hhdm),
+            );
 
-    unsafe {
-        let mut pmgr = crate::kernel::memory::paging::PageManager::new(
-            VirtAddr::new(hhdm),
-            crate::kernel::memory::paging::active_level_4_table(hhdm),
-        );
-
-        for mrec in mappings {
-            // We only COW writable regions that are not shared
-            if (mrec.prot & crate::interfaces::memory::page_flags::WRITABLE) != 0 && mrec.map_id < 2_000_000 {
-                // Remap range with COW bit set in current (parent) space
-                let flags = mrec.prot | crate::interfaces::memory::page_flags::COW;
-                let _ = pmgr.remap_range(mrec.start, mrec.end, flags, &mut frame_alloc);
+            for mrec in mappings {
+                if (mrec.prot & crate::interfaces::memory::page_flags::WRITABLE) != 0 && mrec.map_id < 2_000_000 {
+                    let flags = (mrec.prot & !crate::interfaces::memory::page_flags::WRITABLE) 
+                                | crate::interfaces::memory::page_flags::COW;
+                    let _ = pmgr.remap_range(mrec.start, mrec.end, flags, &mut frame_alloc);
+                }
             }
-        }
-
-        // 4. Copy user-space page table structures to the child
-        // For x86_64, we can just copy entries 0..256
-        let current_l4 = crate::kernel::memory::paging::active_level_4_table(hhdm);
-        let new_l4 = &mut *new_l4_virt;
-        for i in 0..256 {
-            new_l4[i] = current_l4[i].clone();
         }
     }
 
     Ok(new_l4_phys)
+}
+
+unsafe fn recursive_clone_table(
+    hhdm: u64,
+    old_entry: &x86_64::structures::paging::PageTableEntry,
+    new_entry: &mut x86_64::structures::paging::PageTableEntry,
+    level: u8,
+    alloc: &mut crate::hal::paging::PageAllocWrapper,
+) -> Result<(), &'static str> {
+    use x86_64::structures::paging::PageTableFlags as Flags;
+    
+    if old_entry.is_unused() {
+        return Ok(());
+    }
+
+    if level == 1 || old_entry.flags().contains(Flags::HUGE_PAGE) {
+        // Leaf entry (4KB or Huge Page)
+        let mut flags = old_entry.flags();
+        // If writable, mark as COW
+        if flags.contains(Flags::WRITABLE) {
+            flags.remove(Flags::WRITABLE);
+            flags.insert(Flags::from_bits_truncate(crate::hal::paging::COW_BIT));
+        }
+        new_entry.set_addr(old_entry.addr(), flags);
+        return Ok(());
+    }
+
+    // Allocate new table for next level
+    let frame = alloc.allocate_frame().ok_or("OOM in deep clone")?;
+    let phys = frame.start_address().as_u64();
+    let new_table_virt = (phys + hhdm) as *mut x86_64::structures::paging::PageTable;
+    let new_table = &mut *new_table_virt;
+    new_table.zero();
+
+    let old_table_virt = (old_entry.addr().as_u64() + hhdm) as *const x86_64::structures::paging::PageTable;
+    let old_table = &*old_table_virt;
+
+    for i in 0..512 {
+        let _ = recursive_clone_table(hhdm, &old_table[i], &mut new_table[i], level - 1, alloc);
+    }
+
+    new_entry.set_addr(x86_64::PhysAddr::new(phys), old_entry.flags());
+    Ok(())
 }
 
 fn current_process_id() -> Option<crate::interfaces::task::ProcessId> {

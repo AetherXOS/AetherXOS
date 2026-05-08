@@ -46,10 +46,7 @@ impl KernelConfig {
     }
 
     pub fn set_log_level_num(value: Option<u8>) {
-        store_usize_override(
-            &TELEMETRY_LOG_LEVEL_NUM_OVERRIDE,
-            value.map(|v| v as usize),
-        );
+        store_usize_override(&TELEMETRY_LOG_LEVEL_NUM_OVERRIDE, value.map(|v| v as usize));
     }
 
     pub fn is_advanced_debug_enabled() -> bool {
@@ -89,12 +86,7 @@ impl KernelConfig {
     }
 
     pub fn stack_size() -> usize {
-        load_usize_override_clamped(
-            &STACK_SIZE_OVERRIDE,
-            DEFAULT_STACK_SIZE,
-            4096,
-            65536,
-        )
+        load_usize_override_clamped(&STACK_SIZE_OVERRIDE, DEFAULT_STACK_SIZE, 4096, 65536)
     }
 
     pub fn set_stack_size(value: Option<usize>) {
@@ -184,8 +176,15 @@ impl KernelConfig {
     }
 }
 
-pub mod control_plane;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CapabilityLockStrategy {
+    Mutex,
+    RwLock,
+    Sharded,
+}
+
 pub mod constants;
+pub mod control_plane;
 pub mod debug_macros;
 pub mod drivers;
 pub mod feature_catalog;
@@ -196,28 +195,25 @@ pub mod overrides;
 pub mod parsers;
 pub mod policy;
 pub mod policy_profiles;
+pub mod policy_virtualization;
+pub mod posix;
 pub mod profiles;
 pub mod reset;
 pub mod runtime_key_autogen;
 pub mod runtime_tuning;
 pub mod scheduler;
-pub mod vfs_devfs;
 pub mod vfs;
-pub mod posix;
-pub mod policy_virtualization;
+pub mod vfs_devfs;
 
 pub use crate::generated_consts::*;
 pub use control_plane::*;
 
-pub use profiles::*;
-pub use parsers::*;
 pub(crate) use constants::*;
-pub(crate) use overrides::*;
 pub(crate) use debug_macros::*;
 pub(crate) use key_api::*;
-
+pub(crate) use overrides::*;
+pub use parsers::*;
+pub use profiles::*;
 
 pub mod legacy_constants;
 pub use legacy_constants::*;
-
-

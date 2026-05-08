@@ -3,7 +3,7 @@ use crate::kernel::syscalls::linux_errno;
 
 #[test_case]
 fn sys_linux_execve_invalid_path_pointer_returns_efault_or_enosys() {
-    let rc = sys_linux_execve(0, 0, 0);
+    let rc = sys_linux_execve(0, 0, 0, core::ptr::null_mut());
     assert!(
         rc == linux_errno(crate::modules::posix_consts::errno::EFAULT)
             || rc == linux_errno(crate::modules::posix_consts::errno::ENOSYS)
@@ -19,6 +19,7 @@ fn sys_linux_execveat_rejects_unknown_flags() {
         0,
         0,
         0x4000,
+        core::ptr::null_mut(),
     );
     assert_eq!(rc, linux_errno(crate::modules::posix_consts::errno::EINVAL));
 }
@@ -32,6 +33,7 @@ fn sys_linux_execveat_empty_path_without_flag_fails() {
         0,
         0,
         0,
+        core::ptr::null_mut(),
     );
     assert_eq!(rc, linux_errno(crate::modules::posix_consts::errno::ENOENT));
 }
@@ -39,7 +41,7 @@ fn sys_linux_execveat_empty_path_without_flag_fails() {
 #[test_case]
 fn sys_linux_execveat_relative_path_invalid_dirfd_returns_ebadf() {
     let rel = b"bin/true\0";
-    let rc = sys_linux_execveat(-5, rel.as_ptr() as usize, 0, 0, 0);
+    let rc = sys_linux_execveat(-5, rel.as_ptr() as usize, 0, 0, 0, core::ptr::null_mut());
     assert_eq!(rc, linux_errno(crate::modules::posix_consts::errno::EBADF));
 }
 
@@ -47,7 +49,7 @@ fn sys_linux_execveat_relative_path_invalid_dirfd_returns_ebadf() {
 #[test_case]
 fn sys_linux_execveat_relative_path_with_dirfd_without_fs_returns_enosys() {
     let rel = b"bin/true\0";
-    let rc = sys_linux_execveat(3, rel.as_ptr() as usize, 0, 0, 0);
+    let rc = sys_linux_execveat(3, rel.as_ptr() as usize, 0, 0, 0, core::ptr::null_mut());
     assert_eq!(rc, linux_errno(crate::modules::posix_consts::errno::ENOSYS));
 }
 

@@ -35,6 +35,12 @@ pub(crate) fn sys_linux_kill(pid: usize, signal: usize) -> usize {
             Ok(v) => v,
             Err(err) => return err,
         };
+        
+        // Phase 7: Signal delivery hook
+        if let Err(_) = crate::kernel_runtime::service_integration::on_signal_send(pid, signal, 0) {
+            return linux_errno(crate::modules::posix_consts::errno::EPERM);
+        }
+        
         match crate::modules::posix::signal::kill(pid, signal) {
             Ok(()) => 0,
             Err(err) => linux_errno(err.code()),

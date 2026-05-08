@@ -15,28 +15,7 @@ mod regs;
 use queue::{VirtControlQueue, VirtQueue, VirtQueueRole};
 use regs::*;
 
-#[cfg(target_arch = "x86_64")]
-use x86_64::instructions::port::Port;
-
-#[cfg(not(target_arch = "x86_64"))]
-struct Port<T> {
-    _phantom: core::marker::PhantomData<T>,
-}
-
-#[cfg(not(target_arch = "x86_64"))]
-impl<T: Default + Copy> Port<T> {
-    fn new(_port: u16) -> Self {
-        Self {
-            _phantom: core::marker::PhantomData,
-        }
-    }
-
-    unsafe fn read(&mut self) -> T {
-        T::default()
-    }
-
-    unsafe fn write(&mut self, _value: T) {}
-}
+use crate::hal::port::Port;
 
 /// VirtIO Network Driver (Legacy)
 ///

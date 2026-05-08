@@ -343,6 +343,15 @@ fn normalize_path(path: &str) -> String {
 /// Global mount table instance.
 static GLOBAL_MOUNT_TABLE: Mutex<Option<MountTable>> = Mutex::new(None);
 
+macro_rules! with_mount_table {
+    ($method:ident, $($arg:expr),*) => {
+        GLOBAL_MOUNT_TABLE.lock().as_mut().ok_or("mount table not initialized")?.$method($($arg),*)
+    };
+    ($method:ident) => {
+        GLOBAL_MOUNT_TABLE.lock().as_ref().map(|mt| mt.$method())
+    };
+}
+
 /// Initialize the global mount table.
 pub fn init_mount_table() {
     let mut guard = GLOBAL_MOUNT_TABLE.lock();
@@ -359,26 +368,17 @@ pub fn mount(
     flags: MountFlags,
     fs: Option<Arc<dyn crate::modules::vfs::FileSystem>>,
 ) -> Result<MountId, &'static str> {
-    let mut guard = GLOBAL_MOUNT_TABLE.lock();
-    guard
-        .as_mut()
-        .ok_or("mount table not initialized")?
-        .mount(mount_point, source, fs_type, flags, fs)
+    with_mount_table!(mount, mount_point, source, fs_type, flags, fs)
 }
 
 /// Unmount a filesystem.
 pub fn unmount(mount_point: &str) -> Result<(), &'static str> {
-    let mut guard = GLOBAL_MOUNT_TABLE.lock();
-    guard
-        .as_mut()
-        .ok_or("mount table not initialized")?
-        .unmount(mount_point)
+    with_mount_table!(unmount, mount_point)
 }
 
 /// Resolve mount for a path.
 pub fn resolve_mount(path: &str) -> Option<MountId> {
-    let guard = GLOBAL_MOUNT_TABLE.lock();
-    guard.as_ref().and_then(|mt| mt.resolve(path).map(|e| e.id))
+    GLOBAL_MOUNT_TABLE.lock().as_ref().and_then(|mt| mt.resolve(path).map(|e| e.id))
 }
 
 /// Check write permission via mount table.

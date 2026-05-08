@@ -1,7 +1,6 @@
 #![cfg_attr(target_os = "none", no_std)]
 #![cfg_attr(target_os = "none", no_main)]
 #![feature(custom_test_frameworks)]
-#![cfg_attr(target_os = "none", feature(abi_x86_interrupt))]
 #![warn(unsafe_op_in_unsafe_fn)]
 #![warn(unused_must_use)]
 #![allow(dead_code, unused_imports, unused_mut, unused_variables)]
@@ -11,18 +10,12 @@
 
 extern crate aethercore;
 extern crate alloc; // Use the library
-#[cfg(target_os = "none")]
-mod kernel_runtime;
+
 
 #[cfg(target_os = "none")]
 use core::panic::PanicInfo;
 
-// Global Allocator Definition
-use aethercore::modules::allocators::selector::ActiveHeapAllocator;
 
-#[global_allocator]
-#[cfg(target_os = "none")]
-pub static ALLOCATOR: ActiveHeapAllocator = ActiveHeapAllocator::new();
 
 // ============================================================================
 // Multiboot2 Header - Required for QEMU x86_64 boot
@@ -91,7 +84,7 @@ pub extern "C" fn _start() -> ! {
 
     #[cfg(not(all(test, feature = "kernel_test_mode")))]
     {
-        let kernel = kernel_runtime::KernelRuntime::new();
+        let kernel = aethercore::kernel_runtime::KernelRuntime::new();
         kernel.run();
     }
 }

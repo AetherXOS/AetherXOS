@@ -4,9 +4,6 @@ use alloc::string::String;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use lazy_static::lazy_static;
 use spin::Mutex;
-use alloc::sync::Arc;
-use crate::interfaces::TaskId;
-use crate::kernel::process::Process;
 #[path = "process/identity_env.rs"]
 mod identity_env;
 #[path = "process/exec_runtime.rs"]

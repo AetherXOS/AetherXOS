@@ -8,7 +8,7 @@ use super::path::resolve_execveat_path;
 use super::super::exec_stack::prepare_execve_user_stack as prepare_execve_user_stack_impl;
 
 #[cfg(not(feature = "linux_compat"))]
-pub fn execve_with_path(path: alloc::string::String, argv_ptr: usize, envp_ptr: usize) -> usize {
+pub fn execve_with_path(path: alloc::string::String, argv_ptr: usize, envp_ptr: usize, frame_ptr: *mut SyscallFrame) -> usize {
     #[cfg(feature = "posix_process")]
     {
         let argv =
@@ -136,13 +136,17 @@ pub fn execve_with_path(path: alloc::string::String, argv_ptr: usize, envp_ptr: 
                                             {
                                                 task_arc.lock().user_stack_pointer = sp;
                                             }
+
+                                            let entry = proc.effective_entry();
+                                            unsafe {
+                                                let frame = &mut *frame_ptr;
+                                                frame.rip = entry;
+                                                frame.rsp = sp;
+                                            }
                                         }
                                     }
                                 }
                             }
-                                        let entry = proc.effective_entry();
-                                        super::super::super::EXECVE_NEW_ENTRY
-                                            .store(entry as usize, Ordering::Relaxed);
                         }
                     }
                 }
@@ -160,12 +164,12 @@ pub fn execve_with_path(path: alloc::string::String, argv_ptr: usize, envp_ptr: 
 }
 
 #[cfg(not(feature = "linux_compat"))]
-pub fn sys_linux_execve(path_ptr: usize, argv_ptr: usize, envp_ptr: usize) -> usize {
+pub fn sys_linux_execve(path_ptr: usize, argv_ptr: usize, envp_ptr: usize, frame_ptr: *mut SyscallFrame) -> usize {
     let path = match read_user_c_string(path_ptr, USER_CSTRING_MAX_LEN) {
         Ok(p) => p,
         Err(e) => return e,
     };
-    execve_with_path(path, argv_ptr, envp_ptr)
+    execve_with_path(path, argv_ptr, envp_ptr, frame_ptr)
 }
 
 #[cfg(not(feature = "linux_compat"))]
@@ -175,6 +179,7 @@ pub fn sys_linux_execveat(
     argv_ptr: usize,
     envp_ptr: usize,
     flags: usize,
+    frame_ptr: *mut SyscallFrame,
 ) -> usize {
     const AT_EMPTY_PATH: usize = crate::kernel::syscalls::syscalls_consts::linux::AT_EMPTY_PATH;
     const AT_SYMLINK_NOFOLLOW: usize =
@@ -194,5 +199,5 @@ pub fn sys_linux_execveat(
         Err(err) => return err,
     };
 
-    execve_with_path(resolved, argv_ptr, envp_ptr)
+    execve_with_path(resolved, argv_ptr, envp_ptr, frame_ptr)
 }

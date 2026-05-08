@@ -62,7 +62,10 @@ impl CachePage {
         }
         #[cfg(not(target_os = "none"))]
         {
-            self.host_data.as_ref().unwrap().as_ptr() as *mut u8
+            match self.host_data.as_ref() {
+                Some(data) => data.as_ptr() as *mut u8,
+                None => core::ptr::null_mut(),
+            }
         }
     }
 
@@ -93,17 +96,17 @@ pub struct Inode {
     pub ino: u64,
     /// Unix mode bits (S_IFREG, S_IFDIR, S_IFLNK, …)
     pub mode: u16,
-    pub size: u64,
-    pub uid: u32,
-    pub gid: u32,
-    pub nlink: u32,
-    pub link_count: u32, // Wait, it already has link_count! I'll use nlink to match FileStats.
+    pub size: core::sync::atomic::AtomicU64,
+    pub uid: core::sync::atomic::AtomicU32,
+    pub gid: core::sync::atomic::AtomicU32,
+    pub nlink: core::sync::atomic::AtomicU32,
+    pub link_count: core::sync::atomic::AtomicU32,
     /// Access time (nanoseconds since epoch).
-    pub atime_ns: u64,
+    pub atime_ns: core::sync::atomic::AtomicU64,
     /// Modification time (nanoseconds since epoch).
-    pub mtime_ns: u64,
+    pub mtime_ns: core::sync::atomic::AtomicU64,
     /// Change time (metadata change, nanoseconds since epoch).
-    pub ctime_ns: u64,
+    pub ctime_ns: core::sync::atomic::AtomicU64,
     /// Shards of page maps to minimize lock contention.
     pub pages: [Mutex<BTreeMap<u64, Arc<Mutex<CachePage>>>>; crate::config::vfs::PAGE_CACHE_SHARD_COUNT],
 }
@@ -114,14 +117,14 @@ impl Inode {
         Self {
             ino,
             mode,
-            size: 0,
-            uid: 0,
-            gid: 0,
-            nlink: 1,
-            link_count: 1,
-            atime_ns: 0,
-            mtime_ns: 0,
-            ctime_ns: 0,
+            size: core::sync::atomic::AtomicU64::new(0),
+            uid: core::sync::atomic::AtomicU32::new(0),
+            gid: core::sync::atomic::AtomicU32::new(0),
+            nlink: core::sync::atomic::AtomicU32::new(1),
+            link_count: core::sync::atomic::AtomicU32::new(1),
+            atime_ns: core::sync::atomic::AtomicU64::new(0),
+            mtime_ns: core::sync::atomic::AtomicU64::new(0),
+            ctime_ns: core::sync::atomic::AtomicU64::new(0),
             pages: [SHARD_INIT; crate::config::vfs::PAGE_CACHE_SHARD_COUNT],
         }
     }
@@ -131,19 +134,19 @@ impl Inode {
     }
 
     /// Update access time (called on reads).
-    pub fn touch_atime(&mut self, now_ns: u64) {
-        self.atime_ns = now_ns;
+    pub fn touch_atime(&self, now_ns: u64) {
+        self.atime_ns.store(now_ns, Ordering::Relaxed);
     }
 
     /// Update modification and change time (called on writes).
-    pub fn touch_mtime(&mut self, now_ns: u64) {
-        self.mtime_ns = now_ns;
-        self.ctime_ns = now_ns;
+    pub fn touch_mtime(&self, now_ns: u64) {
+        self.mtime_ns.store(now_ns, Ordering::Relaxed);
+        self.ctime_ns.store(now_ns, Ordering::Relaxed);
     }
 
     /// Update only change time (metadata changes like chmod/chown).
-    pub fn touch_ctime(&mut self, now_ns: u64) {
-        self.ctime_ns = now_ns;
+    pub fn touch_ctime(&self, now_ns: u64) {
+        self.ctime_ns.store(now_ns, Ordering::Relaxed);
     }
 
     /// Read bytes from the page cache.
@@ -151,8 +154,9 @@ impl Inode {
     pub fn read_cached(&self, offset: u64, buf: &mut [u8]) -> usize {
         let mut read = 0usize;
         let mut cur = offset;
+        let size = self.size.load(Ordering::Relaxed);
 
-        while read < buf.len() && cur < self.size {
+        while read < buf.len() && cur < size {
             let idx = cur / PAGE_SIZE as u64;
             let poff = (cur % PAGE_SIZE as u64) as usize;
             let shard = self.get_page_shard(idx);
@@ -163,7 +167,7 @@ impl Inode {
             p.referenced = true;
 
             let avail = (PAGE_SIZE - poff).min(buf.len() - read);
-            let clamped = (avail as u64).min(self.size - cur) as usize;
+            let clamped = (avail as u64).min(self.size.load(core::sync::atomic::Ordering::Relaxed) - cur) as usize;
             if clamped == 0 {
                 break;
             }
@@ -180,9 +184,10 @@ impl Inode {
 
     /// Predictive Page Prefetcher (PPP).
     pub fn prefetch(&self, start_idx: u64, count: u64) {
+        let size = self.size.load(Ordering::Relaxed);
         for i in 0..count {
             let idx = start_idx + i;
-            if idx * PAGE_SIZE as u64 >= self.size { break; }
+            if idx * PAGE_SIZE as u64 >= size { break; }
             let shard = self.get_page_shard(idx);
             
             let mut cache = self.pages[shard].lock();
@@ -193,7 +198,7 @@ impl Inode {
     }
 
     /// Write bytes into the page cache (creates pages on demand).
-    pub fn write_cached(&mut self, offset: u64, data: &[u8]) -> usize {
+    pub fn write_cached(&self, offset: u64, data: &[u8]) -> usize {
         let mut written = 0usize;
         let mut cur = offset;
 
@@ -217,8 +222,13 @@ impl Inode {
             written += chunk;
             cur += chunk as u64;
         }
-        if cur > self.size {
-            self.size = cur;
+        
+        let mut old_size = self.size.load(Ordering::Relaxed);
+        while cur > old_size {
+            match self.size.compare_exchange_weak(old_size, cur, Ordering::Relaxed, Ordering::Relaxed) {
+                Ok(_) => break,
+                Err(new_val) => old_size = new_val,
+            }
         }
         written
     }
@@ -458,16 +468,15 @@ impl<FS: crate::modules::vfs::FileSystem> CachedFileSystem<FS> {
         // Cache miss: create dentries with real metadata.
         self.dentry_misses.fetch_add(1, Ordering::Relaxed);
         self.root.lookup_or_create(path, &mut |_name| {
-            let mut inode = Inode::new(stats.ino, stats.mode as u16);
-            inode.size = stats.size;
-            inode.uid = stats.uid;
-            inode.gid = stats.gid;
-            inode.nlink = stats.nlink;
-            inode.atime_ns = stats.atime.sec * 1_000_000_000 + stats.atime.nsec as u64;
-            inode.mtime_ns = stats.mtime.sec * 1_000_000_000 + stats.mtime.nsec as u64;
-            inode.ctime_ns = stats.ctime.sec * 1_000_000_000 + stats.ctime.nsec as u64;
+            let inode_arc = Arc::new(Inode::new(stats.ino, stats.mode as u16));
+            inode_arc.size.store(stats.size, Ordering::Relaxed);
+            inode_arc.uid.store(stats.uid, Ordering::Relaxed);
+            inode_arc.gid.store(stats.gid, Ordering::Relaxed);
+            inode_arc.nlink.store(stats.nlink, Ordering::Relaxed);
+            inode_arc.atime_ns.store(stats.atime.sec * 1_000_000_000 + stats.atime.nsec as u64, Ordering::Relaxed);
+            inode_arc.mtime_ns.store(stats.mtime.sec * 1_000_000_000 + stats.mtime.nsec as u64, Ordering::Relaxed);
+            inode_arc.ctime_ns.store(stats.ctime.sec * 1_000_000_000 + stats.ctime.nsec as u64, Ordering::Relaxed);
             
-            let inode_arc = Arc::new(inode);
             GLOBAL_INODE_CACHE.insert(inode_arc.clone());
             inode_arc
         })
@@ -477,14 +486,28 @@ impl<FS: crate::modules::vfs::FileSystem> CachedFileSystem<FS> {
 pub struct CachedFile {
     pub inner: alloc::boxed::Box<dyn crate::modules::vfs::File>,
     pub inode: Arc<Inode>,
+    pub offset: u64,
 }
 
 impl crate::modules::vfs::File for CachedFile {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, &'static str> {
         // Try cache first
-        let read = self.inode.read_cached(0, buf); // Simplified offset
-        if read > 0 { return Ok(read); }
-        self.inner.read(buf)
+        let read = self.inode.read_cached(self.offset, buf);
+        if read > 0 {
+            self.offset += read as u64;
+            // Also sync inner offset if it supports seeking
+            let _ = self.inner.seek(crate::modules::vfs::SeekFrom::Start(self.offset));
+            return Ok(read);
+        }
+        
+        // Cache miss: read from inner
+        let read = self.inner.read(buf)?;
+        if read > 0 {
+            // Populate cache for future reads
+            self.inode.write_cached(self.offset, &buf[..read]);
+            self.offset += read as u64;
+        }
+        Ok(read)
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, &'static str> {
@@ -492,6 +515,13 @@ impl crate::modules::vfs::File for CachedFile {
     }
 
     fn seek(&mut self, pos: crate::modules::vfs::SeekFrom) -> Result<u64, &'static str> {
+        let size = self.inode.size.load(Ordering::Relaxed);
+        let new_off = match pos {
+            crate::modules::vfs::SeekFrom::Start(off) => off,
+            crate::modules::vfs::SeekFrom::Current(off) => (self.offset as i64 + off) as u64,
+            crate::modules::vfs::SeekFrom::End(off) => (size as i64 + off) as u64,
+        };
+        self.offset = new_off;
         self.inner.seek(pos)
     }
 
@@ -520,6 +550,14 @@ impl crate::modules::vfs::File for CachedFile {
 
     fn as_any(&self) -> &dyn core::any::Any { self }
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
+
+    fn try_clone(&self) -> Result<alloc::boxed::Box<dyn crate::modules::vfs::File>, &'static str> {
+        Ok(alloc::boxed::Box::new(CachedFile {
+            inner: self.inner.try_clone()?,
+            inode: self.inode.clone(),
+            offset: self.offset,
+        }))
+    }
 }
 
 impl<FS: crate::modules::vfs::FileSystem> crate::modules::vfs::FileSystem for CachedFileSystem<FS> {
@@ -537,6 +575,7 @@ impl<FS: crate::modules::vfs::FileSystem> crate::modules::vfs::FileSystem for Ca
         Ok(alloc::boxed::Box::new(CachedFile {
             inner: inner_file,
             inode: dentry.inode.clone(),
+            offset: 0,
         }))
     }
 
@@ -552,6 +591,7 @@ impl<FS: crate::modules::vfs::FileSystem> crate::modules::vfs::FileSystem for Ca
         Ok(alloc::boxed::Box::new(CachedFile {
             inner: inner_file,
             inode: dentry.inode.clone(),
+            offset: 0,
         }))
     }
 

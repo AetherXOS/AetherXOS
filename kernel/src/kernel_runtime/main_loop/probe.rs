@@ -1,5 +1,4 @@
-use core::sync::atomic::Ordering;
-use super::state::*;
+use crate::core::log;
 
 #[cfg(feature = "process_abstraction")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,10 +46,8 @@ pub fn service_linked_probe_for_iteration(state: LinkedProbeMainLoopState) {
             service_open_linked_probe_for_iteration();
         }
         LinkedProbeMainLoopAction::Closed => {
-            aethercore::hal::serial::write_raw(
-                "[EARLY SERIAL] linked probe enabled state loaded\n",
-            );
-            aethercore::hal::serial::write_raw("[EARLY SERIAL] linked probe service gate closed\n");
+            log::trace("linked probe enabled state loaded");
+            log::trace("linked probe service gate closed");
         }
         LinkedProbeMainLoopAction::Skip => {}
     }

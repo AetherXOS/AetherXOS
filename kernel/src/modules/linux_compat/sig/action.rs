@@ -56,20 +56,30 @@ pub fn sys_linux_rt_sigaction(
 }
 
 /// `rt_sigreturn(2)` — Return from signal handler and clean up stack frame.
+///
+/// On entry via `sa_restorer`, RSP points at the `pretcode` field of the
+/// `rt_sigframe` (i.e. the very start of the frame we built in `setup_linux_sigframe`).
+/// Layout:
+///   [RSP+ 0] pretcode (8 bytes)
+///   [RSP+ 8] sig      (4 bytes)
+///   [RSP+12] _pad     (4 bytes)
+///   [RSP+16] *siginfo  (8 bytes)
+///   [RSP+24] *uc       (8 bytes)
+///   [RSP+32] LinuxSiginfo (128 bytes)
+///   [RSP+160] LinuxUContext
 pub fn sys_linux_rt_sigreturn(frame: &mut SyscallFrame) -> usize {
     crate::require_posix_signal!((frame) => {
-        // Redzone on x86_64 is 128 bytes, but signal frame is pushed beyond that.
-        // We expect the ucontext to be at [RSP + 8] because the return address is at [RSP].
-        // However, many implementations point RSP directly to the frame.
+        // The uc (ucontext) lives 160 bytes past the start of the rt_sigframe.
+        // rt_sigframe = { pretcode(8) + sig(4) + pad(4) + pinfo(8) + puc(8) } = 32 bytes header
+        // + LinuxSiginfo (128 bytes) = 160 bytes before uc.
+        const UC_OFFSET: usize = 8 + 4 + 4 + 8 + 8 + core::mem::size_of::<LinuxSiginfo>();
 
-        // In x86_64 Linux, RSP points to the return address, so context is at RSP + 8
-        // However, if sa_restorer was used, RSP points directly to the frame or just after the restorer call.
-        let uctx_ptr = UserPtr::<LinuxUContext>::new(frame.rsp as usize);
-        let uctx = match uctx_ptr.read() {
+        let uc_addr = (frame.rsp as usize).wrapping_add(UC_OFFSET);
+        let uctx = match UserPtr::<LinuxUContext>::new(uc_addr).read() {
             Ok(c) => c,
             Err(_) => {
-                // Try +8 offset (standard return address alignment)
-                match UserPtr::<LinuxUContext>::new(frame.rsp as usize + 8).read() {
+                // Fallback: try reading directly at RSP (old-style frame)
+                match UserPtr::<LinuxUContext>::new(frame.rsp as usize).read() {
                     Ok(c) => c,
                     Err(_) => return linux_fault(),
                 }
@@ -78,23 +88,45 @@ pub fn sys_linux_rt_sigreturn(frame: &mut SyscallFrame) -> usize {
 
         let m = &uctx.mcontext;
 
-        // Full Register Restoration (Production Grade)
-        frame.r15 = m.r15; frame.r14 = m.r14; frame.r13 = m.r13; frame.r12 = m.r12;
-        frame.rbp = m.rbp; frame.rbx = m.rbx; frame.rflags = m.eflags;
+        // Restore ALL general-purpose registers saved in mcontext
+        frame.r15    = m.r15;
+        frame.r14    = m.r14;
+        frame.r13    = m.r13;
+        frame.r12    = m.r12;
+        frame.r11    = m.r11;
+        frame.r10    = m.r10;
+        frame.r9     = m.r9;
+        frame.r8     = m.r8;
+        frame.rbp    = m.rbp;
+        frame.rbx    = m.rbx;
+        frame.rax    = m.rax;
+        frame.rcx    = m.rcx;
+        frame.rdx    = m.rdx;
+        frame.rsi    = m.rsi;
+        frame.rdi    = m.rdi;
+        frame.rip    = m.rip;
+        frame.rsp    = m.rsp;
+        // Preserve only user-space flags bits (mask out kernel-only bits like IOPL, NT)
+        let safe_flags = m.eflags & 0x0003_7FD5; // allow: CF,PF,AF,ZF,SF,TF,IF,DF,OF,AC
+        frame.rflags = safe_flags;
 
-        // Populate the expanded scratch registers in the frame so they are popped by the assembly handler
-        frame.rax = m.rax;
-        frame.rdx = m.rdx;
-        frame.rsi = m.rsi;
-        frame.rdi = m.rdi;
-        frame.rip = m.rip;
-
-        // Restore signal mask
+        // Restore signal mask from uc_sigmask
         use crate::modules::posix::signal::{self, SigmaskHow};
         let _ = signal::sigprocmask(SigmaskHow::SetMask, Some(uctx.sigmask));
 
-        // Return the saved RAX to preserve syscall result if this was an interrupted syscall
-        frame.rax as usize
+        // Clear signal_stack_active if we were on alternate stack
+        #[cfg(feature = "process_abstraction")]
+        {
+            if let Some(cpu) = unsafe { crate::kernel::cpu_local::CpuLocal::try_get() } {
+                let tid = cpu.current_task.load(core::sync::atomic::Ordering::Relaxed);
+                if let Some(t) = crate::kernel::task::get_task(crate::interfaces::task::TaskId(tid)) {
+                    t.lock().signal_stack_active = false;
+                }
+            }
+        }
+
+        // Return saved rax (syscall return value from before signal delivery)
+        m.rax as usize
     })
 }
 

@@ -109,24 +109,8 @@ impl Inlineable for ClockGetTimeOp {
 
     #[inline(always)]
     unsafe fn execute_inline(&self) -> i64 { unsafe {
-        // Use RDTSC for ultra-fast timestamp
-        #[cfg(target_arch = "x86_64")]
-        {
-            let mut low: u32;
-            let mut high: u32;
-            core::arch::asm!(
-                "rdtsc",
-                out("eax") low,
-                out("edx") high,
-                options(nomem, nostack, preserves_flags)
-            );
-            ((high as i64) << 32) | (low as i64)
-        }
-        #[cfg(not(target_arch = "x86_64"))]
-        {
-            // Fallback for other architectures
-            0
-        }
+        // Use HAL-provided timestamp counter for ultra-fast timestamping.
+        crate::hal::cpu::rdtsc() as i64
     }}
 
     #[inline(always)]

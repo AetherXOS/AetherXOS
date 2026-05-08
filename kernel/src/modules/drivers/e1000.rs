@@ -30,19 +30,19 @@ const E1000_TDLEN: usize = 0x3808;
 const E1000_TDH: usize = 0x3810;
 const E1000_TDT: usize = 0x3818;
 
-const E1000_CTRL_RST: u32 = 1 << 26;
-const E1000_CTRL_SLU: u32 = 1 << 6; // Set Link Up
+const E1000_CTRL_RST: BitField32 = BitField32::new(26, 1);
+const E1000_CTRL_SLU: BitField32 = BitField32::new(6, 1); // Set Link Up
 
-const RCTL_EN: u32 = 1 << 1; // Receiver Enable
-const RCTL_BSIZE_2048: u32 = 0; // 2048 Byte Buffer Size
-const RCTL_SBP: u32 = 1 << 2; // Store Bad Packets
-const RCTL_UPE: u32 = 1 << 3; // Unicast Promiscuous Enabled
-const RCTL_MPE: u32 = 1 << 4; // Multicast Promiscuous Enabled
-const RCTL_BAM: u32 = 1 << 15; // Broadcast Accept Mode
-const RCTL_SECRC: u32 = 1 << 26; // Strip Ethernet CRC
+const RCTL_EN: BitField32 = BitField32::new(1, 1); // Receiver Enable
+const RCTL_SBP: BitField32 = BitField32::new(2, 1); // Store Bad Packets
+const RCTL_UPE: BitField32 = BitField32::new(3, 1); // Unicast Promiscuous Enabled
+const RCTL_MPE: BitField32 = BitField32::new(4, 1); // Multicast Promiscuous Enabled
+const RCTL_BAM: BitField32 = BitField32::new(15, 1); // Broadcast Accept Mode
+const RCTL_SECRC: BitField32 = BitField32::new(26, 1); // Strip Ethernet CRC
+const RCTL_BSIZE: BitField32 = BitField32::new(16, 2); // Buffer Size bits
 
-const TCTL_EN: u32 = 1 << 1; // Transmit Enable
-const TCTL_PSP: u32 = 1 << 3; // Pad Short Packets
+const TCTL_EN: BitField32 = BitField32::new(1, 1); // Transmit Enable
+const TCTL_PSP: BitField32 = BitField32::new(3, 1); // Pad Short Packets
 
 const INTEL_VENDOR_ID: u16 = 0x8086;
 const E1000_PCI_IDS: &[PciId] = &[
@@ -149,7 +149,7 @@ struct E1000TxDesc {
 }
 
 pub struct E1000 {
-    pub mmio_base: u64,
+    mmio: crate::hal::devices::generic::GenericMmioDevice,
     pub irq: u8,
     pub device_id: u16,
     lifecycle: DriverStateMachine,
@@ -173,7 +173,7 @@ impl E1000 {
 
             return Some(Self {
                 // Descriptor counts are runtime-tunable through KernelConfig.
-                mmio_base,
+                mmio: crate::hal::devices::generic::GenericMmioDevice::new(mmio_base),
                 irq: dev.interrupt_line,
                 device_id: dev.device_id,
                 lifecycle: DriverStateMachine::new_discovered(),
@@ -197,19 +197,19 @@ impl E1000 {
     }
 
     fn write_reg(&self, offset: usize, value: u32) {
-        if let Some(hhdm) = crate::hal::hhdm_offset() {
-            let addr = (self.mmio_base + hhdm + (offset as u64)) as *mut u32;
-            unsafe { write_volatile(addr, value) };
-        }
+        self.mmio.write_reg(offset, value);
     }
 
     fn read_reg(&self, offset: usize) -> u32 {
-        if let Some(hhdm) = crate::hal::hhdm_offset() {
-            let addr = (self.mmio_base + hhdm + (offset as u64)) as *const u32;
-            unsafe { read_volatile(addr) }
-        } else {
-            0
-        }
+        self.mmio.read_reg(offset)
+    }
+
+    fn write_field(&self, offset: usize, field: BitField32, value: u32) {
+        self.mmio.write_field(offset, field, value);
+    }
+
+    fn read_field(&self, offset: usize, field: BitField32) -> u32 {
+        self.mmio.read_field(offset, field)
     }
 
     pub fn init(&mut self) -> Result<(), &'static str> {
@@ -218,11 +218,10 @@ impl E1000 {
         let hhdm = crate::hal::hhdm_offset().ok_or("HHDM not available")?;
 
         // 1. Reset
-        let ctrl = self.read_reg(E1000_CTRL);
-        self.write_reg(E1000_CTRL, ctrl | E1000_CTRL_RST);
+        self.write_field(E1000_CTRL, E1000_CTRL_RST, 1);
         let mut waited = 0;
         loop {
-            if (self.read_reg(E1000_CTRL) & E1000_CTRL_RST) == 0 {
+            if self.read_field(E1000_CTRL, E1000_CTRL_RST) == 0 {
                 break;
             }
             waited += 1;
@@ -234,7 +233,7 @@ impl E1000 {
             core::hint::spin_loop();
         }
 
-        self.write_reg(E1000_CTRL, self.read_reg(E1000_CTRL) | E1000_CTRL_SLU); // Set Link Up
+        self.write_field(E1000_CTRL, E1000_CTRL_SLU, 1); // Set Link Up
         let buf_size = KernelConfig::e1000_buffer_size_bytes();
         let rx_desc_count = self.rx_descs.len();
         let tx_desc_count = self.tx_descs.len();
@@ -290,11 +289,22 @@ impl E1000 {
         self.write_reg(E1000_TDT, 0);
 
         // Enables
-        self.write_reg(
-            E1000_RCTL,
-            RCTL_EN | RCTL_SBP | RCTL_UPE | RCTL_MPE | RCTL_BAM | RCTL_SECRC | RCTL_BSIZE_2048,
-        );
-        self.write_reg(E1000_TCTL, TCTL_EN | TCTL_PSP | (15 << 4) | (0x40 << 12));
+        let mut rctl = 0u32;
+        rctl |= RCTL_EN.mask();
+        rctl |= RCTL_SBP.mask();
+        rctl |= RCTL_UPE.mask();
+        rctl |= RCTL_MPE.mask();
+        rctl |= RCTL_BAM.mask();
+        rctl |= RCTL_SECRC.mask();
+        // BSIZE_2048 is 0, so no need to OR anything
+        self.write_reg(E1000_RCTL, rctl);
+        
+        let mut tctl = 0u32;
+        tctl |= TCTL_EN.mask();
+        tctl |= TCTL_PSP.mask();
+        tctl |= (15 << 4); // Cold insertion
+        tctl |= (0x40 << 12); // Collision threshold
+        self.write_reg(E1000_TCTL, tctl);
 
         self.write_reg(E1000_IMS, 0x1F6DC); // Enable interrupts
 

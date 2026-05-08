@@ -1,15 +1,21 @@
 use core::sync::atomic::{AtomicU64, Ordering};
 
+// PRNG constants for SplitMix64 algorithm
+pub const PRNG_INITIAL_STATE: u64 = 0x6A09E667F3BCC908;
+pub const PRNG_INCREMENT: u64 = 0x9E3779B97F4A7C15;
+pub const PRNG_MULTIPLIER_1: u64 = 0xBF58476D1CE4E5B9;
+pub const PRNG_MULTIPLIER_2: u64 = 0x94D049BB133111EB;
+
 /// Global PRNG state seeded from RDRAND or TSC at boot.
-pub(crate) static PRNG_STATE: AtomicU64 = AtomicU64::new(0x6A09E667F3BCC908);
+pub(crate) static PRNG_STATE: AtomicU64 = AtomicU64::new(PRNG_INITIAL_STATE);
 
 /// Mix function based on SplitMix64 — fast, decent quality for /dev/urandom.
 #[inline(always)]
 pub(crate) fn splitmix64(state: &mut u64) -> u64 {
-    *state = state.wrapping_add(0x9E3779B97F4A7C15);
+    *state = state.wrapping_add(PRNG_INCREMENT);
     let mut z = *state;
-    z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
+    z = (z ^ (z >> 30)).wrapping_mul(PRNG_MULTIPLIER_1);
+    z = (z ^ (z >> 27)).wrapping_mul(PRNG_MULTIPLIER_2);
     z ^ (z >> 31)
 }
 

@@ -118,7 +118,15 @@ impl File for RamFile {
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any {
         self
     }
+
+    fn try_clone(&self) -> Result<Box<dyn File>, &'static str> {
+        Ok(Box::new(RamFile {
+            content: self.content.clone(),
+            cursor: self.cursor,
+        }))
+    }
 }
+
 
 pub struct RamFs {
     files: Arc<Mutex<BTreeMap<Vec<u8>, Arc<Mutex<Vec<u8>>>>>>,
@@ -309,7 +317,17 @@ impl File for RamFsHandle {
     fn as_any_mut(&mut self) -> &mut dyn core::any::Any {
         self
     }
+
+    fn try_clone(&self) -> Result<Box<dyn File>, &'static str> {
+        Ok(Box::new(RamFsHandle {
+            path: self.path.clone(),
+            cursor: self.cursor,
+            files: self.files.clone(),
+            meta: self.meta.clone(),
+        }))
+    }
 }
+
 
 impl FileSystem for RamFs {
     fn open(&self, path: &str, _tid: TaskId) -> Result<Box<dyn File>, &'static str> {

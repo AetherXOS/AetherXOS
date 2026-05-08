@@ -188,13 +188,22 @@ pub mod fs {
 
 pub mod process {
     pub const SIGKILL: i32 = 9;
+    pub const SIGSTOP: i32 = 19;
+    pub const SIGCONT: i32 = 18;
+    pub const SIGTSTP: i32 = 20;
+    pub const SIGTTIN: i32 = 21;
+    pub const SIGTTOU: i32 = 22;
+    pub const SIGCHLD: i32 = 17;
+    pub const SIGURG: i32 = 23;
+    pub const SIGWINCH: i32 = 28;
+    pub const SIGIO: i32 = 29;
     pub const SIGTERM: i32 = 15;
     pub const WNOHANG: i32 = 1;
     pub const WUNTRACED: i32 = 2;
     pub const WSTOPPED: i32 = WUNTRACED;
     pub const WEXITED: i32 = 4;
     pub const WCONTINUED: i32 = 8;
-    pub const WNOWAIT: i32 = 0x0100_0000;
+    pub const WNOWAIT: i32 = 0x01000000;
 
     pub const RLIMIT_CPU: i32 = 0;
     pub const RLIMIT_FSIZE: i32 = 1;

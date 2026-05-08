@@ -1,5 +1,11 @@
 use super::super::*;
 
+macro_rules! read_itimerspec {
+    ($ptr:expr) => {
+        match $ptr.read() { Ok(v) => v, Err(e) => return e }
+    };
+}
+
 /// `timerfd_create(2)`, `timerfd_settime(2)`, `timerfd_gettime(2)`.
 pub mod timerfd_flags {
     pub const TFD_TIMER_ABSTIME: usize = 0x1;
@@ -80,7 +86,7 @@ pub fn sys_linux_timerfd_settime(
         if (flags & !timerfd_flags::TFD_TIMER_ABSTIME) != 0 {
             return linux_inval();
         }
-        let it = match new_value.read() { Ok(v) => v, Err(e) => return e };
+        let it = read_itimerspec!(new_value);
         if !validate_itimerspec(&it) {
             return linux_inval();
         }

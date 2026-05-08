@@ -31,14 +31,16 @@ impl<K: Ord + Clone, V: Clone> BTreeNode<K, V> {
         if idx > 0 && self.children[idx - 1].read().keys.len() > BTREE_ORDER / 2 {
             let mut sibling = self.children[idx - 1].write();
             let mut child = self.children[idx].write();
-            let key = sibling.keys.pop().unwrap();
-            let val = sibling.values.pop().unwrap();
-            child.keys.insert(0, self.keys[idx - 1].clone());
-            child.values.insert(0, self.values[idx - 1].clone());
-            self.keys[idx - 1] = key;
-            self.values[idx - 1] = val;
-            if !child.is_leaf {
-                child.children.insert(0, sibling.children.pop().unwrap());
+            if let (Some(key), Some(val)) = (sibling.keys.pop(), sibling.values.pop()) {
+                child.keys.insert(0, self.keys[idx - 1].clone());
+                child.values.insert(0, self.values[idx - 1].clone());
+                self.keys[idx - 1] = key;
+                self.values[idx - 1] = val;
+                if !child.is_leaf {
+                    if let Some(child_node) = sibling.children.pop() {
+                        child.children.insert(0, child_node);
+                    }
+                }
             }
         }
         // 2. Try to borrow from right sibling... (and merging logic)

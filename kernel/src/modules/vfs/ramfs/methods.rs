@@ -1,5 +1,22 @@
 use super::*;
 
+macro_rules! with_meta_modify {
+    (
+        $self:expr,
+        $path:expr,
+        $tid:expr,
+        $body:expr
+    ) => {{
+        let key = normalize_path($path).ok_or("invalid path")?;
+        let mut meta = $self.meta.lock();
+        let entry = meta.get_mut(&key).ok_or("not found")?;
+        if !Self::has_owner_access($tid, entry.uid) {
+            return Err("permission denied");
+        }
+        $body(entry)
+    }};
+}
+
 impl RamFs {
     pub fn mkdir(&self, path: &str, tid: TaskId) -> Result<(), &'static str> {
         let key = normalize_path(path).ok_or("invalid path")?;
@@ -83,26 +100,18 @@ impl RamFs {
     }
 
     pub fn chmod(&self, path: &str, mode: u16, tid: TaskId) -> Result<(), &'static str> {
-        let key = normalize_path(path).ok_or("invalid path")?;
-        let mut meta = self.meta.lock();
-        let entry = meta.get_mut(&key).ok_or("not found")?;
-        if !Self::has_owner_access(tid, entry.uid) {
-            return Err("permission denied");
-        }
-        entry.mode = mode;
-        Ok(())
+        with_meta_modify!(self, path, tid, |entry: &mut RamMeta| {
+            entry.mode = mode;
+            Ok(())
+        })
     }
 
     pub fn chown(&self, path: &str, uid: u32, gid: u32, tid: TaskId) -> Result<(), &'static str> {
-        let key = normalize_path(path).ok_or("invalid path")?;
-        let mut meta = self.meta.lock();
-        let entry = meta.get_mut(&key).ok_or("not found")?;
-        if !Self::has_owner_access(tid, entry.uid) {
-            return Err("permission denied");
-        }
-        entry.uid = uid;
-        entry.gid = gid;
-        Ok(())
+        with_meta_modify!(self, path, tid, |entry: &mut RamMeta| {
+            entry.uid = uid;
+            entry.gid = gid;
+            Ok(())
+        })
     }
 
     pub fn link(&self, old_path: &str, new_path: &str, tid: TaskId) -> Result<(), &'static str> {
@@ -294,17 +303,13 @@ impl RamFs {
         mtime_nsec: i32,
         tid: TaskId,
     ) -> Result<(), &'static str> {
-        let key = normalize_path(path).ok_or("invalid path")?;
-        let mut meta = self.meta.lock();
-        let entry = meta.get_mut(&key).ok_or("not found")?;
-        if !Self::has_owner_access(tid, entry.uid) {
-            return Err("permission denied");
-        }
-        entry.atime_sec = atime_sec;
-        entry.atime_nsec = atime_nsec;
-        entry.mtime_sec = mtime_sec;
-        entry.mtime_nsec = mtime_nsec;
-        Ok(())
+        with_meta_modify!(self, path, tid, |entry: &mut RamMeta| {
+            entry.atime_sec = atime_sec;
+            entry.atime_nsec = atime_nsec;
+            entry.mtime_sec = mtime_sec;
+            entry.mtime_nsec = mtime_nsec;
+            Ok(())
+        })
     }
 
     pub fn symlink(&self, target: &str, link_path: &str, tid: TaskId) -> Result<(), &'static str> {

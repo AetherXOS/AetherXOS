@@ -22,6 +22,57 @@ macro_rules! define_errno {
     }
 }
 
+// General purpose enum conversion macros
+#[macro_export]
+macro_rules! impl_enum_from_usize {
+    ($enum_name:ident, { $($variant:ident => $val:expr),* }) => {
+        impl $enum_name {
+            #[inline(always)]
+            pub(crate) fn from_usize(value: usize) -> Option<Self> {
+                match value {
+                    $($val => Some(Self::$variant),)*
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_enum_to_kernel {
+    ($enum_name:ident, $target_type:path, { $($variant:ident => $target_variant:path),* }) => {
+        impl $enum_name {
+            #[inline(always)]
+            pub(super) fn to_kernel(self) -> $target_type {
+                match self {
+                    $(Self::$variant => $target_variant,)*
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_enum_conversions {
+    ($enum_name:ident, $target_type:path, { $($variant:ident => ($val:expr, $target_variant:path)),* }) => {
+        impl $enum_name {
+            #[inline(always)]
+            pub(crate) fn from_usize(value: usize) -> Option<Self> {
+                match value {
+                    $($val => Some(Self::$variant),)*
+                    _ => None,
+                }
+            }
+            #[inline(always)]
+            pub(super) fn to_kernel(self) -> $target_type {
+                match self {
+                    $(Self::$variant => $target_variant,)*
+                }
+            }
+        }
+    };
+}
+
 define_errno! {
     Again = crate::modules::posix_consts::errno::EAGAIN,
     BadFileDescriptor = crate::modules::posix_consts::errno::EBADF,
@@ -35,6 +86,7 @@ define_errno! {
     AlreadyExists = crate::modules::posix_consts::errno::EEXIST,
     NoSys = crate::modules::posix_consts::errno::ENOSYS,
     TooManyFiles = crate::modules::posix_consts::errno::EMFILE,
+    Child = crate::modules::posix_consts::errno::ECHILD,
 }
 
 #[cfg(feature = "posix_time")]

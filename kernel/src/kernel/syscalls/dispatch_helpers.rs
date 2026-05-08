@@ -140,7 +140,6 @@ pub(crate) enum BinarySwitch {
 }
 
 impl BinarySwitch {
-    #[inline(always)]
     pub(crate) fn from_usize(value: usize) -> Option<Self> {
         match value {
             0 => Some(Self::Disabled),
@@ -163,7 +162,6 @@ pub(crate) enum PowerOverrideMode {
 }
 
 impl PowerOverrideMode {
-    #[inline(always)]
     pub(crate) fn from_usize(value: usize) -> Option<Self> {
         match value {
             0 => Some(Self::HighPerf),
@@ -173,8 +171,7 @@ impl PowerOverrideMode {
         }
     }
 
-    #[inline(always)]
-    pub(super) fn to_kernel(self) -> crate::kernel::power::PState {
+    pub(crate) fn to_kernel(self) -> crate::kernel::power::PState {
         match self {
             Self::HighPerf => crate::kernel::power::PState::HighPerf,
             Self::Balanced => crate::kernel::power::PState::Balanced,
@@ -191,7 +188,6 @@ pub(crate) enum CStateOverrideMode {
 }
 
 impl CStateOverrideMode {
-    #[inline(always)]
     pub(crate) fn from_usize(value: usize) -> Option<Self> {
         match value {
             0 => Some(Self::C1),
@@ -201,8 +197,7 @@ impl CStateOverrideMode {
         }
     }
 
-    #[inline(always)]
-    pub(super) fn to_kernel(self) -> crate::kernel::power::CState {
+    pub(crate) fn to_kernel(self) -> crate::kernel::power::CState {
         match self {
             Self::C1 => crate::kernel::power::CState::C1,
             Self::C2 => crate::kernel::power::CState::C2,
@@ -221,7 +216,6 @@ pub(super) enum BackpressurePolicyMode {
 
 #[cfg(feature = "networking")]
 impl BackpressurePolicyMode {
-    #[inline(always)]
     pub(super) fn from_usize(value: usize) -> Option<Self> {
         match value {
             0 => Some(Self::Drop),

@@ -10,6 +10,28 @@ pub(crate) enum PtyIoctlSide {
     Slave,
 }
 
+macro_rules! ioctl_write {
+    ($arg:expr, $ty:ty, $value:expr) => {{
+        if $arg == 0 {
+            return Err("EFAULT");
+        }
+        let ptr = $arg as *mut $ty;
+        unsafe { core::ptr::write_volatile(ptr, $value) };
+        Some(0)
+    }};
+}
+
+macro_rules! ioctl_read {
+    ($arg:expr, $ty:ty, $handler:expr) => {{
+        if $arg == 0 {
+            return Err("EFAULT");
+        }
+        let ptr = $arg as *const $ty;
+        let value = unsafe { core::ptr::read_volatile(ptr) };
+        $handler(value)
+    }};
+}
+
 pub(crate) fn handle_common_ioctl(
     pair: &PtyPair,
     side: PtyIoctlSide,
@@ -17,61 +39,25 @@ pub(crate) fn handle_common_ioctl(
     arg: u64,
 ) -> Result<Option<isize>, &'static str> {
     let result = match cmd {
-        TCGETS => {
-            if arg == 0 {
-                return Err("EFAULT");
-            }
-            let ptr = arg as *mut Termios;
-            unsafe { core::ptr::write_volatile(ptr, pair.get_termios()) };
-            Some(0)
-        }
-        TCSETS | TCSETSW | TCSETSF => {
-            if arg == 0 {
-                return Err("EFAULT");
-            }
-            let ptr = arg as *const Termios;
-            let termios = unsafe { core::ptr::read_volatile(ptr) };
+        TCGETS => ioctl_write!(arg, Termios, pair.get_termios()),
+        TCSETS | TCSETSW | TCSETSF => ioctl_read!(arg, Termios, |termios| {
             pair.set_termios(termios);
             Some(0)
-        }
-        TIOCGWINSZ => {
-            if arg == 0 {
-                return Err("EFAULT");
-            }
-            let ptr = arg as *mut WinSize;
-            unsafe { core::ptr::write_volatile(ptr, pair.get_winsize()) };
-            Some(0)
-        }
-        TIOCSWINSZ => {
-            if arg == 0 {
-                return Err("EFAULT");
-            }
-            let ptr = arg as *const WinSize;
-            let winsize = unsafe { core::ptr::read_volatile(ptr) };
+        }),
+        TIOCGWINSZ => ioctl_write!(arg, WinSize, pair.get_winsize()),
+        TIOCSWINSZ => ioctl_read!(arg, WinSize, |winsize| {
             let fg_pgid = pair.set_winsize(winsize);
             pair.maybe_signal_foreground_group(fg_pgid);
             Some(0)
-        }
-        TIOCGPGRP => {
-            if arg == 0 {
-                return Err("EFAULT");
-            }
-            let ptr = arg as *mut i32;
-            unsafe { core::ptr::write_volatile(ptr, pair.fg_pgid()) };
-            Some(0)
-        }
-        TIOCSPGRP => {
-            if arg == 0 {
-                return Err("EFAULT");
-            }
-            let ptr = arg as *const i32;
-            let fg_pgid = unsafe { core::ptr::read_volatile(ptr) };
+        }),
+        TIOCGPGRP => ioctl_write!(arg, i32, pair.fg_pgid()),
+        TIOCSPGRP => ioctl_read!(arg, i32, |fg_pgid| {
             if fg_pgid <= 0 {
                 return Err("EINVAL");
             }
             pair.set_fg_pgid(fg_pgid);
             Some(0)
-        }
+        }),
         TIOCSCTTY => {
             #[cfg(feature = "posix_process")]
             {
@@ -110,18 +96,10 @@ pub(crate) fn handle_common_ioctl(
                 return Err("ENOTTY");
             }
         }
-        FIONREAD => {
-            if arg == 0 {
-                return Err("EFAULT");
-            }
-            let ptr = arg as *mut i32;
-            let count = match side {
-                PtyIoctlSide::Master => pair.slave_to_master_len(),
-                PtyIoctlSide::Slave => pair.master_to_slave_len(),
-            };
-            unsafe { core::ptr::write_volatile(ptr, count as i32) };
-            Some(0)
-        }
+        FIONREAD => ioctl_write!(arg, i32, match side {
+            PtyIoctlSide::Master => pair.slave_to_master_len(),
+            PtyIoctlSide::Slave => pair.master_to_slave_len(),
+        } as i32),
         FIONBIO => Some(0),
         _ => None,
     };

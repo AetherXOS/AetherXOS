@@ -151,23 +151,28 @@ pub fn prepare_execve_user_stack(
 
     sp &= !(word_size - 1);
 
-    for ptr in arg_ptrs.iter().rev() {
-        push_execve_user_word(&mut sp, word_size, *ptr)?;
-    }
+    // Push Auxv
     push_execve_user_word(&mut sp, word_size, 0)?;
-
-    for ptr in env_ptrs.iter().rev() {
-        push_execve_user_word(&mut sp, word_size, *ptr)?;
-    }
-    push_execve_user_word(&mut sp, word_size, 0)?;
-
-    for &(key, value) in resolved_auxv.iter().rev() {
+    push_execve_user_word(&mut sp, word_size, EXECVE_AUXV_AT_NULL)?;
+    for &(key, value) in resolved_auxv.iter() {
         push_execve_user_word(&mut sp, word_size, value)?;
         push_execve_user_word(&mut sp, word_size, key)?;
     }
+
+    // Push Envp
     push_execve_user_word(&mut sp, word_size, 0)?;
-    push_execve_user_word(&mut sp, word_size, EXECVE_AUXV_AT_NULL)?;
-    push_execve_user_word(&mut sp, word_size, arg_ptrs.len())?;
+    for ptr in env_ptrs.iter() {
+        push_execve_user_word(&mut sp, word_size, *ptr)?;
+    }
+
+    // Push Argv
+    push_execve_user_word(&mut sp, word_size, 0)?;
+    for ptr in arg_ptrs.iter() {
+        push_execve_user_word(&mut sp, word_size, *ptr)?;
+    }
+
+    // Push argc
+    push_execve_user_word(&mut sp, word_size, argv.len())?;
 
     Ok(sp)
 }

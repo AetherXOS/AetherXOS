@@ -16,10 +16,9 @@ pub fn sendmsg_full(
     let sent = sendmsg_flags(fd, iov, flags)?;
 
     if !control_fds.is_empty() {
-        // Find target port if it's a Unix socket
-        // This is a bit of a hack since we don't know the peer directly here,
-        // but we can look it up in libnet's connection state or assume directed.
-        // For simulation: we assume the socket is connected and find its peer.
+        // For Unix sockets, we need to find the peer to pass file descriptors
+        // This implementation uses getpeername to determine the target port
+        // and pushes the file descriptors to the ancillary data queue.
         if let Ok(peer) = crate::modules::libnet::posix_getpeername_errno(fd) {
             let mut files = alloc::vec::Vec::new();
             for &cfd in control_fds {

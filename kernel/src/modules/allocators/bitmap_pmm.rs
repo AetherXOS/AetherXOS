@@ -60,11 +60,7 @@ pub fn get_free_pages() -> usize {
 
 // ── BitmapAllocator ───────────────────────────────────────────────────────────
 
-#[cfg(target_arch = "x86_64")]
-const DEFAULT_PMM_BASE: usize = 0x10_0000; // 1 MiB skip real-mode for x86_64
-
-#[cfg(target_arch = "aarch64")]
-const DEFAULT_PMM_BASE: usize = 0x4000_0000; // Typical starting DRAM base on AArch64 virt machines
+const DEFAULT_PMM_BASE: usize = crate::hal::abstractions::default_pmm_base();
 
 pub struct BitmapAllocator {
     start_addr: usize,

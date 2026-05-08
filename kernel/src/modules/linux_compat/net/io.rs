@@ -1,6 +1,18 @@
 use super::super::*;
 use crate::kernel::syscalls::{with_user_read_bytes, with_user_write_bytes};
 
+macro_rules! read_msghdr {
+    ($ptr:expr) => {
+        match $ptr.read() { Ok(v) => v, Err(e) => return e }
+    };
+}
+
+macro_rules! read_mmsghdr {
+    ($ptr:expr) => {
+        match $ptr.read() { Ok(v) => v, Err(_) => return Err(()) }
+    };
+}
+
 /// `recvfrom(2)` — Receive a message from a socket.
 pub fn sys_linux_recvfrom(
     fd: Fd,
@@ -69,7 +81,7 @@ pub fn sys_linux_sendto(
 /// Helper for recvmsg with scatter-gather and Cmsg support.
 pub fn sys_linux_recvmsg(fd: Fd, msg_ptr: UserPtr<LinuxMsgHdr>, flags: usize) -> usize {
     crate::require_posix_net!((fd, msg_ptr, flags) => {
-        let mut msg = match msg_ptr.read() { Ok(v) => v, Err(e) => return e };
+        let mut msg = read_msghdr!(msg_ptr);
         let mut iovs_raw = match read_user_iovec(msg.msg_iov as usize, msg.msg_iovlen as usize) {
             Ok(v) => v,
             Err(e) => return e,
@@ -128,7 +140,7 @@ pub fn sys_linux_recvmsg(fd: Fd, msg_ptr: UserPtr<LinuxMsgHdr>, flags: usize) ->
 /// `sendmsg(2)`
 pub fn sys_linux_sendmsg(fd: Fd, msg_ptr: UserPtr<LinuxMsgHdr>, flags: usize) -> usize {
     crate::require_posix_net!((fd, msg_ptr, flags) => {
-        let msg = match msg_ptr.read() { Ok(v) => v, Err(e) => return e };
+        let msg = read_msghdr!(msg_ptr);
         let iovs = match read_user_iovec(msg.msg_iov as usize, msg.msg_iovlen as usize) {
             Ok(v) => v,
             Err(e) => return e,

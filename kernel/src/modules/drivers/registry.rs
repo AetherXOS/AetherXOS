@@ -366,9 +366,10 @@ mod tests {
         note_policy_switch(ActiveNetworkDriver::VirtIo);
         let latest = latest_runtime_registry_event();
         assert!(latest.is_some());
-        let event = latest.unwrap();
-        assert_eq!(event.kind, DriverRuntimeEventKind::PolicySwitched);
-        assert_eq!(event.driver, ActiveNetworkDriver::VirtIo);
+        if let Some(event) = latest {
+            assert_eq!(event.kind, DriverRuntimeEventKind::PolicySwitched);
+            assert_eq!(event.driver, ActiveNetworkDriver::VirtIo);
+        }
     }
 
     #[test_case]

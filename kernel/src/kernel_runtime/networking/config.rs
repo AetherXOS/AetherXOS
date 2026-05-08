@@ -4,6 +4,9 @@ pub(super) const NETWORK_IO_REBIND_STREAK_THRESHOLD: u64 = 3;
 pub(super) const NETWORK_IO_FAILOVER_STREAK_THRESHOLD: u64 = 2;
 
 #[cfg(all(feature = "drivers", feature = "networking"))]
+pub(super) const DEFAULT_NETWORK_RANDOM_SEED: u64 = 0xC0DEC0DE;
+
+#[cfg(all(feature = "drivers", feature = "networking"))]
 #[inline(always)]
 pub(super) fn network_slo_sample_interval() -> u64 {
     aethercore::config::KernelConfig::network_slo_sample_interval()

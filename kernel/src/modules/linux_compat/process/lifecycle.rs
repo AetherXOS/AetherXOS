@@ -63,11 +63,16 @@ pub fn sys_linux_clone(
 
             if let Some(task) = crate::kernel::task::get_task(new_tid) {
                 let mut locked = task.lock();
-                locked.context.rax = 0;
-                locked.context.rsp = sp as u64;
-                locked.context.rip = entry;
-                locked.context.rcx = entry;
-                locked.context.r11 = _user_rflags as u64;
+                match &mut locked.context {
+                    crate::hal::abstractions::CpuContext::X86_64(ctx) => {
+                        ctx.rax = 0;
+                        ctx.rsp = sp as u64;
+                        ctx.rip = entry;
+                        ctx.rcx = entry;
+                        ctx.r11 = _user_rflags as u64;
+                    }
+                    _ => {}
+                }
             }
 
             if (flags & cf::CLONE_PARENT_SETTID) != 0 && !parent_tidptr.is_null() {
@@ -75,6 +80,11 @@ pub fn sys_linux_clone(
             }
             if (flags & cf::CLONE_CHILD_SETTID) != 0 && !child_tidptr.is_null() {
                 let _ = child_tidptr.write(&new_tid.0);
+            }
+            if (flags & cf::CLONE_CHILD_CLEARTID) != 0 && !child_tidptr.is_null() {
+                if let Some(task) = crate::kernel::task::get_task(new_tid) {
+                    task.lock().clear_child_tid = child_tidptr.addr;
+                }
             }
             return new_tid.0;
         }
@@ -170,6 +180,26 @@ pub fn sys_linux_fork() -> usize {
             Err(e)  => linux_errno(e.code()),
         }
     })
+}
+
+pub fn sys_linux_exit(status: usize) -> usize {
+    let current_tid = unsafe {
+        crate::kernel::cpu_local::CpuLocal::get()
+            .current_task
+            .load(core::sync::atomic::Ordering::Relaxed)
+    };
+    let current_tid = crate::interfaces::task::TaskId(current_tid);
+    
+    let _ = status; // Thread exit status is often ignored or handled via join
+    
+    if crate::kernel::launch::terminate_task(current_tid) {
+        crate::kernel::rt_preemption::request_forced_reschedule();
+    }
+    
+    use crate::interfaces::HardwareAbstraction;
+    loop {
+        crate::hal::HAL::halt();
+    }
 }
 
 pub fn sys_linux_exit_group(status: usize) -> usize {

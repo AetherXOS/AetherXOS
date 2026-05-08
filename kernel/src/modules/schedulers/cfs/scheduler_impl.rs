@@ -1,8 +1,16 @@
 use crate::interfaces::{KernelTask, Scheduler, SchedulerAction, TaskId};
+use crate::core::log;
 use crate::kernel::sync::IrqSafeMutex;
 use crate::config::KernelConfig;
 use alloc::sync::Arc;
 use super::*;
+
+macro_rules! early_serial_log {
+    ($msg:expr) => {
+        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
+        crate::hal::serial::write_raw(concat!("[EARLY SERIAL] ", $msg, "\n"));
+    };
+}
 
 impl Scheduler for CFS {
     type TaskItem = Arc<IrqSafeMutex<KernelTask>>;
@@ -120,29 +128,20 @@ impl Scheduler for CFS {
     }
 
     fn pick_next(&mut self) -> Option<TaskId> {
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_raw("[EARLY SERIAL] cfs pick_next begin\n");
+        log::trace("CFS: pick_next starting");
         self.update_min_vruntime();
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_raw("[EARLY SERIAL] cfs pick_next after update_min_vruntime\n");
+        log::trace("CFS: vruntime updated");
 
         if self.timeline.len() == 1 {
-            #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-            crate::hal::serial::write_raw(
-                "[EARLY SERIAL] cfs pick_next singleton fast path\n",
-            );
+            log::trace("CFS: singleton fast path");
             let tid = self.bootstrap_pick_next_internal()?;
-            #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-            crate::hal::serial::write_raw(
-                "[EARLY SERIAL] cfs pick_next singleton returned\n",
-            );
+            log::trace("CFS: singleton task found");
             return Some(tid);
         }
 
         // Two-level scheduling: first pick the best group, then pick best task within.
         let picked = if let Some(best_gid) = self.pick_best_group() {
-            #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-            crate::hal::serial::write_raw("[EARLY SERIAL] cfs pick_next best group found\n");
+            log::trace("CFS: best group found");
             // Find the earliest-vruntime task belonging to this group
             let mut found = None;
             for (&(_, tid), _) in self.timeline.iter() {
@@ -155,59 +154,39 @@ impl Scheduler for CFS {
             }
             found
         } else {
-            #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-            crate::hal::serial::write_raw("[EARLY SERIAL] cfs pick_next no best group\n");
+            log::trace("CFS: no best group");
             None
         };
 
         let result = picked.or_else(|| {
-            #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-            crate::hal::serial::write_raw("[EARLY SERIAL] cfs pick_next fallback timeline begin\n");
+            log::trace("CFS: fallback timeline lookup");
             self.timeline
                 .iter()
                 .next()
                 .map(|(&(_, task_id), _)| task_id)
         });
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_raw("[EARLY SERIAL] cfs pick_next candidate ready\n");
+        log::trace("CFS: candidate ready for execution");
 
         // Record schedstat: wait_time for picked task
         if let Some(tid) = result {
-            #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-            crate::hal::serial::write_raw("[EARLY SERIAL] cfs pick_next schedstat begin\n");
+            early_serial_log!("cfs pick_next schedstat begin");
             if let Some(stat) = self.schedstats.get_mut(&tid) {
-                #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-                crate::hal::serial::write_raw(
-                    "[EARLY SERIAL] cfs pick_next schedstat slot found\n",
-                );
+                early_serial_log!("cfs pick_next schedstat slot found");
                 let waited = self.tick_counter.saturating_sub(stat.last_enqueue_tick);
-                #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-                crate::hal::serial::write_raw(
-                    "[EARLY SERIAL] cfs pick_next waited computed\n",
-                );
+                early_serial_log!("cfs pick_next waited computed");
                 stat.wait_time_ns = stat
                     .wait_time_ns
                     .saturating_add(waited * KernelConfig::time_slice());
-                #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-                crate::hal::serial::write_raw(
-                    "[EARLY SERIAL] cfs pick_next wait_time updated\n",
-                );
+                early_serial_log!("cfs pick_next wait_time updated");
                 stat.run_count += 1;
                 stat.last_run_tick = self.tick_counter;
-                #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-                crate::hal::serial::write_raw(
-                    "[EARLY SERIAL] cfs pick_next schedstat updated\n",
-                );
+                early_serial_log!("cfs pick_next schedstat updated");
             } else {
-                #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-                crate::hal::serial::write_raw(
-                    "[EARLY SERIAL] cfs pick_next schedstat slot missing\n",
-                );
+                early_serial_log!("cfs pick_next schedstat slot missing");
             }
         }
 
-        #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-        crate::hal::serial::write_raw("[EARLY SERIAL] cfs pick_next returned\n");
+        early_serial_log!("cfs pick_next returned");
         result
     }
 

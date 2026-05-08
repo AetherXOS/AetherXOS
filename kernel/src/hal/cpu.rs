@@ -23,6 +23,30 @@ pub fn rdtsc() -> u64 {
     0
 }
 
+/// Check if AES-NI is available on this platform.
+pub fn has_aes_ni() -> bool {
+    #[cfg(target_arch = "x86_64")]
+    {
+        crate::hal::x86_64::cpu::has_aes_ni()
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        false
+    }
+}
+
+/// Check if SHA-NI is available on this platform.
+pub fn has_sha_ni() -> bool {
+    #[cfg(target_arch = "x86_64")]
+    {
+        crate::hal::x86_64::cpu::has_sha_ni()
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        false
+    }
+}
+
 #[inline(always)]
 pub fn id_typed() -> crate::interfaces::task::CpuId {
     crate::interfaces::task::CpuId(id())

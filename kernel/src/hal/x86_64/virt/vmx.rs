@@ -75,7 +75,7 @@ pub(super) fn try_enter_vmx_operation() -> bool {
         return false;
     };
 
-    let mut failed: u8 = 1;
+    let failed: u8 = 1;
     #[cfg(target_os = "none")]
     unsafe {
         core::arch::asm!(

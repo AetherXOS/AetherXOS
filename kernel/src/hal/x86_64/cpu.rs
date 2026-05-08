@@ -104,12 +104,59 @@ pub fn detect_features() -> CpuFeatures {
     f
 }
 
+/// Check for AES-NI support using CPUID (leaf 1, ECX bit 25)
+pub fn has_aes_ni() -> bool {
+    let max_leaf = unsafe { __cpuid(0).eax };
+    if max_leaf >= 1 {
+        let res = unsafe { __cpuid(1) };
+        return has_bit_u32(res.ecx, 25);
+    }
+    false
+}
+
+/// Check for SHA-NI support using CPUID (leaf 7, EBX bit 29)
+pub fn has_sha_ni() -> bool {
+    let max_leaf = unsafe { __cpuid(0).eax };
+    if max_leaf >= 7 {
+        let res7 = unsafe { __cpuid_count(7, 0) };
+        return has_bit_u32(res7.ebx, 29);
+    }
+    false
+}
+
 // ── Timers and Power ──────────────────────────────────────────────────────────
 
 /// Read the Time Stamp Counter (RDTSC).
 #[inline(always)]
 pub fn rdtsc() -> u64 {
     unsafe { _rdtsc() }
+}
+
+/// Read a hardware random number using the RDRAND instruction.
+/// Returns `Some(u64)` if successful, `None` otherwise.
+pub fn rdrand() -> Option<u64> {
+    #[cfg(target_arch = "x86_64")]
+    {
+        let mut val: u64;
+        let success: u8;
+        unsafe {
+            core::arch::asm!(
+                "rdrand {0}",
+                "setc {1}",
+                out(reg) val,
+                out(reg_byte) success,
+            );
+        }
+        if success != 0 {
+            Some(val)
+        } else {
+            None
+        }
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        None
+    }
 }
 
 /// Read the Time Stamp Counter and Processor ID (RDTSCP).

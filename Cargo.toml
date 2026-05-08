@@ -258,9 +258,6 @@ timer_jitter_tolerance_ticks = 50000
 gic_cpu_priority_mask = 255
 irq_rate_track_limit = 256
 irq_per_line_storm_threshold = 256
-irq_per_line_log_every = 64
-tlb_shootdown_timeout_spins = 1000000
-smp_known_mpidrs = [0x00000001, 0x00000002, 0x00000003]
 
 [package.metadata.aethercore.config."scheduler.lottery"]
 initial_seed = 3405691582
@@ -281,6 +278,9 @@ limine = "0.1.12"
 volatile = "0.5.4"
 spin = "0.9.8"
 aethercore-common = { path = "shared" }
+aop_macros = { path = "aop_macros" }
+rand = { version = "0.8", default-features = false }
+rand_chacha = { version = "0.3", default-features = false }
 
 bitflags = "2.4.0"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
@@ -306,7 +306,7 @@ serde_derive = "1.0"
 toml = "0.8"
 
 [features]
-default = ["telemetry", "process_abstraction", "security", "allocators", "allocator_lockfree_slab", "schedulers", "sched_numa_cfs", "dispatcher", "dispatcher_vectored", "ipc", "ipc_lockfree_ring", "posix_process", "posix_fs", "posix_time", "posix_io", "posix_mman"]
+default = ["telemetry", "process_abstraction", "security", "security_capabilities", "capability_system", "policy_enforcement", "cap_lock_mutex", "allocators", "allocator_lockfree_slab", "schedulers", "sched_numa_cfs", "dispatcher", "dispatcher_vectored", "ipc", "ipc_lockfree_ring", "posix_process", "posix_fs", "posix_time", "posix_io", "posix_mman"]
 
 # --- Architecture & Multi-Processing ---
 smp = [] # Symmetric Multi-Processing
@@ -329,15 +329,25 @@ sched_energy_aware = ["schedulers"]
 # --- Core Mechanics ---
 process_abstraction = [] # Enable Process/Thread abstraction. Disable for bare-metal loop.
 
-# --- Security Core ---
-security = []               # Base security module.
+# --- Security Core (OPTIONAL) ---
+security = []               # Base security module (no overhead if disabled)
 security_null = ["security"]
 security_acl = ["security"]
-security_capabilities = ["security"]
+security_capabilities = ["security"]  # Capability-based authorization
 security_sel4 = ["security"]
-ring_protection = []    # Enable Ring 0/3 separation & Syscalls.
+
+# --- Security Optional Features ---
+capability_system = ["security_capabilities"]  # Full capability system with audit
+policy_enforcement = ["capability_system"]     # Full policy backend enforcement
+audit_logging = ["policy_enforcement"]         # Comprehensive audit trail
+
+# --- Capability Locking Strategies (Compile-time) ---
+cap_lock_mutex = ["capability_system"]
+cap_lock_rwlock = ["capability_system"]
+cap_lock_sharded = ["capability_system"]
+
+ring_protection = []    # Enable Ring 0/3 separation & Syscalls (independent)
 memory_protection = []  # Enable Page Faults for unauthorized access (NX bit, etc).
-capabilities = []       # Enable Capability-based security model.
 acl = []                # Enable Access Control Lists.
 sel4_extensions = []    # Enable seL4-like formal verification stubs.
 

@@ -35,7 +35,39 @@ pub(super) fn waitpid(pid: usize, nohang: bool) -> Result<Option<usize>, PosixEr
     }
 
     if (pid as isize) == -1 || pid == 0 {
-        return wait_any_status(nohang).map(|opt| opt.map(|(p, _, _)| p));
+        // Wait for ANY child
+        let current_pid = getpid();
+        let parent = crate::kernel::process::registry::get_process(crate::interfaces::task::ProcessId(current_pid))
+            .ok_or(PosixErrno::NoEntry)?;
+
+        loop {
+            let mut children = parent.children.lock();
+            let mut exited_pid = None;
+            for (i, &child_pid) in children.iter().enumerate() {
+                if let Some((_status, _rusage)) = take_exit_status(child_pid.0) {
+                    exited_pid = Some((i, child_pid.0));
+                    break;
+                }
+            }
+
+            if let Some((index, child_pid)) = exited_pid {
+                children.remove(index);
+                clear_process_metadata(child_pid);
+                return Ok(Some(child_pid));
+            }
+
+            if children.is_empty() {
+                return Err(PosixErrno::Child); // No children to wait for
+            }
+
+            if nohang {
+                return Ok(None);
+            }
+
+            // Sleep on OUR wait queue (mark_exited wakes up parent)
+            drop(children);
+            parent.exit_wait_queue.wait();
+        }
     }
 
     loop {
@@ -191,6 +223,10 @@ fn wait_any_status_internal(nohang: bool, consume: bool) -> Result<Option<(usize
         return Ok(None);
     }
 
+    let current_pid = getpid();
+    let parent = crate::kernel::process::registry::get_process(crate::interfaces::task::ProcessId(current_pid))
+        .ok_or(PosixErrno::NoEntry)?;
+
     loop {
         if consume {
             if let Some((pid, (status, rusage))) = EXIT_STATUS_TABLE.lock().pop_first() {
@@ -204,10 +240,8 @@ fn wait_any_status_internal(nohang: bool, consume: bool) -> Result<Option<(usize
         {
             return Ok(Some((pid, status, rusage)));
         }
-        let snapshot = current_process_event_epoch();
-        if !wait_for_process_event(snapshot) {
-            return Err(PosixErrno::TimedOut);
-        }
+        
+        parent.exit_wait_queue.wait();
     }
 }
 

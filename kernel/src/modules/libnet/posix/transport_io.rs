@@ -91,13 +91,18 @@ pub fn recv_with_flags(fd: u32, msg_flags: PosixMsgFlags) -> Result<Vec<u8>, &'s
                         }
                         return Ok(Some(dg.payload));
                     }
-                    if let Some(dg) = state.socket.as_mut().unwrap().recv() {
-                        if msg_flags.contains(PosixMsgFlags::PEEK) {
-                            state.pending.push_front(dg.clone());
+                    match state.socket.as_mut() {
+                        Some(socket) => {
+                            if let Some(dg) = socket.recv() {
+                                if msg_flags.contains(PosixMsgFlags::PEEK) {
+                                    state.pending.push_front(dg.clone());
+                                }
+                                Ok(Some(dg.payload))
+                            } else {
+                                Ok(None)
+                            }
                         }
-                        Ok(Some(dg.payload))
-                    } else {
-                        Ok(None)
+                        None => Err("datagram socket unavailable"),
                     }
                 }
                 _ => Err("recv requires connected stream or datagram socket"),

@@ -1,10 +1,37 @@
 //! Hardware Abstraction Layer
 
+
+//! This layer provides unified abstractions for all hardware components.
+//! Architecture-specific implementations (x86_64, aarch64) are confined within
+//! this module. Generic kernel code has no direct dependencies on cfg(target_arch).
+
+// ── Core abstraction traits (platform-agnostic) ────────────────────────────
+pub mod abstractions;
+pub mod firmware_abstraction;
+
+// ── Component abstraction layers ─────────────────────────────────────────────
+pub mod cpu_abstraction;
+pub mod irq_abstraction;
+pub mod timer_abstraction;
+
+// ── Generic HAL components ──────────────────────────────────────────────────
 pub mod common;
 pub mod cpu;
+pub mod port;
 pub mod serial;
+pub mod bridge;
+pub mod mmio;
+pub mod devices;
+pub mod platforms;
 
+// ── Device tree and firmware parsers (architecture-specific) ────────────────
+#[cfg(target_arch = "x86_64")]
+pub mod acpi_parser;
+
+#[cfg(target_arch = "aarch64")]
+pub mod dtb_parser;
 use crate::interfaces::HardwareAbstraction;
+use crate::interfaces::platform::Platform;
 
 pub struct Hal;
 
@@ -103,6 +130,14 @@ impl Hal {
     pub fn serial_write_raw(s: &str) {
         <Self as HardwareAbstraction>::serial_write_raw(s);
     }
+
+    pub fn platform() -> &'static dyn Platform {
+        crate::hal::platforms::get_platform()
+    }
+
+    pub fn firmware_provider() -> &'static dyn crate::hal::firmware_abstraction::FirmwareProvider {
+        crate::hal::firmware_abstraction::get_firmware_provider()
+    }
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -121,7 +156,7 @@ pub use x86_64::HAL;
 #[cfg(target_arch = "x86_64")]
 pub use x86_64::{
     acpi, acpi_rsdp_addr, apic, dtb_addr, framebuffer, gdt, hhdm_offset, idt, input, mem_map,
-    paging, pci, pic, platform, port, smp, virt,
+    paging, pci, pic, platform, smp, virt,
 };
 
 #[cfg(target_arch = "aarch64")]

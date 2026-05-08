@@ -49,60 +49,13 @@ pub fn crypto_stats() -> CryptoStats {
 /// Check if AES-NI is supported
 #[inline(always)]
 pub fn has_aes_ni() -> bool {
-    #[cfg(target_arch = "x86_64")]
-    {
-        let mut _eax: u32 = 1;
-        let mut _ebx: u32;
-        let mut ecx: u32;
-        let mut _edx: u32;
-        
-        unsafe {
-            core::arch::asm!(
-                "cpuid",
-                inout("eax") _eax,
-                out("r9") _ebx,
-                out("ecx") ecx,
-                out("r10") _edx,
-                clobber_abi("C"),
-                options(nomem, nostack)
-            );
-        }
-        
-        (ecx & (1 << 25)) != 0 // AES-NI bit
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        false
-    }
+    crate::hal::cpu::has_aes_ni()
 }
 
 /// Check if SHA-NI is supported
 #[inline(always)]
 pub fn has_sha_ni() -> bool {
-    #[cfg(target_arch = "x86_64")]
-    {
-        let mut _eax: u32 = 7;
-        let mut _ecx: u32 = 0;
-        let mut ebx: u32;
-        let mut _edx: u32;
-        
-        unsafe {
-            core::arch::asm!(
-                "cpuid",
-                inout("eax") _eax,
-                inout("ecx") _ecx,
-                out("r9") ebx,
-                out("r10") _edx,
-                options(nomem, nostack)
-            );
-        }
-        
-        (ebx & (1 << 29)) != 0 // SHA-NI bit
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        false
-    }
+    crate::hal::cpu::has_sha_ni()
 }
 
 /// AES-128 key schedule
@@ -161,7 +114,6 @@ impl Aes128 {
 
     /// Encrypt a single block using AES-NI
     #[inline(always)]
-    #[cfg(target_arch = "x86_64")]
     pub fn encrypt_block(&self, input: &[u8; 16], output: &mut [u8; 16]) {
         CRYPTO_AES_OPS.fetch_add(1, Ordering::Relaxed);
         
@@ -322,17 +274,10 @@ impl Sha256 {
     }
 
     /// SHA-NI hardware acceleration
-    #[cfg(target_arch = "x86_64")]
     #[inline(never)]
     fn process_block_hw(&mut self) {
         // SHA-NI SHA256RNDS2 instruction would be used here
         // For now, use software fallback
-        self.process_block_sw();
-    }
-
-    #[cfg(not(target_arch = "x86_64"))]
-    #[inline(never)]
-    fn process_block_hw(&mut self) {
         self.process_block_sw();
     }
 

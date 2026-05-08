@@ -121,7 +121,7 @@ impl File for SocketFile {
                 state
                     .socket
                     .as_ref()
-                    .unwrap()
+                    .ok_or("socket unavailable")?
                     .send_to(dst, buf)
                     .map_err(|_| "send failed")?;
                 Ok(buf.len())

@@ -1,5 +1,32 @@
 pub mod cpu;
-// Re-exports
+// Core trait modules
+pub mod boot;
+pub mod device;
+pub mod platform;
+pub mod runtime;
+// Subsystem trait modules
+pub mod dispatcher;
+pub mod error;
+pub mod governance;
+pub mod hardware;
+pub mod ipc;
+pub mod memory;
+pub mod scheduler;
+pub mod security;
+pub mod task;
+// Extension trait modules
+pub mod memory_ext;
+pub mod scheduler_ext;
+pub mod security_ext;
+pub mod vfs_ext;
+
+// Re-exports - Core
+pub use boot::{BootManager, BootStage, BootSubsystem};
+pub use device::{DeviceManager, DeviceRegistry};
+pub use platform::{Platform, PlatformServices};
+pub use runtime::{RuntimeManager, RuntimeState};
+
+// Re-exports - Subsystems
 pub use dispatcher::Dispatcher;
 pub use error::{KernelError, KernelResult};
 pub use governance::{Governance, SystemState};
@@ -12,13 +39,3 @@ pub use security::{
     SecurityMonitor, SecurityVerdict,
 };
 pub use task::{Context, KernelTask, ProcessId, TaskId, TaskState};
-
-pub mod dispatcher;
-pub mod error;
-pub mod governance;
-pub mod hardware;
-pub mod ipc;
-pub mod memory;
-pub mod scheduler;
-pub mod security;
-pub mod task;

@@ -4,6 +4,7 @@ mod memory;
 mod routing;
 
 use crate::kernel_runtime::KernelRuntime;
+use crate::core::log;
 
 #[inline(always)]
 fn linked_probe_boot_mode() -> bool {
@@ -14,11 +15,9 @@ fn linked_probe_boot_mode() -> bool {
 
 #[inline(always)]
 fn finalize_runtime_interrupt_window(runtime: KernelRuntime) {
-    aethercore::hal::serial::write_raw("[EARLY SERIAL] finalize runtime interrupt window begin\n");
+    log::trace("finalize runtime interrupt window begin");
     runtime.finalize_runtime_interrupt_routing();
-    aethercore::hal::serial::write_raw(
-        "[EARLY SERIAL] finalize runtime interrupt window returned\n",
-    );
+    log::trace("finalize runtime interrupt window returned");
 }
 
 #[inline(always)]
@@ -27,38 +26,38 @@ fn finalize_runtime_interrupt_enablement() {
 
     #[cfg(target_arch = "x86_64")]
     mark_stage(StartupStage::IdtReady);
-    aethercore::hal::serial::write_raw("[EARLY SERIAL] idt ready\n");
+    log::trace("idt ready");
 
     if linked_probe_boot_mode() {
-        aethercore::hal::serial::write_raw("[EARLY SERIAL] interrupts deferred for linked probe\n");
+        log::trace("interrupts deferred for linked probe");
         return;
     }
 
     routing::enable_runtime_interrupts();
     mark_stage(StartupStage::InterruptsEnabled);
-    aethercore::hal::serial::write_raw("[EARLY SERIAL] interrupts enabled\n");
+    log::trace("interrupts enabled");
 }
 
 impl KernelRuntime {
     pub(super) fn run_runtime_activation(&self) {
         use aethercore::kernel::startup::{StartupStage, mark_stage};
 
-        aethercore::hal::serial::write_raw("[EARLY SERIAL] runtime activation begin\n");
+        log::trace("runtime activation begin");
         self.register_runtime_irq_handlers();
         self.init_virtual_memory_runtime();
         mark_stage(StartupStage::IrqHandlersRegistered);
-        aethercore::hal::serial::write_raw("[EARLY SERIAL] irq and vm runtime ready\n");
+        log::trace("irq and vm runtime ready");
 
         self.init_pci_and_driver_runtime();
-        aethercore::hal::serial::write_raw("[EARLY SERIAL] pci and drivers runtime ready\n");
+        log::trace("pci and drivers runtime ready");
 
         self.init_smp();
         mark_stage(StartupStage::SmpInit);
-        aethercore::hal::serial::write_raw("[EARLY SERIAL] smp runtime ready\n");
+        log::trace("smp runtime ready");
     }
 
     pub(super) fn finalize_runtime_activation(self) {
-        aethercore::hal::serial::write_raw("[EARLY SERIAL] finalize runtime activation begin\n");
+        log::trace("finalize runtime activation begin");
         finalize_runtime_interrupt_window(self);
         finalize_runtime_interrupt_enablement();
     }

@@ -96,6 +96,7 @@ pub(super) fn sys_linux_clone(
     arg4: usize,
     arg5: usize,
     arg6: usize,
+    _frame_ptr: *mut crate::kernel::syscalls::SyscallFrame,
 ) -> usize {
     let _newsp = arg2;
     let parent_tidptr = arg3;
@@ -160,6 +161,7 @@ pub(super) fn sys_linux_clone(
     arg4: usize,
     arg5: usize,
     arg6: usize,
+    _frame_ptr: *mut crate::kernel::syscalls::SyscallFrame,
 ) -> usize {
     let _ = (flags, arg2, arg3, arg4, arg5, arg6);
     linux_errno(crate::modules::posix_consts::errno::EAGAIN)
@@ -198,6 +200,7 @@ pub(super) fn sys_linux_clone3(args_ptr: usize, size: usize) -> usize {
         args.child_tid as usize,
         args.tls as usize,
         0,
+        core::ptr::null_mut(), // clone3 currently doesn't use frame_ptr for stack/rip override here
     );
     let max_errno_ret = (-(4095isize)) as usize;
     if child_pid >= max_errno_ret {

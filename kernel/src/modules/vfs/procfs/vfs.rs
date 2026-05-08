@@ -12,7 +12,10 @@ impl FileSystem for ProcFs {
             let pid_val = if first == "self" {
                 tid.0.max(1)
             } else {
-                first.parse::<usize>().unwrap()
+                match first.parse::<usize>() {
+                    Ok(val) => val,
+                    Err(_) => return Err("ENOENT"),
+                }
             };
 
             let _process = match crate::kernel::process_registry::get_process(crate::interfaces::task::ProcessId(pid_val)) {
@@ -124,7 +127,10 @@ impl FileSystem for ProcFs {
             let pid_val = if first == "self" {
                 tid.0.max(1)
             } else {
-                first.parse::<usize>().unwrap()
+                match first.parse::<usize>() {
+                    Ok(val) => val,
+                    Err(_) => return Err("ENOENT"),
+                }
             };
             
             let process = match crate::kernel::process_registry::get_process(crate::interfaces::task::ProcessId(pid_val)) {
@@ -262,7 +268,10 @@ impl FileSystem for ProcFs {
             let pid_val = if first == "self" {
                 tid.0.max(1)
             } else {
-                first.parse::<usize>().unwrap()
+                match first.parse::<usize>() {
+                    Ok(val) => val,
+                    Err(_) => return Err("ENOENT"),
+                }
             };
 
             if let Some(process) = crate::kernel::process_registry::get_process(crate::interfaces::task::ProcessId(pid_val)) {

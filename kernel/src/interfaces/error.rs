@@ -81,6 +81,36 @@ impl KernelError {
     pub fn code(&self) -> i32 {
         self.to_posix_errno()
     }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            KernelError::NotFound => "Not found",
+            KernelError::PermissionDenied => "Permission denied",
+            KernelError::InvalidInput => "Invalid input",
+            KernelError::NoMemory => "Out of memory",
+            KernelError::Busy => "Busy",
+            KernelError::Timeout => "Timeout",
+            KernelError::IoError => "I/O error",
+            KernelError::NoSpace => "No space left on device",
+            _ => "Kernel error",
+        }
+    }
+}
+
+impl From<KernelError> for &'static str {
+    fn from(e: KernelError) -> Self {
+        match e {
+            KernelError::NotFound => "Not found",
+            KernelError::PermissionDenied => "Permission denied",
+            KernelError::InvalidInput => "Invalid input",
+            KernelError::NoMemory => "Out of memory",
+            KernelError::Busy => "Busy",
+            KernelError::Timeout => "Timeout",
+            KernelError::IoError => "I/O error",
+            KernelError::NoSpace => "No space left on device",
+            _ => "Kernel error",
+        }
+    }
 }
 
 impl From<&'static str> for KernelError {

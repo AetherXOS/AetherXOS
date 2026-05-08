@@ -1,4 +1,5 @@
 pub use crate::hal::common::boot::{acpi_rsdp_addr, dtb_addr, framebuffer, hhdm_offset, mem_map};
+use crate::core::log;
 use crate::interfaces::hardware::InterruptController;
 use crate::interfaces::HardwareAbstraction;
 use core::arch::naked_asm;
@@ -160,16 +161,14 @@ impl HardwareAbstraction for HAL {
     }
 
     fn panic_with_report(info: &core::panic::PanicInfo, _report: &crate::kernel::CrashReport) -> ! {
-        crate::hal::serial::write_raw("\n!!! KERNEL PANIC !!!\n");
+        log::error("KERNEL PANIC");
         loop {
             unsafe { core::arch::asm!("wfi"); }
         }
     }
 
     fn fatal_halt(reason: &str) -> ! {
-        crate::hal::serial::write_raw("\nFATAL HALT: ");
-        crate::hal::serial::write_raw(reason);
-        crate::hal::serial::write_raw("\n");
+        log::error(&format!("FATAL HALT: {}", reason));
         loop {
             unsafe { core::arch::asm!("wfi"); }
         }

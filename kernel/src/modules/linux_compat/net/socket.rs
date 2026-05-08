@@ -1,5 +1,35 @@
 use super::super::*;
 
+macro_rules! read_user_optlen {
+    ($optlen_ptr:expr) => {
+        match $optlen_ptr.read() { Ok(v) => v, Err(e) => return e }
+    };
+}
+
+macro_rules! read_user_optval {
+    ($optval_ptr:expr, $optlen:expr) => {
+        match $optlen {
+            4 => match $optval_ptr.cast::<u32>().read() { Ok(v) => v as u64, Err(e) => return e },
+            8 => match $optval_ptr.cast::<u64>().read() { Ok(v) => v, Err(e) => return e },
+            _ if $optlen >= 4 => match $optval_ptr.cast::<u32>().read() { Ok(v) => v as u64, Err(e) => return e },
+            _ => 0,
+        }
+    };
+}
+
+macro_rules! set_cloexec_flags {
+    ($fd:expr, $sock_type:expr) => {
+        if ($sock_type & linux::open_flags::O_CLOEXEC) != 0 {
+            crate::modules::linux_compat::fs::io::linux_fd_set_descriptor_flags(
+                $fd,
+                crate::modules::linux_compat::fs::io::LINUX_FD_CLOEXEC,
+            );
+        } else {
+            crate::modules::linux_compat::fs::io::linux_fd_clear_descriptor_flags($fd);
+        }
+    };
+}
+
 /// `getsockopt(2)` — Get options on sockets.
 pub fn sys_linux_getsockopt(
     fd: Fd,
@@ -9,7 +39,7 @@ pub fn sys_linux_getsockopt(
     optlen_ptr: UserPtr<u32>,
 ) -> usize {
     crate::require_posix_net!((fd, level, optname, optval_ptr, optlen_ptr) => {
-        let optlen = match optlen_ptr.read() { Ok(v) => v, Err(e) => return e };
+        let optlen = read_user_optlen!(optlen_ptr);
         if optlen == 0 { return err::inval(); }
 
         match crate::modules::posix::net::getsockopt_raw(fd.as_u32(), level as i32, optname as i32) {
@@ -37,12 +67,7 @@ pub fn sys_linux_setsockopt(
     crate::require_posix_net!((fd, level, optname, optval_ptr, optlen) => {
         if optlen == 0 { return err::inval(); }
 
-        let value = match optlen {
-            4 => match optval_ptr.cast::<u32>().read() { Ok(v) => v as u64, Err(e) => return e },
-            8 => match optval_ptr.cast::<u64>().read() { Ok(v) => v, Err(e) => return e },
-            _ if optlen >= 4 => match optval_ptr.cast::<u32>().read() { Ok(v) => v as u64, Err(e) => return e },
-            _ => 0,
-        };
+        let value = read_user_optval!(optval_ptr, optlen);
 
         match crate::modules::posix::net::setsockopt_raw(fd.as_u32(), level as i32, optname as i32, value) {
             Ok(()) => 0,
@@ -60,14 +85,7 @@ pub fn sys_linux_socket(domain: usize, sock_type: usize, protocol: usize) -> usi
             protocol as i32,
         ) {
             Ok(fd) => {
-                if (sock_type & linux::open_flags::O_CLOEXEC) != 0 {
-                    crate::modules::linux_compat::fs::io::linux_fd_set_descriptor_flags(
-                        fd,
-                        crate::modules::linux_compat::fs::io::LINUX_FD_CLOEXEC,
-                    );
-                } else {
-                    crate::modules::linux_compat::fs::io::linux_fd_clear_descriptor_flags(fd);
-                }
+                set_cloexec_flags!(fd, sock_type);
                 linux_trace!(
                     "[NET] New socket: domain={}, type={}, fd={}\n",
                     domain,
@@ -95,19 +113,8 @@ pub fn sys_linux_socketpair(
             protocol as i32,
         ) {
             Ok((f0, f1)) => {
-                if (sock_type & linux::open_flags::O_CLOEXEC) != 0 {
-                    crate::modules::linux_compat::fs::io::linux_fd_set_descriptor_flags(
-                        f0,
-                        crate::modules::linux_compat::fs::io::LINUX_FD_CLOEXEC,
-                    );
-                    crate::modules::linux_compat::fs::io::linux_fd_set_descriptor_flags(
-                        f1,
-                        crate::modules::linux_compat::fs::io::LINUX_FD_CLOEXEC,
-                    );
-                } else {
-                    crate::modules::linux_compat::fs::io::linux_fd_clear_descriptor_flags(f0);
-                    crate::modules::linux_compat::fs::io::linux_fd_clear_descriptor_flags(f1);
-                }
+                set_cloexec_flags!(f0, sock_type);
+                set_cloexec_flags!(f1, sock_type);
                 if let Err(e) = sv_ptr.write(&Fd(f0 as i32)) { return e; }
                 write_user_struct!(sv_ptr.add(1), Fd(f1 as i32))
             }

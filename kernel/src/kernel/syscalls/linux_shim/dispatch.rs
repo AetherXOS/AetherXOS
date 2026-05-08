@@ -59,7 +59,7 @@ pub(super) fn sys_linux_shim(
         linux_nr::CLOCK_NANOSLEEP => {
             Some(task_time::sys_linux_clock_nanosleep(arg1, arg2, arg3, arg4))
         }
-        linux_nr::BRK => Some(arg1),
+        linux_nr::BRK => Some(super::linux_process::sys_linux_brk(arg1)),
         linux_nr::MMAP => Some(memory::sys_linux_mmap(arg1, arg2, arg3, arg4, arg5, arg6)),
         linux_nr::MPROTECT => Some(memory::sys_linux_mprotect(arg1, arg2, arg3)),
         linux_nr::MUNMAP => Some(memory::sys_linux_munmap(arg1, arg2)),
@@ -129,11 +129,11 @@ pub(super) fn sys_linux_shim(
         )),
         #[cfg(not(feature = "linux_compat"))]
         linux_nr::RECVMSG => Some(net::sys_linux_recvmsg(arg1, arg2, arg3)),
-        linux_nr::CLONE => Some(process::sys_linux_clone(arg1, arg2, arg3, arg4, arg5, arg6)),
+        linux_nr::CLONE => Some(process::sys_linux_clone(arg1, arg2, arg3, arg4, arg5, arg6, frame_ptr)),
         linux_nr::CLONE3 => Some(process::sys_linux_clone3(arg1, arg2)),
         linux_nr::FORK | linux_nr::VFORK => Some(process::sys_linux_fork()),
-        linux_nr::EXECVE => Some(process::sys_linux_execve(arg1, arg2, arg3)),
-        linux_nr::EXECVEAT => Some(process::sys_linux_execveat(arg1 as isize, arg2, arg3, arg4, arg5)),
+        linux_nr::EXECVE => Some(process::sys_linux_execve(arg1, arg2, arg3, frame_ptr)),
+        linux_nr::EXECVEAT => Some(process::sys_linux_execveat(arg1 as isize, arg2, arg3, arg4, arg5, frame_ptr)),
         linux_nr::OPENAT => Some(fs::sys_linux_openat(arg1 as isize, arg2, arg3, arg4)),
         linux_nr::OPENAT2 => Some(fs::sys_linux_openat2(arg1 as isize, arg2, arg3, arg4)),
         linux_nr::MKDIRAT => Some(fs::sys_linux_mkdirat(arg1 as isize, arg2, arg3)),

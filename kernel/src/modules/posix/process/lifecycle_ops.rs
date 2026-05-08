@@ -1,5 +1,4 @@
 use super::*;
-use crate::interfaces::Scheduler;
 
 pub(super) fn kill(pid: usize, signal: i32) -> Result<(), PosixErrno> {
     if signal == 0 {
@@ -90,45 +89,20 @@ pub(super) fn fork() -> Result<usize, PosixErrno> {
             return Err(PosixErrno::Invalid);
         }
 
-        // 1. Clone Address Space (COW)
-        #[cfg(feature = "paging_enable")]
-        let new_cr3 = crate::kernel::vmm::clone_current_address_space()
-            .map_err(|_| PosixErrno::Again)?;
-        #[cfg(not(feature = "paging_enable"))]
-        let new_cr3 = 0u64;
-
-        // 2. Create new Process
-        let name = alloc::format!("child-of-{}", parent_pid);
-        #[cfg(feature = "paging_enable")]
-        let child_process = Arc::new(Process::new_with_cr3(name.as_bytes(), x86_64::PhysAddr::new(new_cr3)));
-        #[cfg(not(feature = "paging_enable"))]
-        let child_process = Arc::new(Process::new(name.as_bytes()));
-        let child_pid = child_process.id;
-        let child_tid = TaskId(child_pid.0);
-
-        // 3. Clone Task
-        let child_task_arc = crate::kernel::task::clone_current_task(child_tid, child_pid, new_cr3)
-            .map_err(|_| PosixErrno::Again)?;
-
-        // 4. Register and Start
-        crate::kernel::process_registry::register_process(child_process.clone());
-        ensure_process_metadata(parent_pid);
-        register_spawned_process(parent_pid, child_pid.0);
-
-        // Inherit mappings (for bookkeeping)
-        let parent = crate::kernel::launch::process_arc_by_id(crate::interfaces::task::ProcessId(parent_pid))
-            .ok_or(PosixErrno::NoEntry)?;
-        {
-            let parent_maps = parent.mappings.lock();
-            let mut child_maps = child_process.mappings.lock();
-            *child_maps = parent_maps.clone();
+        // Use the standardized kernel fork primitive
+        match crate::kernel::fork::do_fork(
+            crate::interfaces::task::ProcessId(parent_pid),
+            0, // stack handled by syscall return path
+            0, // entry handled by syscall return path
+            0, // inherit priority
+        ) {
+            Ok((child_pid, _child_tid)) => {
+                ensure_process_metadata(parent_pid);
+                register_spawned_process(parent_pid, child_pid.0);
+                Ok(child_pid.0)
+            }
+            Err(_) => Err(PosixErrno::Again),
         }
-
-        // Add to scheduler
-        let cpu = unsafe { crate::kernel::cpu_local::CpuLocal::get() };
-        cpu.scheduler.lock().add_task(child_task_arc);
-
-        Ok(child_pid.0)
     }
 
 

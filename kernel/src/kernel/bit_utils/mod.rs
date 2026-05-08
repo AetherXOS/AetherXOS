@@ -38,6 +38,21 @@ macro_rules! impl_bitfield {
             pub const fn set_bit(&self, val: $ty, set: bool) -> $ty {
                 if set { val | (1 << self.shift) } else { val & !(1 << self.shift) }
             }
+
+            #[inline(always)]
+            pub const fn extract(&self, val: $ty) -> $ty {
+                (val >> self.shift) & self.mask
+            }
+
+            #[inline(always)]
+            pub const fn replace(&self, val: $ty, field_val: $ty) -> $ty {
+                (val & !(self.mask << self.shift)) | ((field_val & self.mask) << self.shift)
+            }
+
+            #[inline(always)]
+            pub const fn clear(&self, val: $ty) -> $ty {
+                val & !(self.mask << self.shift)
+            }
         }
     };
 }
@@ -47,7 +62,7 @@ impl_bitfield!(BitField16, u16);
 impl_bitfield!(BitField32, u32);
 impl_bitfield!(BitField64, u64);
 
-pub trait PacketRead {
+pub trait PacketRead: Sized {
     /// # Safety
     /// The caller must guarantee that `data` is at least `offset + size_of::<Self>()` bytes long.
     unsafe fn read_be(data: &[u8], offset: usize) -> Self;
@@ -56,7 +71,16 @@ pub trait PacketRead {
     unsafe fn read_le(data: &[u8], offset: usize) -> Self;
 }
 
-macro_rules! impl_packet_read {
+pub trait PacketWrite: Sized {
+    /// # Safety
+    /// The caller must guarantee that `data` is at least `offset + size_of::<Self>()` bytes long.
+    unsafe fn write_be(self, data: &mut [u8], offset: usize);
+    /// # Safety
+    /// The caller must guarantee that `data` is at least `offset + size_of::<Self>()` bytes long.
+    unsafe fn write_le(self, data: &mut [u8], offset: usize);
+}
+
+macro_rules! impl_packet_io {
     ($($ty:ident),*) => {
         $(
             impl PacketRead for $ty {
@@ -71,20 +95,47 @@ macro_rules! impl_packet_read {
                     Self::from_le_bytes(unsafe { core::ptr::read_unaligned(ptr) })
                 }
             }
+
+            impl PacketWrite for $ty {
+                #[inline(always)]
+                unsafe fn write_be(self, data: &mut [u8], offset: usize) {
+                    let bytes = self.to_be_bytes();
+                    let ptr = unsafe { data.as_mut_ptr().add(offset) } as *mut [u8; core::mem::size_of::<Self>()];
+                    unsafe { core::ptr::write_unaligned(ptr, bytes) };
+                }
+                #[inline(always)]
+                unsafe fn write_le(self, data: &mut [u8], offset: usize) {
+                    let bytes = self.to_le_bytes();
+                    let ptr = unsafe { data.as_mut_ptr().add(offset) } as *mut [u8; core::mem::size_of::<Self>()];
+                    unsafe { core::ptr::write_unaligned(ptr, bytes) };
+                }
+            }
         )*
     };
 }
-impl_packet_read!(u16, i16, u32, i32, u64, i64);
+
+impl_packet_io!(u16, i16, u32, i32, u64, i64, u128, i128);
 
 impl PacketRead for u8 {
     #[inline(always)] unsafe fn read_be(data: &[u8], offset: usize) -> Self { unsafe { *data.get_unchecked(offset) } }
     #[inline(always)] unsafe fn read_le(data: &[u8], offset: usize) -> Self { unsafe { *data.get_unchecked(offset) } }
 }
 
+impl PacketWrite for u8 {
+    #[inline(always)] unsafe fn write_be(self, data: &mut [u8], offset: usize) { unsafe { *data.get_unchecked_mut(offset) = self; } }
+    #[inline(always)] unsafe fn write_le(self, data: &mut [u8], offset: usize) { unsafe { *data.get_unchecked_mut(offset) = self; } }
+}
+
 impl PacketRead for i8 {
     #[inline(always)] unsafe fn read_be(data: &[u8], offset: usize) -> Self { unsafe { *data.get_unchecked(offset) as i8 } }
     #[inline(always)] unsafe fn read_le(data: &[u8], offset: usize) -> Self { unsafe { *data.get_unchecked(offset) as i8 } }
 }
+
+impl PacketWrite for i8 {
+    #[inline(always)] unsafe fn write_be(self, data: &mut [u8], offset: usize) { unsafe { *data.get_unchecked_mut(offset) = self as u8; } }
+    #[inline(always)] unsafe fn write_le(self, data: &mut [u8], offset: usize) { unsafe { *data.get_unchecked_mut(offset) = self as u8; } }
+}
+
 
 #[macro_export]
 macro_rules! aether_packet {
@@ -162,8 +213,18 @@ macro_rules! aether_packet {
         $(
             #[inline(always)] pub fn $bit_name(&self) -> $bit_ty {
                 let val = unsafe { <$bty as $crate::kernel::bit_utils::PacketRead>::read_be(self.0, $offset) } as u64;
-                let mask = (1 << ($end - $start)) - 1;
-                ((val >> $start) & mask) as $bit_ty
+                let mask = (1u64 << ($end - $start)) - 1;
+                let extracted = (val >> $start) & mask;
+                // Handle sign-extension if bit_ty is signed
+                if stringify!($bit_ty).starts_with('i') {
+                    let bit_width = $end - $start;
+                    let sign_bit = 1u64 << (bit_width - 1);
+                    if (extracted & sign_bit) != 0 {
+                        let extended = extracted | !mask;
+                        return extended as $bit_ty;
+                    }
+                }
+                extracted as $bit_ty
             }
         )*
         $crate::aether_packet!(@impl_getters $offset + core::mem::size_of::<$bty>(), $($rest)*);
@@ -202,9 +263,13 @@ pub mod interrupts;
 pub mod io;
 pub mod cursor;
 pub mod view;
+pub mod bitmap;
+pub mod bits_trait;
 pub mod x86_64_arch;
 pub mod aarch64_arch;
 
+pub use bitmap::BitMap;
+pub use bits_trait::Bits;
 pub use cursor::{DataCursor, DataWriter};
 pub use view::PacketView;
 

@@ -59,11 +59,12 @@ pub struct LinuxRusage {
 pub struct LinuxSiginfo {
     pub si_signo: i32,
     pub si_errno: i32,
-    pub si_code: i32,
-    pub si_pid: i32,
-    pub si_uid: u32,
+    pub si_code:  i32,
+    pub si_pid:   i32,
+    pub si_uid:   u32,
     pub si_status: i32,
-    pub _pad: [i32; 26], // Standard size adjustment
+    // Ensure the struct is exactly 128 bytes (matches kernel's siginfo_t)
+    pub _pad: [u8; 128 - 24], // 128 - 6*4 - u32
 }
 
 #[repr(C)]
@@ -401,4 +402,64 @@ pub struct LinuxWinsize {
 pub struct LinuxItimerspec {
     pub it_interval: LinuxTimespec,
     pub it_value: LinuxTimespec,
+}
+
+/// Linux termios structure (mirrors struct termios / struct termios2).
+/// c_cc uses NCCS=19 on Linux x86_64.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LinuxTermios {
+    pub c_iflag: u32,
+    pub c_oflag: u32,
+    pub c_cflag: u32,
+    pub c_lflag: u32,
+    pub c_line:  u8,
+    pub c_cc:    [u8; 19], // NCCS = 19
+    pub c_ispeed: u32,
+    pub c_ospeed: u32,
+}
+
+impl Default for LinuxTermios {
+    fn default() -> Self {
+        let mut cc = [0u8; 19];
+        cc[0]  = 3;   // VINTR  = Ctrl-C
+        cc[1]  = 28;  // VQUIT  = Ctrl-\
+        cc[2]  = 127; // VERASE = Backspace
+        cc[3]  = 21;  // VKILL  = Ctrl-U
+        cc[4]  = 4;   // VEOF   = Ctrl-D
+        cc[5]  = 0;   // VTIME
+        cc[6]  = 1;   // VMIN
+        cc[7]  = 0;   // VSWTC
+        cc[8]  = 17;  // VSTART = Ctrl-Q
+        cc[9]  = 19;  // VSTOP  = Ctrl-S
+        cc[10] = 26;  // VSUSP  = Ctrl-Z
+        cc[11] = 0;   // VEOL
+        cc[12] = 18;  // VREPRINT = Ctrl-R
+        cc[13] = 15;  // VDISCARD = Ctrl-O
+        cc[14] = 23;  // VWERASE  = Ctrl-W
+        cc[15] = 22;  // VLNEXT   = Ctrl-V
+        cc[16] = 0;   // VEOL2
+        // cc[17..18] = 0 (reserved)
+        Self {
+            c_iflag:  0x0500, // ICRNL | IXON
+            c_oflag:  0x0005, // OPOST | ONLCR
+            c_cflag:  0x00BF, // CS8 | CREAD | HUPCL
+            c_lflag:  0x8A3B, // ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE
+            c_line:   0,
+            c_cc:     cc,
+            c_ispeed: 0x0000_000F, // B38400
+            c_ospeed: 0x0000_000F,
+        }
+    }
+}
+
+/// Inotify event (variable length due to name)
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LinuxInotifyEvent {
+    pub wd:     i32,
+    pub mask:   u32,
+    pub cookie: u32,
+    pub len:    u32,
+    // name follows (variable length, zero-padded)
 }

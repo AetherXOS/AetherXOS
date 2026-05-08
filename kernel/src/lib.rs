@@ -16,15 +16,25 @@
 #[macro_use]
 extern crate aethercore_common;
 
+/// Allow internal modules to refer to the crate as `aethercore`
+extern crate self as aethercore;
+
 extern crate alloc;
 
 // Publicly expose modules for testing and external usage (LibOS)
 pub mod config;
+pub mod core;
+pub mod bsp;
 pub mod generated_consts;
 pub mod hal;
 pub mod interfaces;
 pub mod kernel;
+pub mod kernel_runtime;
 pub mod modules;
+pub mod services;
+
+// AOP (Aspect Oriented Programming) system
+pub mod aop;
 
 #[cfg(all(test, target_os = "none"))]
 #[panic_handler]
@@ -32,9 +42,9 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-#[cfg(all(test, target_os = "none"))]
 #[global_allocator]
-static ALLOCATOR: modules::allocators::selector::ActiveHeapAllocator =
+#[cfg(target_os = "none")]
+pub static ALLOCATOR: modules::allocators::selector::ActiveHeapAllocator =
     modules::allocators::selector::ActiveHeapAllocator::new();
 
 pub fn test_runner(tests: &[&dyn Fn()]) {

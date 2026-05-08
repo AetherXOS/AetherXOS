@@ -154,31 +154,33 @@ fn enforce_cpu_protections_x86_64() {
     // Enable NX via IA32_EFER MSR (bit 11)
     if has_nx {
         const IA32_EFER: u32 = 0xC000_0080;
-        let mut efer_lo: u32 = 0;
-        let mut efer_hi: u32 = 0;
         #[cfg(target_os = "none")]
-        unsafe {
-            core::arch::asm!(
-                "rdmsr",
-                in("ecx") IA32_EFER,
-                out("eax") efer_lo,
-                out("edx") efer_hi,
-                options(nomem, nostack),
-            );
-        }
-        let efer = ((efer_hi as u64) << 32) | (efer_lo as u64);
-        let efer_new = efer | (1 << 11); // NXE bit
-        let new_lo = efer_new as u32;
-        let new_hi = (efer_new >> 32) as u32;
-        #[cfg(target_os = "none")]
-        unsafe {
-            core::arch::asm!(
-                "wrmsr",
-                in("ecx") IA32_EFER,
-                in("eax") new_lo,
-                in("edx") new_hi,
-                options(nomem, nostack),
-            );
+        {
+            let (efer_lo, efer_hi) = unsafe {
+                let lo: u32;
+                let hi: u32;
+                core::arch::asm!(
+                    "rdmsr",
+                    in("ecx") IA32_EFER,
+                    out("eax") lo,
+                    out("edx") hi,
+                    options(nomem, nostack),
+                );
+                (lo, hi)
+            };
+            let efer = ((efer_hi as u64) << 32) | (efer_lo as u64);
+            let efer_new = efer | (1 << 11); // NXE bit
+            let new_lo = efer_new as u32;
+            let new_hi = (efer_new >> 32) as u32;
+            unsafe {
+                core::arch::asm!(
+                    "wrmsr",
+                    in("ecx") IA32_EFER,
+                    in("eax") new_lo,
+                    in("edx") new_hi,
+                    options(nomem, nostack),
+                );
+            }
         }
         NX_ENABLED.store(true, Ordering::Relaxed);
     }

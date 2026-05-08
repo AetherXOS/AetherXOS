@@ -85,22 +85,23 @@ mod tests {
     use alloc::collections::BTreeMap;
     use spin::Mutex;
 
-    #[test_case]
-    fn test_no_symlinks() {
-        // Simulating a filesystem with no symlinks
-        let symlinks: BTreeMap<String, String> = BTreeMap::new();
+    fn create_test_resolver(symlinks: BTreeMap<String, String>) -> impl Fn(&str) -> Result<Option<String>, &'static str> {
         let symlinks_ref = Mutex::new(symlinks);
-
-        let resolver = |path: &str| -> Result<Option<String>, &'static str> {
+        move |path: &str| -> Result<Option<String>, &'static str> {
             if symlinks_ref.lock().contains_key(path) {
                 Ok(symlinks_ref.lock().get(path).cloned())
-            } else if path.is_empty() || path == "file" {
+            } else if path.is_empty() || path == "file" || path == "target" {
                 Ok(None)
             } else {
                 Err("ENOENT")
             }
-        };
+        }
+    }
 
+    #[test_case]
+    fn test_no_symlinks() {
+        let symlinks: BTreeMap<String, String> = BTreeMap::new();
+        let resolver = create_test_resolver(symlinks);
         let join_fn = |_base: &str, target: &str| String::from(target);
 
         let result = resolve_symlinks_bounded("file", resolver, join_fn);
@@ -111,18 +112,7 @@ mod tests {
     fn test_single_symlink() {
         let mut symlinks: BTreeMap<String, String> = BTreeMap::new();
         symlinks.insert("link".to_string(), "target".to_string());
-        let symlinks_ref = Mutex::new(symlinks);
-
-        let resolver = |path: &str| -> Result<Option<String>, &'static str> {
-            if let Some(target) = symlinks_ref.lock().get(path) {
-                Ok(Some(target.clone()))
-            } else if path == "target" {
-                Ok(None)
-            } else {
-                Err("ENOENT")
-            }
-        };
-
+        let resolver = create_test_resolver(symlinks);
         let join_fn = |_base: &str, target: &str| target.to_string();
 
         let result = resolve_symlinks_bounded("link", resolver, join_fn);
@@ -134,16 +124,7 @@ mod tests {
         let mut symlinks: BTreeMap<String, String> = BTreeMap::new();
         symlinks.insert("a".to_string(), "b".to_string());
         symlinks.insert("b".to_string(), "a".to_string());
-        let symlinks_ref = Mutex::new(symlinks);
-
-        let resolver = |path: &str| -> Result<Option<String>, &'static str> {
-            if let Some(target) = symlinks_ref.lock().get(path) {
-                Ok(Some(target.clone()))
-            } else {
-                Err("ENOENT")
-            }
-        };
-
+        let resolver = create_test_resolver(symlinks);
         let join_fn = |_base: &str, target: &str| target.to_string();
 
         let result = resolve_symlinks_bounded("a", resolver, join_fn);
@@ -153,23 +134,11 @@ mod tests {
     #[test_case]
     fn test_max_depth_exceeded() {
         let mut symlinks: BTreeMap<String, String> = BTreeMap::new();
-        // Create a long chain: link0 -> link1 -> link2 -> ...
         for i in 0..20 {
             symlinks.insert(format!("link{}", i), format!("link{}", i + 1));
         }
         symlinks.insert("link20".to_string(), "target".to_string());
-        let symlinks_ref = Mutex::new(symlinks);
-
-        let resolver = |path: &str| -> Result<Option<String>, &'static str> {
-            if let Some(target) = symlinks_ref.lock().get(path) {
-                Ok(Some(target.clone()))
-            } else if path == "target" {
-                Ok(None)
-            } else {
-                Err("ENOENT")
-            }
-        };
-
+        let resolver = create_test_resolver(symlinks);
         let join_fn = |_base: &str, target: &str| target.to_string();
 
         let result = resolve_symlinks_bounded("link0", resolver, join_fn);

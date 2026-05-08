@@ -6,8 +6,8 @@ pub mod exec_stack;
 
 
 #[cfg(not(feature = "linux_compat"))]
-pub(super) fn sys_linux_execve(path_ptr: usize, argv_ptr: usize, envp_ptr: usize) -> usize {
-    exec::sys_linux_execve(path_ptr, argv_ptr, envp_ptr)
+pub(super) fn sys_linux_execve(path_ptr: usize, argv_ptr: usize, envp_ptr: usize, frame_ptr: *mut crate::kernel::syscalls::SyscallFrame) -> usize {
+    exec::sys_linux_execve(path_ptr, argv_ptr, envp_ptr, frame_ptr)
 }
 
 #[cfg(not(feature = "linux_compat"))]
@@ -17,8 +17,9 @@ pub(super) fn sys_linux_execveat(
     argv_ptr: usize,
     envp_ptr: usize,
     flags: usize,
+    frame_ptr: *mut crate::kernel::syscalls::SyscallFrame,
 ) -> usize {
-    exec::sys_linux_execveat(dirfd, path_ptr, argv_ptr, envp_ptr, flags)
+    exec::sys_linux_execveat(dirfd, path_ptr, argv_ptr, envp_ptr, flags, frame_ptr)
 }
 
 #[cfg(not(feature = "linux_compat"))]
@@ -34,8 +35,9 @@ pub(super) fn sys_linux_clone(
     arg4: usize,
     arg5: usize,
     arg6: usize,
+    frame_ptr: *mut crate::kernel::syscalls::SyscallFrame,
 ) -> usize {
-    clone_ns::sys_linux_clone(flags, arg2, arg3, arg4, arg5, arg6)
+    clone_ns::sys_linux_clone(flags, arg2, arg3, arg4, arg5, arg6, frame_ptr)
 }
 
 #[cfg(not(feature = "linux_compat"))]

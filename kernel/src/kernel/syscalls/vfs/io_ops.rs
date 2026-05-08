@@ -30,6 +30,20 @@ pub(crate) fn sys_vfs_open(_path_ptr: usize, _path_len: usize, _flags: usize) ->
                 Ok(s) => s,
                 Err(_) => return invalid_arg(),
             };
+            
+            // PHASE 6 TASK 7: Check file permissions before opening
+            // Placeholder inode (0) - would be fetched from path in real implementation
+            if let Err(_) = crate::kernel_runtime::syscall_integration::on_vfs_open(
+                0,  // inode_num placeholder
+                0,  // uid placeholder
+                0,  // gid placeholder
+                0o644,  // mode
+                _flags as u32,
+            ) {
+                // Permission denied
+                return invalid_arg();
+            }
+            
             let file = match crate::kernel::vfs_control::ramfs_open_file(mount_id, path_str, tid) {
                 Ok(f) => f,
                 Err(_) => return invalid_arg(),

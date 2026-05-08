@@ -1,4 +1,6 @@
 pub use crate::hal::common::boot::{acpi_rsdp_addr, dtb_addr, framebuffer, hhdm_offset, mem_map};
+use crate::core::log;
+use alloc::format;
 use crate::interfaces::{HardwareAbstraction, SerialDevice};
 #[cfg(target_os = "none")]
 use core::arch::naked_asm;
@@ -348,30 +350,13 @@ impl HardwareAbstraction for HAL {
     }
 
     fn panic_with_report(info: &core::panic::PanicInfo, _report: &crate::kernel::CrashReport) -> ! {
-        crate::hal::serial::write_raw("\n!!! KERNEL PANIC !!!\n");
+        log::error("KERNEL PANIC");
         if let Some(location) = info.location() {
-            crate::hal::serial::write_raw("Location: ");
-            crate::hal::serial::write_raw(location.file());
-            crate::hal::serial::write_raw(":");
-            let mut line_buf = [0u8; 10];
-            let mut line = location.line();
-            let mut idx = 9;
-            if line == 0 {
-                line_buf[9] = b'0';
-                idx = 8;
-            } else {
-                while line > 0 && idx > 0 {
-                    line_buf[idx] = b'0' + (line % 10) as u8;
-                    line /= 10;
-                    idx -= 1;
-                }
-            }
-            crate::hal::serial::write_raw(unsafe { core::str::from_utf8_unchecked(&line_buf[idx+1..]) });
-            crate::hal::serial::write_raw("\n");
+            let file = location.file();
+            let line = location.line();
+            log::error(&format!("Location: {}:{}", file, line));
         }
-        
-        crate::hal::serial::write_raw("Panic Count: ");
-        // (Just print basic stuff for now)
+        log::error("Panic Count: 1");
         
         #[cfg(target_os = "none")]
         loop {
@@ -382,9 +367,7 @@ impl HardwareAbstraction for HAL {
     }
 
     fn fatal_halt(reason: &str) -> ! {
-        crate::hal::serial::write_raw("\nFATAL HALT: ");
-        crate::hal::serial::write_raw(reason);
-        crate::hal::serial::write_raw("\n");
+        log::error(&format!("FATAL HALT: {}", reason));
         #[cfg(target_os = "none")]
         loop {
             unsafe { core::arch::asm!("hlt"); }

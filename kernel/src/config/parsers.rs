@@ -5,16 +5,39 @@ pub enum BoundaryMode {
     Compat,
 }
 
-impl BoundaryMode {
-    pub fn from_str(value: &str) -> Self {
-        match value.trim() {
-            value if value.eq_ignore_ascii_case("Strict") => Self::Strict,
-            value if value.eq_ignore_ascii_case("Balanced") => Self::Balanced,
-            value if value.eq_ignore_ascii_case("Compat") => Self::Compat,
-            _ => Self::Strict,
+macro_rules! impl_enum_from_str_with_default {
+    ($enum_name:ident, $default:ident, [$($variant:ident),* $(,)?]) => {
+        impl $enum_name {
+            pub fn from_str(value: &str) -> Self {
+                match value.trim() {
+                    $(value if value.eq_ignore_ascii_case(stringify!($variant)) => Self::$variant,)*
+                    _ => Self::$default,
+                }
+            }
         }
-    }
+    };
 }
+
+macro_rules! impl_enum_from_str_with_as_str {
+    ($enum_name:ident, $default:ident, [$($variant:ident),* $(,)?]) => {
+        impl $enum_name {
+            pub fn from_str(value: &str) -> Self {
+                match value.trim() {
+                    $(value if value.eq_ignore_ascii_case(stringify!($variant)) => Self::$variant,)*
+                    _ => Self::$default,
+                }
+            }
+
+            pub fn as_str(self) -> &'static str {
+                match self {
+                    $(Self::$variant => stringify!($variant),)*
+                }
+            }
+        }
+    };
+}
+
+impl_enum_from_str_with_default!(BoundaryMode, Strict, [Strict, Balanced, Compat]);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IdleStrategy {
@@ -22,14 +45,7 @@ pub enum IdleStrategy {
     Spin,
 }
 
-impl IdleStrategy {
-    pub fn from_str(value: &str) -> Self {
-        match value.trim() {
-            value if value.eq_ignore_ascii_case("Spin") => Self::Spin,
-            _ => Self::Halt,
-        }
-    }
-}
+impl_enum_from_str_with_default!(IdleStrategy, Halt, [Halt, Spin]);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PanicAction {
@@ -37,14 +53,7 @@ pub enum PanicAction {
     Spin,
 }
 
-impl PanicAction {
-    pub fn from_str(value: &str) -> Self {
-        match value.trim() {
-            value if value.eq_ignore_ascii_case("Spin") => Self::Spin,
-            _ => Self::Halt,
-        }
-    }
-}
+impl_enum_from_str_with_default!(PanicAction, Halt, [Halt, Spin]);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WatchdogAction {
@@ -53,15 +62,7 @@ pub enum WatchdogAction {
     Log,
 }
 
-impl WatchdogAction {
-    pub fn from_str(value: &str) -> Self {
-        match value.trim() {
-            value if value.eq_ignore_ascii_case("Panic") => Self::Panic,
-            value if value.eq_ignore_ascii_case("Log") => Self::Log,
-            _ => Self::Halt,
-        }
-    }
-}
+impl_enum_from_str_with_default!(WatchdogAction, Halt, [Halt, Panic, Log]);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AffinityPolicy {
@@ -71,25 +72,7 @@ pub enum AffinityPolicy {
     Spread,
 }
 
-impl AffinityPolicy {
-    pub fn from_str(value: &str) -> Self {
-        match value.trim() {
-            value if value.eq_ignore_ascii_case("StrictLocal") => Self::StrictLocal,
-            value if value.eq_ignore_ascii_case("Balanced") => Self::Balanced,
-            value if value.eq_ignore_ascii_case("Spread") => Self::Spread,
-            _ => Self::PreferLocal,
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::PreferLocal => "PreferLocal",
-            Self::StrictLocal => "StrictLocal",
-            Self::Balanced => "Balanced",
-            Self::Spread => "Spread",
-        }
-    }
-}
+impl_enum_from_str_with_as_str!(AffinityPolicy, PreferLocal, [PreferLocal, StrictLocal, Balanced, Spread]);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LibNetFastPathStrategy {
@@ -101,19 +84,7 @@ pub enum LibNetFastPathStrategy {
     PowerSave,
 }
 
-impl LibNetFastPathStrategy {
-    pub fn from_str(value: &str) -> Self {
-        match value.trim() {
-            value if value.eq_ignore_ascii_case("Unchanged") => Self::Unchanged,
-            value if value.eq_ignore_ascii_case("Adaptive") => Self::Adaptive,
-            value if value.eq_ignore_ascii_case("LowLatency") => Self::LowLatency,
-            value if value.eq_ignore_ascii_case("Balanced") => Self::Balanced,
-            value if value.eq_ignore_ascii_case("Throughput") => Self::Throughput,
-            value if value.eq_ignore_ascii_case("PowerSave") => Self::PowerSave,
-            _ => Self::Adaptive,
-        }
-    }
-}
+impl_enum_from_str_with_default!(LibNetFastPathStrategy, Adaptive, [Unchanged, Adaptive, LowLatency, Balanced, Throughput, PowerSave]);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TlsPolicyProfile {
@@ -122,23 +93,7 @@ pub enum TlsPolicyProfile {
     Strict,
 }
 
-impl TlsPolicyProfile {
-    pub fn from_str(value: &str) -> Self {
-        match value.trim() {
-            value if value.eq_ignore_ascii_case("Minimal") => Self::Minimal,
-            value if value.eq_ignore_ascii_case("Strict") => Self::Strict,
-            _ => Self::Balanced,
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Minimal => "Minimal",
-            Self::Balanced => "Balanced",
-            Self::Strict => "Strict",
-        }
-    }
-}
+impl_enum_from_str_with_as_str!(TlsPolicyProfile, Balanced, [Minimal, Balanced, Strict]);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DevFsPolicyProfile {
@@ -147,15 +102,7 @@ pub enum DevFsPolicyProfile {
     Dev,
 }
 
-impl DevFsPolicyProfile {
-    pub fn from_str(value: &str) -> Self {
-        match value.trim() {
-            value if value.eq_ignore_ascii_case("Strict") => Self::Strict,
-            value if value.eq_ignore_ascii_case("Dev") => Self::Dev,
-            _ => Self::Balanced,
-        }
-    }
-}
+impl_enum_from_str_with_default!(DevFsPolicyProfile, Balanced, [Strict, Balanced, Dev]);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VirtualizationExecutionClass {
@@ -164,23 +111,7 @@ pub enum VirtualizationExecutionClass {
     Background,
 }
 
-impl VirtualizationExecutionClass {
-    pub fn from_str(value: &str) -> Self {
-        match value.trim() {
-            value if value.eq_ignore_ascii_case("LatencyCritical") => Self::LatencyCritical,
-            value if value.eq_ignore_ascii_case("Background") => Self::Background,
-            _ => Self::Balanced,
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::LatencyCritical => "LatencyCritical",
-            Self::Balanced => "Balanced",
-            Self::Background => "Background",
-        }
-    }
-}
+impl_enum_from_str_with_as_str!(VirtualizationExecutionClass, Balanced, [LatencyCritical, Balanced, Background]);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VirtualizationGovernorClass {
@@ -189,20 +120,4 @@ pub enum VirtualizationGovernorClass {
     Efficiency,
 }
 
-impl VirtualizationGovernorClass {
-    pub fn from_str(value: &str) -> Self {
-        match value.trim() {
-            value if value.eq_ignore_ascii_case("Performance") => Self::Performance,
-            value if value.eq_ignore_ascii_case("Efficiency") => Self::Efficiency,
-            _ => Self::Balanced,
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Performance => "Performance",
-            Self::Balanced => "Balanced",
-            Self::Efficiency => "Efficiency",
-        }
-    }
-}
+impl_enum_from_str_with_as_str!(VirtualizationGovernorClass, Balanced, [Performance, Balanced, Efficiency]);

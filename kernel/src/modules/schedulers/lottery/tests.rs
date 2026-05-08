@@ -35,6 +35,10 @@ fn lottery_higher_priority_task_wins_more_often_with_fixed_seed() {
     assert!(hi > lo);
 }
 
+// Test constants for lottery scheduler tests
+pub const LOTTERY_TEST_SEED_1: u64 = 0xCAFEBABE;
+pub const LOTTERY_TEST_SEED_2: u64 = 0xCAFEBABF;
+
 #[test_case]
 fn lottery_replay_trace_is_deterministic_for_same_seed() {
     let tasks = [
@@ -42,8 +46,8 @@ fn lottery_replay_trace_is_deterministic_for_same_seed() {
         LotteryReplayTask::new(TaskId(2), 128),
         LotteryReplayTask::new(TaskId(3), 255),
     ];
-    let a = deterministic_replay_trace(0xCAFEBABE, &tasks, 24);
-    let b = deterministic_replay_trace(0xCAFEBABE, &tasks, 24);
+    let a = deterministic_replay_trace(LOTTERY_TEST_SEED_1, &tasks, 24);
+    let b = deterministic_replay_trace(LOTTERY_TEST_SEED_1, &tasks, 24);
     assert_eq!(a, b);
 }
 
@@ -54,8 +58,8 @@ fn lottery_replay_trace_changes_when_seed_changes() {
         LotteryReplayTask::new(TaskId(2), 128),
         LotteryReplayTask::new(TaskId(3), 255),
     ];
-    let a = deterministic_replay_trace(0xCAFEBABE, &tasks, 24);
-    let b = deterministic_replay_trace(0xCAFEBABF, &tasks, 24);
+    let a = deterministic_replay_trace(LOTTERY_TEST_SEED_1, &tasks, 24);
+    let b = deterministic_replay_trace(LOTTERY_TEST_SEED_2, &tasks, 24);
     assert_ne!(a, b);
 }
 
@@ -66,7 +70,7 @@ fn lottery_replay_known_prefix_stays_stable() {
         LotteryReplayTask::new(TaskId(2), 128),
         LotteryReplayTask::new(TaskId(3), 255),
     ];
-    let trace = deterministic_replay_trace(0xCAFEBABE, &tasks, 12);
+    let trace = deterministic_replay_trace(LOTTERY_TEST_SEED_1, &tasks, 12);
     let expected = [
         Some(TaskId(2)),
         Some(TaskId(1)),
@@ -86,7 +90,7 @@ fn lottery_replay_known_prefix_stays_stable() {
 
 #[test_case]
 fn lottery_runtime_replay_ring_records_latest_pick() {
-    let mut sched = Lottery::with_seed(0xCAFEBABE);
+    let mut sched = Lottery::with_seed(LOTTERY_TEST_SEED_1);
     sched.add_task(make_task(11, 0));
     sched.add_task(make_task(22, 255));
     let picked = sched.pick_next();
