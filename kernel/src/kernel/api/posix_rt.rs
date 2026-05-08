@@ -27,13 +27,51 @@ pub struct SchedParam {
     pub sched_priority: i32,
 }
 
+/// Gets the scheduling policy and parameters for the specified thread
+/// Emulates `pthread_getschedparam`
+#[cfg(feature = "rtos_posix")]
+#[unsafe(no_mangle)]
+pub extern "C" fn pthread_getschedparam(thread_id: u64, policy: *mut SchedPolicy, param: *mut SchedParam) -> c_int {
+    if policy.is_null() || param.is_null() {
+        return crate::modules::posix_consts::errno::EINVAL;
+    }
+
+    let tid = task::TaskId(thread_id as usize);
+    if let Some(task_arc) = task::get_task(tid) {
+        let t = task_arc.lock();
+
+        let task_policy = if t.rt_budget_ns == u64::MAX {
+            SchedPolicy::Fifo
+        } else if t.rt_budget_ns == crate::config::KernelConfig::mlfq_base_slice_ns() {
+            SchedPolicy::Rr
+        } else if t.priority == crate::kernel::task::IDLE_PRIORITY {
+            SchedPolicy::Other
+        } else {
+            SchedPolicy::Other // Default/fallback
+        };
+
+        unsafe {
+            *policy = task_policy;
+            (*param).sched_priority = if t.priority == crate::kernel::task::IDLE_PRIORITY {
+                0
+            } else {
+                crate::kernel::task::IDLE_PRIORITY as i32 - t.priority as i32
+            };
+        }
+
+        0 // Success
+    } else {
+        crate::modules::posix_consts::errno::ESRCH
+    }
+}
+
 /// Sets the scheduling policy and parameters for the specified thread
 /// Emulates `pthread_setschedparam`
 #[cfg(feature = "rtos_posix")]
 #[unsafe(no_mangle)]
 pub extern "C" fn pthread_setschedparam(thread_id: u64, policy: SchedPolicy, param: *const SchedParam) -> c_int {
     if param.is_null() {
-        return 22; // EINVAL
+        return crate::modules::posix_consts::errno::EINVAL;
     }
     
     let p = unsafe { &*param };
@@ -41,15 +79,15 @@ pub extern "C" fn pthread_setschedparam(thread_id: u64, policy: SchedPolicy, par
     // Validate POSIX priority (1 to 99 for RT)
     if policy == SchedPolicy::Fifo || policy == SchedPolicy::Rr {
         if p.sched_priority < 1 || p.sched_priority > 99 {
-            return 22; // EINVAL
+            return crate::modules::posix_consts::errno::EINVAL;
         }
     }
     
     let native_priority = if policy == SchedPolicy::Other || policy == SchedPolicy::Batch || policy == SchedPolicy::Idle {
-        255 // Lowest native priority
+        crate::kernel::task::IDLE_PRIORITY // Lowest native priority
     } else {
         // Map POSIX 1-99 to native priority namespace
-        (255 - p.sched_priority) as u8
+        (crate::kernel::task::IDLE_PRIORITY as i32 - p.sched_priority) as u8
     };
 
     let tid = task::TaskId(thread_id as usize);
@@ -64,15 +102,15 @@ pub extern "C" fn pthread_setschedparam(thread_id: u64, policy: SchedPolicy, par
                 t.rt_period_ns = u64::MAX;
             },
             SchedPolicy::Rr => {
-                t.rt_budget_ns = 4_000_000; // 4ms
-                t.rt_period_ns = 4_000_000;
+                t.rt_budget_ns = crate::config::KernelConfig::mlfq_base_slice_ns();
+                t.rt_period_ns = crate::config::KernelConfig::mlfq_base_slice_ns();
             },
             _ => {}
         }
         
         0 // Success
     } else {
-        3 // ESRCH
+        crate::modules::posix_consts::errno::ESRCH
     }
 }
 
@@ -81,12 +119,34 @@ pub struct pthread_mutex_t {
     inner: *mut PiMutex<u8>,
 }
 
+/// Destroys a PI-capable mutex.
+#[cfg(feature = "rtos_posix")]
+#[unsafe(no_mangle)]
+pub extern "C" fn pthread_mutex_destroy(mutex: *mut pthread_mutex_t) -> c_int {
+    if mutex.is_null() || unsafe { (*mutex).inner.is_null() } {
+        return crate::modules::posix_consts::errno::EINVAL;
+    }
+
+    #[cfg(feature = "rtos_strict")]
+    {
+        // For simplicity in static pools, we just nullify it.
+        // A true implementation might return it to MUTEX_POOL.
+        unsafe { (*mutex).inner = core::ptr::null_mut(); }
+        return 0;
+    }
+
+    #[cfg(not(feature = "rtos_strict"))]
+    {
+        return crate::modules::posix_consts::errno::ENOSYS;
+    }
+}
+
 /// Initializes a PI-capable mutex from the static RT pool.
 #[cfg(feature = "rtos_posix")]
 #[unsafe(no_mangle)]
 pub extern "C" fn pthread_mutex_init(mutex: *mut pthread_mutex_t, _attr: *const c_void) -> c_int {
     if mutex.is_null() {
-        return 22; // EINVAL
+        return crate::modules::posix_consts::errno::EINVAL;
     }
 
     #[cfg(feature = "rtos_strict")]
@@ -97,13 +157,33 @@ pub extern "C" fn pthread_mutex_init(mutex: *mut pthread_mutex_t, _attr: *const 
             }
             return 0;
         }
-        return 12; // ENOMEM (Pool exhausted)
+        return crate::modules::posix_consts::errno::ENOMEM;
     }
 
     #[cfg(not(feature = "rtos_strict"))]
     {
         // Fallback or simple allocation if not in strict mode
-        return 38; // ENOSYS
+        return crate::modules::posix_consts::errno::ENOSYS;
+    }
+}
+
+/// Tries to lock a PI mutex without blocking.
+#[cfg(feature = "rtos_posix")]
+#[unsafe(no_mangle)]
+pub extern "C" fn pthread_mutex_trylock(mutex: *mut pthread_mutex_t) -> c_int {
+    if mutex.is_null() || unsafe { (*mutex).inner.is_null() } {
+        return crate::modules::posix_consts::errno::EINVAL;
+    }
+
+    let (tid, prio) = get_current_task_info();
+    let pi_mutex = unsafe { &*(*mutex).inner };
+
+    // Attempt to lock without blocking
+    if let Some(guard) = pi_mutex.try_lock(tid, prio) {
+        core::mem::forget(guard);
+        0
+    } else {
+        crate::modules::posix_consts::errno::EBUSY
     }
 }
 
@@ -112,7 +192,7 @@ pub extern "C" fn pthread_mutex_init(mutex: *mut pthread_mutex_t, _attr: *const 
 #[unsafe(no_mangle)]
 pub extern "C" fn pthread_mutex_lock(mutex: *mut pthread_mutex_t) -> c_int {
     if mutex.is_null() || unsafe { (*mutex).inner.is_null() } {
-        return 22; // EINVAL
+        return crate::modules::posix_consts::errno::EINVAL;
     }
 
     let (tid, prio) = get_current_task_info();
@@ -133,7 +213,7 @@ pub extern "C" fn pthread_mutex_lock(mutex: *mut pthread_mutex_t) -> c_int {
 #[unsafe(no_mangle)]
 pub extern "C" fn pthread_mutex_unlock(mutex: *mut pthread_mutex_t) -> c_int {
     if mutex.is_null() || unsafe { (*mutex).inner.is_null() } {
-        return 22; // EINVAL
+        return crate::modules::posix_consts::errno::EINVAL;
     }
 
     let tid = unsafe { CpuLocal::get() }.current_task_id();
@@ -141,7 +221,7 @@ pub extern "C" fn pthread_mutex_unlock(mutex: *mut pthread_mutex_t) -> c_int {
 
     // Check if we actually own it (Strict RTOS check)
     if pi_mutex.owner() != Some(tid) {
-        return 1; // EPERM
+        return crate::modules::posix_consts::errno::EPERM;
     }
 
     // Safety: pthread_mutex_lock core::mem::forgot the guard,
@@ -159,7 +239,7 @@ fn get_current_task_info() -> (task::TaskId, u8) {
     let prio = if let Some(task_arc) = task::get_task(tid) {
         task_arc.lock().priority
     } else {
-        255
+        crate::kernel::task::IDLE_PRIORITY
     };
     (tid, prio)
 }
