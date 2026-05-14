@@ -155,18 +155,18 @@ pub fn initialize_runtime_extensions() -> Result<(), &'static str> {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_platform_initialization() {
         // Platform init is called during early boot; verify no panics
         initialize_platform().ok();
     }
 
-    #[test]
+    #[test_case]
     fn test_device_enumeration() {
         enumerate_devices().ok();
     }
 
-    #[test]
+    #[test_case]
     fn test_boot_diagnostics_format() {
         let _diags = get_boot_diagnostics();
         // Verify diagnostic string is not empty
@@ -177,7 +177,7 @@ mod tests {
 mod phase6_boot_integration_tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_boot_stages_sequential_order() {
         // Verify stages can be entered in correct order without errors
         let stages = vec![
@@ -198,7 +198,7 @@ mod phase6_boot_integration_tests {
         }
     }
 
-    #[test]
+    #[test_case]
     fn test_platform_initialization() {
         // Verify platform can be initialized without errors
         assert!(
@@ -207,13 +207,13 @@ mod phase6_boot_integration_tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn test_device_enumeration() {
         // Verify device enumeration populates device manager
         assert!(enumerate_devices().is_ok(), "Device enumeration failed");
     }
 
-    #[test]
+    #[test_case]
     fn test_boot_subsystems_readiness() {
         // Initialize all subsystems and verify readiness
         assert!(ALLOCATOR_SUBSYSTEM.init().is_ok());
@@ -234,7 +234,7 @@ mod phase6_boot_integration_tests {
         assert!(PROCESS_SUBSYSTEM.is_ready());
     }
 
-    #[test]
+    #[test_case]
     fn test_subsystem_dependencies_valid() {
         // Verify required stages are correct
         assert_eq!(ALLOCATOR_SUBSYSTEM.required_stage(), BootStage::EarlyMemory);
@@ -255,7 +255,7 @@ mod phase6_boot_integration_tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn test_boot_diagnostics_available() {
         // Verify boot diagnostics can be retrieved
         let diags = get_boot_diagnostics();
@@ -266,7 +266,7 @@ mod phase6_boot_integration_tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn test_register_boot_subsystems_early_memory() {
         // Verify early memory subsystems can be registered
         assert!(
@@ -275,7 +275,7 @@ mod phase6_boot_integration_tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn test_register_boot_subsystems_platform_early() {
         // Verify platform early subsystems can be registered
         assert!(
@@ -284,7 +284,7 @@ mod phase6_boot_integration_tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn test_register_boot_subsystems_platform_devices() {
         // Verify platform device subsystems can be registered
         assert!(
@@ -293,7 +293,7 @@ mod phase6_boot_integration_tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn test_register_boot_subsystems_core() {
         // Verify core subsystems can be registered
         assert!(
@@ -302,7 +302,7 @@ mod phase6_boot_integration_tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn test_subsystem_names_unique() {
         // Verify each subsystem has a unique name
         let names = vec![
@@ -327,10 +327,11 @@ mod phase6_boot_integration_tests {
         }
     }
 
-    #[test]
+    #[test_case]
     fn test_verify_subsystem_readiness() {
         // Verify that subsystem readiness check works
         // All subsystems report ready by default in stub implementation
         assert!(verify_subsystem_readiness().is_ok());
     }
 }
+

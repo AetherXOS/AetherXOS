@@ -92,7 +92,7 @@ impl FilePermissions {
 }
 
 /// File ownership information
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FileOwner {
     /// User ID
     pub uid: u32,
@@ -225,7 +225,7 @@ pub trait QuotaManager: Send + Sync {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_file_permissions_octal() {
         let perms = FilePermissions {
             owner: 0o7,
@@ -238,7 +238,7 @@ mod tests {
         assert_eq!(perms.to_octal(), 0o755);
     }
 
-    #[test]
+    #[test_case]
     fn test_permission_checks() {
         let perms = FilePermissions {
             owner: 0o6,  // rw-
@@ -265,7 +265,7 @@ mod tests {
         assert!(!perms.can_execute(false, false));
     }
 
-    #[test]
+    #[test_case]
     fn test_quota_usage() {
         let quota = QuotaInfo {
             used_blocks: 500,
@@ -279,7 +279,7 @@ mod tests {
         assert!((quota.block_usage_percent() - 50.0).abs() < 0.1);
     }
 
-    #[test]
+    #[test_case]
     fn test_quota_exceeded() {
         let quota = QuotaInfo {
             used_blocks: 1500,
@@ -292,3 +292,4 @@ mod tests {
         assert!(!quota.inode_exceeded());
     }
 }
+

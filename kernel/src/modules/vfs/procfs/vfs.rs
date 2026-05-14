@@ -29,7 +29,7 @@ impl FileSystem for ProcFs {
                 "status" => return Ok(Box::new(ReadOnlyFile::from_string(generate_self_status(simulated_tid)))),
                 "maps" | "smaps" => return Ok(Box::new(ReadOnlyFile::from_string(generate_self_maps(simulated_tid)))),
                 "stat" => return Ok(Box::new(ReadOnlyFile::from_string(generate_self_stat(simulated_tid)))),
-                "cmdline" => return Ok(Box::new(ReadOnlyFile::from_string(generate_cmdline()))),
+                "cmdline" => return Ok(Box::new(ReadOnlyFile::from_string(generate_cmdline(simulated_tid)))),
                 "comm" => return Ok(Box::new(ReadOnlyFile::from_string(String::from("aethercore\n")))),
                 "cgroup" => return Ok(Box::new(ReadOnlyFile::from_string(String::from("0::/\n")))),
                 "limits" => {
@@ -76,7 +76,7 @@ impl FileSystem for ProcFs {
             "loadavg" => Ok(Box::new(ReadOnlyFile::from_string(generate_loadavg()))),
             "mounts" => Ok(Box::new(ReadOnlyFile::from_string(generate_mounts()))),
             "filesystems" => Ok(Box::new(ReadOnlyFile::from_string(generate_filesystems()))),
-            "cmdline" => Ok(Box::new(ReadOnlyFile::from_string(generate_cmdline()))),
+            "cmdline" => Ok(Box::new(ReadOnlyFile::from_string(generate_cmdline(tid)))),
             "sys/kernel/osrelease" => Ok(Box::new(ReadOnlyFile::from_string(
                 format!("{}\n", crate::config::KernelConfig::linux_release()),
             ))),

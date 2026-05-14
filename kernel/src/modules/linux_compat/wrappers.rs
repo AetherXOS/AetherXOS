@@ -41,6 +41,9 @@ impl<T> UserPtr<T> {
             _marker: PhantomData,
         }
     }
+    pub fn null() -> Self {
+        Self::new(0)
+    }
     pub fn is_null(&self) -> bool {
         self.addr == 0
     }

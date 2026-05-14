@@ -43,11 +43,11 @@ pub(super) fn log_network_probe_discovery(
             );
         }
         aethercore::modules::drivers::ProbedNetworkDriver::E1000(e1000) => {
-            aethercore::klog_info!(
-                "E1000 found network card: dev={:#06x} mmio={:#x}, init...",
-                e1000.device_id,
-                e1000.mmio_base
-            );
+                aethercore::klog_info!(
+                    "E1000 found network card: dev={:#06x} mmio={:#x}, init...",
+                    e1000.device_id,
+                    e1000.mmio_base()
+                );
         }
     }
 }

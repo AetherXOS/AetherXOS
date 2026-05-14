@@ -1,4 +1,6 @@
 use crate::modules::linux_compat::*;
+use crate::modules::linux_compat::landlock_abi::*;
+use crate::modules::linux_compat::seccomp::*;
 
 pub(super) fn dispatch_linux_advanced_syscall(
     frame: &mut SyscallFrame,
@@ -194,6 +196,13 @@ pub(super) fn dispatch_linux_advanced_syscall(
         )),
         linux_nr::PTRACE => Some(sys_linux_ptrace(arg1, arg2, arg3, arg4)),
         linux_nr::SECCOMP => Some(sys_linux_seccomp(arg1, arg2, UserPtr::new(arg3))),
+        linux_nr::EVENTFD => Some(sys_linux_eventfd(arg1 as u32, 0)),
+        linux_nr::EVENTFD2 => Some(sys_linux_eventfd2(arg1 as u32, arg2 as i32)),
+        linux_nr::EPOLL_CREATE => Some(sys_linux_epoll_create(arg1)),
+        linux_nr::EPOLL_CREATE1 => Some(sys_linux_epoll_create1(arg1)),
+        linux_nr::EPOLL_CTL => Some(sys_linux_epoll_ctl(Fd::from(arg1), arg2, Fd::from(arg3), UserPtr::new(arg4))),
+        linux_nr::EPOLL_WAIT => Some(sys_linux_epoll_wait(Fd::from(arg1), UserPtr::new(arg2), arg3, arg4 as i32)),
+        linux_nr::EPOLL_PWAIT => Some(sys_linux_epoll_pwait(Fd::from(arg1), UserPtr::new(arg2), arg3, arg4 as i32, UserPtr::new(arg5), arg6)),
         _ => None,
     }
 }

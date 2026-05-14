@@ -125,7 +125,7 @@ pub(super) fn runtime_ready() -> bool {
     SMOLTCP_RUNTIME.lock().is_some()
 }
 
-use crate::kernel_runtime::networking::config;
+use crate::config;
 
 pub(super) fn init_smoltcp_runtime(nic: &dyn NetworkInterface) -> Result<(), &'static str> {
     if SMOLTCP_RUNTIME.lock().is_some() {
@@ -134,9 +134,10 @@ pub(super) fn init_smoltcp_runtime(nic: &dyn NetworkInterface) -> Result<(), &'s
 
     let mac = init_smoltcp_bridge(nic);
     let hw = HardwareAddress::Ethernet(mac);
+    const DEFAULT_NETWORK_RANDOM_SEED: u64 = 0xC0DEC0DE;
 
     let mut config = Config::new(hw);
-    config.random_seed = config::DEFAULT_NETWORK_RANDOM_SEED;
+    config.random_seed = DEFAULT_NETWORK_RANDOM_SEED;
 
     let mut device = LoopbackSmolDevice::new();
     let mut iface = Interface::new(config, &mut device, Instant::from_millis(0));

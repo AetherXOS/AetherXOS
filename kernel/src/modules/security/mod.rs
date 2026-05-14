@@ -6,6 +6,7 @@ pub mod lockfree_capabilities;
 pub mod mac;
 pub mod null;
 pub mod sel4;
+pub mod landlock;
 
 use crate::interfaces::security::{ResourceKind, SecurityAction, SecurityContext, SecurityVerdict};
 use crate::interfaces::task::TaskId;

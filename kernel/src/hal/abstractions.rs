@@ -147,6 +147,8 @@ pub struct X86_64Context {
     pub r15: u64,
     pub rip: u64,
     pub rflags: u64,
+    pub cs: u64,
+    pub ss: u64,
     pub cr3: u64,
 }
 
@@ -379,13 +381,13 @@ pub trait TimerController: Send + Sync {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_platform_type_string() {
         assert_eq!(PlatformType::X86_64.as_str(), "x86_64");
         assert_eq!(PlatformType::AArch64.as_str(), "aarch64");
     }
 
-    #[test]
+    #[test_case]
     fn test_cpu_features_default() {
         let features = CpuFeatures::new();
         assert!(!features.simd);
@@ -393,13 +395,13 @@ mod tests {
         assert_eq!(features.max_memory, 4 * 1024 * 1024 * 1024);
     }
 
-    #[test]
+    #[test_case]
     fn test_memory_type_classification() {
         let mt = MemoryType::Conventional;
         assert_eq!(mt, MemoryType::Conventional);
     }
 
-    #[test]
+    #[test_case]
     fn test_interrupt_models() {
         let _pic = InterruptModel::Pic;
         let _apic = InterruptModel::Apic;
@@ -407,7 +409,7 @@ mod tests {
         // All should be distinct
     }
 
-    #[test]
+    #[test_case]
     fn test_timer_models() {
         let _pit = TimerModel::Pit;
         let _apic = TimerModel::ApicTimer;

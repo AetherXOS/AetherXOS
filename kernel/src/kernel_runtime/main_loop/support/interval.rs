@@ -18,22 +18,23 @@ pub(crate) fn should_log_now(
 mod tests {
     use super::{is_sample_boundary, should_log_now};
 
-    #[test]
+    #[test_case]
     fn sample_boundary_handles_zero_interval() {
         assert!(is_sample_boundary(0, 0));
         assert!(is_sample_boundary(5, 0));
     }
 
-    #[test]
+    #[test_case]
     fn sample_boundary_checks_periods() {
         assert!(is_sample_boundary(8, 4));
         assert!(!is_sample_boundary(7, 4));
     }
 
-    #[test]
+    #[test_case]
     fn log_gate_uses_multiplier_and_last_log_sample() {
         assert!(should_log_now(32, 4, 0, 8));
         assert!(!should_log_now(31, 4, 0, 8));
         assert!(!should_log_now(33, 4, 32, 8));
     }
 }
+

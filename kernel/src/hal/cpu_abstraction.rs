@@ -45,7 +45,7 @@ impl CpuContext {
         CpuContext::X86_64(X86_64Context {
             rax, rbx, rcx, rdx, rsi, rdi, rbp, rsp,
             r8, r9, r10, r11, r12, r13, r14, r15,
-            rip, rflags, cr3,
+            rip, rflags, cs: 0, ss: 0, cr3,
         })
     }
 
@@ -172,7 +172,7 @@ impl CpuContext {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     #[cfg(target_arch = "x86_64")]
     fn test_x86_context_from_regs() {
         let ctx = CpuContext::from_x86_64_regs(
@@ -186,7 +186,7 @@ mod tests {
         assert_eq!(ctx.arg_register_0(), 0x6);
     }
 
-    #[test]
+    #[test_case]
     fn test_context_conversion() {
         // This would test platform-specific conversions
         #[cfg(target_arch = "x86_64")]
@@ -202,3 +202,4 @@ mod tests {
         }
     }
 }
+

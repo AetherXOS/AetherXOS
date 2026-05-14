@@ -57,6 +57,21 @@ pub fn mmap(
     Ok(map_id)
 }
 
+pub fn mmap_physical(map_id: u32, offset: usize, len: usize) -> Result<alloc::vec::Vec<u64>, PosixErrno> {
+    let table = MMAP_TABLE.lock();
+    let map = table.get(&map_id).ok_or(PosixErrno::BadFileDescriptor)?;
+    
+    let fd = super::open(map.fs_id, &map.path, false)?;
+    let shared = super::get_file_description(fd)?;
+    let _ = super::close(fd);
+    
+    let frames = shared.handle.lock()
+        .mmap_physical(map.offset as u64 + offset as u64, len)
+        .map_err(map_fs_error)?;
+        
+    Ok(frames)
+}
+
 pub fn mmap_read(map_id: u32, dst: &mut [u8], map_offset: usize) -> Result<usize, PosixErrno> {
     let table = MMAP_TABLE.lock();
     let map = table.get(&map_id).ok_or(PosixErrno::BadFileDescriptor)?;

@@ -2,7 +2,7 @@
 use std::process::Command;
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_string_operations() {
     let output = Command::new("sh")
         .arg("-c")
@@ -15,7 +15,7 @@ fn test_string_operations() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_arithmetic_operations() {
     let output = Command::new("sh")
         .arg("-c")
@@ -28,7 +28,7 @@ fn test_arithmetic_operations() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_conditional_logic() {
     let output = Command::new("sh")
         .arg("-c")
@@ -41,7 +41,7 @@ fn test_conditional_logic() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_loop_execution() {
     let output = Command::new("sh")
         .arg("-c")
@@ -54,7 +54,7 @@ fn test_loop_execution() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_function_definition() {
     let output = Command::new("sh")
         .arg("-c")
@@ -67,7 +67,7 @@ fn test_function_definition() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_time_operations() {
     let output = Command::new("sh")
         .arg("-c")
@@ -80,7 +80,7 @@ fn test_time_operations() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_random_generation() {
     let output = Command::new("sh")
         .arg("-c")
@@ -91,7 +91,7 @@ fn test_random_generation() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_error_handling() {
     let output = Command::new("sh")
         .arg("-c")
@@ -103,7 +103,7 @@ fn test_error_handling() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_resource_cleanup() {
     for _ in 0..10 {
         let output = Command::new("sh")
@@ -115,7 +115,7 @@ fn test_resource_cleanup() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_full_application_workflow() {
     let output = Command::new("sh")
         .arg("-c")
@@ -134,3 +134,4 @@ EOF
     
     assert!(output.is_ok(), "Full workflow test failed");
 }
+

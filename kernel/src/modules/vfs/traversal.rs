@@ -20,13 +20,50 @@ impl<'a> PathTraversal<'a> {
         path: &str,
         tid: TaskId,
         follow_last: bool,
+        flags: super::types::ResolveFlags,
+        base_path: Option<&str>,
     ) -> Result<String, &'static str> {
-        let mut current_path = String::from("/");
+        let root_path = if flags.contains(super::types::ResolveFlags::IN_ROOT) {
+            base_path.unwrap_or("/")
+        } else {
+            "/"
+        };
+
+        let mut current_path = if path.starts_with('/') {
+            String::from(root_path)
+        } else if let Some(base) = base_path {
+            String::from(base)
+        } else {
+            String::from("/")
+        };
+
         let components: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
         let mut depth = 0;
 
         for (i, component) in components.iter().enumerate() {
             let is_last = i == components.len() - 1;
+            
+            if *component == ".." {
+                if flags.contains(super::types::ResolveFlags::BENEATH) || flags.contains(super::types::ResolveFlags::IN_ROOT) {
+                    if let Some(base) = base_path {
+                        if current_path == base || current_path == root_path {
+                            return Err("EXDEV"); // Cannot escape beneath/root
+                        }
+                    }
+                }
+                // Normal .. logic
+                if current_path != "/" && current_path != root_path {
+                    if let Some(idx) = current_path.rfind('/') {
+                        current_path.truncate(if idx == 0 { 1 } else { idx });
+                    }
+                }
+                continue;
+            }
+
+            if *component == "." {
+                continue;
+            }
+
             let next_target = if current_path == "/" {
                 format!("/{}", component)
             } else {
@@ -40,8 +77,11 @@ impl<'a> PathTraversal<'a> {
             // 2. Check if it's a symlink
             match fs.readlink(&relative_path, tid) {
                 Ok(target) => {
+                    if flags.contains(super::types::ResolveFlags::NO_SYMLINKS) {
+                        return Err("ELOOP");
+                    }
+
                     if is_last && !follow_last {
-                        // Return the symlink path itself if we don't want to follow the final link
                         current_path = next_target;
                         continue;
                     }
@@ -51,29 +91,50 @@ impl<'a> PathTraversal<'a> {
                         return Err("ELOOP");
                     }
 
-                    // 3. Resolve target (absolute or relative)
+                    // 3. Resolve target
                     if target.starts_with('/') {
-                        // Start over with absolute target
-                        return self.resolve_path(&target, tid, follow_last);
+                        if flags.contains(super::types::ResolveFlags::BENEATH) {
+                            return Err("EXDEV"); // Absolute symlink escapes beneath
+                        }
+                        if flags.contains(super::types::ResolveFlags::IN_ROOT) {
+                            // Re-resolve from root_path
+                            current_path = self.resolve_path(&target, tid, follow_last, flags, Some(root_path))?;
+                        } else {
+                            current_path = self.resolve_path(&target, tid, follow_last, flags, base_path)?;
+                        }
                     } else {
-                        // Resolve relative to current directory
                         let mut new_path = current_path.clone();
                         if !new_path.ends_with('/') {
                             new_path.push('/');
                         }
                         new_path.push_str(&target);
-                        // We need to recursively resolve the newly formed path from this point
-                        // For simplicity in this implementation, we re-evaluate from root for safety
-                        // but a production kernel would optimized this.
-                        current_path = self.resolve_path(&new_path, tid, true)?;
+                        current_path = self.resolve_path(&new_path, tid, true, flags, base_path)?;
+                        
+                        if flags.contains(super::types::ResolveFlags::BENEATH) {
+                            if let Some(base) = base_path {
+                                if !current_path.starts_with(base) {
+                                    return Err("EXDEV");
+                                }
+                            }
+                        }
                     }
                 }
                 Err("operation not supported") | Err("ENOENT") => {
-                    // Not a symlink or doesn't exist, proceed to next component
                     current_path = next_target;
                 }
                 Err(e) => return Err(e),
             }
+        }
+
+        // Final Landlock check
+        let is_write = false; // TODO: Pass is_write to resolve_path
+        let access = if is_write {
+            crate::modules::security::landlock::LandlockAccess::WriteFile
+        } else {
+            crate::modules::security::landlock::LandlockAccess::ReadFile
+        };
+        if !crate::modules::security::landlock::check_access(tid, &current_path, access) {
+            return Err("permission denied (landlock)");
         }
 
         Ok(current_path)

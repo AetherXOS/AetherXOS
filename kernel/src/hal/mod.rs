@@ -107,6 +107,14 @@ impl HardwareAbstraction for Hal {
     fn idle_once() {
         HAL::idle_once();
     }
+
+    fn interrupt_controller() -> &'static dyn crate::interfaces::hardware::InterruptController {
+        HAL::interrupt_controller()
+    }
+
+    fn memory_manager() -> &'static dyn crate::interfaces::hardware::MemoryManager {
+        HAL::memory_manager()
+    }
 }
 
 impl Hal {

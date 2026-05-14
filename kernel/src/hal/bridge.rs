@@ -5,6 +5,7 @@
 //! architecture-specific implementation details.
 
 use crate::core::traits::hardware::*;
+use crate::interfaces::hardware::{InterruptController, MemoryManager};
 
 pub struct CoreHal;
 
@@ -71,6 +72,14 @@ impl HardwareAbstraction for CoreHal {
 
     fn get_time_ns() -> u64 {
         crate::hal::HAL::get_time_ns()
+    }
+
+    fn interrupt_controller() -> &'static dyn InterruptController {
+        crate::hal::HAL::interrupt_controller()
+    }
+
+    fn memory_manager() -> &'static dyn MemoryManager {
+        crate::hal::HAL::memory_manager()
     }
 }
 

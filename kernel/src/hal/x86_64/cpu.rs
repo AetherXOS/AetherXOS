@@ -66,6 +66,7 @@ pub struct CpuFeatures {
     pub svm: bool,
     pub x2apic: bool,
     pub invariant_tsc: bool,
+    pub pku: bool, // Memory Protection Keys
 }
 
 /// Detect CPU features using the `cpuid` instruction.
@@ -87,6 +88,7 @@ pub fn detect_features() -> CpuFeatures {
     if max_leaf >= 7 {
         let res7 = __cpuid_count(7, 0);
         f.avx2 = has_bit_u32(res7.ebx, 5);
+        f.pku = has_bit_u32(res7.ecx, 3);
     }
 
     let max_ext_leaf = __cpuid(0x8000_0000).eax;
@@ -340,3 +342,32 @@ impl CpuRegisters for X86CpuRegisters {
         }
     }
 }
+
+/// Write to the PKRU (Protection Key Rights Userspace) register.
+#[inline(always)]
+pub fn wrpkru(val: u32) {
+    #[cfg(target_os = "none")]
+    unsafe {
+        core::arch::asm!("wrpkru", in("eax") val, in("ecx") 0, in("edx") 0);
+    }
+    let _ = val;
+}
+
+/// Read from the PKRU (Protection Key Rights Userspace) register.
+#[inline(always)]
+pub fn rdpkru() -> u32 {
+    #[cfg(target_os = "none")]
+    {
+        let val: u32;
+        let _edx: u32;
+        unsafe {
+            core::arch::asm!("rdpkru", in("ecx") 0, out("eax") val, out("edx") _edx);
+        }
+        val
+    }
+    #[cfg(not(target_os = "none"))]
+    {
+        0
+    }
+}
+

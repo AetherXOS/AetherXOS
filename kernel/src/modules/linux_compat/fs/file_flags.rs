@@ -20,14 +20,14 @@ pub(super) fn linux_tmpfile_requested(flags: usize) -> bool {
 }
 
 #[inline(always)]
-pub(super) fn linux_tmpfile_write_mode_valid(flags: usize) -> bool {
+pub fn linux_tmpfile_write_mode_valid(flags: usize) -> bool {
     matches!(
         linux_open_access_mode(flags),
         linux::open_flags::O_WRONLY | linux::open_flags::O_RDWR
     )
 }
 
-pub(super) fn build_linux_tmpfile_path(dir: &str, id: u64) -> alloc::string::String {
+pub fn build_linux_tmpfile_path(dir: &str, id: u64) -> alloc::string::String {
     if dir == "/" {
         alloc::format!("/.tmpfile-{id}")
     } else {
@@ -36,7 +36,7 @@ pub(super) fn build_linux_tmpfile_path(dir: &str, id: u64) -> alloc::string::Str
     }
 }
 
-pub(super) fn apply_linux_open_post_flags(fd: u32, flags: usize) {
+pub fn apply_linux_open_post_flags(fd: u32, flags: usize) {
     if (flags & linux::open_flags::O_APPEND) != 0 {
         if let Ok(current) = crate::modules::posix::fs::fcntl_get_status_flags(fd) {
             let _ = crate::modules::posix::fs::fcntl_set_status_flags(

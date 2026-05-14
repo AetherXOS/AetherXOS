@@ -1,3 +1,6 @@
+use crate::modules::posix::fs::BoxedFile;
+use alloc::sync::Arc;
+use spin::Mutex;
 use super::*;
 
 pub(super) fn getrlimit(resource: i32) -> Result<(u64, u64), PosixErrno> {
@@ -108,17 +111,60 @@ pub(super) fn pidfd_open(pid: usize) -> Result<u32, PosixErrno> {
         return Err(PosixErrno::NoEntry);
     }
 
-    let fd = NEXT_PIDFD.fetch_add(1, Ordering::Relaxed);
-    PIDFD_TABLE.lock().insert(fd, pid);
-    Ok(fd)
+    #[cfg(all(feature = "vfs", feature = "posix_fs"))]
+    {
+        let file = alloc::boxed::Box::new(pidfd::PidFile { target_pid: pid });
+        let fs_id = *crate::modules::posix::fs::SHM_FS_ID;
+        let fd = crate::modules::posix::fs::register_handle(
+            fs_id,
+            alloc::format!("pidfd:{}", pid),
+            Arc::new(Mutex::new(crate::modules::posix::fs::BoxedFile { inner: file })),
+            false,
+        );
+        Ok(fd)
+    }
+    #[cfg(not(all(feature = "vfs", feature = "posix_fs")))]
+    {
+        let fd = NEXT_PIDFD.fetch_add(1, Ordering::Relaxed);
+        PIDFD_TABLE.lock().insert(fd, pid);
+        Ok(fd)
+    }
 }
 
 pub(super) fn pidfd_get_pid(pidfd: u32) -> Result<usize, PosixErrno> {
-    PIDFD_TABLE
-        .lock()
-        .get(&pidfd)
-        .copied()
-        .ok_or(PosixErrno::BadFileDescriptor)
+    #[cfg(all(feature = "vfs", feature = "posix_fs"))]
+    {
+        match crate::modules::posix::fs::get_file_description(pidfd) {
+            Ok(shared) => {
+                let handle = shared.handle.lock();
+                if let Some(bf) = handle.as_any().downcast_ref::<BoxedFile>() {
+                    if let Some(pf) = bf.inner.as_any().downcast_ref::<pidfd::PidFile>() {
+                        Ok(pf.target_pid)
+                    } else {
+                        Err(PosixErrno::BadFileDescriptor)
+                    }
+                } else {
+                    Err(PosixErrno::BadFileDescriptor)
+                }
+            }
+            Err(_) => {
+                // Fallback for legacy pidfds if any
+                PIDFD_TABLE
+                    .lock()
+                    .get(&pidfd)
+                    .copied()
+                    .ok_or(PosixErrno::BadFileDescriptor)
+            }
+        }
+    }
+    #[cfg(not(all(feature = "vfs", feature = "posix_fs")))]
+    {
+        PIDFD_TABLE
+            .lock()
+            .get(&pidfd)
+            .copied()
+            .ok_or(PosixErrno::BadFileDescriptor)
+    }
 }
 
 pub(super) fn pidfd_send_signal(pidfd: u32, signal: i32) -> Result<(), PosixErrno> {

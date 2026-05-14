@@ -264,11 +264,11 @@
           "variants": {
             "virt": {
               "x86_64": [
-                "https://dl-cdn.alpinelinux.org/alpine/v3.19/cloud/alpine-virt-3.19.0-x86_64.iso",
-                "https://mirrors.aliyun.com/alpine/v3.19/cloud/alpine-virt-3.19.0-x86_64.iso"
+                "https://dl-cdn.alpinelinux.org/alpine/v3.19/releases/x86_64/alpine-minirootfs-3.19.0-x86_64.tar.gz",
+                "https://mirrors.aliyun.com/alpine/v3.19/releases/x86_64/alpine-minirootfs-3.19.0-x86_64.tar.gz"
               ],
               "arm64": [
-                "https://dl-cdn.alpinelinux.org/alpine/v3.19/cloud/alpine-virt-3.19.0-aarch64.iso"
+                "https://dl-cdn.alpinelinux.org/alpine/v3.19/releases/aarch64/alpine-minirootfs-3.19.0-aarch64.tar.gz"
               ]
             }
           }
@@ -279,7 +279,7 @@
           "variants": {
             "virt": {
               "x86_64": [
-                "https://dl-cdn.alpinelinux.org/alpine/v3.18/cloud/alpine-virt-3.18.4-x86_64.iso"
+                "https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-minirootfs-3.18.4-x86_64.tar.gz"
               ]
             }
           }
@@ -289,7 +289,7 @@
           "variants": {
             "virt": {
               "x86_64": [
-                "https://dl-cdn.alpinelinux.org/alpine/edge/cloud/alpine-virt-edge-x86_64.iso"
+                "https://dl-cdn.alpinelinux.org/alpine/edge/releases/x86_64/alpine-minirootfs-edge-x86_64.tar.gz"
               ]
             }
           }

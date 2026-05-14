@@ -244,10 +244,10 @@ pub fn generate_fd_list(tid: TaskId) -> alloc::vec::Vec<(u32, alloc::string::Str
         let table = crate::modules::posix::fs::FILE_TABLE.lock();
         table.iter()
             .map(|(fd, desc)| {
-                let target = if desc.path.is_empty() {
+                let target = if desc.file.path.is_empty() {
                     alloc::format!("socket:[{}]", fd)
                 } else {
-                    desc.path.clone()
+                    desc.file.path.clone()
                 };
                 (*fd, target)
             })

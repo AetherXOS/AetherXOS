@@ -304,7 +304,7 @@ impl<const BASE: usize, T> MmioDevice for GenericMmioDevice<BASE, T> {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_device_state_transitions() {
         let mut device: GenericMmioDevice<0x1000, ()> = GenericMmioDevice::new();
         assert_eq!(device.state(), DeviceState::Uninitialized);
@@ -324,14 +324,14 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_case]
     fn test_register_descriptor() {
         let rd = RegisterDescriptor::new(0x00, 4);
         assert_eq!(rd.offset, 0x00);
         assert_eq!(rd.size, 4);
     }
 
-    #[test]
+    #[test_case]
     fn test_device_is_ready() {
         let mut device: GenericMmioDevice<0x1000, ()> = GenericMmioDevice::new();
         assert!(!device.is_ready());
@@ -345,3 +345,4 @@ mod tests {
         }
     }
 }
+

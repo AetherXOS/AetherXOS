@@ -2,6 +2,7 @@ pub use crate::hal::common::boot::{acpi_rsdp_addr, dtb_addr, framebuffer, hhdm_o
 use crate::core::log;
 use alloc::format;
 use crate::interfaces::{HardwareAbstraction, SerialDevice};
+use crate::interfaces::hardware::{InterruptController, MemoryManager};
 #[cfg(target_os = "none")]
 use core::arch::naked_asm;
 
@@ -75,10 +76,21 @@ impl<const N: usize> StaticBytes<N> {
 static BSP_KERNEL_STACK: StaticBytes<{ crate::generated_consts::STACK_SIZE_PAGES * 4096 }> =
     StaticBytes::zeroed();
 
+/// Boot-time call stack verification checkpoint.
+///
+/// Marked `#[inline(never)]` so it appears in the call graph and
+/// stack traces during early-boot debugging.  **Only compiled in
+/// debug builds** — release builds elide this entirely.
+#[cfg(debug_assertions)]
 #[inline(never)]
 fn early_call_checkpoint() {
     serial::write_raw("[EARLY SERIAL] x86_64 early call checkpoint entered\n");
 }
+
+/// No-op stub for release builds — zero overhead.
+#[cfg(not(debug_assertions))]
+#[inline(always)]
+fn early_call_checkpoint() {}
 
 #[cfg(feature = "ring_protection")]
 fn bootstrap_bsp_kernel_stack_top() -> usize {
@@ -109,6 +121,7 @@ unsafe fn bootstrap_bsp_cpu_local() -> &'static crate::kernel::cpu_local::CpuLoc
                 #[cfg(feature = "ring_protection")]
                 kernel_stack_top: core::sync::atomic::AtomicUsize::new(bootstrap_bsp_kernel_stack_top()),
                 current_task: core::sync::atomic::AtomicUsize::new(0),
+                current_process_id: core::sync::atomic::AtomicUsize::new(0),
                 is_user_mode: core::sync::atomic::AtomicBool::new(false),
                 heartbeat_tick: core::sync::atomic::AtomicU64::new(0),
                 idle_stack_pointer: core::sync::atomic::AtomicUsize::new(0),
@@ -125,53 +138,58 @@ unsafe fn bootstrap_bsp_cpu_local() -> &'static crate::kernel::cpu_local::CpuLoc
 }
 
 impl HAL {
+    /// Primary x86_64 early-boot initialisation.
+    ///
+    /// Sequence (must be kept in order — each stage depends on the previous):
+    /// 1. Serial port  — enables debug output before anything else
+    /// 2. GDT/TSS      — required for safe kernel stack and privilege levels
+    /// 3. IDT          — required before any interrupt/exception can fire
+    /// 4. APIC         — replaces legacy PIC, needed for timer + IPI
+    /// 5. CpuLocal     — per-CPU data (scheduler, current task, etc.)
+    /// 6. SYSCALL/RET  — Ring 3 → Ring 0 entry point (requires GDT + CpuLocal)
     pub fn early_init() {
-        // 1. Initialize Serial Port for logging
+        // ── 1. Serial port ────────────────────────────────────────────────────
         serial::SERIAL1.lock().init();
-        serial::write_raw("[EARLY SERIAL] x86_64 serial initialized\n");
+        // Always emit at least one marker so the user knows serial is live.
+        serial::write_raw("[BOOT] x86_64 serial ready\n");
 
-        // 2. Initialize BSP (Bootstrap Processor) GDT & TSS
-        // Must leak to keep alive forever
-        serial::write_raw("[EARLY SERIAL] x86_64 bootstrap gdt request begin\n");
+        // ── 2. GDT / TSS ──────────────────────────────────────────────────────
+        #[cfg(debug_assertions)]
+        serial::write_raw("[BOOT] gdt init begin\n");
         let bsp_gdt = unsafe { gdt::bootstrap_gdt_tss() };
-        serial::write_raw("[EARLY SERIAL] x86_64 bootstrap gdt request returned\n");
         let selectors = bsp_gdt.selectors;
-        serial::write_raw("[EARLY SERIAL] x86_64 gdt load call begin\n");
-        unsafe {
-            bsp_gdt.load();
-        }
-        serial::write_raw("[EARLY SERIAL] x86_64 gdt loaded\n");
+        unsafe { bsp_gdt.load(); }
+        #[cfg(debug_assertions)]
+        serial::write_raw("[BOOT] gdt loaded\n");
 
-        // 3. Initialize IDT
+        // ── 3. IDT ────────────────────────────────────────────────────────────
         idt::init();
-        serial::write_raw("[EARLY SERIAL] x86_64 idt initialized\n");
+        #[cfg(debug_assertions)]
+        serial::write_raw("[BOOT] idt ready\n");
 
-        // 4. Initialize Local APIC (BSP)
+        // ── 4. APIC (disable legacy PIC first) ────────────────────────────────
         unsafe {
             pic::Pic::disable();
             apic::init_local_apic();
         }
-        serial::write_raw("[EARLY SERIAL] x86_64 local apic initialized\n");
+        #[cfg(debug_assertions)]
+        serial::write_raw("[BOOT] apic ready\n");
 
-        // 5. Initialize BSP (CPU 0) CpuLocal structure
-        serial::write_raw("[EARLY SERIAL] x86_64 bsp cpu local request begin\n");
+        // ── 5. BSP CpuLocal ───────────────────────────────────────────────────
         let bsp_local = unsafe { bootstrap_bsp_cpu_local() };
-        serial::write_raw("[EARLY SERIAL] x86_64 bsp cpu local request returned\n");
+        unsafe { bsp_local.init(); }
+        #[cfg(debug_assertions)]
+        serial::write_raw("[BOOT] cpu_local ready\n");
 
-        serial::write_raw("[EARLY SERIAL] x86_64 cpu local init begin\n");
-        unsafe {
-            bsp_local.init();
-        }
-        serial::write_raw("[EARLY SERIAL] x86_64 cpu local initialized\n");
+        // SMP registration is deferred to `init_smp()` because it requires
+        // the heap allocator which isn't available yet at this point.
 
-        serial::write_raw("[EARLY SERIAL] x86_64 bsp register phase deferred to init_smp due to Heap dependencies.\n");
-
-        // 6. Initialize Syscalls (Ring 3 -> 0) after CpuLocal/GS/kernel stack.
+        // ── 6. SYSCALL/SYSRET entry point ────────────────────────────────────
         #[cfg(feature = "ring_protection")]
         syscalls::init(&selectors);
-        serial::write_raw("[EARLY SERIAL] x86_64 syscalls initialized\n");
+        // Call-graph checkpoint: validates linker resolved this call correctly.
         early_call_checkpoint();
-        serial::write_raw("[EARLY SERIAL] x86_64 post-syscall checkpoint returned\n");
+        serial::write_raw("[BOOT] x86_64 early_init complete\n");
     }
 
     pub fn init_interrupts() {
@@ -202,6 +220,14 @@ impl HAL {
     }
 
     pub fn get_time_ns() -> u64 {
+        #[cfg(target_os = "none")]
+        {
+            if let Some(hz) = cpu::tsc_frequency_hz() {
+                // Potential overflow for very long runtimes, but safe for boot/standard ops
+                // (TSC * 1e9) / HZ
+                return cpu::rdtsc().wrapping_mul(1_000_000_000) / hz;
+            }
+        }
         crate::kernel::watchdog::global_tick() * crate::config::KernelConfig::time_slice()
     }
 
@@ -383,6 +409,81 @@ impl HardwareAbstraction for HAL {
 
     fn get_time_ns() -> u64 {
         Self::get_time_ns()
+    }
+
+    fn interrupt_controller() -> &'static dyn InterruptController {
+        &X86_INTERRUPT_CONTROLLER
+    }
+
+    fn memory_manager() -> &'static dyn MemoryManager {
+        &X86_MEMORY_MANAGER
+    }
+}
+
+// ── HAL Sub-component Implementations ────────────────────────────────────────
+
+struct X86InterruptController;
+struct X86MemoryManager;
+
+static X86_INTERRUPT_CONTROLLER: X86InterruptController = X86InterruptController;
+static X86_MEMORY_MANAGER: X86MemoryManager = X86MemoryManager;
+
+impl InterruptController for X86InterruptController {
+    unsafe fn init(&self) {
+        unsafe {
+            pic::Pic::disable();
+            apic::init_local_apic();
+        }
+    }
+
+    unsafe fn enable_interrupt(&self, irq: u32) {
+        let _ = irq;
+    }
+
+    unsafe fn disable_interrupt(&self, irq: u32) {
+        let _ = irq;
+    }
+
+    unsafe fn end_of_interrupt(&self, irq: u32) {
+        let _ = irq;
+        unsafe { apic::eoi(); }
+    }
+
+    fn is_spurious(&self, vector: u8) -> bool {
+        vector == 0xFF
+    }
+}
+
+impl MemoryManager for X86MemoryManager {
+    unsafe fn map_page(&self, _virt: usize, _phys: usize, _flags: u64) -> Result<(), &'static str> {
+        Err("Global map_page requires active frame allocator context")
+    }
+
+    unsafe fn unmap_page(&self, _virt: usize) -> Result<(), &'static str> {
+        Err("Global unmap_page requires active page table context")
+    }
+
+    fn virtual_to_physical(&self, _virt: usize) -> Option<usize> {
+        None
+    }
+
+    fn flush_tlb(&self) {
+        #[cfg(target_os = "none")]
+        unsafe {
+            use x86_64::registers::control::Cr3;
+            let (frame, flags) = Cr3::read();
+            Cr3::write(frame, flags);
+        }
+    }
+
+    fn current_table_base(&self) -> usize {
+        #[cfg(target_os = "none")]
+        {
+            use x86_64::registers::control::Cr3;
+            Cr3::read().0.start_address().as_u64() as usize
+        }
+        #[cfg(not(target_os = "none"))]
+        0
     }
 }
 

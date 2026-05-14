@@ -31,11 +31,15 @@ pub struct PosixSelectResult {
 }
 
 fn poll_one(fd: u32, events: u16) -> Result<u16, PosixErrno> {
+    let revents = poll_one_vfs(fd, crate::modules::vfs::PollEvents::from_bits_truncate(events as u32))?;
+    Ok((revents.bits() as u16) & events)
+}
+
+pub fn poll_one_vfs(fd: u32, _events: crate::modules::vfs::PollEvents) -> Result<crate::modules::vfs::PollEvents, PosixErrno> {
     let table = crate::modules::posix::fs::FILE_TABLE.lock();
     let desc = table.get(&fd).ok_or(PosixErrno::BadFileDescriptor)?;
     let handle = desc.file.handle.lock();
-    let revents = handle.poll_events();
-    Ok((revents.bits() as u16) & events)
+    Ok(handle.poll_events())
 }
 
 pub fn poll_mixed(fds: &mut [PosixPollFd], retries: usize) -> Result<usize, PosixErrno> {
@@ -167,6 +171,7 @@ struct EventFd {
     value: Mutex<u64>,
     semaphore_mode: bool,
     nonblock: bool,
+    wait_queue: Arc<crate::kernel::sync::WaitQueue>,
 }
 
 impl File for EventFd {
@@ -174,26 +179,34 @@ impl File for EventFd {
         if buf.len() < 8 {
             return Err("buffer too small");
         }
-        let mut val = self.value.lock();
-        if *val == 0 {
-            if self.nonblock {
-                return Err("already empty");
+        loop {
+            let mut val = self.value.lock();
+            if *val > 0 {
+                let read_val = if self.semaphore_mode {
+                    *val -= 1;
+                    1
+                } else {
+                    let res = *val;
+                    *val = 0;
+                    res
+                };
+                
+                // If we consumed something and it was previously full, wake up writers
+                if *val < u64::MAX - 1 {
+                    self.wait_queue.wake_all();
+                }
+
+                buf[..8].copy_from_slice(&read_val.to_le_bytes());
+                return Ok(8);
             }
-            // In a real kernel, we would block here.
-            return Err("already empty");
+
+            if self.nonblock {
+                return Err("EAGAIN");
+            }
+
+            drop(val);
+            self.wait_queue.wait();
         }
-
-        let read_val = if self.semaphore_mode {
-            *val -= 1;
-            1
-        } else {
-            let res = *val;
-            *val = 0;
-            res
-        };
-
-        buf[..8].copy_from_slice(&read_val.to_le_bytes());
-        Ok(8)
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, &'static str> {
@@ -205,15 +218,24 @@ impl File for EventFd {
         let add_val = u64::from_le_bytes(input);
 
         if add_val == u64::MAX {
-            return Err("invalid value");
+            return Err("EINVAL");
         }
 
-        let mut val = self.value.lock();
-        if u64::MAX - *val <= add_val {
-            return Err("overflow");
+        loop {
+            let mut val = self.value.lock();
+            if u64::MAX - *val > add_val {
+                *val += add_val;
+                self.wait_queue.wake_all();
+                return Ok(8);
+            }
+
+            if self.nonblock {
+                return Err("EAGAIN");
+            }
+
+            drop(val);
+            self.wait_queue.wait();
         }
-        *val += add_val;
-        Ok(8)
     }
 
     fn poll_events(&self) -> crate::modules::vfs::PollEvents {
@@ -228,6 +250,10 @@ impl File for EventFd {
         ev
     }
 
+    fn wait_queue(&self) -> Option<Arc<crate::kernel::sync::WaitQueue>> {
+        Some(self.wait_queue.clone())
+    }
+
     fn as_any(&self) -> &dyn core::any::Any {
         self
     }
@@ -239,23 +265,27 @@ impl File for EventFd {
 pub fn eventfd_create_errno(initval: u32, flags: i32) -> Result<u32, PosixErrno> {
     let sem = (flags & 0x1) != 0; // EFD_SEMAPHORE
     let nonblock = (flags & 0x800) != 0; // O_NONBLOCK
+    let cloexec = (flags & 0x80000) != 0; // O_CLOEXEC
 
-    let evfd = EventFd {
+    let evfd = alloc::boxed::Box::new(EventFd {
         value: Mutex::new(initval as u64),
         semaphore_mode: sem,
         nonblock,
-    };
+        wait_queue: Arc::new(crate::kernel::sync::WaitQueue::new()),
+    });
 
+    let fs_id = *crate::modules::posix::fs::SHM_FS_ID;
     let fd = crate::modules::posix::fs::register_handle(
-        0, // common fs
+        fs_id,
         alloc::format!("eventfd:{}", initval),
-        Arc::new(Mutex::new(evfd)),
-        true,
+        Arc::new(Mutex::new(crate::modules::posix::fs::BoxedFile { inner: evfd })),
+        cloexec,
     );
+
     if nonblock {
         let _ = crate::modules::posix::fs::fcntl_set_status_flags(
             fd,
-            0x2 | crate::modules::posix_consts::net::O_NONBLOCK as u32,
+            crate::modules::posix_consts::net::O_NONBLOCK as u32,
         );
     }
     Ok(fd)
@@ -265,10 +295,16 @@ pub fn eventfd_set_nonblock(fd: u32, enabled: bool) -> Result<(), PosixErrno> {
     let table = crate::modules::posix::fs::FILE_TABLE.lock();
     let desc = table.get(&fd).ok_or(PosixErrno::BadFileDescriptor)?;
     let mut handle = desc.file.handle.lock();
-    if let Some(eventfd) = handle.as_any_mut().downcast_mut::<EventFd>() {
-        eventfd.nonblock = enabled;
-        Ok(())
+    
+    let res = if let Some(bf) = handle.as_any_mut().downcast_mut::<crate::modules::posix::fs::BoxedFile>() {
+        if let Some(eventfd) = bf.inner.as_any_mut().downcast_mut::<EventFd>() {
+            eventfd.nonblock = enabled;
+            Ok(())
+        } else {
+            Err(PosixErrno::BadFileDescriptor)
+        }
     } else {
         Err(PosixErrno::BadFileDescriptor)
-    }
+    };
+    res
 }

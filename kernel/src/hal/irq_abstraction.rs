@@ -191,7 +191,7 @@ pub type ExceptionHandler = fn(ex: ExceptionType, code: u64);
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_interrupt_model_detection() {
         #[cfg(target_arch = "x86_64")]
         {
@@ -206,7 +206,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_case]
     fn test_irq_count() {
         #[cfg(target_arch = "x86_64")]
         {
@@ -221,3 +221,4 @@ mod tests {
         }
     }
 }
+

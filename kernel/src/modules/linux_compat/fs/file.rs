@@ -6,7 +6,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 mod fd_ops;
 #[path = "file_flags.rs"]
 mod file_flags;
-use file_flags::{
+pub use file_flags::{
     apply_linux_open_post_flags, build_linux_tmpfile_path,
     linux_tmpfile_write_mode_valid,
 };

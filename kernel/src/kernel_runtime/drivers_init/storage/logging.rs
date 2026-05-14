@@ -52,8 +52,11 @@ pub(super) fn log_driver_wait_policy() {
     );
 }
 
+use alloc::format;
+use alloc::string::String;
+
 fn wait_policy_segment(
-    wait: &aethercore::modules::drivers::DriverWaitPolicySnapshotEntry,
+    wait: &aethercore::modules::drivers::DriverWaitDescriptor,
 ) -> String {
     format!(
         "{}::{} max_spins={} fallback={:?} timeouts={}",

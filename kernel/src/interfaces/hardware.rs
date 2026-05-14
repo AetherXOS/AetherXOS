@@ -26,6 +26,10 @@ pub trait HardwareAbstraction {
     
     // Time
     fn get_time_ns() -> u64;
+
+    // Sub-component Accessors (Pillar II: HAL Bridge)
+    fn interrupt_controller() -> &'static dyn InterruptController;
+    fn memory_manager() -> &'static dyn MemoryManager;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,11 +56,21 @@ pub trait SerialDevice: core::fmt::Write {
 }
 
 /// Interrupt Controller Abstraction (PIC, APIC, GIC)
-pub trait InterruptController {
-    unsafe fn init(&mut self);
-    unsafe fn enable_interrupt(&mut self, irq: u32);
-    unsafe fn disable_interrupt(&mut self, irq: u32);
-    unsafe fn end_of_interrupt(&mut self, irq: u32);
+pub trait InterruptController: Send + Sync {
+    unsafe fn init(&self);
+    unsafe fn enable_interrupt(&self, irq: u32);
+    unsafe fn disable_interrupt(&self, irq: u32);
+    unsafe fn end_of_interrupt(&self, irq: u32);
+    fn is_spurious(&self, vector: u8) -> bool;
+}
+
+/// Memory Management Abstraction (Paging, TLB, Cache)
+pub trait MemoryManager: Send + Sync {
+    unsafe fn map_page(&self, virt: usize, phys: usize, flags: u64) -> Result<(), &'static str>;
+    unsafe fn unmap_page(&self, virt: usize) -> Result<(), &'static str>;
+    fn virtual_to_physical(&self, virt: usize) -> Option<usize>;
+    fn flush_tlb(&self);
+    fn current_table_base(&self) -> usize;
 }
 
 /// System Timer Abstraction

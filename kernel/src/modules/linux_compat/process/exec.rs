@@ -77,7 +77,7 @@ pub(crate) fn execve_with_path(
                                         random_bytes[8..].copy_from_slice(
                                             &(tsc.rotate_left(13) ^ (entry_val as u64)).to_le_bytes(),
                                         );
-                                        let random_ptr = stack_end - 16;
+                                        let _random_ptr = stack_end - 16;
 
                                         use crate::kernel::syscalls::syscalls_consts::linux::*;
                                         let mut auxv_entries = alloc::vec![
@@ -166,7 +166,7 @@ pub(crate) fn execve_with_path(
                                             
                                             // Update task user stack pointer for scheduling
                                             if let Some(cpu) = unsafe { crate::kernel::cpu_local::CpuLocal::try_get() } {
-                                                let tid = cpu.current_task.load(Ordering::Relaxed);
+                                                let _tid = cpu.current_task.load(Ordering::Relaxed);
                                                 if let Some(task_arc) = crate::kernel::task::get_task(crate::interfaces::task::TaskId(tid)) {
                                                     #[cfg(feature = "ring_protection")]
                                                     {

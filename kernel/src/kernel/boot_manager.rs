@@ -94,25 +94,66 @@ impl BootManager for ConcreteBootManager {
         log::info(&format!("Entering boot stage: {:?}", stage));
 
         // Get subsystems for this stage
-        let subsystems = self
+        let mut stage_subsystems = self
             .subsystems
             .lock()
             .get(&stage)
             .map(|v| v.clone())
             .unwrap_or_default();
 
-        // Initialize each subsystem in order
-        for subsystem in subsystems {
-            // Check dependencies first
-            let deps = subsystem.dependencies();
-            for dep_name in deps {
-                // Dependency check logic (simplified: should check if dep's stage is reached)
-                log::trace(&format!("Checking dependency: {}", dep_name));
+        // --- NEW: Topological Sort for Subsystems in this Stage ---
+        // This ensures that even within a stage, subsystems with internal 
+        // dependencies are initialized in the correct order.
+        let mut sorted = Vec::with_capacity(stage_subsystems.len());
+        let mut visited = Vec::with_capacity(stage_subsystems.len());
+        
+        fn visit(
+            subsystem: &'static dyn BootSubsystem,
+            all: &[&'static dyn BootSubsystem],
+            sorted: &mut Vec<&'static dyn BootSubsystem>,
+            visited: &mut Vec<&'static str>,
+        ) {
+            if visited.contains(&subsystem.name()) {
+                return;
+            }
+            
+            for dep_name in subsystem.dependencies() {
+                if let Some(dep) = all.iter().find(|s| s.name() == *dep_name) {
+                    visit(*dep, all, sorted, visited);
+                }
+            }
+            
+            visited.push(subsystem.name());
+            sorted.push(subsystem);
+        }
+
+        for sub in stage_subsystems.iter() {
+            visit(*sub, &stage_subsystems, &mut sorted, &mut visited);
+        }
+
+        // Initialize each sorted subsystem
+        for subsystem in sorted {
+            // Verify dependencies outside this stage are already ready
+            for dep_name in subsystem.dependencies() {
+                if !visited.contains(dep_name) {
+                    // Check if the dependency belongs to a previous stage and is ready
+                    log::trace(&format!("Verifying external dependency: {}", dep_name));
+                    // In a production system, we'd check the global registry here
+                }
             }
 
             // Initialize the subsystem
-            log::debug(&format!("Initializing subsystem: {}", subsystem.name()));
-            subsystem.init().map_err(|_| KernelError::InternalError)?;
+            log::debug(&format!("Initializing subsystem [{}]: {}", stage, subsystem.name()));
+            
+            let start_tick = crate::hal::HAL::get_time_ns();
+            subsystem.init().map_err(|e| {
+                log::error(&format!("Subsystem init failed: {} - {:?}", subsystem.name(), e));
+                e
+            })?;
+            let end_tick = crate::hal::HAL::get_time_ns();
+            
+            // Record timing (simple)
+            log::trace(&format!("Subsystem {} init took {}ns", subsystem.name(), end_tick - start_tick));
 
             // Verify readiness
             if !subsystem.is_ready() {
@@ -131,10 +172,7 @@ impl BootManager for ConcreteBootManager {
         let mut info = self.boot_info.lock();
         info.current_stage = stage;
 
-        log::info(&format!(
-            "Boot stage complete: {:?}",
-            stage
-        ));
+        log::info(&format!("Boot stage complete: {:?}", stage));
         Ok(())
     }
 
@@ -202,26 +240,26 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_case]
     fn test_boot_manager_creation() {
         let mgr = ConcreteBootManager::new();
         assert_eq!(mgr.current_stage(), BootStage::BootloaderHandoff);
     }
 
-    #[test]
+    #[test_case]
     fn test_stage_ordering() {
         assert!(BootStage::EarlyMemory > BootStage::BootloaderHandoff);
         assert!(BootStage::RuntimeReady > BootStage::CoreSubsystems);
     }
 
-    #[test]
+    #[test_case]
     fn test_subsystem_registration() {
         let mgr = ConcreteBootManager::new();
         // Just verify registration doesn't panic
         // Since it uses interior mutability, we'd need a way to inspect it
     }
 
-    #[test]
+    #[test_case]
     fn test_diagnostics_initial_state() {
         let mgr = ConcreteBootManager::new();
         let diag = mgr.diagnostics();
@@ -229,7 +267,7 @@ mod tests {
         assert_eq!(diag.warnings, 0);
     }
 
-    #[test]
+    #[test_case]
     fn test_boot_info_initial_state() {
         let mgr = ConcreteBootManager::new();
         let info = mgr.boot_info();
@@ -237,13 +275,13 @@ mod tests {
         assert_eq!(info.subsystems_ready, 0);
     }
 
-    #[test]
+    #[test_case]
     fn test_subsystems_not_ready_early() {
         let mgr = ConcreteBootManager::new();
         assert!(!mgr.are_subsystems_ready());
     }
 
-    #[test]
+    #[test_case]
     fn test_stage_diagnostic_timing() {
         let mgr = ConcreteBootManager::new();
         mgr.record_stage_timing(BootStage::EarlyMemory, 12345);
@@ -251,3 +289,4 @@ mod tests {
         assert_eq!(diag.stage_timings[1], 12345);
     }
 }
+

@@ -341,7 +341,7 @@ fn normalize_path(path: &str) -> String {
 }
 
 /// Global mount table instance.
-static GLOBAL_MOUNT_TABLE: Mutex<Option<MountTable>> = Mutex::new(None);
+pub static GLOBAL_MOUNT_TABLE: Mutex<Option<MountTable>> = Mutex::new(None);
 
 macro_rules! with_mount_table {
     ($method:ident, $($arg:expr),*) => {

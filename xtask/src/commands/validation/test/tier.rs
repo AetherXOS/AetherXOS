@@ -54,6 +54,12 @@ fn tier_specs(tier: TestTier, ci: bool, host: &str) -> Vec<CommandSpec> {
     }
 }
 
+#[cfg(test)]
+fn tier_specs_str(tier: &str, ci: bool, host: &str) -> Result<Vec<CommandSpec>, anyhow::Error> {
+    let parsed: TestTier = tier.parse().map_err(|_| anyhow::anyhow!("unknown test phase '{}', supported: fast, integration, nightly", tier))?;
+    Ok(tier_specs(parsed, ci, host))
+}
+
 fn fast_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
     vec![
         nextest_spec("fast", ci, host),

@@ -417,31 +417,31 @@ impl core::fmt::Write for CpuNameBuffer {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_acpi_device_creation() {
         let device = AcpiDevice::new(b"test", 1, 0);
         assert_eq!(device.name_len, 4);
         assert_eq!(device.device_type, 1);
     }
 
-    #[test]
+    #[test_case]
     fn test_acpi_device_name() {
         let device = AcpiDevice::new(b"uart0", 4, 0);
         assert_eq!(device.name_str(), "uart0");
     }
 
-    #[test]
+    #[test_case]
     fn test_acpi_rsdp_size() {
         assert_eq!(core::mem::size_of::<AcpiRsdpV1>(), 36);
         assert_eq!(core::mem::size_of::<AcpiRsdpV2>(), 36 + 16);
     }
 
-    #[test]
+    #[test_case]
     fn test_acpi_sdt_header_size() {
         assert_eq!(core::mem::size_of::<AcpiSdtHeader>(), 36);
     }
 
-    #[test]
+    #[test_case]
     fn test_acpi_madt_size() {
         assert_eq!(core::mem::size_of::<AcpiMadt>(), 36 + 8);
     }

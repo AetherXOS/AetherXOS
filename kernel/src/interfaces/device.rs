@@ -141,7 +141,7 @@ pub trait DeviceManager: Send + Sync {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_device_id_equality() {
         let id1 = DeviceId(42);
         let id2 = DeviceId(42);
@@ -151,14 +151,14 @@ mod tests {
         assert_ne!(id1, id3);
     }
 
-    #[test]
+    #[test_case]
     fn test_device_type_display() {
         assert_eq!(format!("{}", DeviceType::Serial), "Serial");
         assert_eq!(format!("{}", DeviceType::Timer), "Timer");
         assert_eq!(format!("{}", DeviceType::Network), "Network");
     }
 
-    #[test]
+    #[test_case]
     fn test_device_state_transitions() {
         let mut state = DeviceState::Discovered;
         assert_eq!(state, DeviceState::Discovered);
@@ -170,3 +170,4 @@ mod tests {
         assert_eq!(state, DeviceState::Ready);
     }
 }
+

@@ -1,15 +1,35 @@
 use super::*;
+use core::any::Any;
+use core::sync::atomic::Ordering;
+
+// The process-level file table (Process::files) uses IrqSafeMutex which does not implement Clone.
+// The POSIX compat layer uses the global FILE_TABLE as its authoritative FD registry.
+// This function always returns None so all paths use FILE_TABLE.
+#[allow(dead_code)]
+fn get_process_file_table() -> Option<Arc<IrqSafeMutex<alloc::collections::BTreeMap<u32, Arc<dyn Any + Send + Sync>>>>> {
+    None
+}
 
 pub fn fcntl_get_status_flags(fd: u32) -> Result<u32, PosixErrno> {
-    let table = FILE_TABLE.lock();
-    let desc = table.get(&fd).ok_or(PosixErrno::BadFileDescriptor)?;
-    let flags = *desc.file.flags.lock();
+    let desc = if let Some(table) = get_process_file_table() {
+        let lock = table.lock();
+        lock.get(&fd).and_then(|f| f.clone().downcast::<PosixFileDesc>().ok()).map(|arc| (*arc).clone())
+    } else {
+        FILE_TABLE.lock().get(&fd).cloned()
+    }.ok_or(PosixErrno::BadFileDescriptor)?;
+    
+    let flags = desc.file.flags.load(Ordering::Acquire);
     Ok(flags)
 }
 
 pub fn fcntl_get_descriptor_flags(fd: u32) -> Result<u32, PosixErrno> {
-    let table = FILE_TABLE.lock();
-    let desc = table.get(&fd).ok_or(PosixErrno::BadFileDescriptor)?;
+    let desc = if let Some(table) = get_process_file_table() {
+        let lock = table.lock();
+        lock.get(&fd).and_then(|f| f.clone().downcast::<PosixFileDesc>().ok()).map(|arc| (*arc).clone())
+    } else {
+        FILE_TABLE.lock().get(&fd).cloned()
+    }.ok_or(PosixErrno::BadFileDescriptor)?;
+    
     Ok(if desc.cloexec {
         POSIX_DESCRIPTOR_CLOEXEC
     } else {
@@ -28,7 +48,7 @@ pub fn fcntl_set_status_flags(fd: u32, flags: u32) -> Result<(), PosixErrno> {
     let table = FILE_TABLE.lock();
     let desc = table.get(&fd).ok_or(PosixErrno::BadFileDescriptor)?;
     let masked = flags & POSIX_SUPPORTED_STATUS_FLAGS;
-    *desc.file.flags.lock() = masked;
+    desc.file.flags.store(masked, Ordering::Relaxed);
     #[cfg(feature = "posix_pipe")]
     {
         let nonblock = (masked & (crate::modules::posix_consts::net::O_NONBLOCK as u32)) != 0;
@@ -48,23 +68,28 @@ pub fn fcntl_set_status_flags(fd: u32, flags: u32) -> Result<(), PosixErrno> {
 }
 
 pub fn get_file_description(fd: u32) -> Result<Arc<SharedFile>, PosixErrno> {
-    let table = FILE_TABLE.lock();
-    Ok(table
-        .get(&fd)
-        .ok_or(PosixErrno::BadFileDescriptor)?
-        .file
-        .clone())
+    let desc = if let Some(table) = get_process_file_table() {
+        let lock = table.lock();
+        lock.get(&fd).and_then(|f| f.clone().downcast::<PosixFileDesc>().ok()).map(|arc| (*arc).clone())
+    } else {
+        FILE_TABLE.lock().get(&fd).cloned()
+    }.ok_or(PosixErrno::BadFileDescriptor)?;
+
+    Ok(desc.file.clone())
 }
 
 pub fn register_file_description(file: Arc<SharedFile>) -> u32 {
     let fd = NEXT_FD.fetch_add(1, Ordering::Relaxed);
-    FILE_TABLE.lock().insert(
-        fd,
-        PosixFileDesc {
-            file,
-            cloexec: false,
-        },
-    );
+    let desc = PosixFileDesc {
+        file,
+        cloexec: false,
+    };
+    
+    if let Some(table) = get_process_file_table() {
+        table.lock().insert(fd, Arc::new(desc));
+    } else {
+        FILE_TABLE.lock().insert(fd, desc);
+    }
     fd
 }
 

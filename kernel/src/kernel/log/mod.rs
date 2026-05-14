@@ -80,6 +80,23 @@ pub fn get_total_size() -> usize {
     LOG_BUFFER.lock().len()
 }
 
+// Convenience functions for logging
+pub fn debug(msg: &str) {
+    log(Level::Debug, format_args!("{}", msg));
+}
+
+pub fn warn(msg: &str) {
+    log(Level::Warn, format_args!("{}", msg));
+}
+
+pub fn info(msg: &str) {
+    log(Level::Info, format_args!("{}", msg));
+}
+
+pub fn error(msg: &str) {
+    log(Level::Error, format_args!("{}", msg));
+}
+
 #[macro_export]
 macro_rules! klog_error {
     ($($arg:tt)*) => {

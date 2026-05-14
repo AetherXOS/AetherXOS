@@ -4,7 +4,7 @@ use std::process::{Command, Stdio};
 use std::io::Write;
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_process_creation_and_wait() {
     let output = Command::new("sh")
         .arg("-c")
@@ -17,7 +17,7 @@ fn test_process_creation_and_wait() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_command_chaining() {
     let output = Command::new("sh")
         .arg("-c")
@@ -30,7 +30,7 @@ fn test_command_chaining() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_environment_variables() {
     let output = Command::new("sh")
         .arg("-c")
@@ -43,7 +43,7 @@ fn test_environment_variables() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_exit_codes() {
     let output = Command::new("sh")
         .arg("-c")
@@ -56,7 +56,7 @@ fn test_exit_codes() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_signal_delivery() {
     let output = Command::new("sh")
         .arg("-c")
@@ -69,7 +69,7 @@ fn test_signal_delivery() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_memory_allocation() {
     let output = Command::new("sh")
         .arg("-c")
@@ -82,7 +82,7 @@ fn test_memory_allocation() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_argument_passing() {
     let output = Command::new("sh")
         .arg("-c")
@@ -97,7 +97,7 @@ fn test_argument_passing() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_stdin_reading() {
     let mut child = Command::new("sh")
         .arg("-c")
@@ -118,7 +118,7 @@ fn test_stdin_reading() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_user_operations() {
     let output = Command::new("sh")
         .arg("-c")
@@ -131,7 +131,7 @@ fn test_user_operations() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_process_groups() {
     let output = Command::new("sh")
         .arg("-c")
@@ -142,7 +142,7 @@ fn test_process_groups() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_nested_shells() {
     let output = Command::new("sh")
         .arg("-c")
@@ -155,7 +155,7 @@ fn test_nested_shells() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_background_execution() {
     let output = Command::new("sh")
         .arg("-c")
@@ -168,7 +168,7 @@ fn test_background_execution() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_process_waiting() {
     let output = Command::new("sh")
         .arg("-c")
@@ -179,7 +179,7 @@ fn test_process_waiting() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_variable_expansion() {
     let output = Command::new("sh")
         .arg("-c")
@@ -192,7 +192,7 @@ fn test_variable_expansion() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_command_substitution() {
     let output = Command::new("sh")
         .arg("-c")
@@ -205,7 +205,7 @@ fn test_command_substitution() {
 }
 
 #[cfg(not(target_os = "none"))]
-#[test]
+#[test_case]
 fn test_concurrent_processes() {
     let output = Command::new("sh")
         .arg("-c")
@@ -216,3 +216,4 @@ fn test_concurrent_processes() {
     let stdout = String::from_utf8_lossy(&output.unwrap().stdout);
     assert!(stdout.contains("all done"), "Concurrent process coordination failed");
 }
+

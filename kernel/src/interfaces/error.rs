@@ -44,6 +44,7 @@ pub enum KernelError {
     Again,
     Interrupted,
     Overflow,
+    RuntimeError(&'static str),
 }
 
 impl KernelError {

@@ -1,5 +1,5 @@
 #[cfg(feature = "drivers")]
-pub(super) fn virtio_irq_handler(irq: u8) {
+pub fn virtio_irq_handler(irq: u8) {
     handle_network_irq(
         irq,
         "VirtIO",
@@ -8,7 +8,7 @@ pub(super) fn virtio_irq_handler(irq: u8) {
 }
 
 #[cfg(feature = "drivers")]
-pub(super) fn e1000_irq_handler(irq: u8) {
+pub fn e1000_irq_handler(irq: u8) {
     handle_network_irq(
         irq,
         "E1000",

@@ -39,42 +39,8 @@ pub fn sys_linux_pidfd_send_signal(
     })
 }
 
-pub fn sys_linux_io_uring_setup(entries: usize, _params: UserPtr<u8>) -> usize {
-    if entries == 0 {
-        return linux_inval();
-    }
-    let id = NEXT_IO_URING_FD.fetch_add(1, Ordering::Relaxed);
-    LINUX_IO_URING_IDS.lock().insert(id);
-    id as usize
-}
 
-pub fn sys_linux_io_uring_enter(
-    fd: Fd,
-    _to_submit: usize,
-    _min_complete: usize,
-    flags: usize,
-    _sig: UserPtr<u8>,
-) -> usize {
-    if flags != 0 {
-        return linux_inval();
-    }
-    if !LINUX_IO_URING_IDS.lock().contains(&fd.as_u32()) {
-        return linux_errno(crate::modules::posix_consts::errno::EBADF);
-    }
-    0
-}
 
-pub fn sys_linux_io_uring_register(
-    fd: Fd,
-    _opcode: usize,
-    _arg: UserPtr<u8>,
-    _nr_args: usize,
-) -> usize {
-    if !LINUX_IO_URING_IDS.lock().contains(&fd.as_u32()) {
-        return linux_errno(crate::modules::posix_consts::errno::EBADF);
-    }
-    0
-}
 
 pub fn sys_linux_pidfd_open(pid: usize, flags: usize) -> usize {
     let allowed_flags = linux::PIDFD_NONBLOCK;
@@ -157,48 +123,6 @@ pub fn sys_linux_quotactl_fd(fd: Fd, cmd: usize, id: usize, addr: UserPtr<u8>) -
     })
 }
 
-pub fn sys_linux_landlock_create_ruleset(attr: UserPtr<u8>, size: usize, flags: usize) -> usize {
-    if flags != 0 {
-        return linux_inval();
-    }
-    if size > 0 && attr.is_null() {
-        return linux_fault();
-    }
-    let id = NEXT_LANDLOCK_RULESET_ID.fetch_add(1, Ordering::Relaxed);
-    LINUX_LANDLOCK_RULESETS.lock().insert(id);
-    id as usize
-}
-
-pub fn sys_linux_landlock_add_rule(
-    ruleset_fd: Fd,
-    _rule_type: usize,
-    _rule_attr: UserPtr<u8>,
-    flags: usize,
-) -> usize {
-    if flags != 0 {
-        return linux_inval();
-    }
-    if !LINUX_LANDLOCK_RULESETS
-        .lock()
-        .contains(&(ruleset_fd.as_u32()))
-    {
-        return linux_errno(crate::modules::posix_consts::errno::EBADF);
-    }
-    0
-}
-
-pub fn sys_linux_landlock_restrict_self(ruleset_fd: Fd, flags: usize) -> usize {
-    if flags != 0 {
-        return linux_inval();
-    }
-    if !LINUX_LANDLOCK_RULESETS
-        .lock()
-        .contains(&(ruleset_fd.as_u32()))
-    {
-        return linux_errno(crate::modules::posix_consts::errno::EBADF);
-    }
-    0
-}
 
 pub fn sys_linux_memfd_secret(flags: usize) -> usize {
     if flags != 0 {

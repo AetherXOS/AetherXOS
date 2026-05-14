@@ -18,6 +18,7 @@ static IPC_READY: AtomicBool = AtomicBool::new(false);
 static INTERRUPT_READY: AtomicBool = AtomicBool::new(false);
 static SECURITY_READY: AtomicBool = AtomicBool::new(false);
 static PROCESS_READY: AtomicBool = AtomicBool::new(false);
+static LAUNCH_READY: AtomicBool = AtomicBool::new(false);
 
 /// Memory allocator boot subsystem
 /// 
@@ -57,6 +58,12 @@ impl BootSubsystem for AllocatorBootSubsystem {
 
         // Mark allocator as ready
         ALLOCATOR_READY.store(true, Ordering::Release);
+        
+        // Pillar III: Register service in the global registry
+        let _ = crate::kernel::registry::GLOBAL_REGISTRY.register(
+            alloc::sync::Arc::new(AllocatorBootSubsystem)
+        );
+
         log::info("Memory allocator subsystem ready");
         Ok(())
     }
@@ -102,6 +109,12 @@ impl BootSubsystem for SchedulerBootSubsystem {
         
         // Mark scheduler as ready
         SCHEDULER_READY.store(true, Ordering::Release);
+        
+        // Pillar III: Register service in the global registry
+        let _ = crate::kernel::registry::GLOBAL_REGISTRY.register(
+            alloc::sync::Arc::new(SchedulerBootSubsystem)
+        );
+
         log::info("Scheduler subsystem ready");
         Ok(())
     }
@@ -147,6 +160,12 @@ impl BootSubsystem for VfsBootSubsystem {
         
         // Mark VFS as ready
         VFS_READY.store(true, Ordering::Release);
+
+        // Pillar III: Register service in the global registry
+        let _ = crate::kernel::registry::GLOBAL_REGISTRY.register(
+            alloc::sync::Arc::new(VfsBootSubsystem)
+        );
+
         log::info("VFS subsystem ready");
         Ok(())
     }
@@ -192,6 +211,12 @@ impl BootSubsystem for IpcBootSubsystem {
         
         // Mark IPC as ready
         IPC_READY.store(true, Ordering::Release);
+
+        // Pillar III: Register service in the global registry
+        let _ = crate::kernel::registry::GLOBAL_REGISTRY.register(
+            alloc::sync::Arc::new(IpcBootSubsystem)
+        );
+
         log::info("IPC subsystem ready");
         Ok(())
     }
@@ -238,6 +263,12 @@ impl BootSubsystem for InterruptBootSubsystem {
         
         // Mark interrupts as ready
         INTERRUPT_READY.store(true, Ordering::Release);
+
+        // Pillar III: Register service in the global registry
+        let _ = crate::kernel::registry::GLOBAL_REGISTRY.register(
+            alloc::sync::Arc::new(InterruptBootSubsystem)
+        );
+
         log::info("Interrupt subsystem ready");
         Ok(())
     }
@@ -301,6 +332,15 @@ impl BootSubsystem for SecurityBootSubsystem {
         
         // Mark security as ready
         SECURITY_READY.store(true, Ordering::Release);
+
+        // Pillar III: Register services in the global registry
+        let monitor = alloc::sync::Arc::new(crate::kernel::security::CapabilitySecurityMonitor);
+        let _ = crate::kernel::registry::GLOBAL_REGISTRY.register(monitor);
+
+        let _ = crate::kernel::registry::GLOBAL_REGISTRY.register(
+            alloc::sync::Arc::new(SecurityBootSubsystem)
+        );
+
         log::info("Security subsystem ready");
         Ok(())
     }
@@ -363,6 +403,12 @@ impl BootSubsystem for ProcessBootSubsystem {
         
         // Mark process management as ready
         PROCESS_READY.store(true, Ordering::Release);
+
+        // Pillar III: Register service in the global registry
+        let _ = crate::kernel::registry::GLOBAL_REGISTRY.register(
+            alloc::sync::Arc::new(ProcessBootSubsystem)
+        );
+
         log::info("Process management subsystem ready");
         Ok(())
     }
@@ -384,12 +430,72 @@ pub static IPC_SUBSYSTEM: IpcBootSubsystem = IpcBootSubsystem;
 pub static INTERRUPT_SUBSYSTEM: InterruptBootSubsystem = InterruptBootSubsystem;
 pub static SECURITY_SUBSYSTEM: SecurityBootSubsystem = SecurityBootSubsystem;
 pub static PROCESS_SUBSYSTEM: ProcessBootSubsystem = ProcessBootSubsystem;
+pub static LAUNCH_SUBSYSTEM: LaunchBootSubsystem = LaunchBootSubsystem;
+
+/// Userspace launch subsystem (Starts PID 1)
+pub struct LaunchBootSubsystem;
+
+impl BootSubsystem for LaunchBootSubsystem {
+    fn name(&self) -> &'static str {
+        "UserspaceLaunch"
+    }
+
+    fn required_stage(&self) -> BootStage {
+        BootStage::FinalOrchestration
+    }
+
+    fn init(&self) -> KernelResult<()> {
+        log::info("[LAUNCH] Starting userspace bootstrap (PID 1)");
+        
+        #[cfg(feature = "process_abstraction")]
+        {
+            // Placeholder init image (Empty loop in reality would be loaded from VFS)
+            let init_name = b"init";
+            let init_image = &[0u8; 0]; // Empty placeholder, module_loader handles empty as stub
+            
+            match crate::kernel::launch::process_runtime::spawn_bootstrap_from_image(
+                init_name,
+                init_image,
+                128, // Default priority
+                0,   // No deadline
+                0,   // No burst time
+                0x0, // Kernel stack will be allocated
+                None,
+            ) {
+                Ok((pid, tid)) => {
+                    log::info(&alloc::format!("[LAUNCH] PID {} (TID {}) spawned successfully", pid, tid));
+                }
+                Err(e) => {
+                    log::error(&alloc::format!("[LAUNCH] Failed to spawn PID 1: {:?}", e));
+                    return Err(crate::interfaces::KernelError::RuntimeError("Init spawn failed"));
+                }
+            }
+        }
+
+        LAUNCH_READY.store(true, Ordering::Release);
+        
+        // Pillar III: Register in registry
+        let _ = crate::kernel::registry::GLOBAL_REGISTRY.register(
+            alloc::sync::Arc::new(LaunchBootSubsystem)
+        );
+
+        Ok(())
+    }
+
+    fn is_ready(&self) -> bool {
+        LAUNCH_READY.load(Ordering::Acquire)
+    }
+
+    fn dependencies(&self) -> &[&'static str] {
+        &["ProcessManagement", "VirtualFilesystem"]
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_allocator_subsystem() {
         assert_eq!(ALLOCATOR_SUBSYSTEM.name(), "MemoryAllocator");
         // Initially not ready (AtomicBool starts false)
@@ -400,7 +506,7 @@ mod tests {
         assert!(ALLOCATOR_SUBSYSTEM.is_ready());
     }
 
-    #[test]
+    #[test_case]
     fn test_scheduler_subsystem() {
         assert_eq!(SCHEDULER_SUBSYSTEM.name(), "Scheduler");
         // Initially not ready
@@ -410,7 +516,7 @@ mod tests {
         assert!(SCHEDULER_SUBSYSTEM.is_ready());
     }
 
-    #[test]
+    #[test_case]
     fn test_vfs_subsystem() {
         assert_eq!(VFS_SUBSYSTEM.name(), "VirtualFilesystem");
         assert!(!VFS_SUBSYSTEM.is_ready());
@@ -418,7 +524,7 @@ mod tests {
         assert!(VFS_SUBSYSTEM.is_ready());
     }
 
-    #[test]
+    #[test_case]
     fn test_ipc_subsystem() {
         assert_eq!(IPC_SUBSYSTEM.name(), "IPC");
         assert!(!IPC_SUBSYSTEM.is_ready());
@@ -426,7 +532,7 @@ mod tests {
         assert!(IPC_SUBSYSTEM.is_ready());
     }
 
-    #[test]
+    #[test_case]
     fn test_interrupt_subsystem() {
         assert_eq!(INTERRUPT_SUBSYSTEM.name(), "InterruptHandlers");
         assert!(!INTERRUPT_SUBSYSTEM.is_ready());
@@ -434,7 +540,7 @@ mod tests {
         assert!(INTERRUPT_SUBSYSTEM.is_ready());
     }
 
-    #[test]
+    #[test_case]
     fn test_security_subsystem() {
         assert_eq!(SECURITY_SUBSYSTEM.name(), "SecurityFramework");
         assert!(!SECURITY_SUBSYSTEM.is_ready());
@@ -442,7 +548,7 @@ mod tests {
         assert!(SECURITY_SUBSYSTEM.is_ready());
     }
 
-    #[test]
+    #[test_case]
     fn test_process_subsystem() {
         assert_eq!(PROCESS_SUBSYSTEM.name(), "ProcessManagement");
         assert!(!PROCESS_SUBSYSTEM.is_ready());
@@ -450,28 +556,29 @@ mod tests {
         assert!(PROCESS_SUBSYSTEM.is_ready());
     }
 
-    #[test]
+    #[test_case]
     fn test_allocator_dependencies() {
         let deps = ALLOCATOR_SUBSYSTEM.dependencies();
-        assert!(deps.contains(&BootStage::EarlyMemory));
+        assert!(deps.is_empty(), "AllocatorBootSubsystem should have no dependencies");
     }
 
-    #[test]
+    #[test_case]
     fn test_scheduler_dependencies() {
         let deps = SCHEDULER_SUBSYSTEM.dependencies();
-        assert!(deps.contains(&BootStage::EarlyMemory));
-        assert!(deps.contains(&BootStage::PlatformEarly));
+        assert!(deps.contains(&"MemoryAllocator"));
     }
 
-    #[test]
+    #[test_case]
     fn test_vfs_dependencies() {
         let deps = VFS_SUBSYSTEM.dependencies();
-        assert!(deps.contains(&BootStage::PlatformDevices));
+        assert!(deps.contains(&"MemoryAllocator"));
+        assert!(deps.contains(&"Scheduler"));
     }
 
-    #[test]
+    #[test_case]
     fn test_interrupt_dependencies() {
         let deps = INTERRUPT_SUBSYSTEM.dependencies();
-        assert!(deps.contains(&BootStage::PlatformEarly));
+        assert!(deps.is_empty(), "InterruptBootSubsystem should have no dependencies");
     }
 }
+

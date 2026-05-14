@@ -131,13 +131,13 @@ pub fn nanoseconds_to_ticks(period_ns: u64, timer_freq_hz: u64) -> u64 {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_timer_creation() {
         let _timer: Timer<0x1000, Uninitialized> = Timer::new();
         // Verify timer can be created without panicking.
     }
 
-    #[test]
+    #[test_case]
     fn test_nanoseconds_to_ticks() {
         // 1 microsecond at 1 GHz = 1000 ticks
         let ticks = nanoseconds_to_ticks(1000, 1_000_000_000);
@@ -148,3 +148,4 @@ mod tests {
         assert_eq!(ticks, 1_000_000);
     }
 }
+

@@ -379,21 +379,22 @@ pub(crate) fn read_user_c_string(
     }
 
     let mut out = alloc::vec::Vec::new();
+    crate::modules::security::allow_user_access();
     for i in 0..max_len {
         let addr = ptr.wrapping_add(i);
-        // We check every byte for page boundaries implicitly via the loop, 
-        // but for performance we usually check once per page.
-        // Here we just check valid range for simplicity and safety.
         if !user_readable_range_valid(addr, 1) {
+             crate::modules::security::forbid_user_access();
              return Err(user_access_denied_arg());
         }
         let b = unsafe { *(addr as *const u8) };
         if b == 0 {
+            crate::modules::security::forbid_user_access();
             return alloc::string::String::from_utf8(out)
                 .map_err(|_| invalid_arg());
         }
         out.push(b);
     }
+    crate::modules::security::forbid_user_access();
     Err(invalid_arg())
 }
 

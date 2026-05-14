@@ -127,7 +127,7 @@ pub trait Platform: PlatformServices {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_memory_layout_validity() {
         let layout = MemoryLayout {
             kernel_base: 0,
@@ -145,7 +145,7 @@ mod tests {
         assert!(layout.reserved_end > layout.reserved_start);
     }
 
-    #[test]
+    #[test_case]
     fn test_cpu_features() {
         let features = CpuFeatures {
             has_apic: true,
@@ -165,3 +165,4 @@ mod tests {
         assert!(features.cpu_count > 0);
     }
 }
+

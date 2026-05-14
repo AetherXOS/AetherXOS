@@ -109,8 +109,8 @@ pub mod selector {
         all(feature = "sched_mlfq", param_scheduler = "MLFQ"),
         all(feature = "sched_edf", param_scheduler = "EDF")
     )))]
-    #[cfg(feature = "sched_round_robin")]
-    pub type ActiveScheduler = RoundRobin;
+    #[cfg(feature = "sched_mlfq")]
+    pub type ActiveScheduler = MLFQ; // Elite default: Adaptive MLFQ
 
     #[cfg(not(any(
         all(feature = "sched_round_robin", param_scheduler = "RoundRobin"),

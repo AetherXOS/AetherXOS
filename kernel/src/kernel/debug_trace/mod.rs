@@ -468,5 +468,22 @@ pub fn recent_records_copy() -> [TraceRecord; CORE_CRASH_LOG_CAPACITY] {
     recent
 }
 
+#[macro_export]
+macro_rules! ktrace {
+    ($scope:expr, $stage:expr) => {
+        $crate::kernel::debug_trace::record($scope, $stage, None, false)
+    };
+    ($scope:expr, $stage:expr, $val:expr) => {
+        $crate::kernel::debug_trace::record($scope, $stage, Some($val as u64), false)
+    };
+}
+
+#[macro_export]
+macro_rules! ktrace_warn {
+    ($scope:expr, $stage:expr, $val:expr) => {
+        $crate::kernel::debug_trace::record_warn($scope, $stage, Some($val as u64))
+    };
+}
+
 #[cfg(test)]
 mod tests;

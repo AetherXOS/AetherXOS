@@ -410,7 +410,7 @@ pub static QUOTA_MANAGER: ConcreteQuotaManager = ConcreteQuotaManager::new();
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_file_permissions_octal() {
         let perms = FilePermissions {
             owner: 0o7,
@@ -423,7 +423,7 @@ mod tests {
         assert_eq!(perms.to_octal(), 0o754);
     }
 
-    #[test]
+    #[test_case]
     fn test_permission_manager_set_perms() {
         let mgr = ConcreteFilePermissionManager::new();
         let perms = FilePermissions {
@@ -438,7 +438,7 @@ mod tests {
         assert_eq!(mgr.get_permissions(1).unwrap(), perms);
     }
 
-    #[test]
+    #[test_case]
     fn test_permission_manager_owner() {
         let mgr = ConcreteFilePermissionManager::new();
         let owner = FileOwner { uid: 1000, gid: 1000 };
@@ -446,14 +446,14 @@ mod tests {
         assert_eq!(mgr.get_owner(1).unwrap(), owner);
     }
 
-    #[test]
+    #[test_case]
     fn test_mount_manager_mount() {
         let mgr = ConcreteMountManager::new();
         assert!(mgr.mount("/", "ext4", "/dev/sda1", false).is_ok());
         assert!(mgr.is_mounted("/"));
     }
 
-    #[test]
+    #[test_case]
     fn test_mount_manager_list() {
         let mgr = ConcreteMountManager::new();
         mgr.mount("/", "ext4", "/dev/sda1", false).ok();
@@ -463,7 +463,7 @@ mod tests {
         assert_eq!(mounts.len(), 2);
     }
 
-    #[test]
+    #[test_case]
     fn test_quota_manager() {
         let mgr = ConcreteQuotaManager::new();
         assert!(mgr.set_block_quota(1000, 1_000_000).is_ok());
@@ -473,7 +473,7 @@ mod tests {
         assert_eq!(quota.block_limit, 1_000_000);
     }
 
-    #[test]
+    #[test_case]
     fn test_quota_enforcement() {
         let mgr = ConcreteQuotaManager::new();
         mgr.set_block_quota(1000, 1000).ok();
@@ -482,3 +482,4 @@ mod tests {
         assert!(!mgr.can_allocate(1000, 1500).unwrap());
     }
 }
+

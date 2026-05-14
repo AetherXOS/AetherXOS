@@ -1,5 +1,7 @@
 #[cfg(target_os = "none")]
 use crate::hal::HAL;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -143,7 +145,6 @@ impl<T: core::fmt::Debug> core::fmt::Debug for IrqSafeMutex<T> {
 
 use crate::interfaces::task::TaskId;
 use alloc::collections::VecDeque;
-use alloc::vec::Vec;
 
 pub struct WaitQueue {
     waiters: IrqSafeMutex<VecDeque<(TaskId, u32)>>,
@@ -236,12 +237,27 @@ impl WaitQueue {
 
     /// Block the current task on this queue.
     pub fn wait(&self) {
-        let tid = crate::modules::posix::process::gettid();
-        if tid == 0 {
-            return;
+        crate::kernel::task::scheduling::suspend_current_task(self);
+    }
+}
+
+pub struct WaitAggregator {
+    queues: Vec<Arc<WaitQueue>>,
+}
+
+impl WaitAggregator {
+    pub fn new() -> Self {
+        Self {
+            queues: Vec::new(),
         }
-        self.block_id(crate::interfaces::TaskId(tid));
-        crate::kernel::rt_preemption::request_forced_reschedule();
+    }
+
+    pub fn add(&mut self, queue: Arc<WaitQueue>) {
+        self.queues.push(queue);
+    }
+
+    pub fn wait(&self) {
+        crate::kernel::task::scheduling::suspend_current_task_multi(&self.queues);
     }
 }
 

@@ -344,13 +344,13 @@ pub static REALTIME_SCHEDULER: RealTimeScheduler = RealTimeScheduler::new();
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_priority_scheduler_creation() {
         let sched = PriorityScheduler::new();
         assert_eq!(sched.priority_levels().len(), 8);
     }
 
-    #[test]
+    #[test_case]
     fn test_set_task_priority() {
         let sched = PriorityScheduler::new();
         let tid = TaskId(1);
@@ -361,7 +361,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn test_cannot_change_idle_priority() {
         let sched = PriorityScheduler::new();
         assert!(sched
@@ -369,7 +369,7 @@ mod tests {
             .is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_cpu_affinity_single() {
         let aff = CpuAffinity::single_cpu(2);
         assert!(aff.contains_cpu(2));
@@ -377,7 +377,7 @@ mod tests {
         assert!(!aff.contains_cpu(3));
     }
 
-    #[test]
+    #[test_case]
     fn test_cpu_affinity_all() {
         let aff = CpuAffinity::all_cpus();
         for i in 0..64 {
@@ -385,28 +385,28 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_case]
     fn test_group_scheduler_creation() {
         let sched = GroupScheduler::new();
         let group = sched.create_group(5_000_000, 10_000_000);
         assert!(group.is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_group_scheduler_quota_validation() {
         let sched = GroupScheduler::new();
         // Quota > period should fail
         assert!(sched.create_group(15_000_000, 10_000_000).is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_add_task_to_group() {
         let sched = GroupScheduler::new();
         let group = sched.create_group(5_000_000, 10_000_000).unwrap();
         assert!(sched.add_task_to_group(TaskId(1), group).is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_set_cpu_affinity() {
         let sched = GroupScheduler::new();
         let tid = TaskId(1);
@@ -414,7 +414,7 @@ mod tests {
         assert_eq!(sched.get_cpu_affinity(tid).unwrap(), 0x0F);
     }
 
-    #[test]
+    #[test_case]
     fn test_realtime_scheduler_admission() {
         let sched = RealTimeScheduler::new();
         let deadline = RealTimeDeadline {
@@ -425,7 +425,7 @@ mod tests {
         assert!(sched.can_admit_realtime(5_000_000, 10_000_000));
     }
 
-    #[test]
+    #[test_case]
     fn test_realtime_scheduler_overload() {
         let sched = RealTimeScheduler::new();
 
@@ -444,7 +444,7 @@ mod tests {
         assert!(sched.set_realtime_deadline(TaskId(2), deadline2).is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_realtime_load_calculation() {
         let sched = RealTimeScheduler::new();
 
@@ -460,7 +460,7 @@ mod tests {
         assert!((sched.realtime_load() - 0.3).abs() < 0.01);
     }
 
-    #[test]
+    #[test_case]
     fn test_scheduling_policy_validation() {
         let sched = PriorityScheduler::new();
         let tid = TaskId(1);
@@ -475,3 +475,4 @@ mod tests {
             .is_err());
     }
 }
+

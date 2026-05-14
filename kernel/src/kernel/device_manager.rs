@@ -215,7 +215,7 @@ pub static GLOBAL_DEVICE_MANAGER: ConcreteDeviceManager = ConcreteDeviceManager:
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_device_registration() {
         let registry = ConcreteDeviceRegistry::new();
         let dev_id = DeviceId(1);
@@ -233,7 +233,7 @@ mod tests {
         assert!(registry.get_device(dev_id).is_some());
     }
 
-    #[test]
+    #[test_case]
     fn test_find_devices_by_type() {
         let registry = ConcreteDeviceRegistry::new();
         let id1 = DeviceId(1);
@@ -264,7 +264,7 @@ mod tests {
         assert_eq!(timers[0].id, id1);
     }
 
-    #[test]
+    #[test_case]
     fn test_device_state_management() {
         let registry = ConcreteDeviceRegistry::new();
         let dev_id = DeviceId(1);
@@ -288,7 +288,7 @@ mod tests {
         assert_eq!(registry.get_device(dev_id).unwrap().state, DeviceState::Ready);
     }
 
-    #[test]
+    #[test_case]
     fn test_device_manager_init() {
         let mgr = ConcreteDeviceManager::new();
         let dev_id = DeviceId(1);
@@ -310,3 +310,4 @@ mod tests {
         );
     }
 }
+

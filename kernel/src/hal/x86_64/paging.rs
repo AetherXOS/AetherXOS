@@ -71,10 +71,10 @@ impl PageManager {
                     unsafe {
                         core::ptr::copy_nonoverlapping(old_virt.as_ptr::<u8>(), new_virt.as_mut_ptr::<u8>(), 4096);
                         let new_flags = (flags | X86Flags::WRITABLE) & X86Flags::from_bits_truncate(!COW_BIT);
-                        let _flush = self.mapper.unmap(page).unwrap().1;
+                        let flush = self.mapper.unmap(page).unwrap().1;
                         #[cfg(target_os = "none")]
                         flush.flush();
-                        let _flush = self.mapper.map_to(page, new_frame, new_flags, alloc).unwrap();
+                        let flush = self.mapper.map_to(page, new_frame, new_flags, alloc).unwrap();
                         #[cfg(target_os = "none")]
                         flush.flush();
                     }
@@ -163,13 +163,15 @@ impl PageAllocWrapper {
         <Self as X86FrameAllocator<x86_64::structures::paging::Size2MiB>>::allocate_frame(self)
     }
 
-    pub fn deallocate_frame(&mut self, _frame: PhysFrame<Size4KiB>) {
+    pub fn deallocate_frame(&mut self, frame: PhysFrame<Size4KiB>) {
         #[cfg(feature = "paging_enable")]
         {
             crate::kernel::vmm::GLOBAL_PAGE_ALLOC
                 .lock()
                 .deallocate_pages(frame.start_address().as_u64() as usize, 0);
         }
+        #[cfg(not(feature = "paging_enable"))]
+        let _ = frame;
     }
 }
 

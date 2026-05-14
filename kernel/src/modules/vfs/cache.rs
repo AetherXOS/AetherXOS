@@ -285,8 +285,18 @@ impl Dentry {
     }
 
     pub fn child(&self, name: &str) -> Option<Arc<Dentry>> {
+        // Fast Path: Accelerator lookup
+        if let Some(cached) = DENTRY_ACCELERATOR.get(self.inode.ino, name) {
+            return Some(cached);
+        }
+
         let idx = self.get_shard_idx(name);
-        self.children[idx].read().get(name).cloned()
+        let res = self.children[idx].read().get(name).cloned();
+        
+        if let Some(ref d) = res {
+            DENTRY_ACCELERATOR.insert(self.inode.ino, name.to_string(), d.clone());
+        }
+        res
     }
 
     /// Insert / overwrite a direct child (Lock-Contention Minimized).
@@ -640,6 +650,46 @@ impl<FS: crate::modules::vfs::FileSystem> crate::modules::vfs::FileSystem for Ca
         self.root.lookup(path).ok()
     }
 }
+
+// ── Dentry Lookup Accelerator ──────────────────────────────────────────────
+pub struct DentryLookupAccelerator {
+    /// Sharded cache: (parent_ino, name) -> Arc<Dentry>
+    shards: [RwLock<BTreeMap<(u64, String), Arc<Dentry>>>; 64],
+}
+
+impl DentryLookupAccelerator {
+    pub const fn new() -> Self {
+        const SHARD_INIT: RwLock<BTreeMap<(u64, String), Arc<Dentry>>> = RwLock::new(BTreeMap::new());
+        Self {
+            shards: [SHARD_INIT; 64],
+        }
+    }
+
+    fn get_shard(&self, parent_ino: u64, name: &str) -> &RwLock<BTreeMap<(u64, String), Arc<Dentry>>> {
+        let mut h = parent_ino;
+        for b in name.as_bytes() {
+            h = h.wrapping_mul(31).wrapping_add(*b as u64);
+        }
+        &self.shards[h as usize % 64]
+    }
+
+    pub fn get(&self, parent_ino: u64, name: &str) -> Option<Arc<Dentry>> {
+        let shard = self.get_shard(parent_ino, name);
+        shard.read().get(&(parent_ino, name.to_string())).cloned()
+    }
+
+    pub fn insert(&self, parent_ino: u64, name: String, dentry: Arc<Dentry>) {
+        let shard = self.get_shard(parent_ino, &name);
+        shard.write().insert((parent_ino, name), dentry);
+    }
+
+    pub fn evict(&self, parent_ino: u64, name: &str) {
+        let shard = self.get_shard(parent_ino, name);
+        shard.write().remove(&(parent_ino, name.to_string()));
+    }
+}
+
+pub static DENTRY_ACCELERATOR: DentryLookupAccelerator = DentryLookupAccelerator::new();
 
 #[path = "cache/negative.rs"]
 mod negative;

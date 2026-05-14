@@ -394,5 +394,5 @@ pub fn write_preset_catalog(out_path: &Path) -> Result<()> {
 }
 
 #[cfg(test)]
-#[path = "installer_profile/tests.rs"]
+#[path = "tests.rs"]
 mod tests;

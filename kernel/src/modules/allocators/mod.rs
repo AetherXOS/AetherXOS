@@ -75,7 +75,7 @@ pub mod selector {
         param_allocator = "LockFreeSlab",
         param_allocator = "PoolAllocator"
     )))]
-    pub type ActiveHeapAllocator = BumpAllocator; // Fallback to simplest
+    pub type ActiveHeapAllocator = SlabAllocator; // Elite default: High performance SLAB
 
     // PMM Selection (current default page allocator policy)
     pub type ActivePageAllocator = BitmapAllocator;
@@ -95,6 +95,7 @@ unsafe impl GlobalAlloc for JemallocLite {
         crate::klog_error!(
             "JemallocLite alloc invoked unexpectedly (unsupported allocator profile), aborting"
         );
+        crate::klog_warn!("Elite Engineering Note: Use SlabAllocator for bare-metal targets.");
         crate::kernel::fatal_halt("unsupported_allocator_profile")
     }
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}

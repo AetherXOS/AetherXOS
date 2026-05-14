@@ -1,6 +1,6 @@
 use std::process::Command;
 
-#[test]
+#[test_case]
 fn test_file_io_read_write() {
     let output = Command::new("sh")
         .arg("-c")
@@ -12,7 +12,7 @@ fn test_file_io_read_write() {
     assert!(stdout.contains("test"), "File content not correct");
 }
 
-#[test]
+#[test_case]
 fn test_stdout_stderr_operations() {
     let output = Command::new("sh")
         .arg("-c")
@@ -24,7 +24,7 @@ fn test_stdout_stderr_operations() {
     assert!(stdout.contains("Hello stdout"), "stdout not working");
 }
 
-#[test]
+#[test_case]
 fn test_directory_operations() {
     let output = Command::new("sh")
         .arg("-c")
@@ -36,7 +36,7 @@ fn test_directory_operations() {
     assert!(stdout.contains("/") || stdout.contains("root"), "Directory navigation failed");
 }
 
-#[test]
+#[test_case]
 fn test_pipe_and_redirection() {
     let output = Command::new("sh")
         .arg("-c")
@@ -48,7 +48,7 @@ fn test_pipe_and_redirection() {
     assert!(stdout.contains("line1"), "Pipe output incorrect");
 }
 
-#[test]
+#[test_case]
 fn test_file_permissions() {
     let output = Command::new("sh")
         .arg("-c")
@@ -60,7 +60,7 @@ fn test_file_permissions() {
     assert!(stdout.len() > 0, "Permission check didn't produce output");
 }
 
-#[test]
+#[test_case]
 fn test_symlinks() {
     let output = Command::new("sh")
         .arg("-c")
@@ -72,7 +72,7 @@ fn test_symlinks() {
     assert!(stdout.contains("target"), "Symlink resolution failed");
 }
 
-#[test]
+#[test_case]
 fn test_hard_links() {
     let output = Command::new("sh")
         .arg("-c")
@@ -84,7 +84,7 @@ fn test_hard_links() {
     assert!(stdout.contains("content"), "Hard link resolution failed");
 }
 
-#[test]
+#[test_case]
 fn test_glob_patterns() {
     let output = Command::new("sh")
         .arg("-c")
@@ -94,7 +94,7 @@ fn test_glob_patterns() {
     assert!(output.is_ok(), "Glob patterns failed");
 }
 
-#[test]
+#[test_case]
 fn test_device_files() {
     let output = Command::new("sh")
         .arg("-c")
@@ -106,7 +106,7 @@ fn test_device_files() {
     assert!(stdout.contains("4"), "Device file operations not working");
 }
 
-#[test]
+#[test_case]
 fn test_proc_filesystem() {
     let output = Command::new("sh")
         .arg("-c")
@@ -116,7 +116,7 @@ fn test_proc_filesystem() {
     assert!(output.is_ok(), "procfs operations failed");
 }
 
-#[test]
+#[test_case]
 fn test_file_deletion() {
     let output = Command::new("sh")
         .arg("-c")
@@ -128,7 +128,7 @@ fn test_file_deletion() {
     assert!(stdout.contains("deleted"), "File deletion not working");
 }
 
-#[test]
+#[test_case]
 fn test_directory_removal() {
     let output = Command::new("sh")
         .arg("-c")
@@ -140,7 +140,7 @@ fn test_directory_removal() {
     assert!(stdout.contains("removed"), "Directory removal not working");
 }
 
-#[test]
+#[test_case]
 fn test_complex_pipeline() {
     let output = Command::new("sh")
         .arg("-c")
@@ -152,7 +152,7 @@ fn test_complex_pipeline() {
     assert!(stdout.contains("a"), "Pipeline output incorrect");
 }
 
-#[test]
+#[test_case]
 fn test_multiple_file_descriptors() {
     let output = Command::new("sh")
         .arg("-c")
@@ -171,3 +171,4 @@ fn test_multiple_file_descriptors() {
     let stdout = String::from_utf8_lossy(&output.unwrap().stdout);
     assert!(stdout.contains("fd3") && stdout.contains("fd4"), "Multiple file descriptor handling failed");
 }
+

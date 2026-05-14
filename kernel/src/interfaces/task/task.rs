@@ -418,3 +418,22 @@ impl KernelTask {
         self
     }
 }
+
+// Pillar III: Implement KObject for unified resource management
+impl crate::interfaces::kobject::KObject for KernelTask {
+    fn id(&self) -> u64 {
+        self.id.0 as u64
+    }
+
+    fn kind(&self) -> crate::interfaces::kobject::ObjectKind {
+        crate::interfaces::kobject::ObjectKind::Task
+    }
+
+    fn security_context(&self) -> Option<&SecurityContext> {
+        Some(&self.security_ctx)
+    }
+
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+}

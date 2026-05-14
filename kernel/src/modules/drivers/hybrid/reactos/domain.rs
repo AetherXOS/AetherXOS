@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use super::{
     NtExecutionPolicy, NtImportBinding, NtImportDomain, NtImportDomainCounts,
     NtImportResolutionReport, NtSymbol, NtSymbolTable, PeImportName,

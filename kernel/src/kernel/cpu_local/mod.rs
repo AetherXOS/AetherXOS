@@ -14,6 +14,7 @@ pub struct CpuLocal {
     #[cfg(feature = "ring_protection")]
     pub kernel_stack_top: core::sync::atomic::AtomicUsize, // Offset 16 (Top of Kernel Stack for this task)
     pub current_task: AtomicUsize, // Offset 8 or 24
+    pub current_process_id: AtomicUsize, // Offset 32
     pub is_user_mode: core::sync::atomic::AtomicBool,
     pub heartbeat_tick: AtomicU64,
     pub idle_stack_pointer: AtomicUsize,
@@ -141,6 +142,17 @@ impl CpuLocal {
             // We are returning to the top-level (user space).
             self.is_user_mode.store(true, Ordering::SeqCst);
         }
+    }
+
+    #[inline(always)]
+    pub fn set_current_context(&self, tid: TaskId, pid: usize) {
+        self.current_task.store(tid.0, Ordering::Relaxed);
+        self.current_process_id.store(pid, Ordering::Relaxed);
+    }
+
+    #[inline(always)]
+    pub fn current_pid(&self) -> usize {
+        self.current_process_id.load(Ordering::Relaxed)
     }
 
     /// Update telemetry during a context switch.

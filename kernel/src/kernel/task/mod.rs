@@ -8,6 +8,7 @@
 
 pub use crate::interfaces::task::*;
 use alloc::sync::Arc;
+use alloc::format;
 use crate::kernel::sync::IrqSafeMutex;
 use crate::core::log;
 

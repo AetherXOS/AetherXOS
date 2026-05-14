@@ -23,6 +23,12 @@ pub struct RamFile {
     pub cursor: usize,
 }
 
+impl RamFile {
+    pub fn new(content: Vec<u8>) -> Self {
+        Self { content, cursor: 0 }
+    }
+}
+
 impl File for RamFile {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, &'static str> {
         if self.cursor > self.content.len() {
@@ -123,6 +129,123 @@ impl File for RamFile {
         Ok(Box::new(RamFile {
             content: self.content.clone(),
             cursor: self.cursor,
+        }))
+    }
+}
+
+pub struct AnonymousRamFile {
+    pub content: Arc<Mutex<Vec<u8>>>,
+    pub cursor: usize,
+    pub seals: Arc<Mutex<u32>>,
+}
+
+impl AnonymousRamFile {
+    pub fn new(content: Arc<Mutex<Vec<u8>>>) -> Self {
+        Self {
+            content,
+            cursor: 0,
+            seals: Arc::new(Mutex::new(0)),
+        }
+    }
+}
+
+impl File for AnonymousRamFile {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, &'static str> {
+        let content = self.content.lock();
+        if self.cursor >= content.len() {
+            return Ok(0);
+        }
+        let remaining = content.len() - self.cursor;
+        let read_len = core::cmp::min(remaining, buf.len());
+        buf[..read_len].copy_from_slice(&content[self.cursor..self.cursor + read_len]);
+        self.cursor += read_len;
+        Ok(read_len)
+    }
+
+    fn write(&mut self, buf: &[u8]) -> Result<usize, &'static str> {
+        let seals = self.seals.lock();
+        if (*seals & 0x08) != 0 { // F_SEAL_WRITE
+            return Err("file is sealed for writing");
+        }
+        
+        let mut content = self.content.lock();
+        let end = self.cursor + buf.len();
+        
+        if end > content.len() && (*seals & 0x04) != 0 { // F_SEAL_GROW
+            return Err("file is sealed for growth");
+        }
+
+        if end > content.len() {
+            content.resize(end, 0);
+        }
+        content[self.cursor..end].copy_from_slice(buf);
+        self.cursor = end;
+        Ok(buf.len())
+    }
+
+    fn seek(&mut self, pos: SeekFrom) -> Result<u64, &'static str> {
+        let len = self.content.lock().len();
+        let next = match pos {
+            SeekFrom::Start(off) => off as usize,
+            SeekFrom::End(delta) => (len as i64 + delta) as usize,
+            SeekFrom::Current(delta) => (self.cursor as i64 + delta) as usize,
+        };
+        self.cursor = next;
+        Ok(self.cursor as u64)
+    }
+
+    fn flush(&mut self) -> Result<(), &'static str> { Ok(()) }
+
+    fn stat(&self) -> Result<crate::modules::vfs::types::FileStats, &'static str> {
+        let len = self.content.lock().len() as u64;
+        Ok(crate::modules::vfs::types::FileStats {
+            size: len,
+            mode: 0o666,
+            uid: 0,
+            gid: 0,
+            blksize: 4096,
+            blocks: (len + 511) / 512,
+            ..crate::modules::vfs::types::FileStats::default()
+        })
+    }
+
+    fn truncate(&mut self, size: u64) -> Result<(), &'static str> {
+        let seals = self.seals.lock();
+        let mut content = self.content.lock();
+        let current_len = content.len() as u64;
+        
+        if size < current_len && (*seals & 0x02) != 0 { // F_SEAL_SHRINK
+            return Err("file is sealed for shrinking");
+        }
+        if size > current_len && (*seals & 0x04) != 0 { // F_SEAL_GROW
+            return Err("file is sealed for growth");
+        }
+
+        content.resize(size as usize, 0);
+        Ok(())
+    }
+
+    fn mmap(&self, offset: u64, len: usize) -> Result<Arc<Mutex<alloc::vec::Vec<u8>>>, &'static str> {
+        // For anonymous files, we can just return a clone of the Arc if len matches?
+        // No, standard mmap behavior is required.
+        let content = self.content.lock();
+        let mut data = alloc::vec![0u8; len];
+        let off = offset as usize;
+        if off < content.len() {
+            let n = core::cmp::min(len, content.len() - off);
+            data[..n].copy_from_slice(&content[off..off + n]);
+        }
+        Ok(Arc::new(Mutex::new(data)))
+    }
+
+    fn as_any(&self) -> &dyn core::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any { self }
+
+    fn try_clone(&self) -> Result<Box<dyn File>, &'static str> {
+        Ok(Box::new(AnonymousRamFile {
+            content: self.content.clone(),
+            cursor: self.cursor,
+            seals: self.seals.clone(),
         }))
     }
 }

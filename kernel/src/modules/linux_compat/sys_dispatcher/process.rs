@@ -75,7 +75,6 @@ pub fn dispatch_process(
             f.u2(),
         )),
         linux_nr::GETSID => Some(crate::modules::linux_compat::cred::sys_linux_getsid(f.a1)),
-        linux_nr::GETTID => Some(crate::modules::linux_compat::cred::sys_linux_gettid()),
         linux_nr::GETTIMEOFDAY => Some(crate::modules::linux_compat::time::sys_linux_gettimeofday(
             f.a1, f.a2,
         )),

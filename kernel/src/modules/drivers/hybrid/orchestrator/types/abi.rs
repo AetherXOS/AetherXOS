@@ -1,5 +1,6 @@
 use super::super::super::liblinux::{LibLinuxConformanceRisk, LibLinuxSemanticClass, LinuxSyscall};
 use super::super::super::LinuxIoRequestKind;
+use alloc::vec::Vec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HybridUserspaceAbiContractRow {

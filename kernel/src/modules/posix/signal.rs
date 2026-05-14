@@ -37,11 +37,12 @@ static SIGNAL_PENDING_QUEUED: AtomicU64 = AtomicU64::new(0);
 const POSIX_MINSIGSTKSZ: u64 = 2048;
 
 lazy_static! {
-    static ref SIGNAL_MASKS: Mutex<BTreeMap<usize, SigSet>> = Mutex::new(BTreeMap::new());
-    pub(crate) static ref SIGNAL_PENDING: Mutex<BTreeMap<usize, BTreeSet<i32>>> =
-        Mutex::new(BTreeMap::new());
-    pub(crate) static ref SIGNAL_ACTIONS: Mutex<BTreeMap<(usize, i32), SignalAction>> =
-        Mutex::new(BTreeMap::new());
+    static ref SIGNAL_MASKS: crate::kernel::sync::IrqSafeMutex<BTreeMap<usize, SigSet>> = 
+        crate::kernel::sync::IrqSafeMutex::new(BTreeMap::new());
+    pub(crate) static ref SIGNAL_PENDING: crate::kernel::sync::IrqSafeMutex<BTreeMap<usize, BTreeSet<i32>>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeMap::new());
+    pub(crate) static ref SIGNAL_ACTIONS: crate::kernel::sync::IrqSafeMutex<BTreeMap<(usize, i32), SignalAction>> =
+        crate::kernel::sync::IrqSafeMutex::new(BTreeMap::new());
 }
 
 #[inline(always)]

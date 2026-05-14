@@ -42,7 +42,7 @@ pub fn delay_ms(ms: u64) {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_cycle_count_increases() {
         let c1 = cycle_count();
         let c2 = cycle_count();
@@ -51,7 +51,7 @@ mod tests {
         assert!(c2 >= c1);
     }
 
-    #[test]
+    #[test_case]
     fn test_delay_cycles() {
         let start = cycle_count();
         delay_cycles(1000);

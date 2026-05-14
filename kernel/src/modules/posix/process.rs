@@ -20,6 +20,8 @@ mod runtime_control;
 mod lifecycle_ops;
 #[path = "process/process_groups.rs"]
 mod process_groups;
+#[path = "process/pidfd.rs"]
+pub mod pidfd;
 pub use identity_env::{
     clearenv, current_umask, environ_snapshot, get_domainname, get_groups_len, get_groups_snapshot,
     get_hostname, get_personality, getdomainname, getegid, getenv, geteuid, getgid, getgroups,
@@ -146,11 +148,11 @@ impl PosixRusage {
 fn get_page_fault_stats(pid: usize) -> (u64, u64) {
     #[cfg(feature = "process_abstraction")]
     {
-        if let Some((_regions, pages)) =
-            crate::kernel::launch::process_mapping_state(crate::interfaces::task::ProcessId(pid))
-        {
-            let p = pages as u64;
-            (p, p / 8) // Dummy distribution
+        if let Some(proc) = crate::kernel::launch::process_arc_by_id(crate::interfaces::task::ProcessId(pid)) {
+            (
+                proc.min_faults.load(Ordering::Relaxed),
+                proc.maj_faults.load(Ordering::Relaxed)
+            )
         } else {
             (0, 0)
         }
@@ -298,8 +300,11 @@ fn pid_for_tid(task_id: usize) -> Option<usize> {
 
 #[inline(always)]
 pub fn getpid() -> usize {
-    // Fallback implementation when process abstraction is not available
-    gettid()
+    unsafe { 
+        crate::kernel::cpu_local::CpuLocal::try_get()
+            .map(|cpu| cpu.current_pid())
+            .unwrap_or(0)
+    }
 }
 
 #[inline(always)]

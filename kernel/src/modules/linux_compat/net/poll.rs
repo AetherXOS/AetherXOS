@@ -85,19 +85,20 @@ pub fn sys_linux_epoll_ctl(
             (0u32, 0u64)
         };
 
-        match crate::modules::posix::net::epoll_ctl_with_data(
-            epfd.as_u32(), op_i32, fd.as_u32(), events, data
+        let _ = data;
+        match crate::modules::posix::net::epoll_ctl_typed(
+            epfd.as_u32(),
+            match op_i32 {
+                crate::modules::posix_consts::net::EPOLL_CTL_ADD => crate::modules::posix::net::EpollCtlOp::Add,
+                crate::modules::posix_consts::net::EPOLL_CTL_DEL => crate::modules::posix::net::EpollCtlOp::Del,
+                crate::modules::posix_consts::net::EPOLL_CTL_MOD => crate::modules::posix::net::EpollCtlOp::Mod,
+                _ => return linux_inval(),
+            },
+            fd.as_u32(),
+            events,
         ) {
             Ok(()) => 0,
-            Err(_) => {
-                // Fallback to legacy API that ignores data
-                match crate::modules::posix::net::epoll_ctl(
-                    epfd.as_u32(), op_i32, fd.as_u32(), events
-                ) {
-                    Ok(()) => 0,
-                    Err(e) => linux_errno(e.code()),
-                }
-            }
+            Err(e) => linux_errno(e.code()),
         }
     })
 }
@@ -138,38 +139,32 @@ pub fn sys_linux_epoll_pwait(
         };
 
         run_with_temporary_sigmask(temp_mask, || {
-            // Try extended API first (preserves user data field)
-            let result = crate::modules::posix::net::epoll_pwait_with_data(
-                epfd.as_u32(), maxevents, retries, temp_mask
-            );
+            let timeout = if timeout < 0 {
+                None
+            } else {
+                let timeout_ms = timeout as u128;
+                let sec = (timeout_ms / 1000) as i64;
+                let nsec = ((timeout_ms % 1000) * 1_000_000) as i32;
+                Some(crate::modules::posix::net::EpollTimeout { sec, nsec })
+            };
 
-            match result {
+            match crate::modules::posix::net::epoll_pwait2(
+                epfd.as_u32(),
+                maxevents,
+                timeout,
+                temp_mask,
+            ) {
                 Ok(events) => {
                     for (i, ev) in events.iter().enumerate() {
-                        // Return user's original data verbatim, not just fd
                         let linux_ev = LinuxEpollEvent {
                             events: ev.events,
-                            data:   ev.data, // user-supplied opaque cookie
+                            data: ev.fd as u64,
                         };
                         if let Err(e) = events_ptr.add(i).write(&linux_ev) { return e; }
                     }
                     events.len()
                 }
-                Err(_) => {
-                    // Fallback to legacy (data = fd)
-                    match crate::modules::posix::net::epoll_pwait(epfd.as_u32(), maxevents, retries, temp_mask) {
-                        Ok(events) => {
-                            for (i, ev) in events.iter().enumerate() {
-                                if let Err(e) = events_ptr.add(i).write(&LinuxEpollEvent {
-                                    events: ev.events,
-                                    data: ev.fd as u64,
-                                }) { return e; }
-                            }
-                            events.len()
-                        }
-                        Err(e) => linux_errno(e.code()),
-                    }
-                }
+                Err(e) => linux_errno(e.code()),
             }
         })
     })
@@ -220,7 +215,7 @@ macro_rules! read_poll_fds {
     ($fds_ptr:expr, $nfds:expr) => {{
         let mut poll_fds = alloc::vec::Vec::with_capacity($nfds);
         for i in 0..$nfds {
-            let ufd = match $fds_ptr.add(i).read() { Ok(v) => v, Err(e) => return Err(e) };
+            let ufd = match $fds_ptr.add(i).read() { Ok(v) => v, Err(e) => return e };
             poll_fds.push(crate::modules::libnet::PosixPollFd {
                 fd: ufd.fd as u32,
                 events: crate::modules::libnet::PosixPollEvents::from_bits_truncate(ufd.events as u16),
@@ -240,9 +235,8 @@ macro_rules! write_poll_fds {
                 events: kfd.events.bits() as i16,
                 revents: kfd.revents.bits() as i16,
             };
-            if let Err(e) = $fds_ptr.add(i).write(&ufd) { return Err(e); }
+            if let Err(e) = $fds_ptr.add(i).write(&ufd) { return e; }
         }
-        Ok(())
     }};
 }
 
@@ -257,10 +251,7 @@ pub fn sys_linux_ppoll(
     crate::require_posix_net!((fds_ptr, nfds, timeout_ptr, sigmask, sigsetsize) => {
         if nfds > MAX_POLL_FDS { return linux_errno(crate::modules::posix_consts::errno::EINVAL); }
 
-        let mut poll_fds = match read_poll_fds!(fds_ptr, nfds) {
-            Ok(fds) => fds,
-            Err(e) => return e,
-        };
+        let mut poll_fds = read_poll_fds!(fds_ptr, nfds);
 
         let retries = match retries_from_timespec(timeout_ptr) {
             Ok(v) => v,
@@ -275,10 +266,8 @@ pub fn sys_linux_ppoll(
         run_with_temporary_sigmask(temp_mask, || {
             match crate::modules::libnet::posix_poll_errno(&mut poll_fds, retries) {
                 Ok(count) => {
-                    match write_poll_fds!(fds_ptr, poll_fds, nfds) {
-                        Ok(()) => count,
-                        Err(e) => e,
-                    }
+                    write_poll_fds!(fds_ptr, poll_fds, nfds);
+                    count
                 }
                 Err(e) => linux_errno(e.code()),
             }
@@ -293,7 +282,7 @@ macro_rules! read_fd_set {
         } else {
             match $fd_set.read() {
                 Ok(set) => collect_fd_set(&set, $nfds),
-                Err(e) => return Err(e),
+                Err(e) => return e,
             }
         }
     };
@@ -303,9 +292,8 @@ macro_rules! write_fd_set {
     ($fd_set:expr, $fds:expr, $nfds:expr) => {
         if !$fd_set.is_null() {
             let out = build_fd_set($fds, $nfds);
-            if let Err(e) = $fd_set.write(&out) { return Err(e); }
+            if let Err(e) = $fd_set.write(&out) { return e; }
         }
-        Ok(())
     };
 }
 
@@ -339,18 +327,9 @@ pub fn sys_linux_select(
             Err(e) => return linux_errno(e.code()),
         };
 
-        match write_fd_set!(readfds, result.readable, nfds) {
-            Ok(()) => {},
-            Err(e) => return e,
-        }
-        match write_fd_set!(writefds, result.writable, nfds) {
-            Ok(()) => {},
-            Err(e) => return e,
-        }
-        match write_fd_set!(exceptfds, result.exceptional, nfds) {
-            Ok(()) => {},
-            Err(e) => return e,
-        }
+        write_fd_set!(readfds, result.readable.as_slice(), nfds);
+        write_fd_set!(writefds, result.writable.as_slice(), nfds);
+        write_fd_set!(exceptfds, result.exceptional.as_slice(), nfds);
 
         result.readable.len() + result.writable.len() + result.exceptional.len()
     })
@@ -419,18 +398,9 @@ pub fn sys_linux_pselect6(
             Err(e) => return e,
         };
 
-        match write_fd_set!(readfds, result_sets.readable, nfds) {
-            Ok(()) => {},
-            Err(e) => return e,
-        }
-        match write_fd_set!(writefds, result_sets.writable, nfds) {
-            Ok(()) => {},
-            Err(e) => return e,
-        }
-        match write_fd_set!(exceptfds, result_sets.exceptional, nfds) {
-            Ok(()) => {},
-            Err(e) => return e,
-        }
+        write_fd_set!(readfds, result_sets.readable.as_slice(), nfds);
+        write_fd_set!(writefds, result_sets.writable.as_slice(), nfds);
+        write_fd_set!(exceptfds, result_sets.exceptional.as_slice(), nfds);
 
         result_sets.readable.len() + result_sets.writable.len() + result_sets.exceptional.len()
     })

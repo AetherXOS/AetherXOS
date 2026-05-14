@@ -15,15 +15,20 @@ pub fn sys_linux_openat2(
             return e;
         }
 
+        let (fs_id, dir_path, path) = resolve_at!(dirfd, pathname_ptr);
+        
         // RESOLVE_* flags handling (Security checks)
-        // If we see unknown bits in resolve field, return EINVAL as per Linux spec.
-        if (how.resolve & !(linux::openat2::RESOLVE_ALLOWED_MASK as u64)) != 0 {
-            return linux_inval();
+        let rflags = crate::modules::vfs::types::ResolveFlags::from_bits_truncate(how.resolve as u32);
+        
+        match crate::modules::posix::fs::openat2(fs_id, &dir_path, &path, (how.flags as usize & 0o100) != 0, rflags) {
+            Ok(fd) => {
+                if (how.flags as usize & 0o1000) != 0 { // O_TRUNC
+                    let _ = crate::modules::posix::fs::ftruncate(fd, 0);
+                }
+                super::file::apply_linux_open_post_flags(fd, how.flags as usize);
+                fd as usize
+            }
+            Err(err) => linux_errno(err.code()),
         }
-
-        // For production-grade, we delegate actual security enforcement to the VFS.
-        // Here we pass flags/mode to openat but we should logically pass the 'how' structure
-        // to a VFS that understands RESOLVE_BENEATH, RESOLVE_NO_SYMLINKS, etc.
-        super::file::sys_linux_openat(dirfd, pathname_ptr, how.flags as usize, how.mode as usize)
     })
 }

@@ -182,6 +182,7 @@ pub mod fs {
     pub const O_EXCL: i32 = 0o200;
     pub const O_APPEND: i32 = 0o2000;
     pub const O_TRUNC: i32 = 0o1000;
+    pub const O_NONBLOCK: u32 = crate::modules::posix_consts::net::O_NONBLOCK;
     pub const FALLOC_FL_KEEP_SIZE: u32 = 0x01;
     pub const FALLOC_FL_PUNCH_HOLE: u32 = 0x02;
 }

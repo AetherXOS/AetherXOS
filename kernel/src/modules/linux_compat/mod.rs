@@ -52,6 +52,12 @@ pub mod process_group_syscalls;
 pub use self::process_group_syscalls::*;
 pub mod audit;
 pub use self::audit::*;
+pub mod io_uring;
+pub use self::io_uring::*;
+pub mod landlock_abi;
+pub use self::landlock_abi::*;
+pub mod seccomp;
+pub use self::seccomp::*;
 pub mod standards;
 
 #[cfg(feature = "ring_protection")]
@@ -73,7 +79,6 @@ pub fn init() {
     // Seed the PRNG from hardware RDRAND where available.
     #[cfg(target_arch = "x86_64")]
     {
-        crate::hal::serial::write_raw("[EARLY SERIAL] linux compat seed begin\n");
         let seed: u64 = {
             let mut v: u64 = 0xDEAD_BEEF_CAFE_BABE;
             #[cfg(target_os = "none")]
@@ -90,22 +95,22 @@ pub fn init() {
             }
             #[cfg(not(target_os = "none"))]
             {
-                v = 0x1234_5678_9ABC_DEF0; // Dummy seed for host
+                v = 0x1234_5678_9ABC_DEF0; // Deterministic seed for host tests
             }
             v
         };
         crate::modules::linux_compat::config::set_prng_seed(seed);
-        crate::hal::serial::write_raw("[EARLY SERIAL] linux compat seed returned\n");
+        #[cfg(debug_assertions)]
+        crate::hal::serial::write_raw("[BOOT] linux_compat: prng seeded\n");
     }
 
     // Initialise the standards dispatcher index.
     #[cfg(feature = "ring_protection")]
     {
-        #[cfg(target_arch = "x86_64")]
-        crate::hal::serial::write_raw("[EARLY SERIAL] linux compat dispatch index begin\n");
         crate::modules::linux_compat::sys_dispatcher::init_dispatch_index();
+        #[cfg(debug_assertions)]
         #[cfg(target_arch = "x86_64")]
-        crate::hal::serial::write_raw("[EARLY SERIAL] linux compat dispatch index returned\n");
+        crate::hal::serial::write_raw("[BOOT] linux_compat: dispatch index ready\n");
     }
 
     #[cfg(feature = "vfs")]
@@ -145,7 +150,5 @@ pub fn init() {
         }
     }
 
-    #[cfg(target_arch = "x86_64")]
-    crate::hal::serial::write_raw("[EARLY SERIAL] linux compat init complete\n");
     crate::klog_info!("[linux_compat] init complete");
 }

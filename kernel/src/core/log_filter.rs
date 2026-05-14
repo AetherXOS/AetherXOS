@@ -155,26 +155,26 @@ pub fn get_subsystem_log_level(subsystem: &str) -> LogLevelValue {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_log_level_ordering() {
         assert!(LogLevelValue::Error > LogLevelValue::Info);
         assert!(LogLevelValue::Trace < LogLevelValue::Debug);
     }
 
-    #[test]
+    #[test_case]
     fn test_log_level_from_str() {
         assert_eq!(LogLevelValue::from_str("trace"), Some(LogLevelValue::Trace));
         assert_eq!(LogLevelValue::from_str("ERROR"), Some(LogLevelValue::Error));
         assert_eq!(LogLevelValue::from_str("invalid"), None);
     }
 
-    #[test]
+    #[test_case]
     fn test_log_level_as_str() {
         assert_eq!(LogLevelValue::Info.as_str(), "INFO");
         assert_eq!(LogLevelValue::Warn.as_str(), "WARN");
     }
 
-    #[test]
+    #[test_case]
     fn test_should_log_filtering() {
         // Set global level to Warn
         set_global_log_level(LogLevelValue::Warn);
@@ -190,7 +190,7 @@ mod tests {
         set_global_log_level(LogLevelValue::Info);
     }
 
-    #[test]
+    #[test_case]
     fn test_subsystem_log_level_override() {
         // Globally set to Warn
         set_global_log_level(LogLevelValue::Warn);
@@ -209,7 +209,7 @@ mod tests {
         set_subsystem_log_level("scheduler", LogLevelValue::Info);
     }
 
-    #[test]
+    #[test_case]
     fn test_get_log_level() {
         set_global_log_level(LogLevelValue::Debug);
         assert_eq!(get_global_log_level(), LogLevelValue::Debug);

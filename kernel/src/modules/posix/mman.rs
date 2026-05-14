@@ -26,6 +26,17 @@ lazy_static! {
 static NEXT_ANON_MAP_ID: AtomicU32 = AtomicU32::new(1_000_000);
 static MLOCKALL_MODE: AtomicU32 = AtomicU32::new(0);
 
+pub fn mmap_physical_frames(map_id: u32, offset: usize, len: usize) -> Result<alloc::vec::Vec<u64>, PosixErrno> {
+    if MMAP_STATES.lock().contains_key(&map_id) {
+        if ANON_MAP_DATA.lock().contains_key(&map_id) {
+            return Err(PosixErrno::NotSupported);
+        }
+        crate::modules::posix::fs::mmap_physical(map_id, offset, len)
+    } else {
+        Err(PosixErrno::BadFileDescriptor)
+    }
+}
+
 #[inline(always)]
 fn valid_prot(prot: u32) -> bool {
     let allowed = crate::modules::posix_consts::mman::PROT_READ

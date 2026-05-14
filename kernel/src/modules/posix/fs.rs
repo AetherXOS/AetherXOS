@@ -1,11 +1,12 @@
 use crate::interfaces::TaskId;
+use crate::kernel::sync::IrqSafeMutex;
 use crate::modules::vfs::devfs::{DevFs, DevFsEvent, DevFsEventSnapshot, DeviceMetadata};
 use crate::modules::vfs::FileSystem;
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
 use alloc::string::String;
 use alloc::sync::Arc;
-use core::sync::atomic::{AtomicU32, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use spin::Mutex;
 
 use super::{time::PosixTimespec, PosixErrno};
@@ -42,6 +43,10 @@ mod lifecycle_support;
 mod types_support;
 #[path = "fs/file_types_support.rs"]
 mod file_types_support;
+pub use file_types_support::BoxedFile;
+#[path = "fs/memfd_support.rs"]
+mod memfd_support;
+pub use memfd_support::memfd_create;
 pub use state_support::{
     CWD_INDEX, DEVFS_CONTEXTS, DIR_TABLE, FILE_INDEX, FILE_TABLE, FS_CONTEXTS, MMAP_TABLE,
     NEXT_DIRFD, NEXT_FD, NEXT_FS_ID, NEXT_MAP_ID, POSIX_DESCRIPTOR_CLOEXEC,
@@ -56,10 +61,10 @@ pub use fd_support::{
     fcntl_set_status_flags, get_file_description, ioctl, register_file_description,
 };
 pub use inotify_support::{inotify_add_watch, inotify_init, inotify_rm_watch};
-pub use mmap_support::{mmap, mmap_read, mmap_write, msync, munmap};
+pub use mmap_support::{mmap, mmap_physical, mmap_read, mmap_write, msync, munmap};
 pub use path_support::{
-    chdir, faccessat, fstatat, getcwd, linkat, mkdirat, openat, readlinkat, realpath, renameat,
-    resolve_at_path, symlinkat, unlinkat,
+    chdir, faccessat, fstatat, getcwd, linkat, mkdirat, openat, openat2, readlinkat, realpath,
+    renameat, resolve_at_path, symlinkat, unlinkat,
 };
 
 pub use io_support::{

@@ -144,22 +144,23 @@ impl<const BASE: usize> InterruptController<BASE> {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_irq_vector_ordering() {
         let v0 = IrqVector(0);
         let v1 = IrqVector(1);
         assert!(v0 < v1);
     }
 
-    #[test]
+    #[test_case]
     fn test_irq_capability() {
         let cap = IrqMaskCapability::new(IrqVector(32));
         assert_eq!(cap.vector(), IrqVector(32));
     }
 
-    #[test]
+    #[test_case]
     fn test_interrupt_controller_creation() {
         let _ic: InterruptController<0xFEE00000> = InterruptController::new();
         // Verify creation without panicking.
     }
 }
+

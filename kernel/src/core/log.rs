@@ -64,7 +64,7 @@ pub fn error(message: &str) {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_log_levels() {
         // Verify that log functions can be called without panicking.
         // Actual output testing requires serial device initialization.

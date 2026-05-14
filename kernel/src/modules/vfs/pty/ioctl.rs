@@ -10,6 +10,7 @@ pub(crate) enum PtyIoctlSide {
     Slave,
 }
 
+#[macro_export]
 macro_rules! ioctl_write {
     ($arg:expr, $ty:ty, $value:expr) => {{
         if $arg == 0 {
@@ -21,6 +22,7 @@ macro_rules! ioctl_write {
     }};
 }
 
+#[macro_export]
 macro_rules! ioctl_read {
     ($arg:expr, $ty:ty, $handler:expr) => {{
         if $arg == 0 {
@@ -53,7 +55,7 @@ pub(crate) fn handle_common_ioctl(
         TIOCGPGRP => ioctl_write!(arg, i32, pair.fg_pgid()),
         TIOCSPGRP => ioctl_read!(arg, i32, |fg_pgid| {
             if fg_pgid <= 0 {
-                return Err("EINVAL");
+                return None;
             }
             pair.set_fg_pgid(fg_pgid);
             Some(0)
@@ -79,7 +81,7 @@ pub(crate) fn handle_common_ioctl(
             #[cfg(not(feature = "posix_process"))]
             {
                 let _ = arg;
-                return Err("ENOTTY");
+                None
             }
         }
         TIOCNOTTY => {
@@ -93,7 +95,7 @@ pub(crate) fn handle_common_ioctl(
             #[cfg(not(feature = "posix_process"))]
             {
                 let _ = arg;
-                return Err("ENOTTY");
+                None
             }
         }
         FIONREAD => ioctl_write!(arg, i32, match side {

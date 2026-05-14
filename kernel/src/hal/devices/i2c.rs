@@ -220,7 +220,7 @@ impl<const BASE: usize> I2cDevice<BASE> {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_i2c_address() {
         let addr = I2cAddress::new(0x50);
         assert_eq!(addr.value(), 0x50);
@@ -229,14 +229,15 @@ mod tests {
         assert_eq!(addr_10.value(), 0x300);
     }
 
-    #[test]
+    #[test_case]
     fn test_i2c_speed() {
         assert_eq!(I2cSpeed::Standard as u32, 100_000);
         assert_eq!(I2cSpeed::Fast as u32, 400_000);
     }
 
-    #[test]
+    #[test_case]
     fn test_i2c_device_creation() {
         let _device: I2cDevice<0x40005000> = I2cDevice::new(I2cSpeed::Fast, I2cAddress::new(0x50));
     }
 }
+

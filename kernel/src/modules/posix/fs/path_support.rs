@@ -17,17 +17,39 @@ pub fn joined_child_path(dir: &str, name: &str) -> Result<String, PosixErrno> {
     }
 }
 
-pub fn resolve_at_path(fs_id: u32, dir: &str, path: &str) -> Result<String, PosixErrno> {
-    let _ = fs_id;
-    if path.starts_with('/') {
-        return normalize_path(path);
-    }
-    let dir_n = normalize_path(dir)?;
-    joined_child_path(&dir_n, path)
+pub fn resolve_at_path(_fs_id: u32, dir: &str, path: &str) -> Result<String, PosixErrno> {
+    resolve_at_path_secure(_fs_id, dir, path, crate::modules::vfs::types::ResolveFlags::empty())
+}
+
+pub fn resolve_at_path_secure(
+    _fs_id: u32,
+    dir: &str,
+    path: &str,
+    flags: crate::modules::vfs::types::ResolveFlags,
+) -> Result<String, PosixErrno> {
+    let mt_guard = crate::modules::vfs::mount_table::GLOBAL_MOUNT_TABLE.lock();
+    let mt = mt_guard.as_ref().ok_or(PosixErrno::BadFileDescriptor)?;
+    let pt = crate::modules::vfs::traversal::PathTraversal::new(mt);
+    
+    let tid = crate::interfaces::TaskId(0); // TODO: get current tid
+    
+    pt.resolve_path(path, tid, true, flags, Some(dir))
+        .map_err(|_| PosixErrno::NoEntry) // Simplification for now
 }
 
 pub fn openat(fs_id: u32, dir: &str, path: &str, create: bool) -> Result<u32, PosixErrno> {
-    let resolved = resolve_at_path(fs_id, dir, path)?;
+    let resolved = resolve_at_path_secure(fs_id, dir, path, crate::modules::vfs::types::ResolveFlags::empty())?;
+    open(fs_id, &resolved, create)
+}
+
+pub fn openat2(
+    fs_id: u32,
+    dir: &str,
+    path: &str,
+    create: bool,
+    flags: crate::modules::vfs::types::ResolveFlags,
+) -> Result<u32, PosixErrno> {
+    let resolved = resolve_at_path_secure(fs_id, dir, path, flags)?;
     open(fs_id, &resolved, create)
 }
 

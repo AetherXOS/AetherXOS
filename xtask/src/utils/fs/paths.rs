@@ -36,6 +36,11 @@ pub fn ensure_dir(dir: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Return a path to a test fixture file stored under `xtask/tests/fixtures/`.
+pub fn xtask_test_fixture(name: &str) -> PathBuf {
+    resolve(format!("xtask/tests/fixtures/{}", name))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

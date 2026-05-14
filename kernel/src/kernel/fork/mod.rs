@@ -194,7 +194,7 @@ pub fn do_fork(
     child_proc.parent_id.store(parent_pid.0, Ordering::Relaxed);
     child_proc.pgid.store(parent.pgid.load(Ordering::Relaxed), Ordering::Relaxed);
     child_proc.sid.store(parent.sid.load(Ordering::Relaxed), Ordering::Relaxed);
-    child_proc.security_level = parent.security_level;
+    child_proc.security_ctx.security_level = parent.security_ctx.security_level;
     child_proc.resource_limits = parent.resource_limits;
     child_proc.namespace_id.store(
         parent.namespace_id.load(Ordering::Relaxed),

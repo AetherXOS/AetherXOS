@@ -78,7 +78,8 @@ pub extern "C" fn _start() -> ! {
         unsafe {
             test_main();
         }
-        // After tests complete, halt
+        // Emit a clear success marker to serial and halt so external test runners can detect pass
+        aethercore::klog_info!("KERNEL_TESTS: PASS");
         loop {}
     }
 

@@ -7,12 +7,6 @@ macro_rules! read_msghdr {
     };
 }
 
-macro_rules! read_mmsghdr {
-    ($ptr:expr) => {
-        match $ptr.read() { Ok(v) => v, Err(_) => return Err(()) }
-    };
-}
-
 /// `recvfrom(2)` — Receive a message from a socket.
 pub fn sys_linux_recvfrom(
     fd: Fd,

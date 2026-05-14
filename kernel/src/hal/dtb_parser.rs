@@ -346,42 +346,42 @@ fn format_byte_string(prefix: &[u8], id: usize) -> [u8; 32] {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_dtb_device_creation() {
         let device = DtbDevice::new(b"uart0", 4, 0);
         assert_eq!(device.name_len, 5);
         assert_eq!(device.device_type, 4);
     }
 
-    #[test]
+    #[test_case]
     fn test_dtb_device_name() {
         let device = DtbDevice::new(b"gic", 1, 0);
         assert_eq!(device.name_str(), "gic");
     }
 
-    #[test]
+    #[test_case]
     fn test_fdt_header_size() {
         assert_eq!(core::mem::size_of::<FdtHeader>(), 40);
     }
 
-    #[test]
+    #[test_case]
     fn test_fdt_mem_rsv_size() {
         assert_eq!(core::mem::size_of::<FdtMemRsv>(), 16);
     }
 
-    #[test]
+    #[test_case]
     fn test_format_byte_string() {
         let result = format_byte_string(b"cpu", 0);
         assert_eq!(&result[..4], b"cpu0");
     }
 
-    #[test]
+    #[test_case]
     fn test_format_byte_string_double_digit() {
         let result = format_byte_string(b"cpu", 15);
         assert_eq!(&result[..5], b"cpu15");
     }
 
-    #[test]
+    #[test_case]
     fn test_fdt_constants() {
         assert_eq!(FDT_MAGIC, 0xd00dfeed);
         assert_eq!(FDT_BEGIN_NODE, 0x00000001);
@@ -398,3 +398,4 @@ pub fn enumerate_devices_from_dtb() -> Option<alloc::vec::Vec<crate::hal::abstra
     use alloc::vec;
     Some(vec![])
 }
+

@@ -81,7 +81,7 @@ impl BitMap {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_bitmap_basic() {
         let bm = BitMap::new(100);
         assert!(!bm.test(42));
@@ -91,7 +91,7 @@ mod tests {
         assert!(!bm.test(42));
     }
 
-    #[test]
+    #[test_case]
     fn test_bitmap_find_set() {
         let bm = BitMap::new(64);
         for i in 0..63 { bm.set(i); }
@@ -99,3 +99,4 @@ mod tests {
         assert_eq!(bm.find_and_set(), None);
     }
 }
+

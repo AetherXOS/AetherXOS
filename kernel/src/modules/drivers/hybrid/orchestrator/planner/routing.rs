@@ -14,6 +14,7 @@ use crate::modules::drivers::{DriverTransportKind, IrqGrant, MmioGrant};
 use super::super::{BackendPreference, HybridExecutionPlan, HybridPlanAttempt, HybridPlanDiagnostics,
     HybridRequest, HybridRequestKind, ReactOsImportResolution};
 use crate::modules::drivers::hybrid::UserModeDriverContext;
+use alloc::vec::Vec;
 
 pub fn fallback_order(preference: BackendPreference) -> [BackendPreference; 4] {
     match preference {

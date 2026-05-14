@@ -5,7 +5,7 @@ use super::logging::{
 };
 use crate::kernel_runtime::KernelRuntime;
 
-pub(super) fn probe_and_init_primary_driver(
+pub fn probe_and_init_primary_driver(
     runtime: &KernelRuntime,
     devices: &[aethercore::hal::pci::PciDevice],
     telemetry_drivers: bool,

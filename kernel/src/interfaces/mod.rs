@@ -1,3 +1,4 @@
+pub mod kobject;
 pub mod cpu;
 // Core trait modules
 pub mod boot;
@@ -39,3 +40,4 @@ pub use security::{
     SecurityMonitor, SecurityVerdict,
 };
 pub use task::{Context, KernelTask, ProcessId, TaskId, TaskState};
+pub use kobject::{KObject, ObjectKind, ObjectRef};

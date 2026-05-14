@@ -260,7 +260,7 @@ pub fn audit_syscall_event(
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_validation_zero_pid() {
         assert_eq!(
             validation::validate_pid(0),
@@ -268,12 +268,12 @@ mod tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn test_validation_valid_pid() {
         assert!(validation::validate_pid(1).is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_validation_allocation_size() {
         // Page size = 4096
         assert_eq!(
@@ -288,13 +288,13 @@ mod tests {
         assert!(validation::validate_allocation_size(8192).is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_error_as_str() {
         assert_eq!(IntegrationError::Critical.as_str(), "Critical");
         assert_eq!(IntegrationError::NotFound.as_str(), "NotFound");
     }
 
-    #[test]
+    #[test_case]
     fn test_diagnostics_snapshot() {
         let diag = IntegrationDiagnostics::snapshot();
         assert!(diag.scheduler_active);
@@ -302,3 +302,4 @@ mod tests {
         assert!(diag.vfs_permissions);
     }
 }
+

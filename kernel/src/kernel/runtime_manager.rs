@@ -185,20 +185,20 @@ impl RuntimeManager for ConcreteRuntimeManager {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_runtime_manager_creation() {
         let mgr = ConcreteRuntimeManager::new();
         assert_eq!(mgr.current_state(), RuntimeState::Initializing);
     }
 
-    #[test]
+    #[test_case]
     fn test_config_default() {
         let config = RuntimeConfig::default();
         assert!(config.preemption_enabled);
         assert_eq!(config.max_tasks, 1024);
     }
 
-    #[test]
+    #[test_case]
     fn test_config_validation() {
         let mgr = ConcreteRuntimeManager::new();
 
@@ -225,7 +225,7 @@ mod tests {
         assert!(mgr.set_config(bad_config).is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_stats_context_switch() {
         let mgr = ConcreteRuntimeManager::new();
         let initial = mgr.stats().context_switches;
@@ -236,7 +236,7 @@ mod tests {
         assert_eq!(after, initial + 1);
     }
 
-    #[test]
+    #[test_case]
     fn test_health_check_running() {
         let mgr = ConcreteRuntimeManager::new();
 
@@ -251,7 +251,7 @@ mod tests {
         assert!(mgr.check_health());
     }
 
-    #[test]
+    #[test_case]
     fn test_time_advancement() {
         let mgr = ConcreteRuntimeManager::new();
         let initial = mgr.stats().uptime_us;
@@ -262,7 +262,7 @@ mod tests {
         assert_eq!(after, initial + 1000);
     }
 
-    #[test]
+    #[test_case]
     fn test_snapshot() {
         let mgr = ConcreteRuntimeManager::new();
         mgr.set_state(RuntimeState::Ready).ok();
@@ -272,3 +272,4 @@ mod tests {
         assert!(snap.config.preemption_enabled);
     }
 }
+

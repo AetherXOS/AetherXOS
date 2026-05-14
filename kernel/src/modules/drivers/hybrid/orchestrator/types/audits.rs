@@ -1,4 +1,5 @@
 use super::{BackendPreference, HybridRequestKind};
+use alloc::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HybridCoverageRow {

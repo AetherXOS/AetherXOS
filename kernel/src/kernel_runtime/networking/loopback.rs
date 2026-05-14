@@ -11,7 +11,12 @@ impl KernelLoopbackNic {
 #[cfg(feature = "networking")]
 impl aethercore::modules::network::NetworkInterface for KernelLoopbackNic {
     fn send(&mut self, packet: aethercore::modules::network::Packet) -> Result<(), &'static str> {
-        aethercore::modules::network::ingest_raw_ethernet_frame(packet.data)
+        match packet.data {
+            aethercore::modules::network::types::PacketData::Buffer(frame) => {
+                aethercore::modules::network::ingest_raw_ethernet_frame(frame)
+            }
+            aethercore::modules::network::types::PacketData::Physical { .. } => Err("EINVAL"),
+        }
     }
 
     fn receive(&mut self) -> Result<Option<aethercore::modules::network::Packet>, &'static str> {

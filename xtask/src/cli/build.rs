@@ -19,7 +19,7 @@ pub enum BuildAction {
         format: ImageFormat,
 
         /// Enable specific kernel feature gates (comma-separated: vfs,drivers,net,smp,test_mode)
-        #[arg(long, default_value = "vfs,drivers,logging,syscalls")]
+        #[arg(long, default_value = "vfs,drivers,net,smp,kernel_test_mode,graphics,usb,pci,acpi,logging,scheduler,memory_mgmt,syscalls,kvm,hardening,io_uring")]
         features: aethercore_common::KernelFeatures,
 
         /// Toggle LLVM/Rust optimization profiles flag
@@ -45,7 +45,7 @@ pub enum BuildAction {
         arch: TargetArch,
 
         /// Enable specific kernel feature gates
-        #[arg(long, default_value = "vfs,drivers,logging,syscalls")]
+        #[arg(long, default_value = "vfs,drivers,net,smp,kernel_test_mode,graphics,usb,pci,acpi,logging,scheduler,memory_mgmt,syscalls,kvm,hardening,io_uring")]
         features: aethercore_common::KernelFeatures,
 
         #[arg(long)]

@@ -9,6 +9,8 @@ mod privileged_admin;
 mod fd_async_sandbox;
 #[path = "handlers/misc_kernel_apis.rs"]
 mod misc_kernel_apis;
+#[path = "handlers/event_epoll.rs"]
+mod event_epoll;
 #[path = "handlers/capability_and_sysctl.rs"]
 mod capability_and_sysctl;
 #[path = "handlers/linux_abi.rs"]
@@ -18,7 +20,6 @@ mod runtime_state;
 use linux_abi::*;
 use runtime_state::*;
 pub use process_runtime::{sys_linux_execveat, sys_linux_rseq};
-pub use trace_seccomp::{sys_linux_ptrace, sys_linux_seccomp};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -78,9 +79,7 @@ pub(crate) use capability_and_sysctl::{
     sys_linux_rt_sigqueueinfo, sys_linux_sysctl, sys_linux_sysfs,
 };
 pub use fd_async_sandbox::{
-    sys_linux_cachestat, sys_linux_io_uring_enter, sys_linux_io_uring_register,
-    sys_linux_io_uring_setup, sys_linux_landlock_add_rule, sys_linux_landlock_create_ruleset,
-    sys_linux_landlock_restrict_self, sys_linux_memfd_secret, sys_linux_membarrier,
+    sys_linux_cachestat, sys_linux_memfd_secret, sys_linux_membarrier,
     sys_linux_pidfd_getfd, sys_linux_pidfd_open, sys_linux_pidfd_send_signal,
     sys_linux_process_madvise, sys_linux_process_mrelease, sys_linux_quotactl_fd,
     sys_linux_userfaultfd,
@@ -89,6 +88,10 @@ pub use misc_kernel_apis::{
     sys_linux_bpf, sys_linux_io_pgetevents, sys_linux_kexec_file_load, sys_linux_memfd_create,
     sys_linux_open_by_handle_at, sys_linux_pkey_alloc, sys_linux_pkey_free,
     sys_linux_pkey_mprotect, sys_linux_timer_create, sys_linux_timer_delete,
+};
+pub use event_epoll::{
+    sys_linux_epoll_create, sys_linux_epoll_create1, sys_linux_epoll_ctl, sys_linux_epoll_pwait,
+    sys_linux_epoll_wait, sys_linux_eventfd, sys_linux_eventfd2,
 };
 pub(crate) use misc_kernel_apis::sys_linux_clone3;
 pub use privileged_admin::{

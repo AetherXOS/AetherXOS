@@ -17,18 +17,11 @@ pub fn register_handle(
         fs_id,
         path: path.clone(),
         handle,
-        offset: Mutex::new(0),
-        flags: Mutex::new(if can_write { 0x2 } else { 0x0 }), // Simplified O_RDWR
+        offset: AtomicU64::new(0),
+        flags: AtomicU32::new(if can_write { 0x2 } else { 0x0 }), // Simplified O_RDWR
     });
 
-    let fd = NEXT_FD.fetch_add(1, Ordering::Relaxed);
-    FILE_TABLE.lock().insert(
-        fd,
-        PosixFileDesc {
-            file: shared,
-            cloexec: false,
-        },
-    );
+    let fd = register_file_description(shared);
     if fs_id != 0 {
         FILE_INDEX
             .lock()
@@ -132,17 +125,18 @@ pub fn read(fd: u32, buf: &mut [u8]) -> Result<usize, PosixErrno> {
             .clone()
     };
 
-    let mut offset = shared.offset.lock();
+    let old_off = shared.offset.load(Ordering::Acquire);
     let mut handle = shared.handle.lock();
-    let old_vfs_off = handle
-        .seek(crate::modules::vfs::SeekFrom::Current(0))
-        .unwrap_or(0);
-    let _ = handle.seek(crate::modules::vfs::SeekFrom::Start(*offset));
+    
+    // Performance: Avoid unnecessary seek if possible
+    let current_off = handle.seek(crate::modules::vfs::SeekFrom::Current(0)).unwrap_or(0);
+    if current_off != old_off {
+        let _ = handle.seek(crate::modules::vfs::SeekFrom::Start(old_off));
+    }
 
     let n = handle.read(buf).map_err(map_fs_error)?;
-    *offset += n as u64;
+    shared.offset.fetch_add(n as u64, Ordering::Release);
 
-    let _ = handle.seek(crate::modules::vfs::SeekFrom::Start(old_vfs_off));
     Ok(n)
 }
 
@@ -178,24 +172,28 @@ pub fn write(fd: u32, buf: &[u8]) -> Result<usize, PosixErrno> {
             .clone()
     };
 
-    let mut offset = shared.offset.lock();
-    let flags = *shared.flags.lock();
     let mut handle = shared.handle.lock();
-    let old_vfs_off = handle
-        .seek(crate::modules::vfs::SeekFrom::Current(0))
-        .unwrap_or(0);
-    if (flags & crate::modules::posix_consts::fs::O_APPEND as u32) != 0 {
-        if let Ok(end) = handle.seek(crate::modules::vfs::SeekFrom::End(0)) {
-            *offset = end;
-        }
+    let flags = shared.flags.load(Ordering::Acquire);
+    
+    let target_off = if (flags & crate::modules::posix_consts::fs::O_APPEND as u32) != 0 {
+        handle.seek(crate::modules::vfs::SeekFrom::End(0)).map_err(map_fs_error)?
     } else {
-        let _ = handle.seek(crate::modules::vfs::SeekFrom::Start(*offset));
+        shared.offset.load(Ordering::Acquire)
+    };
+
+    let current_off = handle.seek(crate::modules::vfs::SeekFrom::Current(0)).unwrap_or(0);
+    if current_off != target_off {
+        let _ = handle.seek(crate::modules::vfs::SeekFrom::Start(target_off));
     }
 
     let n = handle.write(buf).map_err(map_fs_error)?;
-    *offset += n as u64;
+    
+    if (flags & crate::modules::posix_consts::fs::O_APPEND as u32) != 0 {
+        shared.offset.store(target_off + n as u64, Ordering::Release);
+    } else {
+        shared.offset.fetch_add(n as u64, Ordering::Release);
+    }
 
-    let _ = handle.seek(crate::modules::vfs::SeekFrom::Start(old_vfs_off));
     Ok(n)
 }
 
@@ -268,19 +266,16 @@ pub fn lseek(fd: u32, offset: i64, whence: SeekWhence) -> Result<u64, PosixErrno
             .clone()
     };
 
-    let mut off = shared.offset.lock();
+    let current_off = shared.offset.load(Ordering::Acquire);
     let vfs_whence = match whence {
         SeekWhence::Set => crate::modules::vfs::SeekFrom::Start(offset as u64),
-        SeekWhence::Cur => crate::modules::vfs::SeekFrom::Current(offset + (*off as i64)),
+        SeekWhence::Cur => crate::modules::vfs::SeekFrom::Current(offset + (current_off as i64)),
         SeekWhence::End => crate::modules::vfs::SeekFrom::End(offset),
     };
 
-    let res = shared
-        .handle
-        .lock()
-        .seek(vfs_whence)
-        .map_err(map_fs_error)?;
-    *off = res;
+    let mut handle = shared.handle.lock();
+    let res = handle.seek(vfs_whence).map_err(map_fs_error)?;
+    shared.offset.store(res, Ordering::Release);
     Ok(res)
 }
 

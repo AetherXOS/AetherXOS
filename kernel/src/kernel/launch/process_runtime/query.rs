@@ -85,9 +85,10 @@ pub fn process_id_by_task(task_id: TaskId) -> Option<ProcessId> {
 
 #[cfg(feature = "process_abstraction")]
 pub fn current_process_arc() -> Option<Arc<Process>> {
-    let tid =
-        unsafe { CpuLocal::try_get().map(|cpu| TaskId(cpu.current_task.load(Ordering::Relaxed))) }?;
+    let pid = unsafe { CpuLocal::try_get().map(|cpu| ProcessId(cpu.current_process_id.load(Ordering::Relaxed))) }?;
 
-    let pid = process_id_by_task(tid)?;
+    if pid.0 == 0 {
+        return None;
+    }
     process_arc_by_id(pid)
 }

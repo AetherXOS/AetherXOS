@@ -341,7 +341,7 @@ pub struct ResourceLimits {
 
 impl Default for ResourceLimits {
     fn default() -> Self {
-        Self::unlimited()
+        Self::default_user()
     }
 }
 
@@ -389,7 +389,7 @@ impl ResourceLimits {
 ///
 /// Every security policy backend (Null, ACL, Capability, RBAC, SeL4, Zero Trust)
 /// must implement this trait. The kernel calls these methods at each enforcement point.
-pub trait SecurityMonitor {
+pub trait SecurityMonitor: Send + Sync {
     /// Simple access check (legacy / fast path).
     fn check_access(&self, resource_id: u64) -> bool;
 
@@ -464,14 +464,14 @@ pub trait SecurityMonitor {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_security_mode_variants() {
         assert_eq!(SecurityMode::Disabled as u8, 0);
         assert_eq!(SecurityMode::CapabilityOnly as u8, 1);
         assert_eq!(SecurityMode::PolicyEnforcement as u8, 2);
     }
 
-    #[test]
+    #[test_case]
     fn test_security_mode_checks() {
         assert!(!SecurityMode::Disabled.has_capabilities());
         assert!(!SecurityMode::Disabled.has_policy());
@@ -483,7 +483,7 @@ mod tests {
         assert!(SecurityMode::PolicyEnforcement.has_policy());
     }
 
-    #[test]
+    #[test_case]
     fn test_capability_flags() {
         // Verify individual capability bits
         assert_eq!(cap_flags::CAP_CHOWN, 1 << 0);
@@ -497,7 +497,7 @@ mod tests {
         assert_eq!(caps & cap_flags::CAP_SYS_ADMIN, 0);
     }
 
-    #[test]
+    #[test_case]
     fn test_security_verdict_is_allowed() {
         assert!(SecurityVerdict::Allow.is_allowed());
         assert!(SecurityVerdict::AuditAllow.is_allowed());
@@ -505,7 +505,7 @@ mod tests {
         assert!(!SecurityVerdict::AuditDeny.is_allowed());
     }
 
-    #[test]
+    #[test_case]
     fn test_security_verdict_should_audit() {
         assert!(!SecurityVerdict::Allow.should_audit());
         assert!(SecurityVerdict::AuditAllow.should_audit());
@@ -513,7 +513,7 @@ mod tests {
         assert!(SecurityVerdict::AuditDeny.should_audit());
     }
 
-    #[test]
+    #[test_case]
     fn test_security_level_ordering() {
         assert!(SecurityLevel::Unclassified < SecurityLevel::Confidential);
         assert!(SecurityLevel::Confidential < SecurityLevel::Secret);
@@ -522,7 +522,7 @@ mod tests {
     }
 
     #[cfg(feature = "capability_system")]
-    #[test]
+    #[test_case]
     fn test_security_context_is_root() {
         let root = SecurityContext::user(TaskId(1), ProcessId(1), 0, 0);
         assert!(root.is_root());
@@ -532,7 +532,7 @@ mod tests {
     }
 
     #[cfg(feature = "capability_system")]
-    #[test]
+    #[test_case]
     fn test_security_context_kernel() {
         let ctx = SecurityContext::kernel();
         assert_eq!(ctx.euid, 0);
@@ -542,7 +542,7 @@ mod tests {
     }
 
     #[cfg(feature = "capability_system")]
-    #[test]
+    #[test_case]
     fn test_security_context_user() {
         let ctx = SecurityContext::user(TaskId(42), ProcessId(100), 1000, 1000);
         assert_eq!(ctx.task_id, TaskId(42));
@@ -554,7 +554,7 @@ mod tests {
     }
 
     #[cfg(all(feature = "capability_system", feature = "policy_enforcement"))]
-    #[test]
+    #[test_case]
     fn test_security_context_privileged_bypass() {
         let mut root = SecurityContext::kernel();
         // Kernel context is privileged
@@ -563,7 +563,7 @@ mod tests {
     }
 
     #[cfg(feature = "capability_system")]
-    #[test]
+    #[test_case]
     fn test_security_context_capability_check() {
         let mut ctx = SecurityContext::user(TaskId(1), ProcessId(1), 1000, 1000);
         #[cfg(feature = "policy_enforcement")]
@@ -576,7 +576,7 @@ mod tests {
     }
 
     #[cfg(feature = "policy_enforcement")]
-    #[test]
+    #[test_case]
     fn test_security_context_can_access_level() {
         let root = SecurityContext::kernel();
         assert!(root.can_access_level(SecurityLevel::Unclassified));
@@ -590,14 +590,14 @@ mod tests {
     }
 
     #[cfg(not(feature = "capability_system"))]
-    #[test]
+    #[test_case]
     fn test_security_context_minimal() {
         let ctx = SecurityContext::minimal(1000, 1000);
         assert_eq!(ctx.euid, 1000);
         assert_eq!(ctx.egid, 1000);
     }
 
-    #[test]
+    #[test_case]
     fn test_resource_limits_defaults() {
         let limits = ResourceLimits::default();
         assert_eq!(limits.max_open_files, 1024);
@@ -606,7 +606,7 @@ mod tests {
         assert_eq!(limits.max_stack_bytes, 2 * 1024 * 1024);
     }
 
-    #[test]
+    #[test_case]
     fn test_resource_limits_stack_heap() {
         let limits = ResourceLimits::default();
         assert_eq!(limits.max_heap_bytes, 128 * 1024 * 1024);
@@ -614,3 +614,4 @@ mod tests {
         assert_eq!(limits.max_children, 128);
     }
 }
+

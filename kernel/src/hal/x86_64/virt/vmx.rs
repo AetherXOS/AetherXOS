@@ -45,7 +45,7 @@ pub(super) fn try_enable_vmx() -> bool {
         unsafe {
             core::arch::asm!("mov {}, cr4", out(reg) cr4_val, options(nostack, nomem));
         }
-        cr4_val = cr4::VMXE.set_bit(cr4_val, true);
+        cr4_val |= cr4::VMXE;
         unsafe {
             core::arch::asm!("mov cr4, {}", in(reg) cr4_val, options(nostack, nomem));
         }
@@ -76,7 +76,7 @@ pub(super) fn try_enter_vmx_operation() -> bool {
         return false;
     };
 
-    let failed: u8 = 1;
+    let mut failed: u8 = 1;
     #[cfg(target_os = "none")]
     unsafe {
         core::arch::asm!(

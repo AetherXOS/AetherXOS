@@ -28,6 +28,18 @@ bitflags::bitflags! {
     }
 }
 
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct ResolveFlags: u32 {
+        const NO_XDEV = 0x01;
+        const NO_MAGICLINKS = 0x02;
+        const NO_SYMLINKS = 0x04;
+        const BENEATH = 0x08;
+        const IN_ROOT = 0x10;
+        const CACHED = 0x20;
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IoPolicy {
     Buffered,
@@ -74,6 +86,7 @@ pub struct IoVecMut<'a> {
     pub buf: &'a mut [u8],
 }
 
+/// The core File trait, now integrated with the KObject unified model.
 pub trait File: Send + Sync {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, &'static str>;
     fn write(&mut self, buf: &[u8]) -> Result<usize, &'static str>;
@@ -117,11 +130,9 @@ pub trait File: Send + Sync {
     fn flush(&mut self) -> Result<(), &'static str> {
         Ok(())
     }
-    /// Sync file data + metadata to backing store (like fsync(2)).
     fn fsync(&mut self) -> Result<(), &'static str> {
         self.flush()
     }
-    /// Sync file data only, no metadata (like fdatasync(2)).
     fn fdatasync(&mut self) -> Result<(), &'static str> {
         self.fsync()
     }
@@ -132,9 +143,7 @@ pub trait File: Send + Sync {
         Err("stat not supported")
     }
 
-    // Locking
     fn lock(&self, lock_type: LockType) -> Result<(), &'static str> {
-        // Default: No-op for backends that don't support locking
         if lock_type == LockType::Unlock {
             Ok(())
         } else {
@@ -142,14 +151,11 @@ pub trait File: Send + Sync {
         }
     }
 
-    /// Optional: Return a WaitQueue for poll/select support.
-    fn wait_queue(&self) -> Option<&crate::kernel::sync::WaitQueue> {
+    fn wait_queue(&self) -> Option<Arc<crate::kernel::sync::WaitQueue>> {
         None
     }
 
-    // Poll support
     fn poll_events(&self) -> PollEvents {
-        // Default to readable/writable for normal files
         PollEvents::IN | PollEvents::OUT
     }
 
@@ -157,8 +163,6 @@ pub trait File: Send + Sync {
         Err("ioctl not supported")
     }
 
-    /// Returns a list of physical frame addresses for the requested range.
-    /// Used for zero-copy memory mapping.
     fn mmap_physical(
         &self,
         _offset: u64,
@@ -178,25 +182,20 @@ pub trait File: Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
-    /// Clone this file handle (increment reference count on the underlying resource).
-    /// Used for fork() and dup().
     fn try_clone(&self) -> Result<Box<dyn File>, &'static str> {
         Err("clone not supported for this file type")
     }
 }
-
 
 pub trait FileSystem: Send + Sync {
     fn open(&self, path: &str, tid: TaskId) -> Result<Box<dyn File>, &'static str>;
     fn create(&self, path: &str, tid: TaskId) -> Result<Box<dyn File>, &'static str>;
     fn remove(&self, path: &str, tid: TaskId) -> Result<(), &'static str>;
 
-    // Directory Management
     fn mkdir(&self, path: &str, tid: TaskId) -> Result<(), &'static str>;
     fn rmdir(&self, path: &str, tid: TaskId) -> Result<(), &'static str>;
     fn readdir(&self, path: &str, tid: TaskId) -> Result<alloc::vec::Vec<DirEntry>, &'static str>;
 
-    // Metadata & Permissions
     fn stat(&self, path: &str, tid: TaskId) -> Result<FileStats, &'static str>;
     fn chmod(&self, _path: &str, _mode: u16, _tid: TaskId) -> Result<(), &'static str> {
         Err("operation not supported")
@@ -205,7 +204,6 @@ pub trait FileSystem: Send + Sync {
         Err("operation not supported")
     }
 
-    // Links
     fn rename(&self, _old_path: &str, _new_path: &str, _tid: TaskId) -> Result<(), &'static str> {
         Err("operation not supported")
     }
@@ -219,7 +217,6 @@ pub trait FileSystem: Send + Sync {
         Err("operation not supported")
     }
 
-    // Timestamps
     fn set_times(
         &self,
         _path: &str,
@@ -230,17 +227,14 @@ pub trait FileSystem: Send + Sync {
         Err("operation not supported")
     }
 
-    /// Sync all dirty data/metadata for the entire filesystem to stable storage.
     fn sync_fs(&self) -> Result<(), &'static str> {
         Ok(())
     }
 
-    /// Return filesystem statistics (like statfs(2)).
     fn statfs(&self, _path: &str, _tid: TaskId) -> Result<FsStats, &'static str> {
         Err("operation not supported")
     }
 
-    /// Fast-path lookup for a dentry.
     fn lookup_dentry(&self, _path: &str) -> Option<Arc<crate::modules::vfs::cache::Dentry>> {
         None
     }

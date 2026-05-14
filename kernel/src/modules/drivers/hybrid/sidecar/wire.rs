@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use alloc::vec;
 
 const SIDECAR_WIRE_VERSION: u16 = 1;
 const SIDECAR_WIRE_HEADER_BYTES: usize = 28;

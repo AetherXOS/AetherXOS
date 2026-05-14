@@ -32,8 +32,8 @@ impl crate::modules::vfs::File for StatelessDevice {
     }
 }
 
-pub(super) struct BoxedFile {
-    pub(super) inner: Box<dyn crate::modules::vfs::File>,
+pub struct BoxedFile {
+    pub inner: Box<dyn crate::modules::vfs::File>,
 }
 
 impl crate::modules::vfs::File for BoxedFile {

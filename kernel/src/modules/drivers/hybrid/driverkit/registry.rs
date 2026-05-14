@@ -1,6 +1,7 @@
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
+use alloc::string::ToString;
 
 use super::lifecycle::{
     DeviceMatch, DriverBindingRecord, DriverKitClass, DriverKitEvent, DriverKitEventQueue,

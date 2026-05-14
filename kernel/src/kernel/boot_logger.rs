@@ -129,14 +129,14 @@ impl<const BASE: usize> BootLogger<BASE> {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_boot_stage_names() {
         assert_eq!(BootStage::BootloaderHandoff.as_str(), "Bootloader Handoff");
         assert_eq!(BootStage::EarlyMemory.as_str(), "Early Memory Init");
         assert_eq!(BootStage::Scheduler.as_str(), "Scheduler");
     }
 
-    #[test]
+    #[test_case]
     fn test_boot_stage_ordering() {
         // Verify the stages are logically ordered
         let stage1 = BootStage::BootloaderHandoff;
@@ -163,3 +163,4 @@ mod tests {
 // - Consistent format across boot stages
 // - Log level filtering possible (trace/debug/info/warn/error)
 // - Easy to add AOP macros for detailed tracing
+

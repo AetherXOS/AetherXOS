@@ -64,8 +64,6 @@ pub fn suspend_current_task_with_mask(wait_queue: &crate::kernel::sync::WaitQueu
             }
         };
 
-        cpu.current_task.store(next_tid.0, Ordering::Relaxed);
-
         let next_arc = match get_task(next_tid) {
             Some(a) => a,
             None => {
@@ -80,6 +78,10 @@ pub fn suspend_current_task_with_mask(wait_queue: &crate::kernel::sync::WaitQueu
                 return;
             }
         };
+
+        let next_pid = next_arc.lock().process_id.map(|p| p.0).unwrap_or(0);
+        cpu.set_current_context(next_tid, next_pid);
+        
         // Telemetry hook
         cpu.on_context_switch(current_tid, next_tid);
 
@@ -99,6 +101,92 @@ pub fn suspend_current_task_with_mask(wait_queue: &crate::kernel::sync::WaitQueu
 
     unsafe {
         HAL::context_switch(curr_sp_ptr, next_sp);
+    }
+}
+
+pub fn suspend_current_task_multi(queues: &[Arc<crate::kernel::sync::WaitQueue>]) {
+    let flags = HAL::irq_save();
+    let cpu = unsafe { CpuLocal::get() };
+    let current_tid = TaskId(cpu.current_task.load(Ordering::Relaxed));
+
+    let current_arc = match get_task(current_tid) {
+        Some(a) => a,
+        None => {
+            HAL::irq_restore(flags);
+            return;
+        }
+    };
+
+    let (curr_sp_ptr, next_sp) = {
+        let mut sched = cpu.scheduler.lock();
+
+        {
+            current_arc.lock().state = TaskState::Blocked;
+        }
+        sched.remove_task(current_tid);
+        
+        // Register in all queues
+        for q in queues {
+            q.block_id(current_tid);
+        }
+
+        let next_tid = match sched.pick_next() {
+            Some(t) => t,
+            None => {
+                let mut stolen = None;
+                if let Some(cpus) = crate::hal::smp::CPUS.try_lock() {
+                    for other_cpu in cpus.iter() {
+                        if let Some(mut other_sched) = other_cpu.scheduler.try_lock() {
+                            if let Some(task_arc) = other_sched.steal_task() {
+                                let tid = task_arc.lock().id;
+                                sched.add_task(task_arc);
+                                stolen = Some(tid);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if let Some(tid) = stolen {
+                    tid
+                } else {
+                    { current_arc.lock().state = TaskState::Ready; }
+                    for q in queues { q.unblock_id(current_tid); }
+                    sched.add_task(current_arc.clone());
+                    drop(sched);
+                    HAL::irq_restore(flags);
+                    return;
+                }
+            }
+        };
+
+        let next_arc = get_task(next_tid).unwrap();
+        let next_pid = next_arc.lock().process_id.map(|p| p.0).unwrap_or(0);
+        cpu.set_current_context(next_tid, next_pid);
+        
+        cpu.on_context_switch(current_tid, next_tid);
+
+        {
+            let mut next_task = next_arc.lock();
+            next_task.state = TaskState::Running;
+        }
+
+        let curr_sp = unsafe {
+            let base = Arc::as_ptr(&current_arc) as *mut KernelTask;
+            &raw mut (*base).kernel_stack_pointer as *mut usize
+        };
+        let next_sp = next_arc.lock().kernel_stack_pointer as usize;
+
+        (curr_sp, next_sp)
+    };
+
+    unsafe {
+        HAL::context_switch(curr_sp_ptr, next_sp);
+    }
+
+    // After waking up, unblock from ALL queues to clean up
+    for q in queues {
+        q.unblock_id(current_tid);
     }
 
     check_and_deliver_signals();

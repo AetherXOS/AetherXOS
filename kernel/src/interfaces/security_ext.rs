@@ -217,21 +217,21 @@ pub enum ResponseAction {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_audit_severity_ordering() {
         assert!(AuditSeverity::Info < AuditSeverity::Warning);
         assert!(AuditSeverity::Warning < AuditSeverity::Error);
         assert!(AuditSeverity::Error < AuditSeverity::Critical);
     }
 
-    #[test]
+    #[test_case]
     fn test_threat_level_ordering() {
         assert!(ThreatLevel::Normal < ThreatLevel::Suspicious);
         assert!(ThreatLevel::Suspicious < ThreatLevel::Threat);
         assert!(ThreatLevel::Threat < ThreatLevel::Attack);
     }
 
-    #[test]
+    #[test_case]
     fn test_audit_event_creation() {
         let event = AuditEvent {
             event_id: 1,
@@ -249,7 +249,7 @@ mod tests {
         assert!(event.allowed);
     }
 
-    #[test]
+    #[test_case]
     fn test_threat_metrics() {
         let metrics = ThreatMetrics {
             current_level: ThreatLevel::Threat,
@@ -264,3 +264,4 @@ mod tests {
         assert!(metrics.detection_score > 50);
     }
 }
+

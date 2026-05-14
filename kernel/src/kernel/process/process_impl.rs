@@ -52,7 +52,7 @@ pub struct Process {
 
     pub resource_limits: ResourceLimits,
     pub open_file_count: AtomicU32,
-    pub security_level: SecurityLevel,
+    pub security_ctx: crate::interfaces::security::SecurityContext,
     pub namespace_id: AtomicU32,
     pub cgroup_id: AtomicU64,
 
@@ -70,6 +70,8 @@ pub struct Process {
 
     pub pgid: AtomicU32,
     pub sid: AtomicU32,
+    pub min_faults: AtomicU64,
+    pub maj_faults: AtomicU64,
 }
 
 
@@ -118,7 +120,7 @@ impl Process {
             capabilities: 0xFFFF_FFFF_FFFF_FFFF,
             resource_limits: ResourceLimits::default(),
             open_file_count: AtomicU32::new(0),
-            security_level: SecurityLevel::Unclassified,
+            security_ctx: crate::interfaces::security::SecurityContext::kernel(),
             namespace_id: AtomicU32::new(0),
             cgroup_id: AtomicU64::new(1),
             #[cfg(feature = "vfs")]
@@ -132,6 +134,8 @@ impl Process {
             children: IrqSafeMutex::new(Vec::new()),
             pgid: AtomicU32::new(0),
             sid: AtomicU32::new(0),
+            min_faults: AtomicU64::new(0),
+            maj_faults: AtomicU64::new(0),
         }
     }
 
@@ -478,8 +482,12 @@ impl Process {
                     // For now, we'll assume the page is generic or we'll accept the lack of fixups.
                 }
 
-                let _ = page_manager.map_page(vdso_addr, vdso_phys as u64, bits::PRESENT | bits::USER, &mut frame_allocator);
-                let _ = page_manager.map_page(vvar_addr, vvar_phys as u64, bits::PRESENT | bits::USER | bits::NO_EXECUTE, &mut frame_allocator);
+                use x86_64::structures::paging::PageTableFlags;
+                let vdso_flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
+                let vvar_flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE | PageTableFlags::NO_EXECUTE;
+
+                let _ = page_manager.map_page(vdso_addr, vdso_phys as u64, vdso_flags, &mut frame_allocator);
+                let _ = page_manager.map_page(vvar_addr, vvar_phys as u64, vvar_flags, &mut frame_allocator);
             }
         }
 
@@ -560,10 +568,7 @@ impl Process {
                 let mut curr = old_page_end;
                 while curr > new_page_end {
                     curr -= page_size;
-                    if let Ok(frame_phys) = page_manager.unmap_page(curr, &mut frame_allocator) {
-                        let frame = x86_64::structures::paging::PhysFrame::containing_address(
-                            x86_64::PhysAddr::new(frame_phys)
-                        );
+                    if let Ok(frame) = page_manager.unmap_page(curr) {
                         frame_allocator.deallocate_frame(frame);
                     }
                 }
@@ -572,5 +577,24 @@ impl Process {
 
         self.heap_break.store(new_brk, Ordering::SeqCst);
         Ok(new_brk)
+    }
+}
+
+// Pillar III: Implement KObject for unified process management
+impl crate::interfaces::kobject::KObject for Process {
+    fn id(&self) -> u64 {
+        self.id.0 as u64
+    }
+
+    fn kind(&self) -> crate::interfaces::kobject::ObjectKind {
+        crate::interfaces::kobject::ObjectKind::Process
+    }
+
+    fn security_context(&self) -> Option<&crate::interfaces::security::SecurityContext> {
+        Some(&self.security_ctx)
+    }
+
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
     }
 }

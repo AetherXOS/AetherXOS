@@ -32,6 +32,7 @@ pub fn handle_user_page_fault(addr: u64, error_code: PageFaultErrorCode) -> Resu
     };
 
     if addr >= heap_start && addr < heap_break {
+        process.min_faults.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
         return allocate_page_for_process(&process, addr, true, None);
     }
 
@@ -67,9 +68,11 @@ pub fn handle_user_page_fault(addr: u64, error_code: PageFaultErrorCode) -> Resu
             
             if mapping.map_id >= 2_000_000 {
                 // Shared Memory: Fetch existing frame
+                process.min_faults.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
                 return resolve_shm_fault(&process, mapping.map_id, page_addr, mapping.start, is_writable);
             } else if mapping.map_id >= 1_000_000 {
                 // Anonymous: Zero-fill new frame
+                process.min_faults.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
                 return allocate_page_for_process(&process, page_addr, is_writable, None);
             } else {
                 // File-Backed: Load from VFS
@@ -94,17 +97,24 @@ fn resolve_shm_fault(process: &crate::kernel::process::Process, map_id: u32, pag
 }
 
 fn resolve_file_fault(process: &crate::kernel::process::Process, map_id: u32, page_addr: u64, map_start: u64, writable: bool) -> Result<(), &'static str> {
-    // 1. Allocate a page
-    let hhdm = crate::hal::hhdm_offset().unwrap_or(0);
-    let _frame = allocate_page_for_process(process, page_addr, writable, None)?;
-    
-    // 2. Read data from VFS
     let offset = (page_addr - map_start) as usize;
-    let _kernel_vaddr = page_addr + hhdm; // Wait, page_addr is user vaddr, we need to find the KERNEL vaddr of the newly allocated frame
-    // Actually allocate_page_for_process already mapped it.
-    // We can use the HHDM of the physical frame.
     
-    // Let's re-find the frame we just mapped
+    // 1. Try Zero-Copy mapping from VFS Page Cache
+    #[cfg(all(feature = "vfs", feature = "posix_mman"))]
+    {
+        if let Ok(frames) = crate::modules::posix::mman::mmap_physical_frames(map_id, offset, 4096) {
+            if !frames.is_empty() {
+                process.min_faults.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+                return map_existing_frame(process, page_addr, frames[0], writable);
+            }
+        }
+    }
+
+    // 2. Fallback: Allocate a page and read (Buffered I/O fallback = Major Fault)
+    process.maj_faults.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+    let hhdm = crate::hal::hhdm_offset().unwrap_or(0);
+    allocate_page_for_process(process, page_addr, writable, None)?;
+    
     let phys = translate_user_vaddr(process.cr3.as_u64(), page_addr)?;
     let dest_ptr = (phys + hhdm) as *mut u8;
     let dest_slice = unsafe { core::slice::from_raw_parts_mut(dest_ptr, 4096) };

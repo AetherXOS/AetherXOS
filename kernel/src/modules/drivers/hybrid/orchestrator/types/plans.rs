@@ -5,6 +5,7 @@ use super::super::super::reactos::{
 };
 use super::super::super::sidecar::{SideCarPayload, SideCarVmPlan, SideCarWireHeader};
 use super::BackendPreference;
+use alloc::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HybridExecutionPlan {

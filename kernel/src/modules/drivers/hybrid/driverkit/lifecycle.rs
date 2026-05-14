@@ -1,5 +1,6 @@
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
+use alloc::string::String;
 
 use crate::modules::drivers::{IrqGrant, MmioGrant};
 

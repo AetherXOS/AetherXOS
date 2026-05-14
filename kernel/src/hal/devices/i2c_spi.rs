@@ -234,7 +234,7 @@ impl<const BASE: usize> SpiDevice<BASE> {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_spi_mode_values() {
         assert_eq!(SpiMode::Mode0 as u32, 0);
         assert_eq!(SpiMode::Mode1 as u32, 1);
@@ -242,13 +242,13 @@ mod tests {
         assert_eq!(SpiMode::Mode3 as u32, 3);
     }
 
-    #[test]
+    #[test_case]
     fn test_spi_speed_values() {
         assert_eq!(SpiSpeed::Slow1MHz as u32, 1_000_000);
         assert_eq!(SpiSpeed::Fast25MHz as u32, 25_000_000);
     }
 
-    #[test]
+    #[test_case]
     fn test_spi_device_creation() {
         let _device: SpiDevice<0x40004000> = SpiDevice::new(
             SpiMode::Mode0,
@@ -257,10 +257,11 @@ mod tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn test_cs_polarity() {
         let low = CsPolarity::ActiveLow;
         let high = CsPolarity::ActiveHigh;
         assert_ne!(low, high);
     }
 }
+

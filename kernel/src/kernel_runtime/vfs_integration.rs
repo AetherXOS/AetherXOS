@@ -218,39 +218,39 @@ pub fn report_vfs_stats() -> String {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_init_vfs_extensions() {
         assert!(init_vfs_extensions().is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_check_permission_invalid_inode() {
         // Inode 0 is invalid
         assert!(check_file_permission(0, 1000, 1000, 4).is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_check_permission_invalid_action() {
         // Action 0 or > 7 is invalid
         assert!(check_file_permission(100, 1000, 1000, 0).is_err());
         assert!(check_file_permission(100, 1000, 1000, 8).is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_check_permission_valid() {
         let inode = 100;
         // Action 4 = read, valid
         assert!(check_file_permission(inode, 1000, 1000, 4).is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_chmod_invalid_mode() {
         let inode = 101;
         // Mode > 0o7777 is invalid
         assert!(chmod_file(inode, 0o10000).is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_chmod_all_modes() {
         let inode = 102;
         assert!(chmod_file(inode, 0o000).is_ok());
@@ -259,13 +259,13 @@ mod tests {
         assert!(chmod_file(inode, 0o7777).is_ok()); // Max valid
     }
 
-    #[test]
+    #[test_case]
     fn test_chown() {
         let inode = 103;
         assert!(chown_file(inode, 1000, 1000).is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_mount_unmount() {
         assert!(mount_filesystem("/mnt/test", "ext4", "/dev/sdb", "").is_ok());
         let mounts = MOUNT_MANAGER.list_mounts();
@@ -273,25 +273,25 @@ mod tests {
         assert!(unmount_filesystem("/mnt/test").is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_mount_empty_path() {
         assert!(mount_filesystem("", "ext4", "/dev/sdb", "").is_err());
         assert!(mount_filesystem("/mnt", "", "/dev/sdb", "").is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_unmount_empty_path() {
         assert!(unmount_filesystem("").is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_quota_setting() {
         let uid = 1000;
         assert!(set_user_block_quota(uid, 1_000_000).is_ok());
         assert!(set_user_inode_quota(uid, 100_000).is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_quota_enforcement() {
         let uid = 1001;
         set_user_block_quota(uid, 100).ok();
@@ -299,21 +299,21 @@ mod tests {
         assert!(!can_allocate_blocks(uid, 200));
     }
 
-    #[test]
+    #[test_case]
     fn test_vfs_stats_nonempty() {
         let stats = report_vfs_stats();
         assert!(!stats.is_empty());
         assert!(stats.contains("mounts"));
     }
 
-    #[test]
+    #[test_case]
     fn test_list_mounts() {
         let mounts = MOUNT_MANAGER.list_mounts();
         // Should include root mount at minimum
         assert!(mounts.len() >= 1);
     }
 
-    #[test]
+    #[test_case]
     fn test_get_quota_status() {
         let uid = 1002;
         set_user_block_quota(uid, 10_000).ok();
@@ -323,3 +323,4 @@ mod tests {
         let _ = status;
     }
 }
+

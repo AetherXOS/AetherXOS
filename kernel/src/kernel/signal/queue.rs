@@ -45,4 +45,8 @@ impl SignalQueue {
     pub fn has_pending(&self) -> bool {
         self.pending_mask != 0
     }
+
+    pub fn iter(&self) -> alloc::collections::vec_deque::Iter<'_, Signal> {
+        self.queue.iter()
+    }
 }

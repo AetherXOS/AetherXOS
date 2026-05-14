@@ -59,26 +59,26 @@ fn run_all_accepts_core_tiers_in_order() {
 
     let labels: Vec<_> = tiers
         .into_iter()
-        .flat_map(|tier| tier_specs(tier, false, host).unwrap())
+        .flat_map(|tier| tier_specs_str(tier, false, host).unwrap())
         .map(|spec| spec.label)
         .collect();
 
     assert_eq!(labels.first().copied(), Some("nextest"));
     assert!(labels.len() >= 3);
-    assert_eq!(tier_specs("fast", false, host).unwrap()[0].label, "nextest");
+    assert_eq!(tier_specs_str("fast", false, host).unwrap()[0].label, "nextest");
     assert_eq!(
-        tier_specs("integration", false, host).unwrap()[0].label,
+        tier_specs_str("integration", false, host).unwrap()[0].label,
         "nextest"
     );
     assert_eq!(
-        tier_specs("nightly", false, host).unwrap()[0].label,
+        tier_specs_str("nightly", false, host).unwrap()[0].label,
         "nextest"
     );
 }
 
 #[test]
 fn tier_specs_rejects_unknown_phase_names() {
-    let err = tier_specs("p0", false, "x86_64-unknown-linux-gnu").unwrap_err();
+    let err = tier_specs_str("p0", false, "x86_64-unknown-linux-gnu").unwrap_err();
     let text = format!("{err:#}");
     assert!(text.contains("unknown test phase"));
 }

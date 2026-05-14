@@ -160,7 +160,7 @@ impl TimerController for ArmGenericTimer {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_timer_model_detection() {
         #[cfg(target_arch = "x86_64")]
         {
@@ -177,7 +177,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_case]
     fn test_time_conversion() {
         #[cfg(target_arch = "x86_64")]
         {
@@ -188,7 +188,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_case]
     fn test_clock_source() {
         #[cfg(target_arch = "x86_64")]
         {
@@ -199,3 +199,4 @@ mod tests {
         }
     }
 }
+

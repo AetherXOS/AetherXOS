@@ -33,25 +33,25 @@ static PROCESS_COUNT: AtomicUsize = AtomicUsize::new(0);
 /// Insert a new process.  The caller owns `process`; it is moved into an `Arc`.
 pub fn register_process(process: Arc<Process>) -> Arc<Process> {
     let pid = process.id;
-    PROCESS_TABLE.lock().insert(pid, process.clone());
+    (*PROCESS_TABLE).lock().insert(pid, process.clone());
     PROCESS_COUNT.fetch_add(1, Ordering::Relaxed);
     process
 }
 
 /// Look up a process by ID.  Returns `None` if the process has exited.
 pub fn get_process(pid: ProcessId) -> Option<Arc<Process>> {
-    PROCESS_TABLE.lock().get(&pid).cloned()
+    (*PROCESS_TABLE).lock().get(&pid).cloned()
 }
 
 /// Remove a process from the registry (called on process exit / reap).
 /// Returns the `Arc` so the caller can drain FDs or wait for threads.
 pub fn unregister_process(pid: ProcessId) -> Option<Arc<Process>> {
-    PROCESS_TABLE.lock().remove(&pid)
+    (*PROCESS_TABLE).lock().remove(&pid)
 }
 
 /// Current number of live processes in the registry.
 pub fn process_count() -> usize {
-    PROCESS_TABLE.lock().len()
+    (*PROCESS_TABLE).lock().len()
 }
 
 /// Total number of process IDs ever allocated (includes dead processes).
@@ -61,7 +61,7 @@ pub fn total_process_count() -> usize {
 
 /// Collect PIDs of all live processes.
 pub fn all_pids() -> alloc::vec::Vec<ProcessId> {
-    PROCESS_TABLE.lock().keys().copied().collect()
+    (*PROCESS_TABLE).lock().keys().copied().collect()
 }
 
 /// Collect PIDs of all threads that belong to process `pid`.

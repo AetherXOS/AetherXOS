@@ -367,7 +367,7 @@ pub static QOS_MANAGER: ConcreteMemoryQoSManager = ConcreteMemoryQoSManager::new
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_pressure_calculation() {
         let stats = PressureStats {
             total_pages: 1000,
@@ -386,13 +386,13 @@ mod tests {
         assert_eq!(stats.calculate_pressure(), MemoryPressure::High);
     }
 
-    #[test]
+    #[test_case]
     fn test_pressure_handler_creation() {
         let handler = ConcreteMemoryPressureHandler::new();
         assert_eq!(handler.current_pressure(), MemoryPressure::Low);
     }
 
-    #[test]
+    #[test_case]
     fn test_pressure_callback_registration() {
         let handler = ConcreteMemoryPressureHandler::new();
 
@@ -407,7 +407,7 @@ mod tests {
         assert_eq!(CALLBACK_CALLED.load(Ordering::Relaxed), 1);
     }
 
-    #[test]
+    #[test_case]
     fn test_numa_allocator_allocation() {
         let alloc = ConcreteNumaAllocator::new(2);
         let node0 = NumaNodeId(0);
@@ -416,7 +416,7 @@ mod tests {
         assert!(alloc.allocate_on_node(1_000_000_000, node0).is_err()); // Exceed available
     }
 
-    #[test]
+    #[test_case]
     fn test_memory_accountant_limits() {
         let acct = ConcreteMemoryAccountant::new();
         let pid = 123;
@@ -426,7 +426,7 @@ mod tests {
         assert!(!acct.can_allocate(pid, 600_000 * 2)); // Fixed to exceed
     }
 
-    #[test]
+    #[test_case]
     fn test_memory_accountant_tracking() {
         let acct = ConcreteMemoryAccountant::new();
         let pid = 123;
@@ -440,7 +440,7 @@ mod tests {
         assert_eq!(acct.get_memory_usage(pid).unwrap(), 50_000);
     }
 
-    #[test]
+    #[test_case]
     fn test_qos_manager() {
         let mgr = ConcreteMemoryQoSManager::new();
         let pid = 123;
@@ -452,10 +452,11 @@ mod tests {
         );
     }
 
-    #[test]
+    #[test_case]
     fn test_shrink_memory() {
         let handler = ConcreteMemoryPressureHandler::new();
         let freed = handler.shrink_memory(1000).unwrap();
         assert!(freed > 0);
     }
 }
+

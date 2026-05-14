@@ -137,13 +137,11 @@ pub mod selector {
 
     #[cfg(feature = "schedulers")]
     pub fn bootstrap_active_scheduler() -> ActiveScheduler {
-        crate::hal::serial::write_raw(
-            "[EARLY SERIAL] bootstrap active scheduler wrapper begin\n",
-        );
+        #[cfg(debug_assertions)]
+        crate::hal::serial::write_raw("[BOOT] scheduler bootstrap begin\n");
         let scheduler = ActiveScheduler::new();
-        crate::hal::serial::write_raw(
-            "[EARLY SERIAL] bootstrap active scheduler wrapper returned\n",
-        );
+        #[cfg(debug_assertions)]
+        crate::hal::serial::write_raw("[BOOT] scheduler bootstrap complete\n");
         scheduler
     }
 }

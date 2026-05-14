@@ -5,7 +5,14 @@ pub mod fs;
 pub mod ipc;
 pub mod net;
 pub mod process;
+pub mod registration;
 pub mod sync;
+pub mod table;
+pub mod async_ring;
+
+use crate::interfaces::dispatcher::Dispatcher;
+use crate::interfaces::KernelResult;
+use table::SyscallFrame;
 
 /// Structure to hold and cast syscall arguments.
 /// Improves readability and reduces boilerplate in dispatchers.
@@ -34,6 +41,17 @@ impl SyscallDispFrame {
             a4: arg4,
             a5: arg5,
             a6: arg6,
+        }
+    }
+
+    /// Structured dispatch via the O(1) table.
+    /// Returns the raw result as isize.
+    pub fn dispatch_structured(frame: &SyscallFrame) -> isize {
+        if let Some(handler) = table::get_handler(frame.nr) {
+            handler(frame, 0)
+        } else {
+            // NoSys fallback
+            -38 // ENOSYS
         }
     }
 
@@ -98,16 +116,16 @@ pub fn sys_linux_compat(
 ) -> Option<usize> {
     let mut f = SyscallDispFrame::new(a1, a2, a3, a4, a5, a6);
 
-    linux_trace!(
-        "[SYSCALL] nr={}, a1={:#x}, a2={:#x}, a3={:#x}, a4={:#x}, a5={:#x}, a6={:#x}\n",
-        nr,
-        f.a1,
-        f.a2,
-        f.a3,
-        f.a4,
-        f.a5,
-        f.a6
-    );
+    // 1. FAST PATH: Table-based O(1) dispatch
+    if let Some(res) = table::dispatch_table(nr, &mut f, frame) {
+        return Some(res);
+    }
+
+    // 2. SLOW PATH: Legacy/Categorized dispatching (to be phased out)
+    // Seccomp check
+    if let Some(res) = crate::modules::linux_compat::seccomp::check_seccomp_policy(nr, &f) {
+        return Some(res);
+    }
 
     // Standard-based dispatching
     if let Some(res) = crate::modules::linux_compat::standards::unix::dispatch_unix(nr, &mut f) {
@@ -164,6 +182,9 @@ pub fn sys_linux_compat(
 }
 
 /// Initializes any optional dispatcher indices.
-/// Current dispatcher uses direct match routing, so this is a no-op.
-pub fn init_dispatch_index() {}
+pub fn init_dispatch_index() {
+    crate::klog_info!("[SYSCALL] Initializing O(1) dispatch table...");
+    registration::populate_table();
+    crate::klog_info!("[SYSCALL] O(1) dispatch table ready.");
+}
 const LINUX_LEGACY_IPC_NR: usize = 117;

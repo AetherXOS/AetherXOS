@@ -11,6 +11,7 @@
 use crate::core::log;
 use crate::interfaces::task::TaskId;
 use crate::kernel_runtime::{integration_utils, scheduler_integration, memory_integration, vfs_integration};
+use alloc::format;
 
 // ============================================================================
 // TASK SPAWN INTEGRATION
@@ -275,13 +276,13 @@ pub fn on_chown(
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_on_task_spawn() {
         let task_id = TaskId(1000);
         assert!(on_task_spawn(task_id).is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_on_brk_syscall_expand() {
         let pid = 100;
         let current_brk = 0x10000000;
@@ -292,7 +293,7 @@ mod tests {
         assert!(result == new_brk || result == current_brk);
     }
 
-    #[test]
+    #[test_case]
     fn test_on_brk_syscall_shrink() {
         let pid = 100;
         let current_brk = 0x10001000;
@@ -303,40 +304,41 @@ mod tests {
         assert_eq!(result, new_brk);
     }
 
-    #[test]
+    #[test_case]
     fn test_on_memory_deallocation() {
         on_memory_deallocation(100, 4096);
         // Should not panic
     }
 
-    #[test]
+    #[test_case]
     fn test_on_vfs_open_read() {
         let result = on_vfs_open(1001, 1000, 1000, 0o644, 0); // flags=0 (read)
         // Should return Ok or Err depending on permission check
         assert!(result.is_ok() || result.is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_on_vfs_open_write() {
         let result = on_vfs_open(1002, 1000, 1000, 0o644, 1); // flags=1 (write)
         assert!(result.is_ok() || result.is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_on_vfs_stat() {
         let result = on_vfs_stat(1003, 1000, 1000);
         assert!(result.is_ok() || result.is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_on_chmod() {
         let result = on_chmod(1004, 1000, 1000, 0o755);
         assert!(result.is_ok() || result.is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_on_chown() {
         let result = on_chown(1005, 1000, 1000, 2000, 2000);
         assert!(result.is_ok() || result.is_err());
     }
 }
+

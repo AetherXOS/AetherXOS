@@ -29,6 +29,7 @@ pub enum BootStage {
     RuntimeReady = 8,
     /// Userspace runtime prepared
     UserspaceReady = 9,
+    FinalOrchestration = 10,
 }
 
 impl fmt::Display for BootStage {
@@ -66,7 +67,7 @@ pub trait BootSubsystem: Send + Sync {
 }
 
 /// Trait for boot phase managers that coordinate initialization.
-pub trait BootManager {
+pub trait BootManager: Send + Sync {
     /// Register a subsystem for initialization
     fn register_subsystem(&self, stage: BootStage, subsystem: &'static dyn BootSubsystem);
 
@@ -117,7 +118,7 @@ pub struct BootInfo {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_boot_stage_ordering() {
         assert!(BootStage::BootloaderHandoff < BootStage::EarlyMemory);
         assert!(BootStage::EarlyMemory < BootStage::CpuFeatures);

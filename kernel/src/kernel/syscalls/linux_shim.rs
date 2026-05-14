@@ -24,7 +24,7 @@ mod signal;
 mod task_time;
 pub(crate) mod util;
 #[cfg(not(feature = "linux_compat"))]
-pub use util::{read_user_pod, write_user_pod, LinuxRUsage};
+pub use util::read_user_pod;
 #[cfg(not(feature = "linux_compat"))]
 
 const LINUX_FUTEX_CMD_MASK: usize = 0x7f;

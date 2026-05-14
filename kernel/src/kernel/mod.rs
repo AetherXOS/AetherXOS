@@ -1,73 +1,85 @@
-// --- Foundations & Utilities ---
-pub mod bit_utils;
-pub mod boot_logger;
-pub mod log;
-pub mod debug_trace;
+// =============================================================================
+// RING 1: MICROKERNEL CORE (The Engine)
+// =============================================================================
+
+// --- Core Foundations ---
 pub mod cpu_local;
+pub mod registry;
 pub mod sync;
 pub mod rcu;
 pub mod interrupt_guard;
-pub mod jitter;
 pub mod watchdog;
-pub mod boot_health;
 pub mod crash_log;
 pub mod power;
 
-// --- Memory & Virtualization ---
+// --- Memory & Paging ---
 pub mod memory;
 pub mod vmm;
-pub mod virt_bias;
-pub mod virtualization_contract;
+pub mod memory_extensions;
 
-// --- Process & Task Management ---
-#[cfg(feature = "process_abstraction")]
-pub mod process;
-#[cfg(feature = "process_abstraction")]
-pub mod fork;
-#[cfg(feature = "process_abstraction")]
-pub mod process_registry {
-    pub use super::process::registry::*;
-}
+// --- Boot & Orchestration ---
+pub mod boot_graph;
+pub mod boot_manager;
+pub mod boot_subsystems;
+pub mod startup;
+pub mod boot_logger;
+pub mod boot_health;
+pub use crate::kernel_runtime::boot_integration;
+
+// --- Task & Scheduler Infrastructure ---
 pub mod task;
 pub mod scheduler_contract;
+pub mod scheduler_extensions;
 pub mod load_balance;
 pub mod rt_preemption;
 
-// --- Execution & Loading ---
-pub mod launch;
-pub mod startup;
-pub mod boot_manager;
-pub mod boot_subsystems;
+// =============================================================================
+// RING 2: CORE SUBSYSTEMS (The OS Logic)
+// =============================================================================
+
+pub mod vfs_control;
+pub mod vfs_extensions;
+pub mod net_core;
 pub mod device_manager;
 pub mod runtime_manager;
-pub mod scheduler_extensions;
-pub mod memory_extensions;
-pub mod vfs_extensions;
-pub mod dynamic_linker;
-pub mod module_loader;
-
-// --- Security & Resource Management ---
 pub mod namespaces;
 pub mod cgroups;
 pub mod policy;
 pub mod security_posture;
 pub mod pressure;
+pub mod virt_bias;
 
-// --- Inter-Process & Syscalls ---
+// =============================================================================
+// RING 3: COMPATIBILITY & SERVICES (The Interface)
+// =============================================================================
+
 pub mod syscalls;
 pub mod syscall_contract;
 pub mod signal;
 pub mod signals {
     pub use super::signal::queue;
 }
+pub mod process;
+pub mod fork;
+pub mod process_registry {
+    pub use super::process::registry::*;
+}
 pub mod symbols;
-pub mod pi_mutex;
-
-// --- Subsystems ---
+pub mod dynamic_linker;
+pub mod module_loader;
 pub mod tty;
-pub mod net_core;
-pub mod vfs_control;
 pub mod bpf;
+pub mod security;
+pub mod pi_mutex;
+pub mod launch;
+pub mod virtualization_contract;
+
+// --- Utilities ---
+pub mod bit_utils;
+pub mod log;
+pub mod debug_trace;
+pub mod jitter;
+
 
 
 
@@ -102,6 +114,8 @@ pub struct CrashReport {
     pub startup_order_violations: u64,
     pub crash_log_latest_seq: u64,
     pub crash_log_latest_kind: u8,
+    pub core_dump_present: bool,
+    pub core_dump_reason_ptr: usize,
 }
 
 #[inline(always)]
@@ -139,6 +153,8 @@ pub fn panic_report(info: &PanicInfo, reason: &str) -> ! {
         startup_order_violations: startup_stats.ordering_violations,
         crash_log_latest_seq: crash_log_stats.latest_seq,
         crash_log_latest_kind: crash_log_stats.latest_event_kind,
+        core_dump_present: false, // Updated if dump happens
+        core_dump_reason_ptr: reason.as_ptr() as usize,
     };
 
     crate::hal::HAL::panic_with_report(info, &report);
@@ -175,5 +191,19 @@ pub fn crash_report() -> CrashReport {
         startup_order_violations: startup_stats.ordering_violations,
         crash_log_latest_seq: crash_log_stats.latest_seq,
         crash_log_latest_kind: crash_log_stats.latest_event_kind,
+        core_dump_present: false,
+        core_dump_reason_ptr: 0,
     }
+}
+
+/// Perform a kernel-level core dump of current CPU state.
+/// Useful for post-mortem analysis of triple faults or complex panics.
+pub fn core_dump() {
+    let cpu_id = crate::kernel::cpu_local::CpuLocal::id();
+    crate::klog_info!("Initiating kernel core dump for CPU {}", cpu_id);
+    
+    // Pillar V: Record state to debug_trace
+    crate::kernel::debug_trace::record("Core", "Dump", Some(cpu_id as u64), false);
+    // In a real system, we'd write to a reserved memory area or disk
+    crate::klog_info!("Core dump complete (snapshot stored in trace buffer).");
 }

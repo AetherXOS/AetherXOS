@@ -167,20 +167,20 @@ pub fn report_scheduler_stats() -> String {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_init_task_scheduler() {
         let task_id = TaskId(100);
         assert!(init_task_scheduler(task_id).is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_init_task_scheduler_kernel_task_rejected() {
         let kernel_task = TaskId(0);
         let result = assign_task_priority(kernel_task, PriorityLevel::Interactive);
         assert!(result.is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_assign_task_priority_all_levels() {
         let task_id = TaskId(101);
         
@@ -190,7 +190,7 @@ mod tests {
         assert!(assign_task_priority(task_id, PriorityLevel::Idle).is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_promote_to_realtime_invalid_period() {
         let task_id = TaskId(102);
         
@@ -201,7 +201,7 @@ mod tests {
         assert!(promote_to_realtime(task_id, 100, 200).is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_add_task_to_group_invalid_group() {
         let task_id = TaskId(103);
         
@@ -209,7 +209,7 @@ mod tests {
         assert!(add_task_to_group(task_id, 0).is_err());
     }
 
-    #[test]
+    #[test_case]
     fn test_set_cpu_affinity_empty_mask() {
         let task_id = TaskId(104);
         
@@ -220,7 +220,7 @@ mod tests {
         assert!(set_cpu_affinity(task_id, 0xFF).is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_pin_to_cpu() {
         let task_id = TaskId(105);
         
@@ -228,19 +228,19 @@ mod tests {
         assert!(pin_to_cpu(task_id, 0).is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_multicore_scheduling_init() {
         assert!(init_multicore_scheduling().is_ok());
     }
 
-    #[test]
+    #[test_case]
     fn test_scheduler_stats_nonempty() {
         let stats = report_scheduler_stats();
         assert!(!stats.is_empty());
         assert!(stats.contains("priority_levels"));
     }
 
-    #[test]
+    #[test_case]
     fn test_get_task_priority_stub() {
         let task_id = TaskId(106);
         // Current implementation returns None
@@ -248,3 +248,4 @@ mod tests {
         assert!(priority.is_none());
     }
 }
+

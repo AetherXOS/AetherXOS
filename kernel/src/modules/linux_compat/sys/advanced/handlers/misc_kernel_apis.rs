@@ -85,25 +85,9 @@ pub fn sys_linux_memfd_create(name_ptr: UserPtr<u8>, flags: usize) -> usize {
                 Err(e) => return e,
             }
         };
-        let id = NEXT_MEMFD_ID.fetch_add(1, Ordering::Relaxed);
-        let path = alloc::format!("/.memfd-{}-{}", id, raw_name.replace('/', "_"));
 
-        let fs_id = match crate::modules::posix::fs::default_fs_id() {
-            Ok(v) => v,
-            Err(e) => return linux_errno(e.code()),
-        };
-        match crate::modules::posix::fs::openat(fs_id, "/", &path, true) {
-            Ok(fd) => {
-                if (flags & MFD_CLOEXEC) != 0 {
-                    crate::modules::linux_compat::fs::io::linux_fd_set_descriptor_flags(
-                        fd,
-                        crate::modules::linux_compat::fs::io::LINUX_FD_CLOEXEC,
-                    );
-                } else {
-                    crate::modules::linux_compat::fs::io::linux_fd_clear_descriptor_flags(fd);
-                }
-                fd as usize
-            }
+        match crate::modules::posix::fs::memfd_create(&raw_name, flags as u32) {
+            Ok(fd) => fd as usize,
             Err(e) => linux_errno(e.code()),
         }
     })

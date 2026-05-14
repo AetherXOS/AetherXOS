@@ -8,27 +8,32 @@ use crate::interfaces::InterruptController;
 pub struct Pic;
 
 impl InterruptController for Pic {
-    unsafe fn init(&mut self) {
+    unsafe fn init(&self) {
         // Safety: PIC remap offsets (32, 40) are standard to avoid CPU exceptions.
         unsafe { Pic::remap(32, 40) };
     }
 
-    unsafe fn enable_interrupt(&mut self, irq: u32) {
+    unsafe fn enable_interrupt(&self, irq: u32) {
         let port = if irq < 8 { bits::MASTER_DATA } else { bits::SLAVE_DATA };
         let mask = unsafe { X86PortIo::inb(port) };
         let bit = if irq < 8 { irq } else { irq - 8 };
         unsafe { X86PortIo::outb(port, mask & !(1 << bit as u8)) };
     }
 
-    unsafe fn disable_interrupt(&mut self, irq: u32) {
+    unsafe fn disable_interrupt(&self, irq: u32) {
         let port = if irq < 8 { bits::MASTER_DATA } else { bits::SLAVE_DATA };
         let mask = unsafe { X86PortIo::inb(port) };
         let bit = if irq < 8 { irq } else { irq - 8 };
         unsafe { X86PortIo::outb(port, mask | (1 << bit as u8)) };
     }
 
-    unsafe fn end_of_interrupt(&mut self, irq: u32) {
+    unsafe fn end_of_interrupt(&self, irq: u32) {
         unsafe { Pic::send_eoi(irq as u8) };
+    }
+
+    fn is_spurious(&self, _vector: u8) -> bool {
+        // Legacy PIC spurious handling (usually vector 7/15)
+        false 
     }
 }
 

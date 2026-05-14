@@ -180,6 +180,9 @@ pub fn sys_linux_statx(
                 stx.stx_mtime = LinuxStatxTimestamp { tv_sec: pstat.mtime.sec, tv_nsec: pstat.mtime.nsec as u32, __reserved: 0 };
                 stx.stx_ctime = LinuxStatxTimestamp { tv_sec: pstat.ctime.sec, tv_nsec: pstat.ctime.nsec as u32, __reserved: 0 };
                 stx.stx_btime = LinuxStatxTimestamp { tv_sec: pstat.btime.sec, tv_nsec: pstat.btime.nsec as u32, __reserved: 0 };
+                stx.stx_dev_major = pstat.dev_major;
+                stx.stx_dev_minor = pstat.dev_minor;
+                stx.stx_attributes_mask = 0x0000000000000000; // No special attributes supported yet
 
                 write_user_struct!(statxbuf, stx)
             }
@@ -310,6 +313,7 @@ pub fn sys_linux_readlinkat(
 
 fn fill_linux_stat(pstat: crate::modules::posix::fs::PosixStat) -> LinuxStat {
     let mut lstat: LinuxStat = unsafe { core::mem::zeroed() };
+    lstat.st_dev = ((pstat.dev_major as u64) << 32) | (pstat.dev_minor as u64);
     lstat.st_ino = pstat.ino;
     lstat.st_mode = pstat.mode as u32;
     if pstat.is_dir {

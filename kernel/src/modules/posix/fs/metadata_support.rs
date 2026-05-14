@@ -33,6 +33,8 @@ pub fn stat(fs_id: u32, path: &str) -> Result<PosixStat, PosixErrno> {
             mtime: PosixTimespec { sec: md.mtime.sec as i64, nsec: md.mtime.nsec as i32 },
             ctime: PosixTimespec { sec: md.ctime.sec as i64, nsec: md.ctime.nsec as i32 },
             btime: PosixTimespec { sec: md.btime.sec as i64, nsec: md.btime.nsec as i32 },
+            dev_major: fs_id,
+            dev_minor: 0,
         });
     }
     let contexts = FS_CONTEXTS.lock();
@@ -51,6 +53,8 @@ pub fn stat(fs_id: u32, path: &str) -> Result<PosixStat, PosixErrno> {
         mtime: PosixTimespec { sec: md.mtime.sec as i64, nsec: md.mtime.nsec as i32 },
         ctime: PosixTimespec { sec: md.ctime.sec as i64, nsec: md.ctime.nsec as i32 },
         btime: PosixTimespec { sec: md.btime.sec as i64, nsec: md.btime.nsec as i32 },
+        dev_major: fs_id,
+        dev_minor: 0,
     })
 }
 
@@ -97,6 +101,8 @@ pub fn fstat(fd: u32) -> Result<PosixStat, PosixErrno> {
         mtime: PosixTimespec { sec: md.mtime.sec as i64, nsec: md.mtime.nsec as i32 },
         ctime: PosixTimespec { sec: md.ctime.sec as i64, nsec: md.ctime.nsec as i32 },
         btime: PosixTimespec { sec: md.btime.sec as i64, nsec: md.btime.nsec as i32 },
+        dev_major: shared.fs_id,
+        dev_minor: 0,
     })
 }
 
@@ -118,6 +124,8 @@ pub fn lstat(fs_id: u32, path: &str) -> Result<PosixStat, PosixErrno> {
                 mtime: PosixTimespec { sec: 0, nsec: 0 },
                 ctime: PosixTimespec { sec: 0, nsec: 0 },
                 btime: PosixTimespec { sec: 0, nsec: 0 },
+                dev_major: fs_id,
+                dev_minor: 0,
             });
             out.is_dir = false;
             out.is_symlink = true;

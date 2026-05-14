@@ -1,4 +1,5 @@
 use super::{BackendPreference, HybridRequestKind, HybridRequestFamily, HybridGapSeverity};
+use alloc::vec::Vec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HybridBackendSupport {

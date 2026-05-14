@@ -137,6 +137,10 @@ pub mod mman;
 #[path = "posix/net.rs"]
 pub mod net;
 
+#[cfg(feature = "posix_io")]
+#[path = "posix/epoll.rs"]
+pub mod epoll;
+
 #[cfg(test)]
 #[path = "posix/tests_smoke.rs"]
 mod tests_smoke;

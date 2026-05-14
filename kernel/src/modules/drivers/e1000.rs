@@ -5,6 +5,7 @@ use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{AtomicU64, Ordering};
 
 use crate::hal::pci::PciDevice;
+use crate::kernel::bit_utils::BitField32;
 
 use super::lifecycle::{
     DriverClass, DriverErrorKind, DriverIoGate, DriverStateMachine, PciProbeDriver,
@@ -112,6 +113,69 @@ pub fn reset_dataplane_stats() {
     E1000_IO_ERRORS.store(0, Ordering::Relaxed);
 }
 
+struct RuntimeMmio {
+    base: usize,
+}
+
+impl RuntimeMmio {
+    pub fn new(base: usize) -> Self {
+        Self { base }
+    }
+
+    pub unsafe fn read_reg(&self, offset: usize) -> u32 {
+        let addr = (self.base + offset) as *const u32;
+        unsafe { core::ptr::read_volatile(addr) }
+    }
+
+    pub unsafe fn write_reg(&self, offset: usize, value: u32) {
+        let addr = (self.base + offset) as *mut u32;
+        unsafe { core::ptr::write_volatile(addr, value); }
+    }
+
+    pub unsafe fn read_reg64(&self, offset: usize) -> u64 {
+        let addr = (self.base + offset) as *const u64;
+        unsafe { core::ptr::read_volatile(addr) }
+    }
+
+    pub unsafe fn write_reg64(&self, offset: usize, value: u64) {
+        let addr = (self.base + offset) as *mut u64;
+        unsafe { core::ptr::write_volatile(addr, value); }
+    }
+
+    pub unsafe fn read_reg8(&self, offset: usize) -> u8 {
+        let addr = (self.base + offset) as *const u8;
+        unsafe { core::ptr::read_volatile(addr) }
+    }
+
+    pub unsafe fn write_reg8(&self, offset: usize, value: u8) {
+        let addr = (self.base + offset) as *mut u8;
+        unsafe { core::ptr::write_volatile(addr, value); }
+    }
+
+    pub unsafe fn modify_reg<F>(&self, offset: usize, f: F)
+    where
+        F: FnOnce(u32) -> u32,
+    {
+        let current = unsafe { self.read_reg(offset) };
+        let modified = f(current);
+        unsafe { self.write_reg(offset, modified); }
+    }
+
+    pub unsafe fn read_field(&self, offset: usize, field: crate::kernel::bit_utils::BitField32) -> u32 {
+        field.read(unsafe { self.read_reg(offset) })
+    }
+
+    pub unsafe fn write_field(&self, offset: usize, field: crate::kernel::bit_utils::BitField32, val: u32) {
+        unsafe { self.modify_reg(offset, |reg| field.write(reg, val)); }
+    }
+}
+
+impl E1000 {
+    pub fn mmio_base(&self) -> usize {
+        self.mmio.base
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct E1000WaitStats {
     pub reset_timeout_spins: usize,
@@ -149,7 +213,7 @@ struct E1000TxDesc {
 }
 
 pub struct E1000 {
-    mmio: crate::hal::devices::generic::GenericMmioDevice,
+    mmio: RuntimeMmio,
     pub irq: u8,
     pub device_id: u16,
     lifecycle: DriverStateMachine,
@@ -173,7 +237,7 @@ impl E1000 {
 
             return Some(Self {
                 // Descriptor counts are runtime-tunable through KernelConfig.
-                mmio: crate::hal::devices::generic::GenericMmioDevice::new(mmio_base),
+                mmio: RuntimeMmio::new(mmio_base as usize),
                 irq: dev.interrupt_line,
                 device_id: dev.device_id,
                 lifecycle: DriverStateMachine::new_discovered(),
@@ -197,19 +261,19 @@ impl E1000 {
     }
 
     fn write_reg(&self, offset: usize, value: u32) {
-        self.mmio.write_reg(offset, value);
+           unsafe { self.mmio.write_reg(offset, value); }
     }
 
     fn read_reg(&self, offset: usize) -> u32 {
-        self.mmio.read_reg(offset)
+           unsafe { self.mmio.read_reg(offset) }
     }
 
     fn write_field(&self, offset: usize, field: BitField32, value: u32) {
-        self.mmio.write_field(offset, field, value);
+           unsafe { self.mmio.write_field(offset, field, value); }
     }
 
     fn read_field(&self, offset: usize, field: BitField32) -> u32 {
-        self.mmio.read_field(offset, field)
+           unsafe { self.mmio.read_field(offset, field) }
     }
 
     pub fn init(&mut self) -> Result<(), &'static str> {
@@ -290,18 +354,18 @@ impl E1000 {
 
         // Enables
         let mut rctl = 0u32;
-        rctl |= RCTL_EN.mask();
-        rctl |= RCTL_SBP.mask();
-        rctl |= RCTL_UPE.mask();
-        rctl |= RCTL_MPE.mask();
-        rctl |= RCTL_BAM.mask();
-        rctl |= RCTL_SECRC.mask();
+        rctl |= (RCTL_EN.mask << RCTL_EN.shift);
+        rctl |= (RCTL_SBP.mask << RCTL_SBP.shift);
+        rctl |= (RCTL_UPE.mask << RCTL_UPE.shift);
+        rctl |= (RCTL_MPE.mask << RCTL_MPE.shift);
+        rctl |= (RCTL_BAM.mask << RCTL_BAM.shift);
+        rctl |= (RCTL_SECRC.mask << RCTL_SECRC.shift);
         // BSIZE_2048 is 0, so no need to OR anything
         self.write_reg(E1000_RCTL, rctl);
         
         let mut tctl = 0u32;
-        tctl |= TCTL_EN.mask();
-        tctl |= TCTL_PSP.mask();
+        tctl |= (TCTL_EN.mask << TCTL_EN.shift);
+        tctl |= (TCTL_PSP.mask << TCTL_PSP.shift);
         tctl |= (15 << 4); // Cold insertion
         tctl |= (0x40 << 12); // Collision threshold
         self.write_reg(E1000_TCTL, tctl);

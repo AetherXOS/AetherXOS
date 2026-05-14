@@ -1,5 +1,5 @@
 pub(super) fn log_storage_inventory(
-    infos: &[aethercore::modules::drivers::StorageDriverInfo],
+    infos: &[crate::modules::drivers::BlockDeviceInfo],
     telemetry_drivers: bool,
 ) {
     if !telemetry_drivers {

@@ -37,14 +37,18 @@ pub struct PosixStat {
     pub mtime: PosixTimespec,
     pub ctime: PosixTimespec,
     pub btime: PosixTimespec,
+    pub dev_major: u32,
+    pub dev_minor: u32,
 }
+
+use core::sync::atomic::{AtomicU64, AtomicU32};
 
 pub struct SharedFile {
     pub fs_id: u32,
     pub path: String,
     pub handle: Arc<Mutex<dyn crate::modules::vfs::File>>,
-    pub offset: Mutex<u64>,
-    pub flags: Mutex<u32>, // O_APPEND, etc.
+    pub offset: AtomicU64,
+    pub flags: AtomicU32, // O_APPEND, etc.
 }
 
 #[derive(Clone)]

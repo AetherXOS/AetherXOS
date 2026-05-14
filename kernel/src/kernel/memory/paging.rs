@@ -20,6 +20,7 @@ pub enum ApplyMappingError {
     MappingFailed,
 }
 
+
 #[cfg(target_arch = "x86_64")]
 impl PageManager {
     /// Internal helper for bulk mapping virtual ranges.
@@ -206,6 +207,8 @@ impl PageManager {
 }
 
 #[cfg(target_arch = "x86_64")]
+use x86_64::registers::control::Cr3;
+
 pub fn active_level_4_table(hhdm_offset: u64) -> &'static mut crate::hal::paging::PageTable {
     
 

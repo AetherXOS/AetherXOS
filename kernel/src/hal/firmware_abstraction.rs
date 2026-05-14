@@ -4,6 +4,8 @@
 //! regardless of whether the system uses ACPI tables or device tree format.
 
 use alloc::vec::Vec;
+use alloc::vec;
+use alloc::string::ToString;
 use super::abstractions::{FirmwareDevice, MemoryRange, MemoryType, BootParameters};
 
 /// Unified firmware interface trait
@@ -213,7 +215,7 @@ pub fn enumerate_devices() -> Vec<FirmwareDevice> {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_case]
     fn test_firmware_device_filtering() {
         // Mock devices
         let devices = vec![
@@ -237,3 +239,4 @@ mod tests {
         assert_eq!(devices.len(), 2);
     }
 }
+
