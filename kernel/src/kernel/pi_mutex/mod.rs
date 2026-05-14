@@ -71,6 +71,25 @@ impl<T> PiMutex<T> {
         }
     }
 
+    /// Attempt to acquire the lock without blocking.
+    pub fn try_lock(&self, caller_tid: TaskId, caller_prio: u8) -> Option<PiMutexGuard<'_, T>> {
+        if self
+            .lock
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_ok()
+        {
+            self.owner_id.store(caller_tid.0 as u64, Ordering::Relaxed);
+            self.owner_base_prio.store(caller_prio, Ordering::Relaxed);
+            self.max_waiter_prio.store(NO_WAITER, Ordering::Relaxed);
+            Some(PiMutexGuard {
+                mutex: self,
+                owner_tid: caller_tid,
+            })
+        } else {
+            None
+        }
+    }
+
     /// Acquire the lock, performing priority inheritance if needed.
     ///
     /// `caller_tid`  — the TaskId of the calling task (used to look up its

@@ -2,6 +2,8 @@ use super::context::*;
 use super::ids::*;
 use super::state::*;
 use crate::core::log;
+
+pub const IDLE_PRIORITY: u8 = 255;
 use crate::interfaces::security::{ResourceLimits, SecurityContext};
 use crate::kernel::sync::IrqSafeMutex;
 use alloc::sync::Arc;
