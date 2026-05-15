@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, bail, Context};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -57,9 +57,8 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
     }
 
     utils_paths::ensure_dir(out_iso.parent().unwrap())?;
-    if out_iso.exists() {
-        fs_utils::try_remove_file_with_retries(out_iso, 3)?;
-    }
+    // Write ISO to a temporary path first to avoid delete races on Windows.
+    let tmp_out = out_iso.with_file_name(format!("{}.tmp", out_iso.file_name().unwrap().to_string_lossy()));
 
     if xorriso.contains("oscdimg") {
         let boot_sector = iso_root.join("boot/limine-bios-cd.bin");
@@ -70,11 +69,11 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
         
         process::run_checked(&xorriso, &[
             "-m", "-o", "-u2", &format!("-bootdata:{}", boot_data),
-            iso_root.to_string_lossy().as_ref(), out_iso.to_string_lossy().as_ref(),
+            iso_root.to_string_lossy().as_ref(), tmp_out.to_string_lossy().as_ref(),
         ])?;
     } else {
         let iso_root_arg = iso_paths::maybe_msys_path(&iso_root, &xorriso);
-        let out_iso_arg = iso_paths::maybe_msys_path(out_iso, &xorriso);
+        let out_iso_arg = iso_paths::maybe_msys_path(&tmp_out, &xorriso);
         
         let mut args = if xorriso.contains("xorriso") { vec!["-as", "mkisofs"] } else { vec![] };
         args.extend(&[
@@ -90,11 +89,32 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
         }
     }
 
-    logging::ready("iso", "ISO assembled successfully", out_iso.to_string_lossy());
-    
+    logging::ready("iso", "ISO assembled successfully", tmp_out.to_string_lossy());
+
     // Post-Assembly Verification
-    verify_iso_integrity(out_iso)?;
-    
+    verify_iso_integrity(&tmp_out)?;
+
+    // Move temporary ISO to final destination, handling potential locks on Windows.
+    if tmp_out.exists() {
+        if out_iso.exists() {
+            let _ = fs_utils::try_remove_file_with_retries(out_iso, 10);
+        }
+        match fs::rename(&tmp_out, out_iso) {
+            Ok(_) => {}
+            Err(e) => {
+                let _ = fs_utils::try_remove_file_with_retries(out_iso, 10);
+                match fs::rename(&tmp_out, out_iso) {
+                    Ok(_) => {}
+                    Err(e2) => {
+                        // Final fallback: copy then remove tmp
+                        fs::copy(&tmp_out, out_iso).with_context(|| format!("Failed to copy {} to {}: {}", tmp_out.display(), out_iso.display(), e2))?;
+                        let _ = fs::remove_file(&tmp_out);
+                    }
+                }
+            }
+        }
+    }
+
     let _ = fs::remove_dir_all(&iso_root);
     Ok(())
 }
@@ -134,9 +154,7 @@ pub fn finalize_iso_from_root(iso_root: &Path, out_iso: &Path) -> Result<()> {
     let xorriso = tools::find_iso_tool()?;
     
     utils_paths::ensure_dir(out_iso.parent().unwrap())?;
-    if out_iso.exists() {
-        fs_utils::try_remove_file_with_retries(out_iso, 3)?;
-    }
+    let tmp_out = out_iso.with_file_name(format!("{}.tmp", out_iso.file_name().unwrap().to_string_lossy()));
 
     if xorriso.contains("oscdimg") {
         let boot_sector = iso_root.join("boot/limine-bios-cd.bin");
@@ -147,11 +165,11 @@ pub fn finalize_iso_from_root(iso_root: &Path, out_iso: &Path) -> Result<()> {
         
         process::run_checked(&xorriso, &[
             "-m", "-o", "-u2", &format!("-bootdata:{}", boot_data),
-            iso_root.to_string_lossy().as_ref(), out_iso.to_string_lossy().as_ref(),
+            iso_root.to_string_lossy().as_ref(), tmp_out.to_string_lossy().as_ref(),
         ])?;
     } else {
         let iso_root_arg = iso_paths::maybe_msys_path(iso_root, &xorriso);
-        let out_iso_arg = iso_paths::maybe_msys_path(out_iso, &xorriso);
+        let out_iso_arg = iso_paths::maybe_msys_path(&tmp_out, &xorriso);
         
         let mut args = if xorriso.contains("xorriso") { vec!["-as", "mkisofs"] } else { vec![] };
         args.extend(&[
@@ -165,6 +183,14 @@ pub fn finalize_iso_from_root(iso_root: &Path, out_iso: &Path) -> Result<()> {
         if !output.status.success() {
             bail!("ISO tool failed: {}", String::from_utf8_lossy(&output.stderr));
         }
+    }
+
+    // Move temporary ISO to final destination
+    if tmp_out.exists() {
+        if out_iso.exists() {
+            let _ = fs_utils::try_remove_file_with_retries(out_iso, 10);
+        }
+        fs::rename(&tmp_out, out_iso).with_context(|| format!("Failed to move {} to {}", tmp_out.display(), out_iso.display()))?;
     }
 
     logging::ready("iso", "ISO finalized successfully", out_iso.to_string_lossy());

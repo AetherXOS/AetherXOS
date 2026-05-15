@@ -129,6 +129,7 @@ fn hash_reason(reason: &str) -> u64 {
 }
 
 pub fn panic_report(info: &PanicInfo, reason: &str) -> ! {
+    crate::kernel::debug_trace::record_optional("kernel.panic", reason, None, true);
     let count = PANIC_COUNT
         .fetch_add(1, Ordering::Relaxed)
         .saturating_add(1);
@@ -173,7 +174,57 @@ pub fn idle_once() {
 }
 
 pub fn fatal_halt(reason: &str) -> ! {
+    crate::kernel::debug_trace::record_optional("kernel.halt", reason, None, true);
     HAL::fatal_halt(reason);
+}
+
+pub fn dump_diagnostics(context: &str, report: &CrashReport) {
+    HAL::serial_write_raw("[EARLY SERIAL] diagnostics dump begin\n");
+    HAL::serial_write_raw("[EARLY SERIAL] diagnostics context: ");
+    HAL::serial_write_raw(context);
+    HAL::serial_write_raw("\n");
+
+    crate::hal::serial::write_trace_hex("diag", "panic_count", report.panic_count);
+    crate::hal::serial::write_trace_hex("diag", "last_panic_tick", report.last_panic_tick);
+    crate::hal::serial::write_trace_hex("diag", "last_reason_hash", report.last_reason_hash);
+    crate::hal::serial::write_trace_hex("diag", "watchdog_tick", report.watchdog_tick);
+    crate::hal::serial::write_trace_hex("diag", "watchdog_stalls", report.watchdog_stalls);
+    crate::hal::serial::write_trace_hex("diag", "watchdog_hard_panics", report.watchdog_hard_panics);
+    crate::hal::serial::write_trace_hex("diag", "startup_stage_transitions", report.startup_stage_transitions);
+    crate::hal::serial::write_trace_hex("diag", "startup_order_violations", report.startup_order_violations);
+    crate::hal::serial::write_trace_hex("diag", "crash_log_latest_seq", report.crash_log_latest_seq);
+    crate::hal::serial::write_trace_hex("diag", "crash_log_latest_kind", report.crash_log_latest_kind as u64);
+    crate::hal::serial::write_trace_hex("diag", "core_dump_present", report.core_dump_present as u64);
+    crate::hal::serial::write_trace_hex("diag", "core_dump_reason_ptr", report.core_dump_reason_ptr as u64);
+    crate::hal::serial::write_trace_hex("diag", "log_buffer_bytes", crate::kernel::log::get_total_size() as u64);
+
+    let serial_stats = crate::hal::serial::stats();
+    let trace_stats = crate::kernel::debug_trace::stats();
+    crate::hal::serial::write_trace_hex("diag", "serial_tx_bytes", serial_stats.tx_bytes);
+    crate::hal::serial::write_trace_hex("diag", "serial_tx_drops", serial_stats.tx_drops);
+    crate::hal::serial::write_trace_hex("diag", "serial_tx_timeouts", serial_stats.tx_timeouts);
+    crate::hal::serial::write_trace_hex("diag", "trace_events", trace_stats.events);
+    crate::hal::serial::write_trace_hex("diag", "trace_dropped_history", trace_stats.dropped_history);
+
+    crate::kernel::debug_trace::dump_to_early_serial();
+    crate::kernel::crash_log::dump_recent_to_early_serial(8);
+    crate::aop::dump_all_aop_stats();
+    let syscall_stats = crate::kernel::syscalls::stats();
+    crate::klog_info!(
+        "Syscall stats: total={} unknown={} invalid={} user_access_denied={} word_unaligned={}",
+        syscall_stats.total,
+        syscall_stats.unknown,
+        syscall_stats.invalid_args,
+        syscall_stats.user_access_denied,
+        syscall_stats.user_word_unaligned_denied,
+    );
+    if crate::kernel_runtime::heap_ready() {
+        crate::kernel::log::dump_recent_to_early_serial(4096);
+    } else {
+        HAL::serial_write_raw("[EARLY SERIAL] log buffer dump skipped (heap not ready)\n");
+    }
+
+    HAL::serial_write_raw("[EARLY SERIAL] diagnostics dump end\n");
 }
 
 pub fn crash_report() -> CrashReport {

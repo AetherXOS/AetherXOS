@@ -49,31 +49,43 @@ pub fn launch_registry_snapshot(out: &mut [LaunchRegistrySnapshotEntry]) -> usiz
 #[cfg(feature = "process_abstraction")]
 pub fn process_image_state(process_id: ProcessId) -> Option<(usize, usize, usize)> {
     let registry = PROCESS_REGISTRY.lock();
-    registry
+    let result = registry
         .iter()
         .find(|entry| entry.process_id == process_id)
         .map(|entry| {
             let (entry_point, image_pages, image_segments, _) = entry.process.image_state();
             (entry_point, image_pages, image_segments)
-        })
+        });
+    if result.is_none() {
+        crate::klog_warn!("launch query miss: process_image_state pid={}", process_id.0);
+    }
+    result
 }
 
 #[cfg(feature = "process_abstraction")]
 pub fn process_arc_by_id(process_id: ProcessId) -> Option<Arc<Process>> {
     let registry = PROCESS_REGISTRY.lock();
-    registry
+    let result = registry
         .iter()
         .find(|entry| entry.process_id == process_id)
-        .map(|entry| entry.process.clone())
+        .map(|entry| entry.process.clone());
+    if result.is_none() {
+        crate::klog_warn!("launch query miss: process_arc_by_id pid={}", process_id.0);
+    }
+    result
 }
 
 #[cfg(feature = "process_abstraction")]
 pub fn process_mapping_state(process_id: ProcessId) -> Option<(usize, usize)> {
     let registry = PROCESS_REGISTRY.lock();
-    registry
+    let result = registry
         .iter()
         .find(|entry| entry.process_id == process_id)
-        .map(|entry| entry.process.mapping_state())
+        .map(|entry| entry.process.mapping_state());
+    if result.is_none() {
+        crate::klog_warn!("launch query miss: process_mapping_state pid={}", process_id.0);
+    }
+    result
 }
 
 #[cfg(feature = "process_abstraction")]

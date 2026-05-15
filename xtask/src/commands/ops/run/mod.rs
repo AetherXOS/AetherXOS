@@ -27,8 +27,8 @@ pub fn execute(action: &RunAction) -> Result<()> {
         RunAction::BareMetalDeploy { device } => {
             execute_bare_metal_deploy(device)?;
         }
-        RunAction::Guest { distro, rootfs, download, cache, refresh, attach, firmware: _ } => {
-            guest::launch_guest_session(distro, rootfs, *download, *cache, *refresh, *attach)?;
+        RunAction::Guest { distro, rootfs, download, cache, refresh, attach, firmware: _, serial_debug } => {
+            guest::launch_guest_session(distro, rootfs, *download, *cache, *refresh, *attach, *serial_debug)?;
         }
     }
     Ok(())

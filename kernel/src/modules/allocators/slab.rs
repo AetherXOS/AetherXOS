@@ -459,9 +459,9 @@ use crate::interfaces::memory::HeapAllocator;
 
 impl HeapAllocator for SlabAllocator {
     unsafe fn init(&mut self, start: usize, size: usize) { unsafe {
-        crate::core::log::trace("Slab allocator initialization starting");
+        crate::hal::Hal::serial_write_raw("[EARLY SERIAL] Slab allocator init start\n");
         self.fallback_allocator.init(start, size);
-        crate::core::log::trace("Slab allocator initialization complete");
+        crate::hal::Hal::serial_write_raw("[EARLY SERIAL] Slab allocator init complete\n");
     }}
 }
 

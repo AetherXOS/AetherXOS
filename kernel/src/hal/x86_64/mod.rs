@@ -375,15 +375,24 @@ impl HardwareAbstraction for HAL {
         serial::write_raw(s);
     }
 
-    fn panic_with_report(info: &core::panic::PanicInfo, _report: &crate::kernel::CrashReport) -> ! {
+    fn panic_with_report(info: &core::panic::PanicInfo, report: &crate::kernel::CrashReport) -> ! {
+        // Minimal allocation-free reporting
         log::error("KERNEL PANIC");
+
+        // If advanced debug is enabled, dump additional diagnostics to serial
+        if crate::config::KernelConfig::is_advanced_debug_enabled() {
+            crate::kernel::dump_diagnostics("panic", report);
+        }
+
         if let Some(location) = info.location() {
             let file = location.file();
             let line = location.line();
+            // Use klog to ensure persistence in ring buffer
             log::error(&format!("Location: {}:{}", file, line));
         }
+
         log::error("Panic Count: 1");
-        
+
         #[cfg(target_os = "none")]
         loop {
             unsafe { core::arch::asm!("hlt"); }
@@ -394,6 +403,13 @@ impl HardwareAbstraction for HAL {
 
     fn fatal_halt(reason: &str) -> ! {
         log::error(&format!("FATAL HALT: {}", reason));
+
+        if crate::config::KernelConfig::is_advanced_debug_enabled() {
+            let report = crate::kernel::crash_report();
+            serial::write_trace("fatal", reason);
+            crate::kernel::dump_diagnostics("fatal", &report);
+        }
+
         #[cfg(target_os = "none")]
         loop {
             unsafe { core::arch::asm!("hlt"); }

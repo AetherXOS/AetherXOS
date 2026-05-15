@@ -7,6 +7,7 @@ use core::sync::atomic::Ordering;
 
 mod control_plane;
 mod core_runtime;
+mod debug;
 mod dispatch_helpers;
 pub mod io_uring;
 mod ipc_control;
@@ -189,9 +190,7 @@ extern "C" fn rust_syscall_handler(
         return SyscallReturn(linux_errno(crate::modules::posix_consts::errno::EPERM));
     }
 
-    if crate::config::KernelConfig::is_syscall_tracing_enabled() {
-        crate::klog_trace!("SYSCALL START: id={} args={:x?} rip={:#x}", syscall_id, args, user_rip);
-    }
+    debug::trace_syscall_start(syscall_id, args, user_rip);
 
     let normal_ret = match syscall_id {
         nr::YIELD => sys_yield(),
@@ -290,15 +289,13 @@ extern "C" fn rust_syscall_handler(
                 ret
             } else {
                 SYSCALL_UNKNOWN.fetch_add(1, Ordering::Relaxed);
-                crate::klog_warn!("Unknown syscall: {} from rip {:#x}", syscall_id, user_rip);
+                debug::log_unknown_syscall(syscall_id, args, user_rip, user_rflags);
                 !0
             }
         }
     };
 
-    if crate::config::KernelConfig::is_syscall_tracing_enabled() {
-        crate::klog_trace!("SYSCALL END: id={} result={:#x}", syscall_id, normal_ret);
-    }
+    debug::trace_syscall_end(syscall_id, normal_ret);
 
     #[cfg(all(feature = "process_abstraction", feature = "posix_mman"))]
     if let Some(process) = crate::kernel::launch::current_process_arc() {

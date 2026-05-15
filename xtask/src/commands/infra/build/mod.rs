@@ -122,7 +122,7 @@ fn update_iso_kernel(
         crate::commands::infra::build::kernel::build_kernel(
             constants::defaults::build::ARCH, 
             false, 
-            aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS | aethercore_common::KernelFeatures::LOGGING
+            aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS
         )
             .context("Rebuilding kernel for injection failed")?;
 

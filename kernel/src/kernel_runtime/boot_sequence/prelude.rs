@@ -90,6 +90,16 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
                 fb.pitch,
                 fb.phys_addr
             );
+            #[cfg(feature = "linux_userspace_graphics")]
+            {
+                aethercore::modules::userspace_graphics::log_stack_summary("prelude.framebuffer");
+            }
+            aethercore::kernel::debug_trace::record_optional(
+                "graphics.boot",
+                "framebuffer_backend_ready",
+                Some((fb.width as u64) << 32 | fb.height as u64),
+                false,
+            );
         }
         Hal::serial_write_raw("[EARLY SERIAL] prelude finalize framebuffer returned\n");
     }

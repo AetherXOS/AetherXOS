@@ -59,6 +59,13 @@ fn dispatch_linux_syscall_linux_compat(
     ) {
         return Some(ret);
     }
+
+    crate::kernel::syscalls::debug::log_unknown_linux_syscall(
+        syscall_id,
+        user_rip,
+        user_rflags,
+        [arg1, arg2, arg3, arg4, arg5, arg6],
+    );
     Some(crate::modules::linux_compat::linux_nosys())
 }
 

@@ -125,3 +125,19 @@ pub fn write_dump_bytes(label: &str, bytes: &[u8]) {
         crate::hal::aarch64::serial::write_dump_bytes(label, bytes);
     }
 }
+
+/// Dump recent architecture-specific trace records to serial (debug only)
+pub fn dump_recent_traces() {
+    if !crate::config::KernelConfig::serial_early_debug_enabled() {
+        return;
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    {
+        crate::hal::x86_64::serial::dump_recent_traces();
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        crate::hal::aarch64::serial::dump_recent_traces();
+    }
+}

@@ -4,6 +4,20 @@ use crate::interfaces::security::{
     SecurityAction, SecurityContext, SecurityMonitor, SecurityVerdict, 
     ResourceKind, cap_flags
 };
+use crate::kernel::cpu_local::CpuLocal;
+
+fn security_audit_context() -> (usize, usize) {
+    let Some(cpu) = (unsafe { CpuLocal::try_get() }) else {
+        return (0, 0);
+    };
+
+    let task_id = cpu.current_task.load(core::sync::atomic::Ordering::Relaxed);
+    let process_id = crate::kernel::launch::process_id_by_task(crate::interfaces::task::TaskId(task_id))
+        .map(|pid| pid.0)
+        .unwrap_or(0);
+
+    (task_id, process_id)
+}
 
 /// The primary security monitor for AetherXOS, enforcing capability-based access control.
 pub struct CapabilitySecurityMonitor;
@@ -22,7 +36,7 @@ impl SecurityMonitor for CapabilitySecurityMonitor {
         &self,
         ctx: &SecurityContext,
         _resource_id: u64,
-        _resource_kind: ResourceKind,
+        resource_kind: ResourceKind,
         action: SecurityAction,
     ) -> SecurityVerdict {
         // 1. Root (EUID 0) bypass for legacy POSIX parity
@@ -55,6 +69,16 @@ impl SecurityMonitor for CapabilitySecurityMonitor {
         if required_cap == 0 || ctx.has_capability(required_cap) {
             SecurityVerdict::Allow
         } else {
+            let (task_id, process_id) = security_audit_context();
+            crate::klog_warn!(
+                "security audit deny: policy={} tid={} pid={} action={:?} resource_kind={:?} required_cap={:#x}",
+                self.policy_name(),
+                task_id,
+                process_id,
+                action,
+                resource_kind,
+                required_cap,
+            );
             SecurityVerdict::AuditDeny
         }
     }

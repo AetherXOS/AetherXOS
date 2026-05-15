@@ -9,7 +9,7 @@
 //! Falls back to a 32 MiB static heap (enough for kernel boot) until a proper
 //! DTB / UEFI memory map parser hands us a dynamic range.
 
-use crate::core::log;
+use aethercore::hal::Hal;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 const BYTES_PER_MIB: usize = 1024 * 1024;
@@ -20,6 +20,7 @@ static PENDING_HEAP_BEST_LEN: AtomicUsize = AtomicUsize::new(0);
 static PENDING_COMPACTION_BASE: AtomicUsize = AtomicUsize::new(0);
 static PENDING_COMPACTION_PAGES: AtomicUsize = AtomicUsize::new(0);
 static PENDING_HEAP_FINALIZE: AtomicBool = AtomicBool::new(false);
+static HEAP_READY: AtomicBool = AtomicBool::new(false);
 
 pub(super) fn init_heap(
     allocator: &aethercore::modules::allocators::selector::ActiveHeapAllocator,
@@ -36,72 +37,76 @@ pub(super) fn init_heap(
     // ── x86_64: scan Limine memory map ───────────────────────────────────────
     #[cfg(target_arch = "x86_64")]
     {
-        log::trace("heap init entry");
-        log::trace("heap init hhdm query");
+        Hal::serial_write_raw("[EARLY SERIAL] heap::init_heap x86_64 start\n");
+        Hal::serial_write_raw("[EARLY SERIAL] heap::init_heap before hhdm\n");
         let hhdm = aethercore::hal::hhdm_offset().unwrap_or(0);
         let _ = hhdm;
-        log::trace("heap init hhdm ready");
 
-        log::trace("heap init memmap query");
-        if let Some(mmap) = aethercore::hal::mem_map() {
-            log::trace("heap init memmap ready");
-            // Pick the largest usable region ≥ heap_size.
-            let mut best_base: u64 = 0;
-            let mut best_len: u64 = 0;
+        Hal::serial_write_raw("[EARLY SERIAL] heap::init_heap before mem_map\n");
+        match aethercore::hal::mem_map() {
+            Some(mmap) => {
+                Hal::serial_write_raw("[EARLY SERIAL] heap::init_heap mem_map ready\n");
+                // Pick the largest usable region ≥ heap_size.
+                let mut best_base: u64 = 0;
+                let mut best_len: u64 = 0;
 
-            for entry_ptr in mmap.memmap() {
-                let entry_raw = entry_ptr.as_ptr();
-                if entry_raw.is_null() {
-                    continue;
+                for entry_ptr in mmap.memmap() {
+                    let entry_raw = entry_ptr.as_ptr();
+                    if entry_raw.is_null() {
+                        continue;
+                    }
+                    let entry = unsafe { &*entry_raw };
+
+                    if entry.typ == MemoryMapEntryType::Usable
+                        && entry.len >= heap_size as u64
+                        && entry.len > best_len
+                    {
+                        best_base = entry.base;
+                        best_len = entry.len;
+                    }
                 }
-                let entry = unsafe { &*entry_raw };
 
-                if entry.typ == MemoryMapEntryType::Usable
-                    && entry.len >= heap_size as u64
-                    && entry.len > best_len
-                {
-                    best_base = entry.base;
-                    best_len = entry.len;
+                if best_base != 0 {
+                    let phys_addr = best_base;
+                    let virt_addr = phys_addr + hhdm;
+                    // Cap the region at the configured heap size so we don't over-commit.
+                    let actual_size = (best_len as usize).min(heap_size);
+                    Hal::serial_write_raw("[EARLY SERIAL] before allocator.init\n");
+                    // SAFETY: This is only called once during early boot before multi-threading.
+                    // The allocator uses atomics internally, so mutable access via const reference is safe.
+                    unsafe {
+                        let allocator_mut = allocator as *const _
+                            as *mut aethercore::modules::allocators::selector::ActiveHeapAllocator;
+                        (*allocator_mut).init(virt_addr as usize, actual_size);
+                    }
+                    Hal::serial_write_raw("[EARLY SERIAL] after allocator.init\n");
+                    Hal::serial_write_raw("[EARLY SERIAL] heap::init_heap end (x86_64 success)\n");
+                    HEAP_READY.store(true, Ordering::Release);
+                    PENDING_HEAP_PHYS_ADDR.store(phys_addr as usize, Ordering::Relaxed);
+                    PENDING_HEAP_VIRT_ADDR.store(virt_addr as usize, Ordering::Relaxed);
+                    PENDING_HEAP_ACTUAL_SIZE.store(actual_size, Ordering::Relaxed);
+                    PENDING_HEAP_BEST_LEN.store(best_len as usize, Ordering::Relaxed);
+
+                    // Register the remainder of the region as compaction candidates
+                    // so the buddy allocator can reclaim them later.
+                    let remainder = best_len as usize - actual_size;
+                    if remainder >= 4096 {
+                        PENDING_COMPACTION_BASE
+                            .store((phys_addr as usize) + actual_size, Ordering::Relaxed);
+                        PENDING_COMPACTION_PAGES.store(remainder / 4096, Ordering::Relaxed);
+                    }
+                    PENDING_HEAP_FINALIZE.store(true, Ordering::Relaxed);
+                    return;
                 }
+
+                Hal::serial_write_raw("[EARLY SERIAL] heap::init_heap end (ERROR: no usable region)\n");
+                aethercore::kernel::fatal_halt("out of memory during heap init");
             }
-
-            log::trace("heap init memmap scan complete");
-
-            if best_base != 0 {
-                let phys_addr = best_base;
-                let virt_addr = phys_addr + hhdm;
-                // Cap the region at the configured heap size so we don't over-commit.
-                let actual_size = (best_len as usize).min(heap_size);
-                log::trace("heap allocator init begin");
-                // SAFETY: This is only called once during early boot before multi-threading.
-                // The allocator uses atomics internally, so mutable access via const reference is safe.
-                unsafe {
-                    let allocator_mut = allocator as *const _
-                        as *mut aethercore::modules::allocators::selector::ActiveHeapAllocator;
-                    (*allocator_mut).init(virt_addr as usize, actual_size);
-                }
-                log::trace("heap allocator init complete");
-                PENDING_HEAP_PHYS_ADDR.store(phys_addr as usize, Ordering::Relaxed);
-                PENDING_HEAP_VIRT_ADDR.store(virt_addr as usize, Ordering::Relaxed);
-                PENDING_HEAP_ACTUAL_SIZE.store(actual_size, Ordering::Relaxed);
-                PENDING_HEAP_BEST_LEN.store(best_len as usize, Ordering::Relaxed);
-
-                // Register the remainder of the region as compaction candidates
-                // so the buddy allocator can reclaim them later.
-                let remainder = best_len as usize - actual_size;
-                if remainder >= 4096 {
-                    PENDING_COMPACTION_BASE
-                        .store((phys_addr as usize) + actual_size, Ordering::Relaxed);
-                    PENDING_COMPACTION_PAGES.store(remainder / 4096, Ordering::Relaxed);
-                }
-                PENDING_HEAP_FINALIZE.store(true, Ordering::Relaxed);
-                return;
+            None => {
+                Hal::serial_write_raw("[EARLY SERIAL] heap::init_heap end (ERROR: no memmap)\n");
+                aethercore::kernel::fatal_halt("memory map unavailable");
             }
         }
-
-        log::trace("heap init no usable region");
-        aethercore::klog_error!("No usable memory region ≥ {} MiB found!", MEM_HEAP_SIZE_MB);
-        aethercore::kernel::fatal_halt("out of memory during heap init");
     }
 
     // ── AArch64: larger static heap with DTB fallback notice ──────────────────
@@ -120,12 +125,11 @@ pub(super) fn init_heap(
             p
         };
 
-        aethercore::klog_info!(
-            "Heap (AArch64 static fallback): ptr={:#x} size={} MiB",
-            ptr as usize,
-            AARCH64_HEAP_SIZE / BYTES_PER_MIB
-        );
+        Hal::serial_write_raw("[EARLY SERIAL] before aarch64 allocator.init\n");
         allocator.init(ptr as usize, AARCH64_HEAP_SIZE);
+        Hal::serial_write_raw("[EARLY SERIAL] after aarch64 allocator.init\n");
+        Hal::serial_write_raw("[EARLY SERIAL] heap::init_heap end (aarch64 static)\n");
+        HEAP_READY.store(true, Ordering::Release);
 
         // If a DTB gives us additional memory, it will be hotplugged later via
         // aethercore::modules::allocators::advanced::hotplug_add_memory().
@@ -136,6 +140,10 @@ pub(super) fn init_heap(
             );
         }
     }
+}
+
+pub(crate) fn heap_ready() -> bool {
+    HEAP_READY.load(Ordering::Acquire)
 }
 
 pub(super) fn finalize_heap_bootstrap() {

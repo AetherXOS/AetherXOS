@@ -75,6 +75,11 @@ pub enum RunAction {
         /// Firmware mode: "bios" for legacy BIOS, "uefi" for UEFI (default: uefi).
         #[arg(long, default_value_t = crate::constants::defaults::run::FIRMWARE.to_string(), help = "Firmware: bios or uefi")]
         firmware: String,
+
+        /// Enable advanced serial debug output: early markers, panic dumps, and trace ring logging.
+        /// Sets SERIAL_EARLY_DEBUG_ENABLED_OVERRIDE=true at runtime and enables kernel debug features.
+        #[arg(long, default_value_t = false, help = "Enable early serial debug output")]
+        serial_debug: bool,
     },
 }
 

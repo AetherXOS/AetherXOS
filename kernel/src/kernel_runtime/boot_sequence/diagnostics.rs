@@ -6,4 +6,9 @@ pub(crate) fn log_boot_diagnostics() {
         diag.ordering_violations,
         diag.last_stage
     );
+
+    #[cfg(feature = "linux_userspace_graphics")]
+    {
+        aethercore::modules::userspace_graphics::log_stack_summary("boot_sequence");
+    }
 }

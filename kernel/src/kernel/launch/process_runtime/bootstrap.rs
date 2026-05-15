@@ -173,9 +173,25 @@ pub fn spawn_bootstrap_from_image(
     interpreter_image: Option<alloc::vec::Vec<u8>>,
 ) -> Result<(usize, usize), LaunchError> {
 
+    crate::kernel::debug_trace::record_optional(
+        "launch.bootstrap",
+        "spawn_begin",
+        Some(image.len() as u64),
+        false,
+    );
+    crate::klog_info!(
+        "bootstrap spawn begin: name='{}' image_bytes={} priority={} deadline={} burst={} kstack={:#x} interp={}",
+        alloc::string::String::from_utf8_lossy(process_name),
+        image.len(),
+        priority,
+        deadline,
+        burst_time,
+        kernel_stack_top,
+        interpreter_image.as_ref().map(|img| img.len()).unwrap_or(0),
+    );
     record_launch_image_preview(image);
     let boot_image = BootImageRecord::Owned(image.to_vec());
-    spawn_bootstrap_from_image_record(
+    let result = spawn_bootstrap_from_image_record(
         process_name,
         boot_image,
         priority,
@@ -183,7 +199,34 @@ pub fn spawn_bootstrap_from_image(
         burst_time,
         kernel_stack_top,
         interpreter_image,
-    )
+    );
+    if let Ok((process_id, task_id)) = result {
+        crate::kernel::debug_trace::record_optional(
+            "launch.bootstrap",
+            "spawn_ok",
+            Some(process_id as u64),
+            false,
+        );
+        crate::klog_info!(
+            "bootstrap spawn ok: pid={} tid={} name='{}'",
+            process_id,
+            task_id,
+            alloc::string::String::from_utf8_lossy(process_name),
+        );
+    } else {
+        crate::kernel::debug_trace::record_optional(
+            "launch.bootstrap",
+            "spawn_err",
+            Some(image.len() as u64),
+            false,
+        );
+        crate::klog_warn!(
+            "bootstrap spawn failed: name='{}' image_bytes={}",
+            alloc::string::String::from_utf8_lossy(process_name),
+            image.len(),
+        );
+    }
+    result
 }
 
 
@@ -198,13 +241,33 @@ pub fn spawn_bootstrap_from_image_record(
     _interpreter_image: Option<alloc::vec::Vec<u8>>,
 ) -> Result<(usize, usize), LaunchError> {
     SPAWN_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
+    crate::kernel::debug_trace::record_optional(
+        "launch.bootstrap",
+        "spawn_record_begin",
+        Some(boot_image.as_slice().len() as u64),
+        false,
+    );
 
     if process_name.is_empty() || boot_image.as_slice().is_empty() {
         SPAWN_FAILURES.fetch_add(1, Ordering::Relaxed);
+        crate::klog_warn!(
+            "bootstrap spawn rejected: empty name_or_image name_len={} image_bytes={}",
+            process_name.len(),
+            boot_image.as_slice().len(),
+        );
         return Err(LaunchError::InvalidSpawnRequest);
     }
 
     let name_str = alloc::string::String::from_utf8_lossy(process_name);
+    crate::klog_info!(
+        "bootstrap spawn record: name='{}' image_bytes={} priority={} deadline={} burst={} kstack={:#x}",
+        name_str,
+        boot_image.as_slice().len(),
+        priority,
+        deadline,
+        burst_time,
+        kernel_stack_top,
+    );
 
     #[cfg(feature = "paging_enable")]
     let cr3 = {
@@ -255,7 +318,21 @@ pub fn spawn_bootstrap_from_image_record(
             kernel_stack_top,
             &mut page_manager,
             &mut frame_allocator,
-        ).map_err(|_| LaunchError::LoaderFailed)?;
+        ).map_err(|_| {
+            crate::kernel::debug_trace::record_optional(
+                "launch.bootstrap",
+                "materialize_failed",
+                Some(process_id.0 as u64),
+                false,
+            );
+            crate::klog_warn!(
+                "bootstrap materialize failed: pid={} name='{}' image_bytes={}",
+                process_id.0,
+                name_str,
+                image_bytes.len(),
+            );
+            LaunchError::LoaderFailed
+        })?;
 
         if let Some(interp) = _interpreter_image {
             let interp_prepared = crate::kernel::module_loader::materialize_process_image(

@@ -80,6 +80,26 @@ pub fn get_total_size() -> usize {
     LOG_BUFFER.lock().len()
 }
 
+pub fn dump_recent_to_early_serial(max_bytes: usize) {
+    let mut buffer = [0u8; LOG_BUFFER_LIMIT];
+    let read = read_to_buffer(&mut buffer);
+    let tail_len = core::cmp::min(read, max_bytes);
+
+    crate::hal::serial::write_raw("[EARLY SERIAL] log buffer dump begin\n");
+    if tail_len > 0 {
+        let start = read.saturating_sub(tail_len);
+        if let Ok(text) = core::str::from_utf8(&buffer[start..read]) {
+            crate::hal::serial::write_raw(text);
+            if !text.ends_with('\n') {
+                crate::hal::serial::write_raw("\n");
+            }
+        } else {
+            crate::hal::serial::write_dump_bytes("log_tail", &buffer[start..read]);
+        }
+    }
+    crate::hal::serial::write_raw("[EARLY SERIAL] log buffer dump end\n");
+}
+
 // Convenience functions for logging
 pub fn debug(msg: &str) {
     log(Level::Debug, format_args!("{}", msg));

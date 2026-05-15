@@ -12,6 +12,7 @@ pub fn launch_guest_session(
     cache: bool,
     refresh: bool,
     attach: bool,
+    serial_debug: bool,
 ) -> Result<()> {
     logging::info("run::guest", "🐧 Preparing guest image and launching interactive session", &[]);
 
@@ -75,11 +76,18 @@ pub fn launch_guest_session(
     }
 
     logging::info("run::guest", "Building kernel and boot image...", &[]);
+    let mut features = aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS;
+    if serial_debug {
+        // Enable debug output features via feature flag
+        features |= aethercore_common::KernelFeatures::DEBUG_TEST_OUTPUT;
+        logging::info("run::guest", "📋 Building with serial debug enabled (debug_test_output feature)", &[]);
+    }
+    
     let bld = crate::cli::BuildAction::Full {
         arch: constants::defaults::build::ARCH,
         bootloader: crate::cli::Bootloader::Limine,
         format: crate::cli::ImageFormat::Iso,
-        features: aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS | aethercore_common::KernelFeatures::LOGGING,
+        features,
         release: false,
         rootfs: resolved,
     };

@@ -15,10 +15,7 @@
           "variants": {
             "minimal": {
               "x86_64": [
-                {
-                  "url": "https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-amd64-root.tar.xz",
-                  "hashes": {}
-                }
+                "https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-amd64-root.tar.xz"
               ]
             },
             "server-cloud": {
@@ -28,9 +25,7 @@
             },
             "desktop": {
               "x86_64": [
-                {
-                  "url": "https://releases.ubuntu.com/24.04.1/ubuntu-24.04.1-desktop-amd64.iso"
-                }
+                "https://releases.ubuntu.com/24.04.1/ubuntu-24.04.1-desktop-amd64.iso"
               ]
             }
           }
@@ -43,9 +38,7 @@
           "variants": {
             "minimal": {
               "x86_64": [
-                {
-                  "url": "https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-amd64-root.tar.xz"
-                }
+                "https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-amd64-root.tar.xz"
               ]
             },
             "desktop-ultimate": {
@@ -84,9 +77,7 @@
           "variants": {
             "minimal": {
               "x86_64": [
-                {
-                  "url": "https://cloud-images.ubuntu.com/minimal/releases/20.04/release/ubuntu-20.04-minimal-cloudimg-amd64-root.tar.gz"
-                }
+                "https://cloud-images.ubuntu.com/minimal/releases/20.04/release/ubuntu-20.04-minimal-cloudimg-amd64-root.tar.gz"
               ]
             }
           }

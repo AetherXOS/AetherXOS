@@ -75,14 +75,25 @@ pub fn smoke_test() -> Result<()> {
 
 pub fn interactive() -> Result<()> {
     let qemu_bin = process::find_qemu_system_x86_64().ok_or_else(|| anyhow::anyhow!("qemu not found"))?;
-    let args = kernel_boot_args(
-        constants::defaults::run::MEMORY_MB,
-        constants::defaults::run::SMP_CORES,
-        &constants::paths::boot_image_stage_kernel().to_string_lossy(),
-        &constants::paths::boot_image_stage_initramfs().to_string_lossy(),
-        constants::defaults::run::KERNEL_APPEND,
-        false,
-    );
+    // Prefer ISO boot if an assembled ISO exists in artifacts, otherwise boot the kernel directly.
+    let iso_path = crate::constants::paths::artifact_dir().join("aethercore.iso");
+    let args = if iso_path.exists() {
+        iso_boot_args(
+            constants::defaults::run::MEMORY_MB,
+            constants::defaults::run::SMP_CORES,
+            &iso_path.to_string_lossy(),
+            false,
+        )
+    } else {
+        kernel_boot_args(
+            constants::defaults::run::MEMORY_MB,
+            constants::defaults::run::SMP_CORES,
+            &constants::paths::boot_image_stage_kernel().to_string_lossy(),
+            &constants::paths::boot_image_stage_initramfs().to_string_lossy(),
+            constants::defaults::run::KERNEL_APPEND,
+            false,
+        )
+    };
     let status = Command::new(&qemu_bin).args(args).status()?;
     if !status.success() { bail!("QEMU exited with code: {}", status.code().unwrap_or(-1)); }
     Ok(())

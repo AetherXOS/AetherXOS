@@ -10,6 +10,12 @@ pub fn sys_yield() -> usize {
 
 pub fn sys_exit(_code: usize) -> usize {
     crate::klog_info!("SYSCALL task exit code {}", _code);
+    crate::kernel::debug_trace::record_optional(
+        "syscall.exit",
+        "sys_exit",
+        Some(_code as u64),
+        false,
+    );
 
     #[cfg(feature = "process_abstraction")]
     {

@@ -148,9 +148,22 @@ pub fn on_timer_tick(cpu: &'static CpuLocal) {
                     lag,
                     hard_stall
                 );
-                crate::kernel::fatal_halt("nmi_watchdog_emulation");
+                // In debug mode, do NOT reset; instead log and halt to preserve crash state for analysis
+                if crate::config::KernelConfig::is_advanced_debug_enabled() {
+                    crate::klog_error!("Watchdog stall detected (debug mode: halt instead of reset)");
+                    crate::kernel::fatal_halt("nmi_watchdog_emulation [debug]");
+                } else {
+                    crate::kernel::fatal_halt("nmi_watchdog_emulation");
+                }
             }
-            match KernelConfig::soft_watchdog_action_mode() {
+            // In debug mode, always use Log action to avoid resets and preserve crash state
+            let action = if crate::config::KernelConfig::is_advanced_debug_enabled() {
+                crate::config::WatchdogAction::Log
+            } else {
+                KernelConfig::soft_watchdog_action_mode()
+            };
+
+            match action {
                 crate::config::WatchdogAction::Halt => {
                     crate::kernel::fatal_halt("soft_watchdog");
                 }

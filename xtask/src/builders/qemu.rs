@@ -23,6 +23,7 @@ pub fn kernel_boot_args(
         initramfs.to_string(),
         "-append".to_string(),
         append.to_string(),
+        "-no-reboot".to_string(),
     ]);
     args
 }
@@ -41,6 +42,7 @@ pub fn iso_boot_args(memory_mb: u32, cores: u32, iso: &str, nographic: bool) -> 
         iso.to_string(),
         "-boot".to_string(),
         "d".to_string(),
+        "-no-reboot".to_string(),
     ]);
     args
 }
@@ -82,6 +84,7 @@ mod tests {
         assert!(args.windows(2).any(|w| w == ["-kernel", "kernel.elf"]));
         assert!(args.windows(2).any(|w| w == ["-initrd", "initramfs.cpio"]));
         assert!(args.windows(2).any(|w| w == ["-append", "console=ttyS0"]));
+        assert!(args.iter().any(|s| s == "-no-reboot"));
     }
 
     #[test]
@@ -92,5 +95,6 @@ mod tests {
         assert!(args.windows(2).any(|w| w == ["-smp", "4"]));
         assert!(args.windows(2).any(|w| w == ["-cdrom", "boot.iso"]));
         assert!(args.windows(2).any(|w| w == ["-boot", "d"]));
+        assert!(args.iter().any(|s| s == "-no-reboot"));
     }
 }

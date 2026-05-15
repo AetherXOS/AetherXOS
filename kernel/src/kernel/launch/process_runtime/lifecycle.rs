@@ -18,6 +18,19 @@ pub fn claim_next_launch_context() -> Option<LaunchContext> {
             entry.stage = LaunchStage::Claimed;
             entry.stage_epoch = now_epoch;
             CLAIM_SUCCESS.fetch_add(1, Ordering::Relaxed);
+            crate::kernel::debug_trace::record_optional(
+                "launch.handoff",
+                "claim_pending",
+                Some(entry.process_id.0 as u64),
+                false,
+            );
+            crate::klog_info!(
+                "launch handoff claim: pid={} tid={} stage={:?} epoch={}",
+                entry.process_id.0,
+                entry.task_id.0,
+                entry.stage,
+                now_epoch,
+            );
             return Some(build_context(
                 entry.process_id,
                 &entry.process,
@@ -27,6 +40,12 @@ pub fn claim_next_launch_context() -> Option<LaunchContext> {
     }
 
     CLAIM_FAILURES.fetch_add(1, Ordering::Relaxed);
+    crate::kernel::debug_trace::record_optional(
+        "launch.handoff",
+        "claim_empty",
+        Some(now_epoch),
+        false,
+    );
     None
 }
 
@@ -42,6 +61,12 @@ pub fn acknowledge_launch_context_typed(process_id: ProcessId, success: bool) ->
         .find(|entry| entry.process_id == process_id)
     else {
         HANDOFF_ACK_FAILURES.fetch_add(1, Ordering::Relaxed);
+        crate::klog_warn!(
+            "launch handoff ack missing: pid={} success={} epoch={}",
+            process_id.0,
+            success,
+            now_epoch,
+        );
         return false;
     };
 
@@ -52,9 +77,21 @@ pub fn acknowledge_launch_context_typed(process_id: ProcessId, success: bool) ->
     };
     entry.stage_epoch = now_epoch;
     HANDOFF_ACK_SUCCESS.fetch_add(1, Ordering::Relaxed);
+    crate::kernel::debug_trace::record_optional(
+        "launch.handoff",
+        if success { "ack_success" } else { "ack_retry" },
+        Some(process_id.0 as u64),
+        false,
+    );
+    crate::klog_info!(
+        "launch handoff ack: pid={} success={} new_stage={:?} epoch={}",
+        process_id.0,
+        success,
+        entry.stage,
+        now_epoch,
+    );
     true
 }
-
 #[cfg(feature = "process_abstraction")]
 pub fn launch_context_stage_typed(process_id: ProcessId) -> Option<usize> {
     let now_epoch = next_handoff_epoch();
@@ -78,11 +115,24 @@ pub fn consume_ready_launch_context() -> Option<LaunchContext> {
         .position(|entry| entry.stage == LaunchStage::Ready)
     else {
         HANDOFF_CONSUME_FAILURES.fetch_add(1, Ordering::Relaxed);
+        crate::kernel::debug_trace::record_optional(
+            "launch.handoff",
+            "consume_empty",
+            Some(now_epoch),
+            false,
+        );
         return None;
     };
 
     let entry = registry.remove(index);
     HANDOFF_CONSUME_SUCCESS.fetch_add(1, Ordering::Relaxed);
+    crate::klog_info!(
+        "launch handoff consume: pid={} tid={} stage={:?} epoch={}",
+        entry.process_id.0,
+        entry.task_id.0,
+        entry.stage,
+        now_epoch,
+    );
     Some(build_context(
         entry.process_id,
         &entry.process,
@@ -103,9 +153,21 @@ pub fn execute_ready_launch_context_on_current_cpu() -> Option<LaunchContext> {
             .find(|entry| entry.stage == LaunchStage::Ready)
         else {
             HANDOFF_EXECUTE_FAILURES.fetch_add(1, Ordering::Relaxed);
+            crate::kernel::debug_trace::record_optional(
+                "launch.handoff",
+                "execute_empty",
+                Some(now_epoch),
+                false,
+            );
             return None;
         };
         entry.stage_epoch = now_epoch;
+        crate::klog_info!(
+            "launch handoff execute candidate: pid={} tid={} epoch={}",
+            entry.process_id.0,
+            entry.task_id.0,
+            now_epoch,
+        );
         build_context(entry.process_id, &entry.process, entry.task_id)
     };
 
@@ -130,12 +192,25 @@ pub fn execute_ready_launch_context_on_current_cpu() -> Option<LaunchContext> {
 
                 true
             }
-            None => false,
+            None => {
+                crate::klog_warn!(
+                    "launch handoff execute failed: pid={} tid={} reason=task-missing",
+                    candidate.process_id.0,
+                    candidate.task_id.0,
+                );
+                false
+            }
         }
     };
 
     if !task_found {
         HANDOFF_EXECUTE_FAILURES.fetch_add(1, Ordering::Relaxed);
+        crate::kernel::debug_trace::record_optional(
+            "launch.handoff",
+            "execute_task_missing",
+            Some(candidate.process_id.0 as u64),
+            false,
+        );
         return None;
     }
 
@@ -155,12 +230,24 @@ pub fn execute_ready_launch_context_on_current_cpu() -> Option<LaunchContext> {
     }
 
     HANDOFF_EXECUTE_SUCCESS.fetch_add(1, Ordering::Relaxed);
+    crate::kernel::debug_trace::record_optional(
+        "launch.handoff",
+        "execute_success",
+        Some(candidate.process_id.0 as u64),
+        false,
+    );
     Some(candidate)
 }
 
 #[cfg(feature = "process_abstraction")]
 pub fn terminate_process_with_status(process_id: ProcessId, status: i32) -> bool {
     TERMINATE_ATTEMPTS.fetch_add(1, Ordering::Relaxed);
+
+    crate::klog_info!(
+        "process exit requested: pid={} status={}",
+        process_id.0,
+        status,
+    );
 
     let (task_id, process_arc) = {
         let mut registry = PROCESS_REGISTRY.lock();
@@ -169,11 +256,23 @@ pub fn terminate_process_with_status(process_id: ProcessId, status: i32) -> bool
             .position(|entry| entry.process_id == process_id)
         else {
             TERMINATE_FAILURES.fetch_add(1, Ordering::Relaxed);
+            crate::klog_warn!(
+                "process exit ignored: pid={} status={} reason=registry-miss",
+                process_id.0,
+                status,
+            );
             return false;
         };
         let entry = registry.remove(index);
         (entry.task_id, entry.process)
     };
+
+    crate::klog_info!(
+        "process exit accepted: pid={} tid={} status={}",
+        process_id.0,
+        task_id.0,
+        status,
+    );
 
     let shared_object_fini =
         crate::kernel::dynamic_linker::api::drain_pending_shared_object_fini_reports_for_process(

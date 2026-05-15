@@ -339,6 +339,12 @@ pub fn observe_linked_probe_exit() {
         if state == Some(aethercore::kernel::process::ProcessLifecycleState::Exited) {
             aethercore::kernel::debug_trace::record_optional(
                 "linked.probe",
+                "exit_state",
+                Some(status as u64),
+                false,
+            );
+            aethercore::kernel::debug_trace::record_optional(
+                "linked.probe",
                 "exit_observed",
                 Some(status as u64),
                 false,

@@ -50,8 +50,14 @@ impl KernelConfig {
     }
 
     pub fn is_advanced_debug_enabled() -> bool {
-        cfg!(debug_assertions) || cfg!(feature = "debug_test_output")
+        cfg!(debug_assertions)
+            || cfg!(feature = "debug_test_output")
+            || SERIAL_EARLY_DEBUG_ENABLED_OVERRIDE.load(core::sync::atomic::Ordering::Relaxed) != 0
     }
+
+    // NOTE: `serial_early_debug_enabled()` and related helpers are defined
+    // in `config::policy` module to keep policy-related logic colocated.
+    // Do not duplicate those methods here to avoid impl collisions.
 
     pub fn is_virtualization_enabled() -> bool {
         false // Placeholder for future feature

@@ -31,7 +31,7 @@ pub fn try_remove_file_with_retries(path: &Path, retries: usize) -> Result<()> {
         match fs::remove_file(path) {
             Ok(_) => return Ok(()),
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
-            Err(e) if e.kind() == io::ErrorKind::PermissionDenied && attempt < retries => {
+            Err(e) if attempt < retries && (e.kind() == io::ErrorKind::PermissionDenied || e.raw_os_error() == Some(32)) => {
                 thread::sleep(Duration::from_millis(250 * (attempt as u64 + 1)));
             }
             Err(e) => {

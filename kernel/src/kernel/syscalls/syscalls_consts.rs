@@ -32,71 +32,87 @@ pub mod x86 {
     pub const EXCEPTION_DOUBLE_FAULT: u8 = 8;
 }
 
-pub mod nr {
-    pub const YIELD: usize = 0;
-    pub const EXIT: usize = 1;
-    pub const PRINT: usize = 2;
-    pub const SET_TLS: usize = 3;
-    pub const GET_TLS: usize = 4;
-    pub const SET_AFFINITY: usize = 5;
-    pub const GET_AFFINITY: usize = 6;
-    pub const GET_LAUNCH_STATS: usize = 7;
-    pub const GET_PROCESS_COUNT: usize = 8;
-    pub const LIST_PROCESS_IDS: usize = 9;
-    pub const SPAWN_PROCESS: usize = 10;
-    pub const GET_PROCESS_IMAGE_STATE: usize = 11;
-    pub const GET_PROCESS_MAPPING_STATE: usize = 12;
-    pub const VFS_MOUNT_RAMFS: usize = 13;
-    pub const VFS_LIST_MOUNTS: usize = 14;
-    pub const GET_POWER_STATS: usize = 15;
-    pub const SET_POWER_OVERRIDE: usize = 16;
-    pub const CLEAR_POWER_OVERRIDE: usize = 17;
-    pub const GET_NETWORK_STATS: usize = 18;
-    pub const SET_NETWORK_POLLING: usize = 19;
-    pub const TERMINATE_PROCESS: usize = 20;
-    pub const GET_PROCESS_LAUNCH_CONTEXT: usize = 21;
-    pub const VFS_GET_MOUNT_PATH: usize = 22;
-    pub const VFS_UNMOUNT: usize = 23;
-    pub const VFS_GET_STATS: usize = 24;
-    pub const NETWORK_RESET_STATS: usize = 25;
-    pub const NETWORK_FORCE_POLL: usize = 26;
-    pub const SET_CSTATE_OVERRIDE: usize = 27;
-    pub const CLEAR_CSTATE_OVERRIDE: usize = 28;
-    pub const CLAIM_NEXT_LAUNCH_CONTEXT: usize = 29;
-    pub const ACK_LAUNCH_CONTEXT: usize = 30;
-    pub const GET_LAUNCH_CONTEXT_STAGE: usize = 31;
-    pub const TERMINATE_TASK: usize = 32;
-    pub const GET_PROCESS_ID_BY_TASK: usize = 33;
-    pub const VFS_UNMOUNT_PATH: usize = 34;
-    pub const NETWORK_REINITIALIZE: usize = 35;
-    pub const CONSUME_READY_LAUNCH_CONTEXT: usize = 36;
-    pub const EXECUTE_READY_LAUNCH_CONTEXT: usize = 37;
-    pub const FUTEX_WAIT: usize = 38;
-    pub const FUTEX_WAKE: usize = 39;
-    pub const UPCALL_REGISTER: usize = 40;
-    pub const UPCALL_UNREGISTER: usize = 41;
-    pub const UPCALL_QUERY: usize = 42;
-    pub const UPCALL_CONSUME: usize = 43;
-    pub const UPCALL_INJECT_VIRQ: usize = 44;
-    pub const GET_ABI_INFO: usize = 45;
-    pub const SET_NETWORK_BACKPRESSURE_POLICY: usize = 46;
-    pub const SET_NETWORK_ALERT_THRESHOLDS: usize = 47;
-    pub const GET_NETWORK_ALERT_REPORT: usize = 48;
-    pub const RESOLVE_PLT: usize = 49;
-    pub const VFS_OPEN: usize = 50;
-    pub const VFS_READ: usize = 51;
-    pub const VFS_WRITE: usize = 52;
-    pub const VFS_CLOSE: usize = 53;
-    pub const GET_CRASH_REPORT: usize = 54;
-    pub const LIST_CRASH_EVENTS: usize = 55;
-    pub const GET_CORE_PRESSURE_SNAPSHOT: usize = 56;
-    pub const GET_LOTTERY_REPLAY_LATEST: usize = 57;
-    pub const SET_POLICY_DRIFT_CONTROL: usize = 58;
-    pub const GET_POLICY_DRIFT_CONTROL: usize = 59;
-    pub const GET_POLICY_DRIFT_REASON_TEXT: usize = 60;
-    pub const VFS_MOUNT_DISKFS: usize = 61;
-    pub const VFS_MOUNT_OVERLAY: usize = 62;
+macro_rules! define_syscalls {
+    ($($name:ident = $value:expr),+ $(,)?) => {
+        pub mod nr {
+            $(pub const $name: usize = $value;)+
+        }
+
+        #[inline(always)]
+        pub fn syscall_name(syscall_id: usize) -> &'static str {
+            match syscall_id {
+                $($value => stringify!($name),)+
+                _ => "UNKNOWN",
+            }
+        }
+    };
 }
+
+define_syscalls!(
+    YIELD = 0,
+    EXIT = 1,
+    PRINT = 2,
+    SET_TLS = 3,
+    GET_TLS = 4,
+    SET_AFFINITY = 5,
+    GET_AFFINITY = 6,
+    GET_LAUNCH_STATS = 7,
+    GET_PROCESS_COUNT = 8,
+    LIST_PROCESS_IDS = 9,
+    SPAWN_PROCESS = 10,
+    GET_PROCESS_IMAGE_STATE = 11,
+    GET_PROCESS_MAPPING_STATE = 12,
+    VFS_MOUNT_RAMFS = 13,
+    VFS_LIST_MOUNTS = 14,
+    GET_POWER_STATS = 15,
+    SET_POWER_OVERRIDE = 16,
+    CLEAR_POWER_OVERRIDE = 17,
+    GET_NETWORK_STATS = 18,
+    SET_NETWORK_POLLING = 19,
+    TERMINATE_PROCESS = 20,
+    GET_PROCESS_LAUNCH_CONTEXT = 21,
+    VFS_GET_MOUNT_PATH = 22,
+    VFS_UNMOUNT = 23,
+    VFS_GET_STATS = 24,
+    NETWORK_RESET_STATS = 25,
+    NETWORK_FORCE_POLL = 26,
+    SET_CSTATE_OVERRIDE = 27,
+    CLEAR_CSTATE_OVERRIDE = 28,
+    CLAIM_NEXT_LAUNCH_CONTEXT = 29,
+    ACK_LAUNCH_CONTEXT = 30,
+    GET_LAUNCH_CONTEXT_STAGE = 31,
+    TERMINATE_TASK = 32,
+    GET_PROCESS_ID_BY_TASK = 33,
+    VFS_UNMOUNT_PATH = 34,
+    NETWORK_REINITIALIZE = 35,
+    CONSUME_READY_LAUNCH_CONTEXT = 36,
+    EXECUTE_READY_LAUNCH_CONTEXT = 37,
+    FUTEX_WAIT = 38,
+    FUTEX_WAKE = 39,
+    UPCALL_REGISTER = 40,
+    UPCALL_UNREGISTER = 41,
+    UPCALL_QUERY = 42,
+    UPCALL_CONSUME = 43,
+    UPCALL_INJECT_VIRQ = 44,
+    GET_ABI_INFO = 45,
+    SET_NETWORK_BACKPRESSURE_POLICY = 46,
+    SET_NETWORK_ALERT_THRESHOLDS = 47,
+    GET_NETWORK_ALERT_REPORT = 48,
+    RESOLVE_PLT = 49,
+    VFS_OPEN = 50,
+    VFS_READ = 51,
+    VFS_WRITE = 52,
+    VFS_CLOSE = 53,
+    GET_CRASH_REPORT = 54,
+    LIST_CRASH_EVENTS = 55,
+    GET_CORE_PRESSURE_SNAPSHOT = 56,
+    GET_LOTTERY_REPLAY_LATEST = 57,
+    SET_POLICY_DRIFT_CONTROL = 58,
+    GET_POLICY_DRIFT_CONTROL = 59,
+    GET_POLICY_DRIFT_REASON_TEXT = 60,
+    VFS_MOUNT_DISKFS = 61,
+    VFS_MOUNT_OVERLAY = 62,
+);
 
 #[path = "syscalls_consts/linux_numbers.rs"]
 mod linux_numbers;
@@ -394,3 +410,4 @@ pub fn write_launch_context_words(
     out[6] = mapped_pages;
     out[7] = cr3;
 }
+

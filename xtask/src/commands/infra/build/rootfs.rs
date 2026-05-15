@@ -12,6 +12,26 @@ pub fn extract_rootfs_archive(src: &Path, dst: &Path) -> Result<()> {
 
     let mut tried_tools = Vec::new();
 
+    // On Windows prefer extracting Linux tarballs using WSL when available
+    if cfg!(windows) && process::which("wsl") {
+        tried_tools.push("wsl tar");
+        logging::info("image", "attempting extraction via WSL (preferred on Windows for Linux archives)", &[]);
+        let src_w = crate::utils::sys::wsl::to_wsl_path(src)?;
+        let dst_w = crate::utils::sys::wsl::to_wsl_path(dst)?;
+        let cmd = if is_iso {
+            format!("tar -xf {} -C {}", src_w, dst_w)
+        } else {
+            format!(
+                "tar -xpf {} -C {} --exclude=dev/* --exclude=proc/* --exclude=sys/* --exclude=run/* --exclude=var/lock --exclude=var/run --exclude=var/spool/mail",
+                src_w, dst_w
+            )
+        };
+
+        if crate::utils::sys::wsl::run_in_wsl(&cmd, &["tar"]).is_ok() {
+            return Ok(());
+        }
+    }
+
     // 1. Try 7z
     if cfg!(windows) && process::which("7z") && !config::prefer_wsl_extraction() {
         tried_tools.push("7z");
@@ -19,6 +39,31 @@ pub fn extract_rootfs_archive(src: &Path, dst: &Path) -> Result<()> {
         let (status, stdout, stderr) = process::run_with_output("7z", &["x", &src_s, &format!("-o{}", dst_s), "-y"])?;
         
         if status.success() {
+            // 7z on .tar.gz often produces a .tar inside the destination; handle nested tar extraction
+            if let Ok(entries) = std::fs::read_dir(&dst_s) {
+                for e in entries.flatten() {
+                    let p = e.path();
+                    if let Some(ext) = p.extension() {
+                        if ext == "tar" {
+                            let tar_s = p.to_string_lossy().to_string();
+                            logging::info("image", "extracting nested tar produced by 7z", &[("tar", &tar_s)]);
+                            match process::run_with_output("7z", &["x", &tar_s, &format!("-o{}", dst_s), "-y"]) {
+                                Ok((status2, _stdout2, _stderr2)) => {
+                                    if status2.success() {
+                                        let _ = std::fs::remove_file(&p);
+                                    } else {
+                                        logging::warn("image", "nested tar extraction failed", &[("tar", &tar_s)]);
+                                    }
+                                }
+                                Err(_) => {
+                                    logging::warn("image", "nested tar extraction command failed to run", &[("tar", &tar_s)]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             return Ok(());
         }
 

@@ -19,6 +19,7 @@ define_flags! {
         KVM             = 1 << 13,
         HARDENING       = 1 << 14,
         IO_URING        = 1 << 15,
+        DEBUG_TEST_OUTPUT = 1 << 16,
     }
 }
 
@@ -48,6 +49,7 @@ impl KernelFeatures {
         if self.contains(Self::KVM) { features.push("kvm"); }
         if self.contains(Self::HARDENING) { features.push("hardening"); }
         if self.contains(Self::IO_URING) { features.push("io_uring"); }
+        if self.contains(Self::DEBUG_TEST_OUTPUT) { features.push("debug_test_output"); }
         features
     }
 
@@ -71,6 +73,7 @@ impl KernelFeatures {
                 "kvm" => flags |= Self::KVM,
                 "hardening" => flags |= Self::HARDENING,
                 "io_uring" => flags |= Self::IO_URING,
+                "debug_test_output" => flags |= Self::DEBUG_TEST_OUTPUT,
                 _ => {}
             }
         }

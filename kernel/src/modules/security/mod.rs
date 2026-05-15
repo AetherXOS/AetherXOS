@@ -320,7 +320,28 @@ pub fn check_control_plane_access(resource: u64) -> bool {
         }
     };
 
-    model_ok && mac::check_access(resource)
+    let allowed = model_ok && mac::check_access(resource);
+    if !allowed {
+        let (task_id, process_id) = unsafe { crate::kernel::cpu_local::CpuLocal::try_get() }
+            .map(|cpu| {
+                let task_id = cpu.current_task.load(Ordering::Relaxed);
+                let process_id = crate::kernel::launch::process_id_by_task(TaskId(task_id))
+                    .map(|pid| pid.0)
+                    .unwrap_or(0);
+                (task_id, process_id)
+            })
+            .unwrap_or((0, 0));
+
+        crate::klog_warn!(
+            "control-plane deny: profile={:?} tid={} pid={} resource={:#x}",
+            active_profile(),
+            task_id,
+            process_id,
+            resource,
+        );
+    }
+
+    allowed
 }
 
 /// Full security check with context — preferred API for new code paths.

@@ -150,5 +150,11 @@ pub fn init() {
         }
     }
 
+    #[cfg(feature = "linux_userspace_graphics")]
+    {
+        crate::modules::userspace_graphics::log_readiness("linux_compat.init");
+        crate::modules::userspace_graphics::log_stack_summary("linux_compat.init");
+    }
+
     crate::klog_info!("[linux_compat] init complete");
 }

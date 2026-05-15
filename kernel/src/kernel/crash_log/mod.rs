@@ -131,3 +131,19 @@ pub fn stats() -> CrashLogStats {
         latest_event_kind: ev.kind,
     }).unwrap_or_default()
 }
+
+pub fn dump_recent_to_early_serial(limit: usize) {
+    let mut recent = [CrashEvent::EMPTY; CORE_CRASH_LOG_CAPACITY];
+    let written = recent_into(&mut recent);
+    let start = written.saturating_sub(limit);
+
+    crate::hal::serial::write_raw("[EARLY SERIAL] crash log dump begin\n");
+    for event in recent.iter().take(written).skip(start) {
+        crate::hal::serial::write_trace_hex("crash", "seq", event.seq);
+        crate::hal::serial::write_trace_hex("crash", "tick", event.tick);
+        crate::hal::serial::write_trace_hex("crash", "cpu", event.cpu_id as u64);
+        crate::hal::serial::write_trace_hex("crash", "kind", event.kind as u64);
+        crate::hal::serial::write_trace_hex("crash", "reason_hash", event.reason_hash);
+    }
+    crate::hal::serial::write_raw("[EARLY SERIAL] crash log dump end\n");
+}
