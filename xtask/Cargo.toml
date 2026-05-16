@@ -46,3 +46,4 @@ derive_more = { version = "0.99", features = ["display", "from", "as_ref"] }
 bitflags = "2.4.0"
 xmas-elf = "0.9"
 tar = "0.4"
+crossbeam-channel = "0.5"

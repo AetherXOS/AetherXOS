@@ -16,6 +16,10 @@ pub struct CleanAction {
     #[arg(long, short = 'l')]
     pub logs: bool,
 
+    /// Skip size and file count calculations (recommended for massive trees).
+    #[arg(long)]
+    pub no_stats: bool,
+
     /// Dry-run: show what would be deleted without actually removing files.
     #[arg(long)]
     pub dry_run: bool,
@@ -23,6 +27,6 @@ pub struct CleanAction {
 
 impl Executable for CleanAction {
     fn execute(&self) -> Result<()> {
-        crate::commands::ops::clean::execute(self.all, self.distros, self.logs, self.dry_run)
+        crate::commands::ops::clean::execute(self.all, self.distros, self.logs, self.no_stats, self.dry_run)
     }
 }
