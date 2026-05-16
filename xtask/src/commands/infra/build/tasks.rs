@@ -42,6 +42,18 @@ impl Task for KernelCompileTask {
         
         Ok(TaskStatus::Success)
     }
+
+    fn fingerprint(&self, ctx: &ExecutionContext) -> Result<Option<String>> {
+        use crate::utils::fs::hash::{hash_dir, HashAlgo};
+        let kernel_src = ctx.repo_root.join("kernel");
+        if !kernel_src.exists() { return Ok(None); }
+        
+        // Hash the directory content + compilation flags (release, features)
+        let dir_hash = hash_dir(&kernel_src, HashAlgo::Sha256)?;
+        let context_data = format!("{}-{}-{:?}", self.arch, self.release, self.features);
+        
+        Ok(Some(format!("{}-{}", dir_hash, context_data)))
+    }
 }
 
 pub struct InitramfsTask;

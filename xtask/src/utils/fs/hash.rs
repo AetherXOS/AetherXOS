@@ -111,3 +111,29 @@ pub fn hash_file(path: &Path, algo: HashAlgo) -> Result<String> {
         .cloned()
         .ok_or_else(|| anyhow!("Hash calculation failed"))
 }
+
+/// Calculate a stable fingerprint of an entire directory by hashing all its files.
+pub fn hash_dir(path: &Path, _algo: HashAlgo) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    use walkdir::WalkDir;
+
+    let mut hasher = Sha256::new();
+    let mut entries: Vec<_> = WalkDir::new(path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+        .collect();
+        
+    // Sort by path for determinism
+    entries.sort_by(|a, b| a.path().cmp(b.path()));
+
+    for entry in entries {
+        let rel_path = entry.path().strip_prefix(path).unwrap_or(entry.path());
+        hasher.update(rel_path.to_string_lossy().as_bytes());
+        
+        let mut file = std::fs::File::open(entry.path())?;
+        std::io::copy(&mut file, &mut hasher)?;
+    }
+    
+    Ok(format!("{:x}", hasher.finalize()))
+}

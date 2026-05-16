@@ -9,7 +9,7 @@ pub enum TaskStatus {
 }
 
 /// A single, atomic operation in the xtask pipeline.
-pub trait Task {
+pub trait Task: Send + Sync {
     /// Human-readable name of the task.
     fn name(&self) -> &str;
     
@@ -22,6 +22,11 @@ pub trait Task {
     /// Check if the task needs to run (e.g. file timestamps).
     fn should_run(&self, _ctx: &ExecutionContext) -> bool {
         true
+    }
+
+    /// Returns a stable fingerprint of the task's inputs.
+    fn fingerprint(&self, _ctx: &ExecutionContext) -> Result<Option<String>> {
+        Ok(None)
     }
     
     /// Cleanup logic if the task or pipeline fails.

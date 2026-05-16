@@ -49,7 +49,10 @@ pub fn run() -> Result<()> {
         arch: arch.to_string(),
         features: resolved_features.to_cargo_features().iter().map(|&s| s.to_string()).collect(),
         staging: None,
-        state: crate::engine::EngineState::load(),
+        state: std::sync::Arc::new(std::sync::RwLock::new(crate::engine::EngineState::load())),
+        non_interactive: false,
+        dry_run: false,
+        parameters: std::collections::HashMap::new(),
     };
 
     // Add core compilation task

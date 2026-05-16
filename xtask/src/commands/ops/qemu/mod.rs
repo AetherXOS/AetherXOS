@@ -123,7 +123,8 @@ pub fn run(
 ) -> Result<()> {
     let qemu_bin = process::find_qemu_system_x86_64().ok_or_else(|| anyhow::anyhow!("qemu not found"))?;
     let mut args = iso_boot_args(memory_mb, smp, &image.to_string_lossy(), gui);
-    if let Some(extra) = extra_args {
+    if let Some(extra) = extra_args 
+    {
         args.extend(extra.iter().cloned());
     }
     let status = Command::new(&qemu_bin).args(args).status()?;

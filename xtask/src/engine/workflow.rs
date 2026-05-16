@@ -10,6 +10,10 @@ impl WorkflowRegistry {
     pub fn full_iso_pipeline(ctx: &ExecutionContext) -> Result<Pipeline> {
         let mut p = Pipeline::new("Full ISO Pipeline");
         
+        // 0. Environment Audit
+        p = p.add_task(Box::new(crate::engine::audit::ToolchainAuditTask));
+        p = p.add_task(Box::new(crate::engine::ResourceAuditTask));
+
         // 1. Compile Kernel
         p = p.add_task(Box::new(KernelCompileTask {
             arch: crate::constants::defaults::build::ARCH,
@@ -32,6 +36,12 @@ impl WorkflowRegistry {
 
         p = p.add_task(Box::new(ImageFinalizeTask {
             format: crate::types::ImageFormat::Iso,
+        }));
+
+        // 5. Documentation
+        p = p.add_task(Box::new(crate::engine::docs::DocsGenerateTask {
+            source_dir: "kernel".to_string(),
+            output_file: "kernel_api.md".to_string(),
         }));
 
         Ok(p)

@@ -2,6 +2,7 @@ use anyhow::{Result, Context};
 use std::path::{Path, PathBuf};
 use crate::utils::{paths, logging};
 
+#[derive(Clone)]
 pub struct StagingArea {
     pub root: PathBuf,
 }

@@ -1,5 +1,6 @@
 pub mod glibc;
 pub mod safety;
+pub use safety::KernelSafetyAuditTask;
 pub mod linux_abi;
 pub mod reports;
 pub mod secureboot;

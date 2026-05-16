@@ -1,6 +1,8 @@
 use std::path::PathBuf;
+use std::sync::RwLock;
 use crate::utils::core::context as app_ctx;
 
+#[derive(Clone)]
 pub struct ExecutionContext {
     pub repo_root: PathBuf,
     pub out_dir: PathBuf,
@@ -8,7 +10,10 @@ pub struct ExecutionContext {
     pub arch: String,
     pub features: Vec<String>,
     pub staging: Option<super::staging::StagingArea>,
-    pub state: super::state::EngineState,
+    pub state: std::sync::Arc<RwLock<super::state::EngineState>>,
+    pub non_interactive: bool,
+    pub dry_run: bool,
+    pub parameters: std::collections::HashMap<String, String>,
 }
 
 impl ExecutionContext {
@@ -20,7 +25,10 @@ impl ExecutionContext {
             arch: "x86_64".to_string(),
             features: Vec::new(),
             staging: None,
-            state: super::state::EngineState::load(),
+            state: std::sync::Arc::new(RwLock::new(super::state::EngineState::load())),
+            non_interactive: false,
+            dry_run: false,
+            parameters: std::collections::HashMap::new(),
         }
     }
 

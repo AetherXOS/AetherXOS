@@ -23,6 +23,9 @@ impl Pipeline {
     }
 
     pub fn run(&self, ctx: &ExecutionContext) -> Result<()> {
+        if ctx.non_interactive {
+            logging::info("PIPELINE", "Running in NON-INTERACTIVE mode", &[]);
+        }
         logging::status("PIPELINE", &format!("Starting workflow: {}", self.name));
         
         let mut executed_tasks = Vec::new();
@@ -32,10 +35,26 @@ impl Pipeline {
         for (i, task) in self.tasks.iter().enumerate() {
             logging::step("PIPELINE", &format!("[{}/{}] {}", i + 1, self.tasks.len(), task.name()));
             
+            // 1. Basic should_run check
             if !task.should_run(ctx) {
-                logging::info("PIPELINE", "Task is up-to-date, skipping", &[("task", task.name())]);
+                logging::info("PIPELINE", "Task logic indicates it should be skipped", &[("task", task.name())]);
                 continue;
             }
+
+            // 2. Fingerprint check for incremental builds
+            let fingerprint = match task.fingerprint(ctx) {
+                Ok(Some(fp)) => {
+                    let state = ctx.state.read().unwrap();
+                    if let Some(old_fp) = state.get_hash(task.name()) {
+                        if old_fp == &fp {
+                            logging::info("PIPELINE", "Task is up-to-date (matching fingerprint)", &[("task", task.name())]);
+                            continue;
+                        }
+                    }
+                    Some(fp)
+                }
+                _ => None,
+            };
 
             let task_start = std::time::Instant::now();
 
@@ -47,8 +66,13 @@ impl Pipeline {
                         ("task", task.name()), 
                         ("duration", &format!("{:.2}s", elapsed.as_secs_f32()))
                     ]);
-                    // Save state after each task for resilience
-                    let _ = ctx.state.save();
+                    
+                    // Update state with new fingerprint if available
+                    if let Some(fp) = fingerprint {
+                        let mut state = ctx.state.write().unwrap();
+                        state.set_hash(task.name().to_string(), fp);
+                        let _ = state.save();
+                    }
                 }
                 Ok(TaskStatus::Skipped(reason)) => {
                     logging::info("PIPELINE", "Task skipped by logic", &[("task", task.name()), ("reason", &reason)]);

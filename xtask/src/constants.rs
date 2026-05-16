@@ -315,3 +315,34 @@ pub mod defaults {
         }
     }
 }
+
+pub mod workflows {
+    pub const FULL_ISO: &str = "Full ISO Build";
+    pub const KERNEL_DEV: &str = "Kernel Development (Compile + Audit)";
+    pub const DOCS: &str = "Documentation Suite";
+    pub const DEBUG: &str = "Debug Bridge";
+    pub const UI_CUSTOM: &str = "Custom Pipeline";
+    pub const UI_LOAD_PROFILE: &str = "Load Profile";
+    pub const ARCH_LIST: &[&str] = &["x86_64", "riscv64", "aarch64"];
+}
+
+pub mod ui {
+    pub mod prompts {
+        pub const WORKFLOW_SELECT: &str = "Choose your operational workflow:";
+        pub const ARCH_SELECT: &str = "Target Architecture:";
+        pub const FEATURE_SELECT: &str = "Enable Kernel Features:";
+        pub const DRY_RUN_CONFIRM: &str = "Dry Run Mode (Preview Only)?";
+        pub const PARAM_CONFIRM: &str = "Add custom build parameters (key=value)?";
+        pub const SAVE_PROFILE_CONFIRM: &str = "Save this configuration as a profile?";
+        pub const PROFILE_NAME: &str = "Profile Name:";
+        pub const PROFILE_SELECT: &str = "Select profile to load:";
+    }
+    
+    pub mod symbols {
+        pub const SUCCESS: &str = "✔";
+        pub const WARNING: &str = "⚠";
+        pub const ERROR: &str = "✖";
+        pub const INFO: &str = "ℹ";
+        pub const STEP: &str = "▹";
+    }
+}

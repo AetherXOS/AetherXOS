@@ -27,6 +27,9 @@ fn main() -> Result<()> {
 
     logging::print_header(&about, &system, &target);
 
+    // 1. Initialize Logger with Defaults (will be updated after parse if needed)
+    logging::init_logger(logging::LogLevel::Info, true)?;
+
     // Initial check for no args or explicit help
     let args_vec: Vec<String> = env::args().collect();
     if args_vec.len() == 1 {
@@ -43,6 +46,17 @@ fn main() -> Result<()> {
     }
 
     let args = Cli::parse();
+    
+    // Update Logger based on CLI args
+    let log_lvl = match args.log_level.to_lowercase().as_str() {
+        "trace" => logging::LogLevel::Trace,
+        "debug" => logging::LogLevel::Debug,
+        "info"  => logging::LogLevel::Info,
+        "warn"  => logging::LogLevel::Warn,
+        "error" => logging::LogLevel::Error,
+        _       => logging::LogLevel::Info,
+    };
+    logging::init_logger(log_lvl, true)?;
 
     // If caller requested non-interactive via CLI flag, propagate to utils
     // config so helpers that consult `is_non_interactive()` see it.

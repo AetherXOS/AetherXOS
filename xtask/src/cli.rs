@@ -8,6 +8,7 @@ pub mod runtime;
 pub mod secureboot;
 pub mod setup;
 pub mod test;
+pub mod pipeline;
 pub mod interactive;
 
 use clap::{Parser, Subcommand};
@@ -26,6 +27,7 @@ pub use runtime::AbSlotAction;
 pub use secureboot::SecurebootAction;
 pub use setup::SetupAction;
 pub use test::TestAction;
+pub use pipeline::PipelineAction;
 pub use interactive::InteractiveAction;
 
 /// The central automation tool for the Aether X OS pipeline.
@@ -45,6 +47,10 @@ pub struct Cli {
     /// Run xtask in non-interactive / CI mode. Equivalent to setting `XTASK_NONINTERACTIVE`.
     #[arg(long, global = true, default_value_t = false)]
     pub non_interactive: bool,
+
+    /// Set the logging verbosity level.
+    #[arg(long, default_value = "info")]
+    pub log_level: String,
 
     /// Selected operational mode or isolated subsystem category.
     #[command(subcommand)]
@@ -118,6 +124,7 @@ define_commands! {
     Release(ReleaseAction) => "Release engineering",
     AbSlot(AbSlotAction) => "A/B slot management",
     Glibc(GlibcAction) => "Glibc audit",
+    Pipeline(PipelineAction) => "Unified pipeline orchestrator",
     Interactive(InteractiveAction) => "Interactive build & distro management";
     CrashRecovery => "Panic diagnostics"
 }
