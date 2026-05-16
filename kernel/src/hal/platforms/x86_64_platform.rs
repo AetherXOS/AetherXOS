@@ -5,6 +5,7 @@ use crate::core::log;
 use crate::interfaces::platform::{CpuFeatures, MemoryLayout, Platform, PlatformCapabilities, PlatformServices};
 use core::arch::x86_64::__cpuid;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use crate::observability_power;
 
 /// x86_64 CPU features detected at boot
 #[derive(Debug, Clone, Copy)]
@@ -204,12 +205,18 @@ impl PlatformServices for X86_64PlatformServices {
         unsafe { core::arch::asm!("hlt"); }
     }
     fn reset_platform(&self, _cold_reset: bool) {
+        observability_power! {
+            crate::klog_warn!("platform reset requested on x86_64");
+        }
         unsafe { 
            use crate::interfaces::PortIo;
            crate::hal::x86_64::port::X86PortIo::outb(0x64, 0xfe); 
         }
     }
     fn shutdown(&self) {
+        observability_power! {
+            crate::klog_warn!("platform shutdown entered on x86_64");
+        }
         unsafe { loop { core::arch::asm!("hlt"); } }
     }
     fn cycle_count(&self) -> u64 { self.read_tsc() }

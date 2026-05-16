@@ -1,5 +1,5 @@
 #[cfg(all(feature = "drivers", feature = "networking"))]
-pub(super) fn preferred_policy_for_driver(
+pub(crate) fn preferred_policy_for_driver(
     driver: aethercore::modules::drivers::ActiveNetworkDriver,
 ) -> aethercore::modules::drivers::NetworkDriverPolicy {
     match driver {
@@ -16,7 +16,7 @@ pub(super) fn preferred_policy_for_driver(
 }
 
 #[cfg(all(feature = "drivers", feature = "networking"))]
-pub(super) fn select_network_failover_target(
+pub(crate) fn select_network_failover_target(
     current: aethercore::modules::drivers::ActiveNetworkDriver,
     has_virtio: bool,
     has_e1000: bool,

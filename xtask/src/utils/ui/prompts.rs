@@ -1,5 +1,5 @@
 use anyhow::Result;
-use inquire::{Select, Text};
+use inquire::{MultiSelect, Select, Text};
 use crate::utils::config;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
@@ -49,6 +49,40 @@ pub fn confirm(prompt: &str, default: bool) -> Result<bool> {
     match inquire::Confirm::new(prompt).with_default(default).prompt() {
         Ok(v) => Ok(v),
         Err(e) => Err(anyhow::anyhow!("Interactive confirmation failed: {}", e)),
+    }
+}
+
+/// Interactively choose many items from a list.
+pub fn multiselect<T: std::fmt::Display>(
+    prompt: &str,
+    options: &[T],
+    defaults: &[usize],
+) -> Result<Vec<usize>> {
+    let non_interactive = config::is_non_interactive();
+    if non_interactive {
+        return Ok(defaults.to_vec());
+    }
+
+    let selector = MultiSelect::new(prompt, options.iter().collect::<Vec<_>>())
+        .with_page_size(15)
+        .with_help_message("Type to filter, Space to toggle, Enter to confirm")
+        .with_default(defaults);
+
+    match selector.prompt() {
+        Ok(selected) => {
+            let selected_ptrs: std::collections::HashSet<*const T> =
+                selected.into_iter().map(|item| item as *const T).collect();
+
+            let mut indices = Vec::new();
+            for (idx, item) in options.iter().enumerate() {
+                let ptr = item as *const T;
+                if selected_ptrs.contains(&ptr) {
+                    indices.push(idx);
+                }
+            }
+            Ok(indices)
+        }
+        Err(e) => Err(anyhow::anyhow!("Interactive multi-selection failed: {}", e)),
     }
 }
 

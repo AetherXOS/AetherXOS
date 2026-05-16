@@ -5,6 +5,7 @@ use core::sync::atomic::Ordering;
 use crate::interfaces::task::{ProcessId, TaskId, TaskState};
 use crate::kernel::cpu_local::CpuLocal;
 use crate::klog_info;
+use crate::observability_launch;
 
 #[cfg(feature = "process_abstraction")]
 pub fn claim_next_launch_context() -> Option<LaunchContext> {
@@ -18,19 +19,21 @@ pub fn claim_next_launch_context() -> Option<LaunchContext> {
             entry.stage = LaunchStage::Claimed;
             entry.stage_epoch = now_epoch;
             CLAIM_SUCCESS.fetch_add(1, Ordering::Relaxed);
-            crate::kernel::debug_trace::record_optional(
-                "launch.handoff",
-                "claim_pending",
-                Some(entry.process_id.0 as u64),
-                false,
-            );
-            crate::klog_info!(
-                "launch handoff claim: pid={} tid={} stage={:?} epoch={}",
-                entry.process_id.0,
-                entry.task_id.0,
-                entry.stage,
-                now_epoch,
-            );
+            observability_launch! {
+                crate::kernel::debug_trace::record_optional(
+                    "launch.handoff",
+                    "claim_pending",
+                    Some(entry.process_id.0 as u64),
+                    false,
+                );
+                crate::klog_info!(
+                    "launch handoff claim: pid={} tid={} stage={:?} epoch={}",
+                    entry.process_id.0,
+                    entry.task_id.0,
+                    entry.stage,
+                    now_epoch,
+                );
+            }
             return Some(build_context(
                 entry.process_id,
                 &entry.process,
@@ -40,12 +43,14 @@ pub fn claim_next_launch_context() -> Option<LaunchContext> {
     }
 
     CLAIM_FAILURES.fetch_add(1, Ordering::Relaxed);
-    crate::kernel::debug_trace::record_optional(
-        "launch.handoff",
-        "claim_empty",
-        Some(now_epoch),
-        false,
-    );
+    observability_launch! {
+        crate::kernel::debug_trace::record_optional(
+            "launch.handoff",
+            "claim_empty",
+            Some(now_epoch),
+            false,
+        );
+    }
     None
 }
 
@@ -77,19 +82,21 @@ pub fn acknowledge_launch_context_typed(process_id: ProcessId, success: bool) ->
     };
     entry.stage_epoch = now_epoch;
     HANDOFF_ACK_SUCCESS.fetch_add(1, Ordering::Relaxed);
-    crate::kernel::debug_trace::record_optional(
-        "launch.handoff",
-        if success { "ack_success" } else { "ack_retry" },
-        Some(process_id.0 as u64),
-        false,
-    );
-    crate::klog_info!(
-        "launch handoff ack: pid={} success={} new_stage={:?} epoch={}",
-        process_id.0,
-        success,
-        entry.stage,
-        now_epoch,
-    );
+    observability_launch! {
+        crate::kernel::debug_trace::record_optional(
+            "launch.handoff",
+            if success { "ack_success" } else { "ack_retry" },
+            Some(process_id.0 as u64),
+            false,
+        );
+        crate::klog_info!(
+            "launch handoff ack: pid={} success={} new_stage={:?} epoch={}",
+            process_id.0,
+            success,
+            entry.stage,
+            now_epoch,
+        );
+    }
     true
 }
 #[cfg(feature = "process_abstraction")]
@@ -115,24 +122,28 @@ pub fn consume_ready_launch_context() -> Option<LaunchContext> {
         .position(|entry| entry.stage == LaunchStage::Ready)
     else {
         HANDOFF_CONSUME_FAILURES.fetch_add(1, Ordering::Relaxed);
-        crate::kernel::debug_trace::record_optional(
-            "launch.handoff",
-            "consume_empty",
-            Some(now_epoch),
-            false,
-        );
+        observability_launch! {
+            crate::kernel::debug_trace::record_optional(
+                "launch.handoff",
+                "consume_empty",
+                Some(now_epoch),
+                false,
+            );
+        }
         return None;
     };
 
     let entry = registry.remove(index);
     HANDOFF_CONSUME_SUCCESS.fetch_add(1, Ordering::Relaxed);
-    crate::klog_info!(
-        "launch handoff consume: pid={} tid={} stage={:?} epoch={}",
-        entry.process_id.0,
-        entry.task_id.0,
-        entry.stage,
-        now_epoch,
-    );
+    observability_launch! {
+        crate::klog_info!(
+            "launch handoff consume: pid={} tid={} stage={:?} epoch={}",
+            entry.process_id.0,
+            entry.task_id.0,
+            entry.stage,
+            now_epoch,
+        );
+    }
     Some(build_context(
         entry.process_id,
         &entry.process,
@@ -153,21 +164,25 @@ pub fn execute_ready_launch_context_on_current_cpu() -> Option<LaunchContext> {
             .find(|entry| entry.stage == LaunchStage::Ready)
         else {
             HANDOFF_EXECUTE_FAILURES.fetch_add(1, Ordering::Relaxed);
-            crate::kernel::debug_trace::record_optional(
-                "launch.handoff",
-                "execute_empty",
-                Some(now_epoch),
-                false,
-            );
+            observability_launch! {
+                crate::kernel::debug_trace::record_optional(
+                    "launch.handoff",
+                    "execute_empty",
+                    Some(now_epoch),
+                    false,
+                );
+            }
             return None;
         };
         entry.stage_epoch = now_epoch;
-        crate::klog_info!(
-            "launch handoff execute candidate: pid={} tid={} epoch={}",
-            entry.process_id.0,
-            entry.task_id.0,
-            now_epoch,
-        );
+        observability_launch! {
+            crate::klog_info!(
+                "launch handoff execute candidate: pid={} tid={} epoch={}",
+                entry.process_id.0,
+                entry.task_id.0,
+                now_epoch,
+            );
+        }
         build_context(entry.process_id, &entry.process, entry.task_id)
     };
 
@@ -193,11 +208,13 @@ pub fn execute_ready_launch_context_on_current_cpu() -> Option<LaunchContext> {
                 true
             }
             None => {
-                crate::klog_warn!(
-                    "launch handoff execute failed: pid={} tid={} reason=task-missing",
-                    candidate.process_id.0,
-                    candidate.task_id.0,
-                );
+                observability_launch! {
+                    crate::klog_warn!(
+                        "launch handoff execute failed: pid={} tid={} reason=task-missing",
+                        candidate.process_id.0,
+                        candidate.task_id.0,
+                    );
+                }
                 false
             }
         }
@@ -205,12 +222,14 @@ pub fn execute_ready_launch_context_on_current_cpu() -> Option<LaunchContext> {
 
     if !task_found {
         HANDOFF_EXECUTE_FAILURES.fetch_add(1, Ordering::Relaxed);
-        crate::kernel::debug_trace::record_optional(
-            "launch.handoff",
-            "execute_task_missing",
-            Some(candidate.process_id.0 as u64),
-            false,
-        );
+        observability_launch! {
+            crate::kernel::debug_trace::record_optional(
+                "launch.handoff",
+                "execute_task_missing",
+                Some(candidate.process_id.0 as u64),
+                false,
+            );
+        }
         return None;
     }
 
@@ -230,12 +249,14 @@ pub fn execute_ready_launch_context_on_current_cpu() -> Option<LaunchContext> {
     }
 
     HANDOFF_EXECUTE_SUCCESS.fetch_add(1, Ordering::Relaxed);
-    crate::kernel::debug_trace::record_optional(
-        "launch.handoff",
-        "execute_success",
-        Some(candidate.process_id.0 as u64),
-        false,
-    );
+    observability_launch! {
+        crate::kernel::debug_trace::record_optional(
+            "launch.handoff",
+            "execute_success",
+            Some(candidate.process_id.0 as u64),
+            false,
+        );
+    }
     Some(candidate)
 }
 

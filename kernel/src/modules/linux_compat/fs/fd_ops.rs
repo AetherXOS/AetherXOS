@@ -1,6 +1,6 @@
 use super::super::*;
 use crate::modules::linux_compat::fs::io as fs_io;
-use crate::modules::linux_compat::{linux, linux_errno, linux_fault, linux_inval, Fd, UserPtr};
+use crate::modules::linux_compat::{Fd, UserPtr, linux, linux_errno, linux_fault, linux_inval};
 
 const LINUX_CLOSE_RANGE_UNSHARE: usize = 1 << 1;
 const LINUX_CLOSE_RANGE_CLOEXEC: usize = 1 << 2;

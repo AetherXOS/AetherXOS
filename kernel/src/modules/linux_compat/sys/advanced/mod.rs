@@ -102,6 +102,7 @@ pub use vectored_io::{
     sys_linux_copy_file_range, sys_linux_preadv, sys_linux_preadv2, sys_linux_pwritev,
     sys_linux_pwritev2,
 };
+pub use trace_seccomp::sys_linux_ptrace;
 
 pub fn sys_linux_mlock2(addr: UserPtr<u8>, len: usize, flags: usize) -> usize {
     if (flags & !MLOCK_ONFAULT_FLAG) != 0 {

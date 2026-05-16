@@ -1,25 +1,25 @@
 #[cfg(all(feature = "drivers", feature = "networking"))]
-pub(super) const NETWORK_IO_REBIND_STREAK_THRESHOLD: u64 = 3;
+pub(crate) const NETWORK_IO_REBIND_STREAK_THRESHOLD: u64 = 3;
 #[cfg(all(feature = "drivers", feature = "networking"))]
-pub(super) const NETWORK_IO_FAILOVER_STREAK_THRESHOLD: u64 = 2;
+pub(crate) const NETWORK_IO_FAILOVER_STREAK_THRESHOLD: u64 = 2;
 
 #[cfg(all(feature = "drivers", feature = "networking"))]
-pub(super) const DEFAULT_NETWORK_RANDOM_SEED: u64 = 0xC0DEC0DE;
+pub(crate) const DEFAULT_NETWORK_RANDOM_SEED: u64 = 0xC0DEC0DE;
 
 #[cfg(all(feature = "drivers", feature = "networking"))]
 #[inline(always)]
-pub(super) fn network_slo_sample_interval() -> u64 {
+pub(crate) fn network_slo_sample_interval() -> u64 {
     aethercore::config::KernelConfig::network_slo_sample_interval()
 }
 
 #[cfg(all(feature = "drivers", feature = "networking"))]
 #[inline(always)]
-pub(super) fn network_slo_log_interval_multiplier() -> u64 {
+pub(crate) fn network_slo_log_interval_multiplier() -> u64 {
     aethercore::config::KernelConfig::network_slo_log_interval_multiplier()
 }
 
 #[cfg(all(feature = "drivers", feature = "networking"))]
-pub(super) const NETWORK_DRIVER_QUARANTINE_REBIND_FAILURES: u64 =
+pub(crate) const NETWORK_DRIVER_QUARANTINE_REBIND_FAILURES: u64 =
     if aethercore::generated_consts::DRIVER_NETWORK_QUARANTINE_REBIND_FAILURES == 0 {
         1
     } else {
@@ -27,7 +27,7 @@ pub(super) const NETWORK_DRIVER_QUARANTINE_REBIND_FAILURES: u64 =
     };
 
 #[cfg(all(feature = "drivers", feature = "networking"))]
-pub(super) const NETWORK_DRIVER_QUARANTINE_COOLDOWN_SAMPLES: u64 =
+pub(crate) const NETWORK_DRIVER_QUARANTINE_COOLDOWN_SAMPLES: u64 =
     if aethercore::generated_consts::DRIVER_NETWORK_QUARANTINE_COOLDOWN_SAMPLES == 0 {
         1
     } else {

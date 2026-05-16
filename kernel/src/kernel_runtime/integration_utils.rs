@@ -244,6 +244,30 @@ pub fn audit_syscall_event(
     }
 }
 
+/// Convenience wrapper used by service integration hooks that prefer to pass
+/// an owned description string. Delegates to `audit_syscall_event`.
+#[cfg(feature = "audit_logging")]
+pub fn audit_service_event(
+    event: &'static str,
+    subject: u32,
+    actor_uid: u32,
+    allowed: bool,
+    description: String,
+) {
+    audit_syscall_event(event, subject, actor_uid, allowed, Some(&description));
+}
+
+#[cfg(not(feature = "audit_logging"))]
+pub fn audit_service_event(
+    _event: &'static str,
+    _subject: u32,
+    _actor_uid: u32,
+    _allowed: bool,
+    _description: String,
+) {
+    // no-op when audit logging disabled
+}
+
 /// Audit syscall event - no-op when audit_logging not enabled
 #[cfg(not(feature = "audit_logging"))]
 pub fn audit_syscall_event(

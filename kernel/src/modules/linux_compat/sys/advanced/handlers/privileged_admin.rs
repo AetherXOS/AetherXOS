@@ -1,5 +1,6 @@
 use super::*;
 use core::sync::atomic::Ordering;
+use crate::observability_power;
 
 pub fn sys_linux_vhangup() -> usize {
     if let Err(e) = require_control_plane_access(crate::modules::security::RESOURCE_PROCESS_PTRACE)
@@ -40,6 +41,15 @@ pub fn sys_linux_reboot(magic1: usize, magic2: usize, cmd: usize, arg: usize) ->
     if let Err(e) = require_control_plane_access(crate::modules::security::RESOURCE_POWER_REBOOT) {
         return e;
     }
+    observability_power! {
+        crate::klog_warn!(
+            "linux reboot requested: magic1={:#x} magic2={:#x} cmd={:#x} arg={:#x}",
+            magic1,
+            magic2,
+            cmd,
+            arg,
+        );
+    }
     if magic1 != REBOOT_MAGIC1 {
         return linux_inval();
     }
@@ -54,6 +64,19 @@ pub fn sys_linux_reboot(magic1: usize, magic2: usize, cmd: usize, arg: usize) ->
     }
     REBOOT_LAST_CMD.store(cmd as u32, Ordering::Relaxed);
     let _ = arg;
+    observability_power! {
+        crate::klog_info!(
+            "linux reboot accepted: cmd={:#x} action={}",
+            cmd,
+            match cmd {
+                REBOOT_CMD_RESTART => "restart",
+                REBOOT_CMD_HALT => "halt",
+                REBOOT_CMD_POWER_OFF => "poweroff",
+                REBOOT_CMD_RESTART2 => "restart2",
+                _ => "unknown",
+            },
+        );
+    }
     0
 }
 

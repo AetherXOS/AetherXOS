@@ -130,7 +130,7 @@ pub fn sys_linux_epoll_pwait(
             Err(e) => return e,
         };
 
-        let retries = if timeout < 0 {
+        let _retries = if timeout < 0 {
             crate::config::KernelConfig::libnet_posix_blocking_recv_retries()
         } else {
             let timeout_ms = timeout as u128;

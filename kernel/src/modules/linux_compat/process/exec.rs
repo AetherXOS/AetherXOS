@@ -80,7 +80,7 @@ pub(crate) fn execve_with_path(
                                         let _random_ptr = stack_end - 16;
 
                                         use crate::kernel::syscalls::syscalls_consts::linux::*;
-                                        let mut auxv_entries = alloc::vec![
+                                        let auxv_entries = alloc::vec![
                                             ExecveAuxEntry {
                                                 key: linux::AT_PHDR as usize,
                                                 value: ExecveAuxValue::Word(phdr_addr as usize),
@@ -165,8 +165,8 @@ pub(crate) fn execve_with_path(
                                             frame.rsp = new_rsp;
                                             
                                             // Update task user stack pointer for scheduling
-                                            if let Some(cpu) = unsafe { crate::kernel::cpu_local::CpuLocal::try_get() } {
-                                                let _tid = cpu.current_task.load(Ordering::Relaxed);
+                                                if let Some(cpu) = unsafe { crate::kernel::cpu_local::CpuLocal::try_get() } {
+                                                let tid = cpu.current_task.load(Ordering::Relaxed);
                                                 if let Some(task_arc) = crate::kernel::task::get_task(crate::interfaces::task::TaskId(tid)) {
                                                     #[cfg(feature = "ring_protection")]
                                                     {

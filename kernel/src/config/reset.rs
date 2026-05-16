@@ -153,6 +153,8 @@ impl KernelConfig {
         OBSERVABILITY_DRIVER_OVERRIDE.store(0, Ordering::Relaxed);
         OBSERVABILITY_IO_OVERRIDE.store(0, Ordering::Relaxed);
         OBSERVABILITY_NETWORK_OVERRIDE.store(0, Ordering::Relaxed);
+        OBSERVABILITY_LAUNCH_OVERRIDE.store(0, Ordering::Relaxed);
+        OBSERVABILITY_POWER_OVERRIDE.store(0, Ordering::Relaxed);
         TELEMETRY_HISTORY_LEN_OVERRIDE.store(0, Ordering::Relaxed);
         TELEMETRY_LOG_LEVEL_NUM_OVERRIDE.store(0, Ordering::Relaxed);
         LIBRARY_BOUNDARY_MODE_OVERRIDE.store(0, Ordering::Relaxed);

@@ -206,14 +206,12 @@ impl PageManager {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
-use x86_64::registers::control::Cr3;
-
 pub fn active_level_4_table(hhdm_offset: u64) -> &'static mut crate::hal::paging::PageTable {
     
 
     #[cfg(target_os = "none")]
     {
+        use x86_64::registers::control::Cr3;
         let (level_4_table_frame, _) = Cr3::read();
         let phys = level_4_table_frame.start_address();
         let virt = x86_64::VirtAddr::new(phys.as_u64() + hhdm_offset);

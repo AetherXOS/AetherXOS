@@ -1,4 +1,10 @@
-use super::super::super::super::*;
+use crate::kernel_runtime::networking::{
+    NETWORK_DRIVER_QUARANTINE_VIRTIO,
+    NETWORK_DRIVER_QUARANTINE_E1000,
+    NETWORK_DRIVER_QUARANTINE_EVENTS,
+    NETWORK_DRIVER_QUARANTINE_REBIND_FAILURES,
+    NETWORK_DRIVER_QUARANTINE_COOLDOWN_SAMPLES,
+};
 
 pub(super) fn log_network_dataplane_dashboard() {
     let net = aethercore::modules::drivers::network_dataplane_stats();

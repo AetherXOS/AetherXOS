@@ -12,7 +12,7 @@ pub mod async_ring;
 
 use crate::interfaces::dispatcher::Dispatcher;
 use crate::interfaces::KernelResult;
-use table::SyscallFrame;
+use crate::kernel::syscalls::SyscallFrame;
 
 /// Structure to hold and cast syscall arguments.
 /// Improves readability and reduces boilerplate in dispatchers.
@@ -46,11 +46,21 @@ impl SyscallDispFrame {
 
     /// Structured dispatch via the O(1) table.
     /// Returns the raw result as isize.
-    pub fn dispatch_structured(frame: &SyscallFrame) -> isize {
-        if let Some(handler) = table::get_handler(frame.nr) {
-            handler(frame, 0)
+    pub fn dispatch_structured(nr: usize, frame: &mut SyscallFrame) -> isize {
+        // Map the register-based frame into a SyscallDispFrame following the syscall ABI:
+        // a1 = rdi, a2 = rsi, a3 = rdx, a4 = r10, a5 = r8, a6 = r9
+        let mut f = SyscallDispFrame::new(
+            frame.rdi as usize,
+            frame.rsi as usize,
+            frame.rdx as usize,
+            frame.r10 as usize,
+            frame.r8 as usize,
+            frame.r9 as usize,
+        );
+
+        if let Some(res) = table::dispatch_table(nr, &mut f, frame) {
+            res as isize
         } else {
-            // NoSys fallback
             -38 // ENOSYS
         }
     }

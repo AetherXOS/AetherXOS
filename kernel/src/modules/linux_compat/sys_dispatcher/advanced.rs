@@ -1,6 +1,10 @@
 use crate::modules::linux_compat::*;
 use crate::modules::linux_compat::landlock_abi::*;
 use crate::modules::linux_compat::seccomp::*;
+use crate::modules::linux_compat::sys as compat_sys;
+use crate::modules::linux_compat::sync as compat_sync;
+use crate::modules::linux_compat::net as compat_net;
+use crate::modules::linux_compat::sys_linux_ptrace;
 
 pub(super) fn dispatch_linux_advanced_syscall(
     frame: &mut SyscallFrame,
@@ -13,42 +17,42 @@ pub(super) fn dispatch_linux_advanced_syscall(
     arg6: usize,
 ) -> Option<usize> {
     match syscall_id {
-        linux_nr::FSOPEN => Some(sys_linux_fsopen(UserPtr::new(arg1), arg2)),
-        linux_nr::FSMOUNT => Some(sys_linux_fsmount(Fd::from(arg1), arg2, arg3)),
-        linux_nr::FSPICK => Some(sys_linux_fspick(Fd::from(arg1), UserPtr::new(arg2), arg3)),
-        linux_nr::MOVE_MOUNT => Some(sys_linux_move_mount(
+        linux_nr::FSOPEN => Some(crate::modules::linux_compat::fs::mount::sys_linux_fsopen(UserPtr::new(arg1), arg2)),
+        linux_nr::FSMOUNT => Some(crate::modules::linux_compat::fs::mount::sys_linux_fsmount(Fd::from(arg1), arg2, arg3)),
+        linux_nr::FSPICK => Some(crate::modules::linux_compat::fs::mount::sys_linux_fspick(Fd::from(arg1), UserPtr::new(arg2), arg3)),
+        linux_nr::MOVE_MOUNT => Some(crate::modules::linux_compat::fs::mount::sys_linux_move_mount(
             Fd::from(arg1),
             UserPtr::new(arg2),
             Fd::from(arg3),
             UserPtr::new(arg4),
             arg5,
         )),
-        linux_nr::CAPGET => Some(sys_linux_capget(UserPtr::new(arg1), UserPtr::new(arg2))),
-        linux_nr::CAPSET => Some(sys_linux_capset(UserPtr::new(arg1), UserPtr::new(arg2))),
+        linux_nr::CAPGET => Some(compat_sys::sys_linux_capget(UserPtr::new(arg1), UserPtr::new(arg2))),
+        linux_nr::CAPSET => Some(compat_sys::sys_linux_capset(UserPtr::new(arg1), UserPtr::new(arg2))),
         linux_nr::RT_SIGQUEUEINFO => {
-            Some(sys_linux_rt_sigqueueinfo(arg1, arg2, UserPtr::new(arg3)))
+            Some(compat_sys::sys_linux_rt_sigqueueinfo(arg1, arg2, UserPtr::new(arg3)))
         }
-        linux_nr::SYSFS => Some(sys_linux_sysfs(arg1, arg2, arg3)),
-        linux_nr::SYSCTL => Some(sys_linux_sysctl(UserPtr::new(arg1))),
-        linux_nr::VHANGUP => Some(sys_linux_vhangup()),
-        linux_nr::ACCT => Some(sys_linux_acct(UserPtr::new(arg1))),
-        linux_nr::REBOOT => Some(sys_linux_reboot(arg1, arg2, arg3, arg4)),
-        linux_nr::IOPL => Some(sys_linux_iopl(arg1)),
-        linux_nr::IOPERM => Some(sys_linux_ioperm(arg1, arg2, arg3)),
-        linux_nr::CREATE_MODULE => Some(sys_linux_create_module(UserPtr::new(arg1), arg2)),
-        linux_nr::INIT_MODULE => Some(sys_linux_init_module(
+        linux_nr::SYSFS => Some(compat_sys::sys_linux_sysfs(arg1, arg2, arg3)),
+        linux_nr::SYSCTL => Some(compat_sys::sys_linux_sysctl(UserPtr::new(arg1))),
+        linux_nr::VHANGUP => Some(compat_sys::sys_linux_vhangup()),
+        linux_nr::ACCT => Some(compat_sys::sys_linux_acct(UserPtr::new(arg1))),
+        linux_nr::REBOOT => Some(compat_sys::sys_linux_reboot(arg1, arg2, arg3, arg4)),
+        linux_nr::IOPL => Some(compat_sys::sys_linux_iopl(arg1)),
+        linux_nr::IOPERM => Some(compat_sys::sys_linux_ioperm(arg1, arg2, arg3)),
+        linux_nr::CREATE_MODULE => Some(compat_sys::sys_linux_create_module(UserPtr::new(arg1), arg2)),
+        linux_nr::INIT_MODULE => Some(compat_sys::sys_linux_init_module(
             UserPtr::new(arg1),
             arg2,
             UserPtr::new(arg3),
         )),
-        linux_nr::DELETE_MODULE => Some(sys_linux_delete_module(UserPtr::new(arg1), arg2)),
-        linux_nr::SECURITY => Some(sys_linux_security(arg1, arg2, arg3, arg4)),
-        linux_nr::TIMER_CREATE => Some(sys_linux_timer_create(
+        linux_nr::DELETE_MODULE => Some(compat_sys::sys_linux_delete_module(UserPtr::new(arg1), arg2)),
+        linux_nr::SECURITY => Some(compat_sys::sys_linux_security(arg1, arg2, arg3, arg4)),
+        linux_nr::TIMER_CREATE => Some(compat_sys::sys_linux_timer_create(
             arg1,
             UserPtr::new(arg2),
             UserPtr::new(arg3),
         )),
-        linux_nr::TIMER_DELETE => Some(sys_linux_timer_delete(arg1)),
+        linux_nr::TIMER_DELETE => Some(compat_sys::sys_linux_timer_delete(arg1)),
         linux_nr::OPEN_BY_HANDLE_AT => Some(sys_linux_open_by_handle_at(
             Fd::from(arg1),
             UserPtr::new(arg2),
@@ -196,13 +200,13 @@ pub(super) fn dispatch_linux_advanced_syscall(
         )),
         linux_nr::PTRACE => Some(sys_linux_ptrace(arg1, arg2, arg3, arg4)),
         linux_nr::SECCOMP => Some(sys_linux_seccomp(arg1, arg2, UserPtr::new(arg3))),
-        linux_nr::EVENTFD => Some(sys_linux_eventfd(arg1 as u32, 0)),
-        linux_nr::EVENTFD2 => Some(sys_linux_eventfd2(arg1 as u32, arg2 as i32)),
-        linux_nr::EPOLL_CREATE => Some(sys_linux_epoll_create(arg1)),
-        linux_nr::EPOLL_CREATE1 => Some(sys_linux_epoll_create1(arg1)),
-        linux_nr::EPOLL_CTL => Some(sys_linux_epoll_ctl(Fd::from(arg1), arg2, Fd::from(arg3), UserPtr::new(arg4))),
-        linux_nr::EPOLL_WAIT => Some(sys_linux_epoll_wait(Fd::from(arg1), UserPtr::new(arg2), arg3, arg4 as i32)),
-        linux_nr::EPOLL_PWAIT => Some(sys_linux_epoll_pwait(Fd::from(arg1), UserPtr::new(arg2), arg3, arg4 as i32, UserPtr::new(arg5), arg6)),
+        linux_nr::EVENTFD => Some(compat_sync::sys_linux_eventfd(arg1 as u32, 0)),
+        linux_nr::EVENTFD2 => Some(compat_sync::sys_linux_eventfd2(arg1 as u32, arg2 as i32)),
+        linux_nr::EPOLL_CREATE => Some(compat_net::sys_linux_epoll_create(arg1)),
+        linux_nr::EPOLL_CREATE1 => Some(compat_net::sys_linux_epoll_create1(arg1)),
+        linux_nr::EPOLL_CTL => Some(compat_net::sys_linux_epoll_ctl(Fd::from(arg1), arg2, Fd::from(arg3), UserPtr::new(arg4))),
+        linux_nr::EPOLL_WAIT => Some(compat_net::sys_linux_epoll_wait(Fd::from(arg1), UserPtr::new(arg2), arg3, arg4 as i32)),
+        linux_nr::EPOLL_PWAIT => Some(compat_net::sys_linux_epoll_pwait(Fd::from(arg1), UserPtr::new(arg2), arg3, arg4 as i32, UserPtr::new(arg5), arg6)),
         _ => None,
     }
 }

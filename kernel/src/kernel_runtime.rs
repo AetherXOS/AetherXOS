@@ -1,13 +1,11 @@
 extern crate alloc;
-use alloc::format;
 
 // ── Architecture imports ──────────────────────────────────────────────────────
 use crate::core::log;
 use aethercore::hal::Hal;
 
 // ── Phase 6: Boot Infrastructure Integration ──────────────────────────────────
-use crate::interfaces::boot::{BootManager, BootStage};
-use crate::kernel::boot_manager::GLOBAL_BOOT_MANAGER;
+use crate::interfaces::boot::BootStage;
 
 // ── IRQ dispatcher (x86_64 only) ─────────────────────────────────────────────
 #[cfg(all(feature = "dispatcher", target_arch = "x86_64"))]

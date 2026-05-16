@@ -481,7 +481,10 @@ debug_observability_fault = []     # Fault handling
 debug_observability_driver = []    # Driver operations
 debug_observability_io = []        # I/O subsystem
 debug_observability_network = []   # Network subsystem
+debug_observability_launch = []    # Process launch and handoff
+debug_observability_power = []     # Shutdown, reboot, reset, power control
 dispatcher = []
+
 dispatcher_direct = ["dispatcher"]
 dispatcher_buffered = ["dispatcher"]
 dispatcher_managed = ["dispatcher"]

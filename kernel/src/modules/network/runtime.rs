@@ -125,8 +125,6 @@ pub(super) fn runtime_ready() -> bool {
     SMOLTCP_RUNTIME.lock().is_some()
 }
 
-use crate::config;
-
 pub(super) fn init_smoltcp_runtime(nic: &dyn NetworkInterface) -> Result<(), &'static str> {
     if SMOLTCP_RUNTIME.lock().is_some() {
         return Ok(());

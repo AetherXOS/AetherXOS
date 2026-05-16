@@ -6,6 +6,7 @@ use crate::utils::logging;
 pub mod app;
 pub mod distro;
 pub mod image;
+pub mod interactive;
 pub mod kernel;
 pub mod raw_disk;
 pub mod rootfs;
@@ -21,6 +22,19 @@ pub fn execute(action: &BuildAction) -> Result<()> {
             release,
             rootfs,
         } => {
+            let resolved_features = match features {
+                Some(value) => *value,
+                None => {
+                    if crate::utils::config::is_non_interactive() {
+                        crate::utils::features::kernel_features_from_default(&[])
+                            .context("Failed resolving default kernel features from Cargo.toml")?
+                    } else {
+                        crate::utils::features::prompt_kernel_feature_selection("Build full pipeline", &[])
+                            .context("Interactive kernel feature selection failed")?
+                    }
+                }
+            };
+
             logging::info(
                 "build",
                 "starting end-to-end pipeline",
@@ -28,12 +42,12 @@ pub fn execute(action: &BuildAction) -> Result<()> {
                     ("arch", arch.as_str()),
                     ("bootloader", bootloader.as_str()),
                     ("format", format.as_str()),
-                    ("features", &features.to_string()),
+                    ("features", &resolved_features.to_string()),
                     ("release", &release.to_string()),
                 ],
             );
 
-            kernel::build_kernel(*arch, *release, *features).context("Failed to compile kernel component")?;
+            kernel::build_kernel(*arch, *release, resolved_features).context("Failed to compile kernel component")?;
             build_initramfs().context("Failed to generate initramfs structure")?;
             image::bundle_image(*arch, bootloader, format, rootfs.as_deref().map(|s| std::path::Path::new(s)))
                 .context("Failed to assemble bootable image hierarchy")?;
@@ -51,7 +65,19 @@ pub fn execute(action: &BuildAction) -> Result<()> {
                 .context("Failed to assemble specific bootable image format")?;
         }
         BuildAction::Kernel { arch, features, release } => {
-            kernel::build_kernel(*arch, *release, *features).context("Failed to natively compile kernel")?;
+            let resolved_features = match features {
+                Some(value) => *value,
+                None => {
+                    if crate::utils::config::is_non_interactive() {
+                        crate::utils::features::kernel_features_from_default(&[])
+                            .context("Failed resolving default kernel features from Cargo.toml")?
+                    } else {
+                        crate::utils::features::prompt_kernel_feature_selection("Build kernel", &[])
+                            .context("Interactive kernel feature selection failed")?
+                    }
+                }
+            };
+            kernel::build_kernel(*arch, *release, resolved_features).context("Failed to natively compile kernel")?;
         }
         BuildAction::Initramfs => {
             build_initramfs().context("Failed to pack initramfs")?;
@@ -80,6 +106,10 @@ pub fn execute(action: &BuildAction) -> Result<()> {
             verify_elf_action(*arch, *release, elf.as_deref())
                 .context("ELF verification pipeline failed")?;
             // Skip the generic "pipeline completed" ready-log — verify_elf prints its own
+            return Ok(());
+        }
+        BuildAction::Interactive => {
+            interactive::run().context("Interactive build wizard failed")?;
             return Ok(());
         }
     }
@@ -122,7 +152,8 @@ fn update_iso_kernel(
         crate::commands::infra::build::kernel::build_kernel(
             constants::defaults::build::ARCH, 
             false, 
-            aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS
+            crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])
+                .context("Failed resolving default kernel features for ISO update")?
         )
             .context("Rebuilding kernel for injection failed")?;
 
@@ -235,7 +266,9 @@ fn verify_elf_action(arch: aethercore_common::TargetArch, release: bool, elf_pat
             ("arch",    arch.as_str()),
             ("profile", if release { "release" } else { "debug" }),
         ]);
-        kernel::build_kernel(arch, release, aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS).context("Kernel rebuild failed")?;
+        let features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])
+            .context("Failed resolving default kernel features for verify-elf")?;
+        kernel::build_kernel(arch, release, features).context("Kernel rebuild failed")?;
 
         // Resolve the output ELF path
         let triple = arch.to_bare_metal_triple();

@@ -18,9 +18,9 @@ pub enum BuildAction {
         #[arg(long, default_value_t = ImageFormat::Iso)]
         format: ImageFormat,
 
-        /// Enable specific kernel feature gates (comma-separated: vfs,drivers,net,smp,test_mode)
-        #[arg(long, default_value = "vfs,drivers,net,smp,kernel_test_mode,graphics,usb,pci,acpi,logging,scheduler,memory_mgmt,syscalls,kvm,hardening,io_uring")]
-        features: aethercore_common::KernelFeatures,
+        /// Optional kernel feature gates (comma-separated). If omitted, resolved dynamically from Cargo.toml defaults.
+        #[arg(long)]
+        features: Option<aethercore_common::KernelFeatures>,
 
         /// Toggle LLVM/Rust optimization profiles flag
         #[arg(long)]
@@ -44,9 +44,9 @@ pub enum BuildAction {
         #[arg(long, default_value_t = TargetArch::X86_64)]
         arch: TargetArch,
 
-        /// Enable specific kernel feature gates
-        #[arg(long, default_value = "vfs,drivers,net,smp,kernel_test_mode,graphics,usb,pci,acpi,logging,scheduler,memory_mgmt,syscalls,kvm,hardening,io_uring")]
-        features: aethercore_common::KernelFeatures,
+        /// Optional kernel feature gates. If omitted, resolved dynamically from Cargo.toml defaults.
+        #[arg(long)]
+        features: Option<aethercore_common::KernelFeatures>,
 
         #[arg(long)]
         release: bool,
@@ -119,6 +119,9 @@ pub enum BuildAction {
         #[arg(long)]
         elf: Option<String>,
     },
+
+    /// Interactive build wizard (feature matrix + pipeline settings)
+    Interactive,
 }
 
 impl crate::utils::executable::Executable for BuildAction {

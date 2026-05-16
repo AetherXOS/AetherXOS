@@ -17,6 +17,8 @@
 //! - Driver: Driver operations
 //! - Io: I/O subsystem
 //! - Network: Network subsystem
+//! - Launch: Process launch and handoff
+//! - Power: Shutdown, reboot, reset, power control
 //!
 //! # Usage Examples
 //!
@@ -59,6 +61,10 @@ pub enum ObservabilityCategory {
     Io = 8,
     /// Network subsystem
     Network = 9,
+    /// Process launch and handoff
+    Launch = 10,
+    /// Shutdown, reboot, reset, power control
+    Power = 11,
 }
 
 impl_enum_u8_option_conversions!(ObservabilityCategory {
@@ -72,6 +78,8 @@ impl_enum_u8_option_conversions!(ObservabilityCategory {
     Driver,
     Io,
     Network,
+    Launch,
+    Power,
 });
 
 impl_enum_str_conversions!(ObservabilityCategory {
@@ -85,6 +93,8 @@ impl_enum_str_conversions!(ObservabilityCategory {
     Driver => "DRIVER",
     Io => "IO",
     Network => "NET",
+    Launch => "LAUNCH",
+    Power => "POWER",
 });
 
 impl ObservabilityCategory {
@@ -107,6 +117,8 @@ impl ObservabilityCategory {
             7 => Some(Self::Driver),
             8 => Some(Self::Io),
             9 => Some(Self::Network),
+            10 => Some(Self::Launch),
+            11 => Some(Self::Power),
             _ => None,
         }
     }
@@ -124,6 +136,8 @@ impl ObservabilityCategory {
             "DRIVER" => Some(Self::Driver),
             "IO" => Some(Self::Io),
             "NET" => Some(Self::Network),
+            "LAUNCH" => Some(Self::Launch),
+            "POWER" => Some(Self::Power),
             _ => None,
         }
     }
@@ -197,7 +211,35 @@ pub const fn is_category_enabled_compile_time(category: ObservabilityCategory) -
             feature = "debug_observability_network",
             feature = "debug_observability_all"
         )),
+        ObservabilityCategory::Launch => cfg!(any(
+            feature = "debug_observability_launch",
+            feature = "debug_observability_all"
+        )),
+        ObservabilityCategory::Power => cfg!(any(
+            feature = "debug_observability_power",
+            feature = "debug_observability_all"
+        )),
     }
+}
+
+#[macro_export]
+macro_rules! observability_launch {
+    ($($body:tt)*) => {
+        #[cfg(any(feature = "debug_observability_launch", feature = "debug_observability_all"))]
+        {
+            $($body)*
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! observability_power {
+    ($($body:tt)*) => {
+        #[cfg(any(feature = "debug_observability_power", feature = "debug_observability_all"))]
+        {
+            $($body)*
+        }
+    };
 }
 
 /// Format autonomous serial message with category prefix and automatic newline

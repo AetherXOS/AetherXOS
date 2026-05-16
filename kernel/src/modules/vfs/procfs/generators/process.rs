@@ -15,7 +15,7 @@ pub fn generate_self_status(tid: TaskId) -> String {
         .unwrap_or_else(|| alloc::string::String::from("aethercore"));
 
     // Fetch real PPID/PGID/SID
-    let (ppid, pgid, sid) =
+    let (ppid, pgid, _sid) =
         if let Some(proc) = crate::kernel::process_registry::get_process(crate::interfaces::task::ProcessId(pid as usize)) {
             let ppid = proc.parent_id.load(core::sync::atomic::Ordering::Relaxed);
             let pgid = proc.pgid.load(core::sync::atomic::Ordering::Relaxed) as usize;
@@ -238,7 +238,7 @@ pub fn generate_exe_path(tid: TaskId) -> alloc::string::String {
 }
 
 /// `/proc/[pid]/fd/` - open file descriptor listing
-pub fn generate_fd_list(tid: TaskId) -> alloc::vec::Vec<(u32, alloc::string::String)> {
+pub fn generate_fd_list(_tid: TaskId) -> alloc::vec::Vec<(u32, alloc::string::String)> {
     #[cfg(feature = "posix_fs")]
     {
         let table = crate::modules::posix::fs::FILE_TABLE.lock();

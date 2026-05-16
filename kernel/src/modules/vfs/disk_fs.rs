@@ -408,7 +408,7 @@ impl DiskFsLibrary {
 
 #[cfg(all(feature = "vfs", feature = "linux_compat"))]
 fn join_mount_and_relative_path(mount_root: &str, path: &str) -> alloc::string::String {
-    use alloc::string::{String, ToString};
+    use alloc::string::ToString;
     let trimmed_path = path.trim();
     if mount_root == "/" {
         if trimmed_path.starts_with('/') {

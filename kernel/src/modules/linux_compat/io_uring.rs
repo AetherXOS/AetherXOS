@@ -14,7 +14,7 @@ fn handle_uring_entry(ring: &Arc<IoUring>, entry: &crate::kernel::syscalls::io_u
             let fd = entry.fd;
             let addr = entry.addr;
             let len = entry.len as usize;
-            let offset = entry.offset;
+            let _offset = entry.offset;
             
             let shared_res = crate::modules::posix::fs::get_file_description(fd);
             match shared_res {

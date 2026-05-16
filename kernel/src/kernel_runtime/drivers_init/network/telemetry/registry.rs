@@ -1,5 +1,3 @@
-use super::super::super::super::*;
-
 pub(super) fn log_driver_runtime_registry() {
     let registry = aethercore::modules::drivers::runtime_registry_snapshot();
     aethercore::klog_info!(

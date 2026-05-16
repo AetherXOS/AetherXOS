@@ -10,6 +10,7 @@ use crate::constants;
 use crate::constants::npm;
 use crate::utils::logging;
 use anyhow::{Result, bail};
+use inquire::Select;
 
 /// Entry point for `cargo run -p xtask -- test <action>`.
 pub fn execute(action: &TestAction) -> Result<()> {
@@ -55,6 +56,19 @@ pub fn execute(action: &TestAction) -> Result<()> {
     }
 }
 
+pub fn run_interactive() -> Result<()> {
+    let options = vec!["Quality Gate", "POSIX Conformance", "Driver Smoke", "Full Test Suite", "Back"];
+    let selection = Select::new("Test Suite Selection", options).prompt()?;
+    match selection {
+        "Quality Gate" => quality_gate()?,
+        "POSIX Conformance" => posix::run_gate()?,
+        "Driver Smoke" => driver::run_smoke()?,
+        "Full Test Suite" => tier::run_all(false)?,
+        _ => {}
+    }
+    Ok(())
+}
+
 /// Run the full tooling quality gate.
 /// Replaces: scripts/full-check.ps1
 fn quality_gate() -> Result<()> {
@@ -66,12 +80,13 @@ fn quality_gate() -> Result<()> {
     host::validate_feature_matrix(false)?;
     driver::run_smoke()?;
     posix::run_gate()?;
+    let boot_features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
     crate::commands::validation::linux_abi::execute(&crate::cli::LinuxAbiAction::Gate)?;
     crate::commands::infra::build::execute(&crate::cli::BuildAction::Full {
         arch: constants::defaults::build::ARCH,
         bootloader: crate::cli::Bootloader::Limine,
         format: crate::cli::ImageFormat::Iso,
-        features: aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS,
+        features: Some(boot_features),
         release: false,
         rootfs: None,
     })?;

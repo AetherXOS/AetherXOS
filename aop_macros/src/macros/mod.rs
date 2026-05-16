@@ -1,7 +1,7 @@
-pub mod log_entry;
-pub mod irq_handler;
-pub mod perf_trace;
-pub mod trace_args;
-pub mod retry;
-pub mod lock_monitor;
 pub mod contracts;
+pub mod irq_handler;
+pub mod lock_monitor;
+pub mod log_entry;
+pub mod perf_trace;
+pub mod retry;
+pub mod trace_args;

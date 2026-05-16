@@ -1,5 +1,5 @@
 use crate::constants;
-use crate::utils::{context, logging, net, paths, registry, ui};
+use crate::utils::{context, features, logging, net, paths, registry, ui};
 use aethercore_common::TargetArch;
 use anyhow::{Result, bail};
 use std::fs;
@@ -34,7 +34,12 @@ pub fn build_distro_iso(
     );
 
     // 3. Compile our kernel first
-    super::kernel::build_kernel(selected_arch, false, aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS)?;
+    let distro_features = if non_interactive || crate::utils::config::is_non_interactive() {
+        features::kernel_features_from_default(&["vfs", "drivers"])?
+    } else {
+        features::prompt_kernel_feature_selection("Distro ISO kernel build", &["vfs", "drivers"])?
+    };
+    super::kernel::build_kernel(selected_arch, false, distro_features)?;
 
     let arch_norm = selected_arch.as_str().replace('-', "_");
     let image = find_image(

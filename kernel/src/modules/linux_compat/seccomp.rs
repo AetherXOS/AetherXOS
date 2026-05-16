@@ -37,7 +37,7 @@ pub fn check_seccomp_policy(nr: usize, _frame: &crate::modules::linux_compat::sy
     }
 }
 
-pub fn sys_linux_seccomp(operation: usize, flags: usize, args: UserPtr<u8>) -> usize {
+pub fn sys_linux_seccomp(operation: usize, _flags: usize, _args: UserPtr<u8>) -> usize {
     const SECCOMP_SET_MODE_STRICT: usize = 0;
     const SECCOMP_SET_MODE_FILTER: usize = 1;
 

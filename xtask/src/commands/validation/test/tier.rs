@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::env;
 
-use crate::constants::{cargo as cargo_consts, test as test_consts, tools};
+use crate::constants::{cargo as cargo_consts, tools};
 use crate::utils::{cargo, process};
 use crate::types::TestTier;
 
@@ -29,7 +29,8 @@ struct CommandSpec {
 
 pub fn run(tier: TestTier, ci: bool) -> Result<()> {
     let host = cargo::detect_host_triple()?;
-    let specs = tier_specs(tier, ci, &host);
+    let test_features = resolve_test_feature_csv()?;
+    let specs = tier_specs(tier, ci, &host, &test_features);
 
     for spec in specs {
         run_spec(&spec)?;
@@ -40,30 +41,37 @@ pub fn run(tier: TestTier, ci: bool) -> Result<()> {
 
 pub fn run_all(ci: bool) -> Result<()> {
     use strum::IntoEnumIterator;
+    let host = cargo::detect_host_triple()?;
+    let test_features = resolve_test_feature_csv()?;
     for tier in TestTier::iter() {
-        run(tier, ci)?;
+        let specs = tier_specs(tier, ci, &host, &test_features);
+        for spec in specs {
+            run_spec(&spec)?;
+        }
     }
     Ok(())
 }
 
-fn tier_specs(tier: TestTier, ci: bool, host: &str) -> Vec<CommandSpec> {
+fn tier_specs(tier: TestTier, ci: bool, host: &str, test_features: &str) -> Vec<CommandSpec> {
     match tier {
-        TestTier::Fast => fast_specs(ci, host),
-        TestTier::Integration => integration_specs(ci, host),
-        TestTier::Nightly => nightly_specs(ci, host),
+        TestTier::Fast => fast_specs(ci, host, test_features),
+        TestTier::Integration => integration_specs(ci, host, test_features),
+        TestTier::Nightly => nightly_specs(ci, host, test_features),
     }
 }
 
 #[cfg(test)]
 fn tier_specs_str(tier: &str, ci: bool, host: &str) -> Result<Vec<CommandSpec>, anyhow::Error> {
     let parsed: TestTier = tier.parse().map_err(|_| anyhow::anyhow!("unknown test phase '{}', supported: fast, integration, nightly", tier))?;
-    Ok(tier_specs(parsed, ci, host))
+    let test_features = crate::utils::features::cargo_features_from_default(&["kernel_test_mode", "vfs", "drivers"])
+        .unwrap_or_else(|_| crate::utils::features::test_feature_csv());
+    Ok(tier_specs(parsed, ci, host, &test_features))
 }
 
-fn fast_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
+fn fast_specs(ci: bool, host: &str, test_features: &str) -> Vec<CommandSpec> {
     vec![
-        nextest_spec("fast", ci, host),
-        clippy_spec(host),
+        nextest_spec("fast", ci, host, test_features),
+        clippy_spec(host, test_features),
         rustfmt_spec(),
         cargo_subcommand_spec(
             "geiger",
@@ -76,7 +84,7 @@ fn fast_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
                 cargo_consts::ARG_TARGET.into(),
                 host.into(),
                 cargo_consts::ARG_FEATURES.into(),
-                test_consts::TEST_FEATURES.into(),
+                test_features.to_string(),
             ],
         ),
         cargo_subcommand_spec(
@@ -90,17 +98,17 @@ fn fast_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
                 "--target".into(),
                 host.into(),
                 "--features".into(),
-                test_consts::TEST_FEATURES.into(),
+                test_features.to_string(),
             ],
         ),
         cargo_subcommand_spec("audit", "AETHERCORE_ENABLE_AUDIT", vec!["audit".into()]),
     ]
 }
 
-fn integration_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
+fn integration_specs(ci: bool, host: &str, test_features: &str) -> Vec<CommandSpec> {
     vec![
-        nextest_spec("integration_tests", ci, host),
-        clippy_spec(host),
+        nextest_spec("integration_tests", ci, host, test_features),
+        clippy_spec(host, test_features),
         host_cargo_test_spec(
             "kasan",
             "AETHERCORE_RUN_KASAN",
@@ -134,10 +142,10 @@ fn integration_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
     ]
 }
 
-fn nightly_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
+fn nightly_specs(ci: bool, host: &str, test_features: &str) -> Vec<CommandSpec> {
     vec![
-        nextest_spec("nightly", ci, host),
-        clippy_spec(host),
+        nextest_spec("nightly", ci, host, test_features),
+        clippy_spec(host, test_features),
         binary_spec(
             "syzkaller",
             "syz-manager",
@@ -179,7 +187,7 @@ fn nightly_specs(ci: bool, host: &str) -> Vec<CommandSpec> {
     ]
 }
 
-fn nextest_spec(test_name: &'static str, ci: bool, host: &str) -> CommandSpec {
+fn nextest_spec(test_name: &'static str, ci: bool, host: &str, test_features: &str) -> CommandSpec {
     let mut args = vec![
         "nextest".into(),
         cargo_consts::CMD_RUN.into(),
@@ -193,7 +201,7 @@ fn nextest_spec(test_name: &'static str, ci: bool, host: &str) -> CommandSpec {
         "--target".into(),
         host.into(),
         "--features".into(),
-        test_consts::TEST_FEATURES.into(),
+        test_features.to_string(),
         "--test".into(),
         test_name.into(),
     ]);
@@ -207,7 +215,7 @@ fn nextest_spec(test_name: &'static str, ci: bool, host: &str) -> CommandSpec {
     }
 }
 
-fn clippy_spec(host: &str) -> CommandSpec {
+fn clippy_spec(host: &str, test_features: &str) -> CommandSpec {
     let mut args = vec![
         "clippy".into(),
         "--manifest-path".into(),
@@ -216,7 +224,7 @@ fn clippy_spec(host: &str) -> CommandSpec {
         "--target".into(),
         host.into(),
         "--features".into(),
-        test_consts::TEST_FEATURES.into(),
+        test_features.to_string(),
         "--".into(),
     ];
     args.extend(CLIPPY_LINT_ARGS.iter().map(|arg| (*arg).to_string()));
@@ -227,6 +235,17 @@ fn clippy_spec(host: &str) -> CommandSpec {
         args,
         gate: None,
         availability: ToolAvailability::None,
+    }
+}
+
+fn resolve_test_feature_csv() -> Result<String> {
+    let required = ["kernel_test_mode", "vfs", "drivers"];
+    if crate::utils::config::is_non_interactive() {
+        crate::utils::features::cargo_features_from_default(&required)
+            .or_else(|_| Ok(crate::utils::features::test_feature_csv()))
+    } else {
+        crate::utils::features::prompt_cargo_feature_selection("Test tier", &required)
+            .or_else(|_| Ok(crate::utils::features::test_feature_csv()))
     }
 }
 

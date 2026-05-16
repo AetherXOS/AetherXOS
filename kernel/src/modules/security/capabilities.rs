@@ -8,6 +8,8 @@ use core::sync::atomic::Ordering;
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use spin::Mutex;
+#[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_rwlock"))]
+use spin::RwLock;
 
 use aethercore_common::telemetry;
 use aethercore_common::{const_assert, counter_inc, declare_counter_u64};
@@ -139,14 +141,14 @@ fn generate_token_id(_resource_id: u64) -> u64 {
 const SHARD_COUNT: usize = 16;
 
 pub struct ObjectCapability {
-    #[cfg(feature = "cap_lock_mutex")]
-    tokens: Mutex<BTreeMap<u64, CapabilityToken>>,
+    #[cfg(all(feature = "cap_lock_sharded"))]
+    tokens: [Mutex<BTreeMap<u64, CapabilityToken>>; SHARD_COUNT],
 
-    #[cfg(feature = "cap_lock_rwlock")]
+    #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_rwlock"))]
     tokens: RwLock<BTreeMap<u64, CapabilityToken>>,
 
-    #[cfg(feature = "cap_lock_sharded")]
-    tokens: [Mutex<BTreeMap<u64, CapabilityToken>>; SHARD_COUNT],
+    #[cfg(all(not(feature = "cap_lock_sharded"), not(feature = "cap_lock_rwlock"), feature = "cap_lock_mutex"))]
+    tokens: Mutex<BTreeMap<u64, CapabilityToken>>,
 
     /// resource_id -> current generation (revoked tokens have stale gen)
     generations: Mutex<BTreeMap<u64, u64>>,
@@ -154,29 +156,29 @@ pub struct ObjectCapability {
 
 impl ObjectCapability {
     pub const fn new() -> Self {
-        #[cfg(feature = "cap_lock_mutex")]
-        {
-            Self {
-                tokens: Mutex::new(BTreeMap::new()),
-                generations: Mutex::new(BTreeMap::new()),
-            }
-        }
-
-        #[cfg(feature = "cap_lock_rwlock")]
-        {
-            Self {
-                tokens: RwLock::new(BTreeMap::new()),
-                generations: Mutex::new(BTreeMap::new()),
-            }
-        }
-
-        #[cfg(feature = "cap_lock_sharded")]
+        #[cfg(all(feature = "cap_lock_sharded"))]
         {
             const SHARD_INIT: Mutex<BTreeMap<u64, CapabilityToken>> = Mutex::new(BTreeMap::new());
-            Self {
+            return Self {
                 tokens: [SHARD_INIT; SHARD_COUNT],
                 generations: Mutex::new(BTreeMap::new()),
-            }
+            };
+        }
+
+        #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_rwlock"))]
+        {
+            return Self {
+                tokens: RwLock::new(BTreeMap::new()),
+                generations: Mutex::new(BTreeMap::new()),
+            };
+        }
+
+        #[cfg(all(not(feature = "cap_lock_sharded"), not(feature = "cap_lock_rwlock"), feature = "cap_lock_mutex"))]
+        {
+            return Self {
+                tokens: Mutex::new(BTreeMap::new()),
+                generations: Mutex::new(BTreeMap::new()),
+            };
         }
 
         #[cfg(not(any(
@@ -185,10 +187,10 @@ impl ObjectCapability {
             feature = "cap_lock_sharded"
         )))]
         {
-            Self {
+            return Self {
                 tokens: Mutex::new(BTreeMap::new()),
                 generations: Mutex::new(BTreeMap::new()),
-            }
+            };
         }
     }
 
@@ -221,10 +223,10 @@ impl ObjectCapability {
             generation,
         };
 
-        #[cfg(feature = "cap_lock_mutex")]
+        #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_mutex"))]
         self.tokens.lock().insert(token_id, token);
 
-        #[cfg(feature = "cap_lock_rwlock")]
+        #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_rwlock"))]
         self.tokens.write().insert(token_id, token);
 
         #[cfg(feature = "cap_lock_sharded")]
@@ -246,10 +248,10 @@ impl ObjectCapability {
     /// Revoke a specific token.
     pub fn revoke_token(&self, token_id: u64) -> bool {
         counter_inc!(CAP_REVOKE_CALLS);
-        #[cfg(feature = "cap_lock_mutex")]
+        #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_mutex"))]
         return self.tokens.lock().remove(&token_id).is_some();
 
-        #[cfg(feature = "cap_lock_rwlock")]
+        #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_rwlock"))]
         return self.tokens.write().remove(&token_id).is_some();
 
         #[cfg(feature = "cap_lock_sharded")]
@@ -284,7 +286,7 @@ impl ObjectCapability {
         counter_inc!(CAP_DELEGATE_CALLS);
 
         let (resource_id, new_perms) = {
-            #[cfg(feature = "cap_lock_mutex")]
+            #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_mutex"))]
             {
                 let tokens = self.tokens.lock();
                 let original = tokens.get(&token_id)?;
@@ -297,7 +299,7 @@ impl ObjectCapability {
                 (original.resource_id, perms)
             }
 
-            #[cfg(feature = "cap_lock_rwlock")]
+            #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_rwlock"))]
             {
                 let tokens = self.tokens.read();
                 let original = tokens.get(&token_id)?;
@@ -361,10 +363,10 @@ impl ObjectCapability {
 
     /// Get the number of active tokens.
     pub fn active_token_count(&self) -> usize {
-        #[cfg(feature = "cap_lock_mutex")]
+        #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_mutex"))]
         return self.tokens.lock().len();
 
-        #[cfg(feature = "cap_lock_rwlock")]
+        #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_rwlock"))]
         return self.tokens.read().len();
 
         #[cfg(feature = "cap_lock_sharded")]
@@ -384,13 +386,13 @@ impl SecurityMonitor for ObjectCapability {
         CAP_ACCESS_CALLS.fetch_add(1, Ordering::Relaxed);
 
         let token_opt = {
-            #[cfg(feature = "cap_lock_mutex")]
+            #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_mutex"))]
             {
                 let tokens = self.tokens.lock();
                 tokens.get(&resource_handle).copied()
             }
 
-            #[cfg(feature = "cap_lock_rwlock")]
+            #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_rwlock"))]
             {
                 let tokens = self.tokens.read();
                 tokens.get(&resource_handle).copied()
@@ -468,7 +470,7 @@ impl SecurityMonitor for ObjectCapability {
 
         let mut found = false;
 
-        #[cfg(feature = "cap_lock_mutex")]
+        #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_mutex"))]
         {
             let tokens = self.tokens.lock();
             for token in tokens.values() {
@@ -483,7 +485,7 @@ impl SecurityMonitor for ObjectCapability {
             }
         }
 
-        #[cfg(feature = "cap_lock_rwlock")]
+        #[cfg(all(not(feature = "cap_lock_sharded"), feature = "cap_lock_rwlock"))]
         {
             let tokens = self.tokens.read();
             for token in tokens.values() {

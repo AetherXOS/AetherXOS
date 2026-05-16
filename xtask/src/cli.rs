@@ -8,6 +8,7 @@ pub mod runtime;
 pub mod secureboot;
 pub mod setup;
 pub mod test;
+pub mod interactive;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
@@ -25,6 +26,7 @@ pub use runtime::AbSlotAction;
 pub use secureboot::SecurebootAction;
 pub use setup::SetupAction;
 pub use test::TestAction;
+pub use interactive::InteractiveAction;
 
 /// The central automation tool for the Aether X OS pipeline.
 /// Designed to streamline development, testing, image creation, and validation operations.
@@ -115,6 +117,7 @@ define_commands! {
     Secureboot(SecurebootAction) => "Secure Boot protocols",
     Release(ReleaseAction) => "Release engineering",
     AbSlot(AbSlotAction) => "A/B slot management",
-    Glibc(GlibcAction) => "Glibc audit";
+    Glibc(GlibcAction) => "Glibc audit",
+    Interactive(InteractiveAction) => "Interactive build & distro management";
     CrashRecovery => "Panic diagnostics"
 }

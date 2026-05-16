@@ -7,12 +7,16 @@ fn category_str_representation() {
     assert_eq!(ObservabilityCategory::Boot.as_str(), "BOOT");
     assert_eq!(ObservabilityCategory::Memory.as_str(), "MEMORY");
     assert_eq!(ObservabilityCategory::Scheduler.as_str(), "SCHED");
+    assert_eq!(ObservabilityCategory::Launch.as_str(), "LAUNCH");
+    assert_eq!(ObservabilityCategory::Power.as_str(), "POWER");
 }
 
 #[test_case]
 fn category_from_str_roundtrip() {
     assert_eq!(ObservabilityCategory::from_str("BOOT"), Some(ObservabilityCategory::Boot));
     assert_eq!(ObservabilityCategory::from_str("NET"), Some(ObservabilityCategory::Network));
+    assert_eq!(ObservabilityCategory::from_str("LAUNCH"), Some(ObservabilityCategory::Launch));
+    assert_eq!(ObservabilityCategory::from_str("POWER"), Some(ObservabilityCategory::Power));
     assert_eq!(ObservabilityCategory::from_str("INVALID"), None);
     assert_eq!(ObservabilityCategory::Task.to_string(), "TASK");
 }
@@ -22,6 +26,8 @@ fn category_u8_conversion() {
     assert_eq!(ObservabilityCategory::Core.as_u8(), 0);
     assert_eq!(ObservabilityCategory::Boot.as_u8(), 1);
     assert_eq!(ObservabilityCategory::Memory.as_u8(), 4);
+    assert_eq!(ObservabilityCategory::Launch.as_u8(), 10);
+    assert_eq!(ObservabilityCategory::Power.as_u8(), 11);
 }
 
 #[test_case]
@@ -33,6 +39,14 @@ fn category_from_u8() {
     assert_eq!(
         ObservabilityCategory::from_u8(4),
         Some(ObservabilityCategory::Memory)
+    );
+    assert_eq!(
+        ObservabilityCategory::from_u8(10),
+        Some(ObservabilityCategory::Launch)
+    );
+    assert_eq!(
+        ObservabilityCategory::from_u8(11),
+        Some(ObservabilityCategory::Power)
     );
     assert_eq!(ObservabilityCategory::from_u8(99), None);
 }

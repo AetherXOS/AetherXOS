@@ -67,7 +67,7 @@ pub fn check_and_deliver_signals() {
         // Get signal action
         #[cfg(all(feature = "posix_signal", feature = "linux_compat"))]
         {
-            use crate::modules::posix::signal::{SIGNAL_ACTIONS, SignalAction};
+            use crate::modules::posix::signal::SIGNAL_ACTIONS;
 
             let action_opt = {
                 let handlers = SIGNAL_ACTIONS.lock();

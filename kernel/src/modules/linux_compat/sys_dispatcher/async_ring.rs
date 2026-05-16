@@ -5,7 +5,7 @@
 
 use core::sync::atomic::{AtomicU32, Ordering};
 use crate::interfaces::KernelResult;
-use crate::modules::linux_compat::sys_dispatcher::table::SyscallFrame;
+use crate::kernel::syscalls::SyscallFrame;
 
 /// Maximum number of entries in the ring buffer.
 pub const URING_ENTRIES: usize = 4096;
@@ -100,20 +100,37 @@ impl AsyncRing {
 
     fn dispatch_sqe(&self, sqe: &SubmissionEntry) -> i32 {
         // Construct a pseudo-frame for the dispatcher
-        let frame = SyscallFrame {
-            nr: sqe.opcode as usize,
-            a1: sqe.fd as usize,
-            a2: sqe.addr as usize,
-            a3: sqe.len as usize,
-            a4: sqe.args[0] as usize,
-            a5: sqe.args[1] as usize,
-            a6: sqe.args[2] as usize,
+        let mut frame = SyscallFrame {
+            rax: 0,
+            rdx: 0,
+            rsi: 0,
+            rdi: 0,
+            rcx: 0,
+            r8: 0,
+            r9: 0,
+            r10: 0,
+            r11: 0,
             rip: 0,
             rflags: 0,
+            r15: 0,
+            r14: 0,
+            r13: 0,
+            r12: 0,
+            rbx: 0,
+            rbp: 0,
+            rsp: 0,
         };
 
+        // Map submission entry fields to syscall argument registers (rdi, rsi, rdx, r10, r8, r9)
+        frame.rdi = sqe.fd as u64;
+        frame.rsi = sqe.addr as u64;
+        frame.rdx = sqe.len as u64;
+        frame.r10 = sqe.args[0] as u64;
+        frame.r8 = sqe.args[1] as u64;
+        frame.r9 = sqe.args[2] as u64;
+
         // Dispatch via O(1) table (Ring 3 Service)
-        let result = super::dispatch_structured(&frame);
+        let result = super::SyscallDispFrame::dispatch_structured(sqe.opcode as usize, &mut frame);
         result as i32
     }
 

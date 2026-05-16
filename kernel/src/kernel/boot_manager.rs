@@ -94,7 +94,7 @@ impl BootManager for ConcreteBootManager {
         log::info(&format!("Entering boot stage: {:?}", stage));
 
         // Get subsystems for this stage
-        let mut stage_subsystems = self
+        let stage_subsystems = self
             .subsystems
             .lock()
             .get(&stage)

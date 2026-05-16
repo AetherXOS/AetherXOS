@@ -1,4 +1,4 @@
-use super::failover::{activate_runtime_network_driver, try_network_failover_for_io_health};
+use super::failover::activate_runtime_network_driver;
 use crate::kernel_runtime::network_policy_helpers::select_network_failover_target;
 use crate::kernel_runtime::networking::{
     NETWORK_AUTO_POLICY_SWITCH_COOLDOWN, NETWORK_AUTO_POLICY_SWITCH_COUNT,
@@ -6,7 +6,7 @@ use crate::kernel_runtime::networking::{
     NETWORK_SLO_SAMPLE_COUNTER,
 };
 
-pub(super) fn maybe_auto_switch_network_driver_on_slo(
+pub(crate) fn maybe_auto_switch_network_driver_on_slo(
     slo: aethercore::modules::drivers::NetworkDriverSloReport,
 ) -> bool {
     let profile = aethercore::modules::drivers::network_remediation_profile();

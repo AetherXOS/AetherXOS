@@ -1,6 +1,7 @@
 use super::super::*;
 use crate::interfaces::task::{KernelTask};
 use crate::modules::linux_compat::types::{LinuxUContext, LinuxMContext, LinuxSiginfo, LinuxStackT};
+use crate::modules::posix::signal::SignalAction;
 
 /// Linux x86_64 rt_sigframe layout (mirrors kernel's arch/x86/include/asm/sigframe.h)
 /// Stack layout when entering handler:

@@ -35,7 +35,8 @@ pub(crate) use self::dispatch_helpers::{
 #[cfg(test)]
 pub(crate) use self::ipc_control::futex_key_from_ptr_or_hint;
 pub(crate) use self::ipc_control::*;
-pub(crate) use self::linux_shim::util::{LinuxRUsage, write_user_pod};
+#[allow(unused_imports)]
+pub(crate) use self::linux_shim::util::{LinuxRUsage, write_user_pod, read_user_pod};
 #[cfg(all(test, not(feature = "linux_compat")))]
 pub(crate) use self::linux_shim::process::exec_stack::{
     execve_stack_required_bytes, prepare_execve_user_stack,

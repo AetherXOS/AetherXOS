@@ -1,7 +1,6 @@
 use crate::config::KernelConfig;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{AtomicU64, Ordering};
 
 use crate::hal::pci::PciDevice;
@@ -354,20 +353,20 @@ impl E1000 {
 
         // Enables
         let mut rctl = 0u32;
-        rctl |= (RCTL_EN.mask << RCTL_EN.shift);
-        rctl |= (RCTL_SBP.mask << RCTL_SBP.shift);
-        rctl |= (RCTL_UPE.mask << RCTL_UPE.shift);
-        rctl |= (RCTL_MPE.mask << RCTL_MPE.shift);
-        rctl |= (RCTL_BAM.mask << RCTL_BAM.shift);
-        rctl |= (RCTL_SECRC.mask << RCTL_SECRC.shift);
+        rctl |= RCTL_EN.mask << RCTL_EN.shift;
+        rctl |= RCTL_SBP.mask << RCTL_SBP.shift;
+        rctl |= RCTL_UPE.mask << RCTL_UPE.shift;
+        rctl |= RCTL_MPE.mask << RCTL_MPE.shift;
+        rctl |= RCTL_BAM.mask << RCTL_BAM.shift;
+        rctl |= RCTL_SECRC.mask << RCTL_SECRC.shift;
         // BSIZE_2048 is 0, so no need to OR anything
         self.write_reg(E1000_RCTL, rctl);
         
         let mut tctl = 0u32;
-        tctl |= (TCTL_EN.mask << TCTL_EN.shift);
-        tctl |= (TCTL_PSP.mask << TCTL_PSP.shift);
-        tctl |= (15 << 4); // Cold insertion
-        tctl |= (0x40 << 12); // Collision threshold
+        tctl |= TCTL_EN.mask << TCTL_EN.shift;
+        tctl |= TCTL_PSP.mask << TCTL_PSP.shift;
+        tctl |= 15 << 4; // Cold insertion
+        tctl |= 0x40 << 12; // Collision threshold
         self.write_reg(E1000_TCTL, tctl);
 
         self.write_reg(E1000_IMS, 0x1F6DC); // Enable interrupts

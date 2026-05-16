@@ -7,7 +7,7 @@ use crate::kernel_runtime::network_policy_helpers::{
 };
 use crate::kernel_runtime::networking::NETWORK_DRIVER_QUARANTINE_REBIND_FAILURES;
 
-pub(super) fn service_specific_network_driver_io(
+pub(crate) fn service_specific_network_driver_io(
     driver: aethercore::modules::drivers::ActiveNetworkDriver,
 ) -> bool {
     if driver != aethercore::modules::drivers::ActiveNetworkDriver::None
@@ -44,7 +44,7 @@ pub(super) fn service_specific_network_driver_io(
     }
 }
 
-pub(super) fn service_registered_network_driver_io() -> bool {
+pub(crate) fn service_registered_network_driver_io() -> bool {
     let active = aethercore::modules::drivers::active_network_driver();
     service_specific_network_driver_io(active)
 }

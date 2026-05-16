@@ -3,7 +3,7 @@ use super::super::irq::register_network_irq_handler;
 use super::super::logging::{log_network_driver_absent, log_network_driver_failure};
 use super::policy::{resolve_standby_policy, standby_driver_ready};
 
-pub(super) fn init_standby_network_driver(
+pub(crate) fn init_standby_network_driver(
     runtime: &KernelRuntime,
     devices: &[aethercore::hal::pci::PciDevice],
     telemetry_drivers: bool,
@@ -17,7 +17,7 @@ pub(super) fn init_standby_network_driver(
         return;
     }
 
-    if let Some(mut fallback) =
+    if let Some(fallback) =
         aethercore::modules::drivers::probe_network_driver_with_policy(devices, fallback_policy)
     {
         initialize_standby_driver(runtime, telemetry_drivers, fallback);

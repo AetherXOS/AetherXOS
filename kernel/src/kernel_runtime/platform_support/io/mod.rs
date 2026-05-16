@@ -2,6 +2,7 @@ mod network;
 mod vfs;
 
 #[cfg(all(feature = "networking", feature = "libnet"))]
+#[allow(unused_imports)]
 pub(crate) use self::network::log_libnet_runtime;
 #[cfg(feature = "networking")]
 pub(crate) use self::network::{init_network_bridge_runtime, log_network_transport_telemetry};

@@ -33,11 +33,12 @@ pub fn preflight(
 
     if !skip_boot_artifacts {
         println!("[release::preflight] Step 4: Full boot artifact build validation");
+        let boot_features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
         infra::build::execute(&crate::cli::BuildAction::Full {
             arch: constants::defaults::build::ARCH,
             bootloader: crate::cli::Bootloader::Limine,
             format: crate::cli::ImageFormat::Iso,
-            features: aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS,
+            features: Some(boot_features),
             release: false,
             rootfs: None,
         })?;
@@ -60,7 +61,8 @@ pub fn preflight(
     )?;
 
     println!("[release::preflight] Step 7: linux_compat profile compile + syscall gate");
-    cargo::cargo(&["check", "--features", "linux_compat,posix_deep_tests"])?;
+    let linux_compat_features = crate::utils::features::cargo_features_from_default(&["linux_compat", "posix_deep_tests"])?;
+    cargo::cargo(&["check", "--features", &linux_compat_features])?;
     validation::syscall_coverage::execute(
         true,
         constants::defaults::glibc::FORMAT_MD,

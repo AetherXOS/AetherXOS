@@ -4,6 +4,11 @@
 //! and kernel subsystems. Follows the same hook pattern as syscall_integration.rs.
 
 
+use alloc::format;
+use crate::kernel::log;
+use crate::kernel_runtime::integration_utils::audit_service_event;
+
+
 
 /// Signal delivery hook - called when a signal is about to be sent to a process
 ///
@@ -26,16 +31,9 @@ pub fn on_signal_send(pid: usize, signal: i32, sender_uid: u32) -> Result<(), &'
     // Log audit event
     #[cfg(feature = "audit_logging")]
     {
-        use crate::kernel_runtime::integration_utils;
         let description = format!("Signal {} sent to pid {}", signal, pid);
         log::info(&description);
-        integration_utils::audit_syscall_event(
-            "signal_send",
-            pid as u32,
-            sender_uid,
-            true,
-            Some(&description),
-        );
+        audit_service_event("signal_send", pid as u32, sender_uid, true, description);
     }
 
     log::debug(&format!("Signal delivery allowed: sig={} pid={}", signal, pid));
@@ -61,15 +59,8 @@ pub fn on_signal_receive(pid: usize, signal: i32, handler_action: &str) -> Resul
 
     #[cfg(feature = "audit_logging")]
     {
-        use crate::kernel_runtime::integration_utils;
         let description = format!("Signal {} delivered to pid {} with action {}", signal, pid, handler_action);
-        integration_utils::audit_syscall_event(
-            "signal_receive",
-            pid as u32,
-            0,
-            true,
-            Some(&description),
-        );
+        audit_service_event("signal_receive", pid as u32, 0, true, description);
     }
 
     log::debug(&format!(
@@ -109,12 +100,11 @@ pub fn on_socket_create(domain: usize, socket_type: usize, protocol: usize, uid:
 
     #[cfg(feature = "audit_logging")]
     {
-        use crate::kernel_runtime::integration_utils;
         let description = format!(
             "Socket created: domain={} type={} protocol={}",
             domain, socket_type, protocol
         );
-        integration_utils::audit_syscall_event("socket_create", 0, uid, true, Some(&description));
+        audit_service_event("socket_create", 0, uid, true, description);
     }
 
     log::debug(&format!(
@@ -136,24 +126,22 @@ pub fn on_socket_create(domain: usize, socket_type: usize, protocol: usize, uid:
 /// - `Ok(())` if connection is allowed
 /// - `Err(&str)` if denied by policy
 #[cfg(feature = "posix_net")]
-pub fn on_socket_connect(domain: usize, remote_addr: &str, remote_port: u16, uid: u32) -> Result<(), &'static str> {
+pub fn on_socket_connect(_domain: usize, remote_addr: &str, remote_port: u16, uid: u32) -> Result<(), &'static str> {
     // Policy: deny connections to localhost on high ports (example)
     if remote_addr == "127.0.0.1" && remote_port > 32768 {
         log::warn(&format!("Blocked connection to {}:{}", remote_addr, remote_port));
         #[cfg(feature = "audit_logging")]
         {
-            use crate::kernel_runtime::integration_utils;
             let description = format!("Connection denied to {}:{}", remote_addr, remote_port);
-            integration_utils::audit_syscall_event("socket_connect", 0, uid, false, Some(&description));
+            audit_service_event("socket_connect", 0, uid, false, description);
         }
         return Err("access_denied");
     }
 
     #[cfg(feature = "audit_logging")]
     {
-        use crate::kernel_runtime::integration_utils;
         let description = format!("Socket connected to {}:{}", remote_addr, remote_port);
-        integration_utils::audit_syscall_event("socket_connect", 0, uid, true, Some(&description));
+        audit_service_event("socket_connect", 0, uid, true, description);
     }
 
     log::debug(&format!("Connection allowed to {}:{}", remote_addr, remote_port));
@@ -182,9 +170,8 @@ pub fn on_socket_send(fd: usize, data_len: usize, uid: u32) -> Result<usize, &'s
 
     #[cfg(feature = "audit_logging")]
     {
-        use crate::kernel_runtime::integration_utils;
         let description = format!("Socket send: fd={} len={}", fd, allowed);
-        integration_utils::audit_syscall_event("socket_send", 0, uid, true, Some(&description));
+        audit_service_event("socket_send", 0, uid, true, description);
     }
 
     Ok(allowed)
@@ -208,9 +195,8 @@ pub fn on_socket_receive(fd: usize, buffer_len: usize, uid: u32) -> Result<usize
 
     #[cfg(feature = "audit_logging")]
     {
-        use crate::kernel_runtime::integration_utils;
         let description = format!("Socket receive: fd={} len={}", fd, allowed);
-        integration_utils::audit_syscall_event("socket_receive", 0, uid, true, Some(&description));
+        audit_service_event("socket_receive", 0, uid, true, description);
     }
 
     Ok(allowed)
@@ -232,9 +218,8 @@ pub fn on_socket_bind(port: u16, uid: u32) -> Result<(), &'static str> {
         log::warn(&format!("Non-root uid {} tried to bind port {}", uid, port));
         #[cfg(feature = "audit_logging")]
         {
-            use crate::kernel_runtime::integration_utils;
             let description = format!("Bind denied to port {}", port);
-            integration_utils::audit_syscall_event("socket_bind", 0, uid, false, Some(&description));
+            audit_service_event("socket_bind", 0, uid, false, description);
         }
         return Err("permission_denied");
     }
@@ -242,7 +227,7 @@ pub fn on_socket_bind(port: u16, uid: u32) -> Result<(), &'static str> {
     #[cfg(feature = "audit_logging")]
     {
         let description = format!("Socket bound to port {}", port);
-        integration_utils::audit_syscall_event("socket_bind", 0, uid, true, Some(&description));
+        audit_service_event("socket_bind", 0, uid, true, description);
     }
 
     log::debug(&format!("Bind allowed: port={}", port));
@@ -261,8 +246,6 @@ pub fn on_socket_bind(port: u16, uid: u32) -> Result<(), &'static str> {
 /// - `Err(&str)` if denied
 #[cfg(feature = "posix_net")]
 pub fn on_socket_listen(fd: usize, backlog: usize, uid: u32) -> Result<(), &'static str> {
-    use crate::kernel_runtime::integration_utils;
-
     // Validate backlog
     if backlog == 0 {
         return Err("invalid_backlog");
@@ -275,7 +258,7 @@ pub fn on_socket_listen(fd: usize, backlog: usize, uid: u32) -> Result<(), &'sta
     #[cfg(feature = "audit_logging")]
     {
         let description = format!("Socket listen: fd={} backlog={}", fd, effective_backlog);
-        integration_utils::audit_syscall_event("socket_listen", 0, uid, true, Some(&description));
+        audit_service_event("socket_listen", 0, uid, true, description);
     }
 
     log::debug(&format!("Listen allowed: fd={} backlog={}", fd, effective_backlog));
@@ -294,12 +277,10 @@ pub fn on_socket_listen(fd: usize, backlog: usize, uid: u32) -> Result<(), &'sta
 /// - `Err(&str)` if denied by policy
 #[cfg(feature = "posix_net")]
 pub fn on_socket_accept(fd: usize, uid: u32, remote_addr: &str) -> Result<(), &'static str> {
-    use crate::kernel_runtime::integration_utils;
-
     #[cfg(feature = "audit_logging")]
     {
         let description = format!("Accept connection from {}", remote_addr);
-        integration_utils::audit_syscall_event("socket_accept", 0, uid, true, Some(&description));
+        audit_service_event("socket_accept", 0, uid, true, description);
     }
 
     log::debug(&format!("Accept allowed: fd={} from={}", fd, remote_addr));
@@ -308,6 +289,8 @@ pub fn on_socket_accept(fd: usize, uid: u32, remote_addr: &str) -> Result<(), &'
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test_case]
     #[cfg(feature = "posix_signal")]
     fn test_signal_send_valid() {

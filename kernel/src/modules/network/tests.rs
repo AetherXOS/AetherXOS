@@ -1,5 +1,6 @@
 use super::*;
 use alloc::vec::Vec;
+use alloc::sync::Arc;
 use alloc::vec;
 use crate::modules::network::metrics_ops::update_loopback_high_water;
 use crate::modules::network::types::PacketData;

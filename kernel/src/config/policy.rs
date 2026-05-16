@@ -354,6 +354,8 @@ impl KernelConfig {
             crate::config::ObservabilityCategory::Driver => OBSERVABILITY_DRIVER_OVERRIDE.load(Ordering::Relaxed),
             crate::config::ObservabilityCategory::Io => OBSERVABILITY_IO_OVERRIDE.load(Ordering::Relaxed),
             crate::config::ObservabilityCategory::Network => OBSERVABILITY_NETWORK_OVERRIDE.load(Ordering::Relaxed),
+            crate::config::ObservabilityCategory::Launch => OBSERVABILITY_LAUNCH_OVERRIDE.load(Ordering::Relaxed),
+            crate::config::ObservabilityCategory::Power => OBSERVABILITY_POWER_OVERRIDE.load(Ordering::Relaxed),
         };
 
         // Compile-time default (from feature flags)

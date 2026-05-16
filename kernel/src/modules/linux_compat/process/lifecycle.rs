@@ -90,7 +90,7 @@ pub fn sys_linux_clone(
         }
 
         let ns_flags = flags & (
-            cf::CLONE_NEWPID | cf::CLONE_NEWNET | cf::CLONE_NEWNS | 
+            cf::CLONE_NEWPID | cf::CLONE_NEWNET | cf::CLONE_NEWNS |
             cf::CLONE_NEWIPC | cf::CLONE_NEWUTS | cf::CLONE_NEWUSER | cf::CLONE_NEWCGROUP
         );
 
@@ -158,7 +158,7 @@ pub fn sys_linux_setns(fd: Fd, nstype: usize) -> usize {
             return linux_errno(crate::modules::posix_consts::errno::ESRCH);
         };
         let current_ns = process.namespace_id.load(core::sync::atomic::Ordering::Relaxed);
-        
+
         // Ensure standard linux fd validation logic
         let nsfd = fd.as_u32() as i32;
         match crate::kernel::namespaces::setns_process_namespaces(current_ns, nsfd, nstype as u32) {
@@ -189,13 +189,13 @@ pub fn sys_linux_exit(status: usize) -> usize {
             .load(core::sync::atomic::Ordering::Relaxed)
     };
     let current_tid = crate::interfaces::task::TaskId(current_tid);
-    
+
     let _ = status; // Thread exit status is often ignored or handled via join
-    
+
     if crate::kernel::launch::terminate_task(current_tid) {
         crate::kernel::rt_preemption::request_forced_reschedule();
     }
-    
+
     use crate::interfaces::HardwareAbstraction;
     loop {
         crate::hal::HAL::halt();

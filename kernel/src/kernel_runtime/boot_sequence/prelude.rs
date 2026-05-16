@@ -90,8 +90,15 @@ pub(crate) fn finalize_boot_prelude(prelude: &BootPrelude) {
                 fb.pitch,
                 fb.phys_addr
             );
+            aethercore::kernel::debug_trace::record_optional(
+                "graphics.desktop_handoff",
+                "framebuffer_ready_for_userspace_graphics",
+                Some((fb.width as u64) << 32 | fb.height as u64),
+                false,
+            );
             #[cfg(feature = "linux_userspace_graphics")]
             {
+                aethercore::modules::userspace_graphics::log_readiness("prelude.framebuffer.handoff");
                 aethercore::modules::userspace_graphics::log_stack_summary("prelude.framebuffer");
             }
             aethercore::kernel::debug_trace::record_optional(

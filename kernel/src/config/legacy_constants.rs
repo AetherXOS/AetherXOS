@@ -171,6 +171,8 @@ pub static OBSERVABILITY_FAULT_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 pub static OBSERVABILITY_DRIVER_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 pub static OBSERVABILITY_IO_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 pub static OBSERVABILITY_NETWORK_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
+pub static OBSERVABILITY_LAUNCH_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
+pub static OBSERVABILITY_POWER_OVERRIDE: AtomicUsize = AtomicUsize::new(0);
 
 // Watchdog and system monitoring
 pub static SOFT_WATCHDOG_ENABLED_OVERRIDE: AtomicU64 = AtomicU64::new(1);

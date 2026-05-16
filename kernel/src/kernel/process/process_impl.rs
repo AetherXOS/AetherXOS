@@ -1,4 +1,4 @@
-use crate::interfaces::security::{ResourceLimits, SecurityLevel};
+use crate::interfaces::security::ResourceLimits;
 use crate::interfaces::task::{ProcessId, TaskId};
 use crate::kernel::sync::IrqSafeMutex;
 #[cfg(feature = "vfs")]
@@ -468,9 +468,7 @@ impl Process {
                 };
                 let mut frame_allocator = crate::hal::HAL::create_frame_allocator();
 
-                use crate::interfaces::memory::page_flags as bits;
-                let _vdso_flags = bits::PRESENT | bits::USER | bits::NO_EXECUTE; // vdso needs exec? Usually yes for functions
-                let _vvar_flags = bits::PRESENT | bits::USER | bits::NO_EXECUTE;
+                // page flag constants will be used below when mapping
 
                 // Fixup vdso page with this process's bases
                 unsafe {
@@ -482,9 +480,9 @@ impl Process {
                     // For now, we'll assume the page is generic or we'll accept the lack of fixups.
                 }
 
-                use x86_64::structures::paging::PageTableFlags;
-                let vdso_flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
-                let vvar_flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE | PageTableFlags::NO_EXECUTE;
+                use crate::interfaces::memory::page_flags as bits;
+                let vdso_flags = bits::PRESENT | bits::USER | bits::NO_EXECUTE; // match earlier intent
+                let vvar_flags = bits::PRESENT | bits::USER | bits::NO_EXECUTE;
 
                 let _ = page_manager.map_page(vdso_addr, vdso_phys as u64, vdso_flags, &mut frame_allocator);
                 let _ = page_manager.map_page(vvar_addr, vvar_phys as u64, vvar_flags, &mut frame_allocator);

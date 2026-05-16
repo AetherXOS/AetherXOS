@@ -4,6 +4,7 @@
 use crate::kernel::sync::IrqSafeMutex;
 use crate::modules::allocators::selector::ActivePageAllocator;
 use x86_64::VirtAddr;
+use x86_64::structures::paging::page_table::PageTableEntry;
 
 pub(crate) static GLOBAL_PAGE_ALLOC: IrqSafeMutex<ActivePageAllocator> =
     IrqSafeMutex::new(ActivePageAllocator::new());
@@ -68,8 +69,8 @@ pub fn clone_current_address_space() -> Result<u64, &'static str> {
 
 unsafe fn recursive_clone_table(
     hhdm: u64,
-    old_entry: &x86_64::structures::paging::PageTableEntry,
-    new_entry: &mut x86_64::structures::paging::PageTableEntry,
+    old_entry: &PageTableEntry,
+    new_entry: &mut PageTableEntry,
     level: u8,
     alloc: &mut crate::hal::paging::PageAllocWrapper,
 ) -> Result<(), &'static str> {
@@ -95,14 +96,14 @@ unsafe fn recursive_clone_table(
     let frame = alloc.allocate_frame().ok_or("OOM in deep clone")?;
     let phys = frame.start_address().as_u64();
     let new_table_virt = (phys + hhdm) as *mut x86_64::structures::paging::PageTable;
-    let new_table = &mut *new_table_virt;
+    let new_table = unsafe { &mut *new_table_virt };
     new_table.zero();
 
     let old_table_virt = (old_entry.addr().as_u64() + hhdm) as *const x86_64::structures::paging::PageTable;
-    let old_table = &*old_table_virt;
+    let old_table = unsafe { &*old_table_virt };
 
     for i in 0..512 {
-        let _ = recursive_clone_table(hhdm, &old_table[i], &mut new_table[i], level - 1, alloc);
+        unsafe { let _ = recursive_clone_table(hhdm, &old_table[i], &mut new_table[i], level - 1, alloc); }
     }
 
     new_entry.set_addr(x86_64::PhysAddr::new(phys), old_entry.flags());

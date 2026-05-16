@@ -649,14 +649,12 @@ mod tests {
     #[test_case]
     fn test_io_request_shard() {
         let shard = IoRequestShard::new();
-        
-        let req = alloc::alloc::alloc(
-            core::alloc::Layout::new::<IoRequest>()
-        ) as *mut IoRequest;
-        
-        unsafe {
-            req.write(IoRequest::new(1, IoRequestType::Read, 100, 1));
-        }
+
+        let req = unsafe {
+            alloc::alloc::alloc(core::alloc::Layout::new::<IoRequest>()) as *mut IoRequest
+        };
+
+        unsafe { req.write(IoRequest::new(1, IoRequestType::Read, 100, 1)); }
         
         shard.enqueue_pending(req);
         assert_eq!(shard.pending_count.load(Ordering::Relaxed), 1);
@@ -701,7 +699,7 @@ mod tests {
 
     #[test_case]
     fn test_ultra_driver_stats() {
-        let stats = ultra_driver_stats();
+        let stats = driver_stats();
         assert!(stats.read_calls >= 0);
         assert!(stats.batch_rate >= 0.0 && stats.batch_rate <= 1.0);
     }

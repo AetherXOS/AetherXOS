@@ -14,7 +14,7 @@ pub fn sys_linux_eventfd2(initval: u32, flags: i32) -> usize {
     })
 }
 
-pub fn sys_linux_epoll_create(size: i32) -> usize {
+pub fn sys_linux_epoll_create(_size: i32) -> usize {
     sys_linux_epoll_create1(0)
 }
 

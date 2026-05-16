@@ -1,6 +1,6 @@
 use anyhow::{Result, Context};
 use std::path::Path;
-use crate::utils::{logging, paths, context, process};
+use crate::utils::{context, features, logging, paths, process};
 use crate::constants;
 
 const MIN_VALID_ROOTFS_BYTES: u64 = 1024 * 1024;
@@ -76,7 +76,11 @@ pub fn launch_guest_session(
     }
 
     logging::info("run::guest", "Building kernel and boot image...", &[]);
-    let mut features = aethercore_common::KernelFeatures::VFS | aethercore_common::KernelFeatures::DRIVERS;
+    let mut features = if crate::utils::config::is_non_interactive() {
+        features::kernel_features_from_default(&["vfs", "drivers"])?
+    } else {
+        features::prompt_kernel_feature_selection("Guest run kernel build", &["vfs", "drivers"])?
+    };
     if serial_debug {
         // Enable debug output features via feature flag
         features |= aethercore_common::KernelFeatures::DEBUG_TEST_OUTPUT;
@@ -87,7 +91,7 @@ pub fn launch_guest_session(
         arch: constants::defaults::build::ARCH,
         bootloader: crate::cli::Bootloader::Limine,
         format: crate::cli::ImageFormat::Iso,
-        features,
+        features: Some(features),
         release: false,
         rootfs: resolved,
     };

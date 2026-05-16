@@ -48,6 +48,12 @@ impl KernelConfig {
             crate::config::ObservabilityCategory::Network => {
                 OBSERVABILITY_NETWORK_OVERRIDE.store(encoded, Ordering::Relaxed)
             }
+            crate::config::ObservabilityCategory::Launch => {
+                OBSERVABILITY_LAUNCH_OVERRIDE.store(encoded, Ordering::Relaxed)
+            }
+            crate::config::ObservabilityCategory::Power => {
+                OBSERVABILITY_POWER_OVERRIDE.store(encoded, Ordering::Relaxed)
+            }
         }
     }
 

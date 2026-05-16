@@ -13,6 +13,7 @@ use clap::Parser;
 use cli::Cli;
 use std::env;
 use utils::{context as app_context, logging};
+use commands::interactive;
 
 fn main() -> Result<()> {
     let version = env!("CARGO_PKG_VERSION");
@@ -27,11 +28,17 @@ fn main() -> Result<()> {
 
     // Initial check for no args or explicit help
     let args_vec: Vec<String> = env::args().collect();
-    if args_vec.len() == 1 || args_vec.iter().any(|a| a == "--help" || a == "-h" || a == "help") {
+    if args_vec.len() == 1 {
+        // Run interactive mode if no arguments
+        utils::paths::ensure_dir("artifacts").context("Failed to initialize artifacts directory")?;
+        app_context::init("artifacts".into()).context("Failed to initialize xtask runtime context")?;
+        utils::preflight::run_audit().context("System health audit encountered a terminal failure")?;
+        return interactive::menu::launch_main_menu();
+    }
+
+    if args_vec.iter().any(|a| a == "--help" || a == "-h" || a == "help") {
         utils::help::print_autonomous_help();
-        if args_vec.len() == 1 || args_vec.contains(&"help".to_string()) {
-             return Ok(());
-        }
+        return Ok(());
     }
 
     let args = Cli::parse();

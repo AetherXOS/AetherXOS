@@ -1,8 +1,9 @@
 use aethercore::modules::drivers::{
-    ActiveNetworkDriver, DriverLifecycle, E1000, NetworkQueueClearStats, VirtIoNet,
+    ActiveNetworkDriver, DriverLifecycle, E1000, VirtIoNet,
 };
+use aethercore::modules::drivers::NetworkQueueResetSummary;
 
-pub(super) fn rebind_virtio_driver(runtime_driver: &mut VirtIoNet) -> bool {
+pub(crate) fn rebind_virtio_driver(runtime_driver: &mut VirtIoNet) -> bool {
     rebind_network_driver(
         runtime_driver,
         ActiveNetworkDriver::VirtIo,
@@ -14,7 +15,7 @@ pub(super) fn rebind_virtio_driver(runtime_driver: &mut VirtIoNet) -> bool {
     )
 }
 
-pub(super) fn rebind_e1000_driver(runtime_driver: &mut E1000) -> bool {
+pub(crate) fn rebind_e1000_driver(runtime_driver: &mut E1000) -> bool {
     rebind_network_driver(
         runtime_driver,
         ActiveNetworkDriver::E1000,
@@ -30,7 +31,7 @@ fn rebind_network_driver<T: DriverLifecycle>(
     runtime_driver: &mut T,
     driver_kind: ActiveNetworkDriver,
     register_dataplane: fn(),
-    cleared_counts: fn(&NetworkQueueClearStats) -> (usize, usize),
+    cleared_counts: fn(&NetworkQueueResetSummary) -> (usize, usize),
     driver_name: &str,
     rx_label: &str,
     tx_label: &str,

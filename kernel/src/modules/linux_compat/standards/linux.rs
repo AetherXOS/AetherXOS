@@ -1,6 +1,7 @@
 use super::super::*;
 use crate::hal::syscalls_consts::linux_nr;
 use crate::modules::linux_compat::sys_dispatcher::SyscallDispFrame;
+use crate::modules::linux_compat::net as compat_net;
 
 /// Dispatcher for Linux-specific syscall extensions.
 pub fn dispatch_linux(
@@ -9,9 +10,9 @@ pub fn dispatch_linux(
     frame: &mut SyscallFrame,
 ) -> Option<usize> {
     match nr {
-        linux_nr::EPOLL_CREATE1 => Some(sys_linux_epoll_create1(f.a1)),
-        linux_nr::EPOLL_CTL => Some(sys_linux_epoll_ctl(f.fd1(), f.a2, f.fd3(), f.u4())),
-        linux_nr::EPOLL_WAIT => Some(sys_linux_epoll_wait(f.fd1(), f.u2(), f.a3, f.a4 as i32)),
+        linux_nr::EPOLL_CREATE1 => Some(compat_net::sys_linux_epoll_create1(f.a1)),
+        linux_nr::EPOLL_CTL => Some(compat_net::sys_linux_epoll_ctl(f.fd1(), f.a2, f.fd3(), f.u4())),
+        linux_nr::EPOLL_WAIT => Some(compat_net::sys_linux_epoll_wait(f.fd1(), f.u2(), f.a3, f.a4 as i32)),
         linux_nr::GETRANDOM => Some(crate::modules::linux_compat::sys::sys_linux_getrandom(f.u1(), f.a2, f.a3)),
         linux_nr::EVENTFD => Some(crate::modules::linux_compat::sync::sys_linux_eventfd(f.a1 as u32, f.a2 as i32)),
         linux_nr::EVENTFD2 => Some(crate::modules::linux_compat::sync::sys_linux_eventfd2(f.a1 as u32, f.a2 as i32)),

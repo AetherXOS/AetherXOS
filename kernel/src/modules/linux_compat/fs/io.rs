@@ -165,7 +165,7 @@ pub fn sys_linux_fcntl(fd: Fd, cmd: usize, arg: usize) -> usize {
                 let mut handle = shared.handle.lock();
                 
                 // Downcast to AnonymousRamFile to access seals
-                let (seals_arc, content_len) = if let Some(bf) = handle.as_any_mut().downcast_mut::<crate::modules::posix::fs::BoxedFile>() {
+                let (seals_arc, _content_len) = if let Some(bf) = handle.as_any_mut().downcast_mut::<crate::modules::posix::fs::BoxedFile>() {
                     if let Some(arf) = bf.inner.as_any_mut().downcast_mut::<crate::modules::vfs::ramfs::AnonymousRamFile>() {
                         (arf.seals.clone(), arf.content.lock().len())
                     } else {

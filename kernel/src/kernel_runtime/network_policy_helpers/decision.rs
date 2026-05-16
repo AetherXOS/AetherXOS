@@ -1,19 +1,20 @@
 #[cfg(all(feature = "drivers", feature = "networking"))]
-pub(super) struct NetworkIoHealthDecisionContext {
-    pub(super) io_error_streak: u64,
-    pub(super) rebind_failure_streak: u64,
-    pub(super) driver_failed: bool,
+pub(crate) struct NetworkIoHealthDecisionContext {
+    pub(crate) io_error_streak: u64,
+    pub(crate) rebind_failure_streak: u64,
+    pub(crate) driver_failed: bool,
 }
 
 #[cfg(all(feature = "drivers", feature = "networking"))]
-pub(super) fn decide_network_io_health_action(
+pub(crate) fn decide_network_io_health_action(
     context: NetworkIoHealthDecisionContext,
 ) -> aethercore::modules::drivers::NetworkIoHealthAction {
+    use crate::kernel_runtime::networking::{NETWORK_IO_REBIND_STREAK_THRESHOLD, NETWORK_IO_FAILOVER_STREAK_THRESHOLD};
     let action = aethercore::modules::drivers::evaluate_network_io_health_action(
         context.io_error_streak,
         context.rebind_failure_streak,
-        super::super::NETWORK_IO_REBIND_STREAK_THRESHOLD,
-        super::super::NETWORK_IO_FAILOVER_STREAK_THRESHOLD,
+        NETWORK_IO_REBIND_STREAK_THRESHOLD,
+        NETWORK_IO_FAILOVER_STREAK_THRESHOLD,
     );
     if context.driver_failed
         && matches!(
@@ -22,7 +23,7 @@ pub(super) fn decide_network_io_health_action(
         )
     {
         return if context.rebind_failure_streak
-            >= super::super::NETWORK_IO_FAILOVER_STREAK_THRESHOLD
+            >= NETWORK_IO_FAILOVER_STREAK_THRESHOLD
         {
             aethercore::modules::drivers::NetworkIoHealthAction::TriggerFailover
         } else {
@@ -35,6 +36,10 @@ pub(super) fn decide_network_io_health_action(
 #[cfg(all(test, feature = "drivers", feature = "networking"))]
 mod tests {
     use super::*;
+    use crate::kernel_runtime::networking::{
+        NETWORK_IO_FAILOVER_STREAK_THRESHOLD,
+        NETWORK_IO_REBIND_STREAK_THRESHOLD,
+    };
 
     #[test_case]
     fn io_health_decision_escalates_from_rebind_to_failover() {
@@ -48,7 +53,7 @@ mod tests {
         ));
         assert!(matches!(
             decide_network_io_health_action(NetworkIoHealthDecisionContext {
-                io_error_streak: super::super::super::NETWORK_IO_REBIND_STREAK_THRESHOLD,
+                io_error_streak: NETWORK_IO_REBIND_STREAK_THRESHOLD,
                 rebind_failure_streak: 0,
                 driver_failed: false,
             }),
@@ -57,7 +62,7 @@ mod tests {
         assert!(matches!(
             decide_network_io_health_action(NetworkIoHealthDecisionContext {
                 io_error_streak: 0,
-                rebind_failure_streak: super::super::super::NETWORK_IO_FAILOVER_STREAK_THRESHOLD,
+                rebind_failure_streak: NETWORK_IO_FAILOVER_STREAK_THRESHOLD,
                 driver_failed: false,
             }),
             aethercore::modules::drivers::NetworkIoHealthAction::TriggerFailover
@@ -77,7 +82,7 @@ mod tests {
         assert!(matches!(
             decide_network_io_health_action(NetworkIoHealthDecisionContext {
                 io_error_streak: 0,
-                rebind_failure_streak: super::super::super::NETWORK_IO_FAILOVER_STREAK_THRESHOLD,
+                rebind_failure_streak: NETWORK_IO_FAILOVER_STREAK_THRESHOLD,
                 driver_failed: true,
             }),
             aethercore::modules::drivers::NetworkIoHealthAction::TriggerFailover

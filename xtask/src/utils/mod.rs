@@ -8,6 +8,7 @@ pub mod validation;
 // 1. Forward modules for backward compatibility (utils::paths::...)
 pub use core::config;
 pub use core::context;
+pub use core::features;
 pub use fs::paths;
 pub use fs::registry;
 pub use sys::cargo;
