@@ -97,5 +97,6 @@ pub fn execute(action: &DashboardAction) -> Result<()> {
                 Ok(())
             }
         }
+        DashboardAction::Live => unreachable!("Live dashboard handled in CLI layer"),
     }
 }

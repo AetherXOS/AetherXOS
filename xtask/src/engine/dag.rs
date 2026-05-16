@@ -42,13 +42,44 @@ impl DagPipeline {
                 continue;
             }
 
-            logging::status("TASK", &format!("Running: {}", task_name));
-            let status = node.task.run(ctx)?;
-            
-            match status {
-                TaskStatus::Success => logging::success("TASK", &format!("Completed: {}", task_name), &[]),
-                TaskStatus::Skipped(_) => logging::info("TASK", &format!("Skipped: {}", task_name), &[]),
-                TaskStatus::Failed(e) => return Err(anyhow!("Task '{}' failed: {}", task_name, e)),
+            loop {
+                let start = std::time::Instant::now();
+                logging::status("TASK", &format!("Running: {}", task_name));
+                let status = node.task.run(ctx)?;
+                let duration = start.elapsed();
+                
+                // Record metrics for the timeline
+                crate::utils::ui::navigator::record_task_metric(&task_name, duration);
+                
+                match status {
+                    TaskStatus::Success => {
+                        logging::success("TASK", &format!("Completed: {}", task_name), &[]);
+                        break;
+                    }
+                    TaskStatus::Skipped(_) => {
+                        logging::info("TASK", &format!("Skipped: {}", task_name), &[]);
+                        break;
+                    }
+                    TaskStatus::Failed(e) => {
+                        if ctx.non_interactive {
+                            return Err(anyhow!("Task '{}' failed: {}", task_name, e));
+                        }
+                        
+                        logging::error("DEBUGGER", &format!("Task '{}' failed: {}", task_name, e), &[]);
+                        let options = vec!["Retry", "Spwan Debug Shell", "Abort"];
+                        let selection = inquire::Select::new("Action on Failure:", options).prompt()?;
+                        
+                        match selection {
+                            "Retry" => continue,
+                            "Spwan Debug Shell" => {
+                                logging::status("SHELL", "Spawning diagnostic shell. Type 'exit' to return.");
+                                let _ = std::process::Command::new("powershell").spawn()?.wait();
+                                continue;
+                            }
+                            _ => return Err(anyhow!("Task '{}' aborted by user", task_name)),
+                        }
+                    }
+                }
             }
         }
 
@@ -88,5 +119,31 @@ impl DagPipeline {
         order.push(name.to_string());
 
         Ok(())
+    }
+
+    pub fn to_mermaid(&self) -> String {
+        let mut graph = vec!["graph TD".to_string()];
+        for (name, node) in &self.nodes {
+            let sanitized_name = name.replace(' ', "_");
+            for dep in &node.dependencies {
+                let sanitized_dep = dep.replace(' ', "_");
+                graph.push(format!("    {} --> {}", sanitized_dep, sanitized_name));
+            }
+            if node.dependencies.is_empty() {
+                graph.push(format!("    {}", sanitized_name));
+            }
+        }
+        graph.join("\n")
+    }
+
+    pub fn to_dot(&self) -> String {
+        let mut dot = vec!["digraph G {".to_string(), "    node [shape=box];".to_string()];
+        for (name, node) in &self.nodes {
+            for dep in &node.dependencies {
+                dot.push(format!("    \"{}\" -> \"{}\";", dep, name));
+            }
+        }
+        dot.push("}".to_string());
+        dot.join("\n")
     }
 }

@@ -28,6 +28,14 @@ pub enum PipelineAction {
     },
     /// List all available workflows and profiles.
     List,
+    /// Visualize a named pipeline workflow.
+    Visualize {
+        /// The name of the workflow or profile to visualize.
+        name: String,
+        /// The format to export (mermaid, dot).
+        #[arg(long, default_value = "mermaid")]
+        format: String,
+    },
 }
 
 impl Executable for PipelineAction {
@@ -47,6 +55,17 @@ impl Executable for PipelineAction {
                 }
                 
                 UniversalController::dispatch_workflow(name, &ctx)
+            }
+            PipelineAction::Visualize { name, format } => {
+                let ctx = ExecutionContext::from_defaults();
+                let dag = UniversalController::build_pipeline(name, &ctx)?;
+                
+                match format.as_str() {
+                    "mermaid" => println!("{}", dag.to_mermaid()),
+                    "dot" => println!("{}", dag.to_dot()),
+                    _ => anyhow::bail!("Unsupported visualization format: {}", format),
+                }
+                Ok(())
             }
             PipelineAction::List => {
                 use crate::constants::workflows::*;

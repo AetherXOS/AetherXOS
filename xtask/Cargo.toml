@@ -30,6 +30,12 @@ indicatif = "0.17"
 colored = "2.0"
 lazy_static = "1.4"
 once_cell = "1.18"
+clap_complete = "4.4"
+notify-rust = "4.0"
+ratatui = "0.26"
+crossterm = "0.27"
+sysinfo = "0.30"
+tiny_http = "0.12"
 strum = { version = "0.26", features = ["derive"] }
 derive_more = { version = "0.99", features = ["display", "from", "as_ref"] }
 bitflags = "2.4.0"

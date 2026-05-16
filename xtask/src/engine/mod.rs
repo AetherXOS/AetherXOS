@@ -21,6 +21,9 @@ pub mod help;
 pub mod resource_audit;
 pub mod dag;
 pub mod profile;
+pub mod cache;
+pub mod macros;
+pub mod snapshot;
 pub mod controller;
 
 pub use task::Task;
@@ -29,7 +32,6 @@ pub use context::ExecutionContext;
 pub use net::DownloadTask;
 pub use staging::StagingArea;
 pub use state::EngineState;
-pub use workflow::WorkflowRegistry;
 pub use debug::DebugBridgeTask;
 pub use docs::DocsGenerateTask;
 pub use resource_audit::ResourceAuditTask;
