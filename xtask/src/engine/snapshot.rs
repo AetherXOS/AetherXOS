@@ -8,11 +8,26 @@ pub fn create_snapshot(name: &str) -> Result<()> {
     crate::utils::paths::ensure_dir(&snapshot_dir)?;
     logging::status("SNAPSHOT", &format!("Creating snapshot: {}", name));
     
-    // Copy artifacts to snapshot dir (Simplified)
+    // Copy artifacts to snapshot dir (Delta-Optimized)
     for entry in std::fs::read_dir(artifacts_dir)? {
         let entry = entry?;
+        let src = entry.path();
         let dest = snapshot_dir.join(entry.file_name());
-        std::fs::copy(entry.path(), dest)?;
+        
+        // Only copy if changed (size or time)
+        let should_copy = if dest.exists() {
+            let src_meta = src.metadata()?;
+            let dest_meta = dest.metadata()?;
+            src_meta.len() != dest_meta.len() || src_meta.modified()? != dest_meta.modified()?
+        } else {
+            true
+        };
+
+        if should_copy {
+            let mut src_file = std::fs::File::open(&src)?;
+            let mut dest_file = std::fs::File::create(&dest)?;
+            std::io::copy(&mut src_file, &mut dest_file)?;
+        }
     }
     
     logging::success("SNAPSHOT", "Snapshot created successfully", &[]);

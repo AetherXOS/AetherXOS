@@ -17,6 +17,7 @@ use utils::{context as app_context, logging};
 use commands::interactive;
 
 fn main() -> Result<()> {
+    utils::sys::process::init_signal_handler();
     let version = env!("CARGO_PKG_VERSION");
     let cpu_model = get_cpu_model();
     let rustc_version = get_rustc_version();
@@ -41,7 +42,7 @@ fn main() -> Result<()> {
     }
 
     if args_vec.iter().any(|a| a == "--help" || a == "-h" || a == "help") {
-        utils::help::print_autonomous_help();
+        crate::utils::ui::help::print_autonomous_help();
         return Ok(());
     }
 

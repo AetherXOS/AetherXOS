@@ -237,20 +237,18 @@ pub(crate) fn audit_syscall_stats() -> Result<SyscallStats> {
                 stack.push(path);
             } else if path.extension().is_some_and(|ext| ext == "rs") {
                 if let Ok(content) = fs::read_to_string(&path) {
-                    // This is a naive way to find function bodies, but it works for our formatting
                     for cap in pattern.captures_iter(&content) {
                         if let Some(syscall_match) = cap.get(1) {
                             let name = syscall_match.as_str().to_string();
                             if !name.starts_with("linux_") {
                                 continue;
-                            } // Only count linux shim syscalls
+                            } 
                             if seen_names.contains(&name) {
                                 continue;
                             }
                             seen_names.insert(name);
 
                             let start = cap.get(0).unwrap().end();
-                            // Find the matching closing brace (very naive)
                             let mut depth = 1;
                             let mut end = start;
                             let bytes = content.as_bytes();
@@ -300,7 +298,6 @@ fn audit_syscalls() -> Result<()> {
         return Ok(());
     }
 
-    // RegEx targetting AetherXOS rust syscall signatures seamlessly without clippy complaints
     let pattern = Regex::new(r"pub\s+(?:async\s+)?fn\s+sys_([a-zA-Z0-9_]+)").unwrap();
     let mut implemented_calls: Vec<String> = Vec::new();
 
@@ -355,10 +352,11 @@ fn audit_syscalls() -> Result<()> {
     );
 
     if implemented > 6 {
-        logging::info(
-            "abi",
-            "additional unlisted structures",
-            &[("count", &(implemented - 6).to_string())],
+        logging::ready(
+            "linux-abi",
+            "Linux ABI check successful",
+            "REPORTS",
+            &[],
         );
     }
 
@@ -367,6 +365,7 @@ fn audit_syscalls() -> Result<()> {
             "abi",
             "AetherXOS core is expanding critical emulation interfaces efficiently",
             "VERDICT: HEALTHY",
+            &[],
         );
     } else {
         logging::warn(

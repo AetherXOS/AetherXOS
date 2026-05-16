@@ -78,7 +78,7 @@ echo "Image creation complete."
     let size_spec = format!("{}M", size_mb);
 
     if process::first_available_binary(&["qemu-img", "qemu-img.exe"]).is_some() {
-        process::run_checked("qemu-img", ["create", "-f", "raw", img_out.to_string_lossy().as_ref(), size_spec.as_str()])?;
+        process::run_checked("qemu-img", &["create", "-f", "raw", img_out.to_string_lossy().as_ref(), size_spec.as_str()])?;
     } else {
         let f = std::fs::File::create(img_out)?;
         f.set_len((size_mb as u64) * 1024 * 1024)?;
@@ -89,34 +89,34 @@ echo "Image creation complete."
     if !process::which("kpartx") { return Err(anyhow!("'kpartx' not found on host")); }
     if !process::which("mkfs.ext4") { return Err(anyhow!("'mkfs.ext4' not found on host")); }
 
-    process::run_checked("parted", ["-s", img_out.to_string_lossy().as_ref(), "mklabel", "msdos"])?;
-    process::run_checked("parted", ["-s", img_out.to_string_lossy().as_ref(), "mkpart", "primary", "ext4", "1MiB", "100%"])?;
+    process::run_checked("parted", &["-s", img_out.to_string_lossy().as_ref(), "mklabel", "msdos"])?;
+    process::run_checked("parted", &["-s", img_out.to_string_lossy().as_ref(), "mkpart", "primary", "ext4", "1MiB", "100%"])?;
 
     let losetup_out = Command::new("losetup").arg("--find").arg("--show").arg(&img_out).output()?;
     if !losetup_out.status.success() { return Err(anyhow!("losetup failed")); }
     let loop_dev = String::from_utf8_lossy(&losetup_out.stdout).trim().to_string();
 
-    process::run_checked("partprobe", [loop_dev.as_str()])?;
-    process::run_checked("kpartx", ["-a", loop_dev.as_str()])?;
+    process::run_checked("partprobe", &[loop_dev.as_str()])?;
+    process::run_checked("kpartx", &["-a", loop_dev.as_str()])?;
 
     let loop_base = Path::new(&loop_dev).file_name().unwrap().to_string_lossy().into_owned();
     let mapped_part = format!("/dev/mapper/{}p1", loop_base);
 
     std::thread::sleep(std::time::Duration::from_millis(200));
 
-    process::run_checked("mkfs.ext4", ["-F", mapped_part.as_str()])?;
+    process::run_checked("mkfs.ext4", &["-F", mapped_part.as_str()])?;
 
     let tmp = tempfile::tempdir()?;
     let mount_point = tmp.path();
-    process::run_checked("mount", [mapped_part.as_str(), mount_point.to_string_lossy().as_ref()])?;
+    process::run_checked("mount", &[mapped_part.as_str(), mount_point.to_string_lossy().as_ref()])?;
     
     let tar_cmd = format!("tar -C '{}' -cf - .", src_dir.display());
     let extract_cmd = format!("tar -C '{}' -xpf -", mount_point.display());
-    process::run_checked("sh", ["-c", format!("{} | {}", tar_cmd, extract_cmd).as_str()])?;
-    process::run_checked("umount", [mount_point.to_string_lossy().as_ref()])?;
+    process::run_checked("sh", &["-c", format!("{} | {}", tar_cmd, extract_cmd).as_str()])?;
+    process::run_checked("umount", &[mount_point.to_string_lossy().as_ref()])?;
 
-    process::run_checked("kpartx", ["-d", loop_dev.as_str()])?;
-    process::run_checked("losetup", ["-d", loop_dev.as_str()])?;
+    process::run_checked("kpartx", &["-d", loop_dev.as_str()])?;
+    process::run_checked("losetup", &["-d", loop_dev.as_str()])?;
 
     Ok(())
 }

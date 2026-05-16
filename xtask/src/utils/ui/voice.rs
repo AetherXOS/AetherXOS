@@ -1,6 +1,16 @@
+use std::time::{Instant, Duration};
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
 
+static LAST_SPEAK: Lazy<Mutex<Instant>> = Lazy::new(|| Mutex::new(Instant::now() - Duration::from_secs(60)));
 
 pub fn speak(message: &str) {
+    if let Ok(mut last) = LAST_SPEAK.lock() {
+        if last.elapsed() < Duration::from_secs(30) {
+            return; // Smart Silence: Don't speak too often
+        }
+        *last = Instant::now();
+    }
     if cfg!(windows) {
         // Use PowerShell's SpeechSynthesizer for native Windows TTS
         let script = format!(
@@ -10,12 +20,15 @@ pub fn speak(message: &str) {
         
         let _ = std::process::Command::new("powershell")
             .args(&["-Command", &script])
-            .spawn();
+            .spawn()
+            .map(|mut c| crate::utils::sys::process::track_child(&mut c))
+            .map_err(|e| crate::utils::logging::debug("VOICE", "Failed to speak", &[("error", &e.to_string())])).ok();
     } else {
         // Try espeak on Linux
         let _ = std::process::Command::new("espeak")
             .arg(message)
-            .spawn();
+            .spawn()
+            .map_err(|e| crate::utils::logging::debug("VOICE", "Failed to speak", &[("error", &e.to_string())])).ok();
     }
 }
 

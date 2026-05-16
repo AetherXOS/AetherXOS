@@ -68,7 +68,7 @@ Apt::Install-Suggests "false";
 
     write_seed_capability_manifest(initramfs_root, provisioning_mode)?;
 
-    logging::ready("apt-seed", "APT binary seed prepared", &initramfs_root.to_string_lossy());
+    logging::ready("apt-seed", "APT binary seed prepared", &initramfs_root.to_string_lossy(), &[]);
     Ok(())
 }
 

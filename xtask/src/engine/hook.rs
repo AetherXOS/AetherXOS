@@ -1,6 +1,7 @@
 use anyhow::{Result, Context};
-use crate::engine::{Task, ExecutionContext, task::TaskStatus};
+use crate::engine::{Task, ExecutionContext, TaskStatus};
 use crate::utils::logging;
+use crate::utils::sys::process::Executor;
 
 pub struct HookTask {
     pub name: String,
@@ -9,22 +10,18 @@ pub struct HookTask {
 }
 
 impl Task for HookTask {
-    fn name(&self) -> &str { &self.name }
-    fn description(&self) -> &str { "Executes a custom build hook or external script" }
+    fn name(&self) -> String { self.name.clone() }
+    fn description(&self) -> String { "Executes a custom build hook or external script".to_string() }
     
     fn run(&self, ctx: &ExecutionContext) -> Result<TaskStatus> {
         logging::status("HOOK", &format!("Running custom hook: {}", self.name));
         
-        let status = std::process::Command::new(&self.command)
+        Executor::new(&self.command)
             .args(&self.args)
             .current_dir(&ctx.repo_root)
-            .status()
+            .run()
             .context(format!("Failed to execute hook command: {}", self.command))?;
             
-        if status.success() {
-            Ok(TaskStatus::Success)
-        } else {
-            Ok(TaskStatus::Failed(format!("Hook exited with code: {:?}", status.code())))
-        }
+        Ok(TaskStatus::Success)
     }
 }

@@ -1,8 +1,8 @@
 use anyhow::{Result, Context};
 use std::path::PathBuf;
-use std::process::Command;
-use crate::engine::{Task, ExecutionContext, task::TaskStatus};
+use crate::engine::{Task, ExecutionContext, TaskStatus};
 use crate::utils::logging;
+use crate::utils::sys::process::Executor;
 
 pub struct IsoKernelUpdateTask {
     pub iso_path: PathBuf,
@@ -10,8 +10,8 @@ pub struct IsoKernelUpdateTask {
 }
 
 impl Task for IsoKernelUpdateTask {
-    fn name(&self) -> &str { "ISO Kernel Injection" }
-    fn description(&self) -> &str { "Hot-swaps the kernel binary inside an existing ISO image without a full rebuild" }
+    fn name(&self) -> String { "ISO Kernel Injection".to_string() }
+    fn description(&self) -> String { "Hot-swaps the kernel binary inside an existing ISO image without a full rebuild".to_string() }
     
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
         let xorriso = crate::commands::infra::iso::tools::find_iso_tool()?;
@@ -24,21 +24,16 @@ impl Task for IsoKernelUpdateTask {
 
         logging::info("UPDATE", "Performing in-place kernel swap", &[("iso", &iso_arg)]);
 
-        let output = Command::new(&xorriso)
-            .args([
+        Executor::new(&xorriso)
+            .args(&[
                 "-abort_on", "FAILURE",
                 "-dev", &iso_arg,
                 "-boot_image", "any", "keep",
                 "-update", &kernel_arg, "/boot/aethercore.elf",
                 "-commit",
             ])
-            .output()
+            .run()
             .context("Xorriso execution failed during in-place update")?;
-
-        if !output.status.success() {
-            let err = String::from_utf8_lossy(&output.stderr);
-            return Ok(TaskStatus::Failed(format!("xorriso error: {}", err)));
-        }
 
         Ok(TaskStatus::Success)
     }

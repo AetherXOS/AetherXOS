@@ -1,13 +1,13 @@
 use anyhow::{Context, Result};
-use crate::engine::{Task, ExecutionContext, task::TaskStatus};
+use crate::engine::{Task, ExecutionContext, TaskStatus};
 use crate::types::{Bootloader, ImageFormat};
 use crate::utils::logging;
 
 pub struct KernelStageTask;
 
 impl Task for KernelStageTask {
-    fn name(&self) -> &str { "Kernel Staging" }
-    fn description(&self) -> &str { "Locates the compiled kernel binary and copies it to the staging area" }
+    fn name(&self) -> String { "Kernel Staging".to_string() }
+    fn description(&self) -> String { "Locates the compiled kernel binary and copies it to the staging area".to_string() }
     
     fn run(&self, ctx: &ExecutionContext) -> Result<TaskStatus> {
         let staging = ctx.staging.as_ref().context("Staging area not initialized")?;
@@ -27,8 +27,8 @@ pub struct BootConfigTask {
 }
 
 impl Task for BootConfigTask {
-    fn name(&self) -> &str { "Bootloader Configuration" }
-    fn description(&self) -> &str { "Generates bootloader-specific configuration files" }
+    fn name(&self) -> String { "Bootloader Configuration".to_string() }
+    fn description(&self) -> String { "Generates bootloader-specific configuration files".to_string() }
     
     fn run(&self, ctx: &ExecutionContext) -> Result<TaskStatus> {
         let staging = ctx.staging.as_ref().context("Staging area not initialized")?;
@@ -55,8 +55,8 @@ pub struct ImageFinalizeTask {
 }
 
 impl Task for ImageFinalizeTask {
-    fn name(&self) -> &str { "Image Finalization" }
-    fn description(&self) -> &str { "Converts the staging area into the final bootable image format" }
+    fn name(&self) -> String { "Image Finalization".to_string() }
+    fn description(&self) -> String { "Converts the staging area into the final bootable image format".to_string() }
     
     fn run(&self, ctx: &ExecutionContext) -> Result<TaskStatus> {
         let staging = ctx.staging.as_ref().context("Staging area not initialized")?;
@@ -81,7 +81,7 @@ impl Task for ImageFinalizeTask {
             }
         }
         
-        logging::ready("IMAGE", "Image finalized and ready for deployment", &output_path.to_string_lossy());
+        logging::ready("IMAGE", "Image finalized and ready for deployment", &output_path.to_string_lossy(), &[]);
         Ok(TaskStatus::Success)
     }
 
@@ -97,11 +97,10 @@ impl Task for ImageFinalizeTask {
 
 impl ImageFinalizeTask {
     fn convert_image(&self, src: &std::path::Path, dest: &std::path::Path, format: &str) -> Result<()> {
-        if let Some(qemu_img) = crate::utils::sys::process::find_qemu_img() {
-            crate::utils::sys::process::run_checked(
-                qemu_img,
-                &["convert", "-O", format, &src.to_string_lossy(), &dest.to_string_lossy()]
-            )?;
+        if let Some(qemu_img) = crate::utils::sys::process::Discovery::qemu_img() {
+            crate::utils::sys::process::Executor::new(qemu_img)
+                .args(&["convert", "-O", format, &src.to_string_lossy(), &dest.to_string_lossy()])
+                .run()?;
         } else {
             if format == "raw" {
                 std::fs::copy(src, dest)?;

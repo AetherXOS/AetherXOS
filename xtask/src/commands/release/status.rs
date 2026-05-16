@@ -262,6 +262,7 @@ pub fn run() -> Result<()> {
     logging::ready(
         "release::status",
         "Readiness status generated",
+        &out_md.to_string_lossy(),
         &[
             ("completion", &format!("{:.1}%", overall_completion_pct)),
             ("blockers", &blockers.len().to_string()),

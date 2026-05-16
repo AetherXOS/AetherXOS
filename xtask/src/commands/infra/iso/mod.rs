@@ -89,7 +89,7 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
         }
     }
 
-    logging::ready("iso", "ISO assembled successfully", tmp_out.to_string_lossy());
+    logging::ready("iso", "ISO assembled successfully", &tmp_out.to_string_lossy(), &[]);
 
     // Post-Assembly Verification
     verify_iso_integrity(&tmp_out)?;
@@ -193,6 +193,6 @@ pub fn finalize_iso_from_root(iso_root: &Path, out_iso: &Path) -> Result<()> {
         fs::rename(&tmp_out, out_iso).with_context(|| format!("Failed to move {} to {}", tmp_out.display(), out_iso.display()))?;
     }
 
-    logging::ready("iso", "ISO finalized successfully", out_iso.to_string_lossy());
+    logging::ready("iso", "ISO finalized successfully", &out_iso.to_string_lossy(), &[]);
     Ok(())
 }

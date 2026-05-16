@@ -47,10 +47,10 @@ pub fn run_in_wsl(script: &str, tools: &[&str]) -> Result<()> {
     );
 
     logging::info("wsl", "Executing script in WSL environment", &[]);
-    process::run_checked("wsl", ["-e", "sh", "-c", &full_script])
+    process::run_checked("wsl", &["-e", "sh", "-c", &full_script])
 }
 
 /// Checks if a file exists within the WSL environment.
 pub fn wsl_file_exists(path: &str) -> bool {
-    process::run_best_effort("wsl", ["-e", "test", "-f", path])
+    process::run_best_effort("wsl", &["-e", "test", "-f", path])
 }

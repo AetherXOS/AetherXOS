@@ -81,6 +81,6 @@ pub fn run() -> Result<()> {
 
     pipeline.run(&ctx)?;
 
-    logging::ready("build::interactive", "Masterpiece pipeline completed successfully", "ok");
+    logging::ready("build::interactive", "Masterpiece pipeline completed successfully", "ok", &[]);
     Ok(())
 }

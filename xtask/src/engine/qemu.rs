@@ -1,28 +1,30 @@
-use anyhow::Result;
-use crate::engine::{Task, ExecutionContext, task::TaskStatus};
+use anyhow::{Result, Context};
+use crate::engine::{Task, ExecutionContext, TaskStatus};
 use crate::utils::logging;
-use std::path::PathBuf;
 
 pub struct QemuRunTask {
-    pub image_path: PathBuf,
-    pub memory_mb: u32,
-    pub smp: u32,
+    pub image: std::path::PathBuf,
+    pub gui: bool,
 }
 
 impl Task for QemuRunTask {
-    fn name(&self) -> &str { "QEMU Emulation" }
-    fn description(&self) -> &str { "Runs the OS image in the QEMU emulator" }
+    fn name(&self) -> String { "QEMU Guest Execution".to_string() }
+    fn description(&self) -> String { "Launches the AetherX OS image in a virtualized QEMU environment".to_string() }
     
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
-        logging::status("QEMU", &format!("Launching emulation for: {}", self.image_path.display()));
+        let qemu = crate::utils::sys::process::Discovery::qemu_system_x86_64()
+            .context("qemu-system-x86_64 not found in PATH")?;
+            
+        let drive_arg = format!("file={},format=raw", self.image.display());
+        let mut args = vec!["-m", "1024", "-drive", &drive_arg];
+        if !self.gui { args.push("-nographic"); }
+
+        logging::status("QEMU", &format!("Launching {}...", self.image.display()));
         
-        crate::commands::ops::qemu::run(
-            &self.image_path,
-            self.memory_mb,
-            self.smp,
-            false, // gui
-            None,  // extra args
-        )?;
+        crate::utils::sys::process::Executor::new(qemu)
+            .args(&args)
+            .run()?;
+            
         Ok(TaskStatus::Success)
     }
 }

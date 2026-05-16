@@ -40,6 +40,6 @@ pub fn validate_feature_matrix(release: bool) -> Result<()> {
         cargo::cargo_check_features(label, features, target, release)?;
     }
 
-    logging::ready("test", "host feature matrix passed", &host_target);
+    logging::ready("test", "host feature matrix passed", &host_target, &[]);
     Ok(())
 }

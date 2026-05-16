@@ -64,7 +64,7 @@ pub fn bundle_image(
             let src_dir = stage_dir.join("var/lib/hypercore/rootfs");
             let output_img = context::out_dir().join("aethercore-rootfs.img");
             match raw_disk::create_partitioned_raw_image_from_dir(&src_dir, &output_img) {
-                Ok(_) => logging::ready("image", "partitioned rootfs disk image created", &output_img.to_string_lossy()),
+                Ok(_) => logging::ready("image", "partitioned rootfs disk image created", &output_img.to_string_lossy(), &[]),
                 Err(e) => logging::warn("image", "failed to produce partitioned rootfs image; skipping", &[("error", &e.to_string())]),
             }
         }
@@ -97,7 +97,7 @@ pub fn bundle_image(
         ImageFormat::Iso => {
             let iso_out = cli_outdir.join("aethercore.iso");
             crate::commands::infra::iso::assemble(&stage_dir, &iso_out)?;
-            logging::ready("image", "ISO image ready", iso_out.to_string_lossy());
+            logging::ready("image", "ISO image ready", &iso_out.to_string_lossy(), &[]);
         }
         ImageFormat::Img => {
             let base_iso = cli_outdir.join("aethercore-img-intermediate.iso");
@@ -105,7 +105,7 @@ pub fn bundle_image(
             let img_out = cli_outdir.join("aethercore.img");
             generate_raw_image(&base_iso, &img_out)?;
             let _ = fs::remove_file(base_iso);
-            logging::ready("image", "disk image ready", img_out.to_string_lossy());
+            logging::ready("image", "disk image ready", &img_out.to_string_lossy(), &[]);
         }
         ImageFormat::Vhd => {
             let base_iso = cli_outdir.join("aethercore-vhd-intermediate.iso");
@@ -113,7 +113,7 @@ pub fn bundle_image(
             let vhd_out = cli_outdir.join("aethercore.vhd");
             generate_vhd_image(&base_iso, &vhd_out)?;
             let _ = fs::remove_file(base_iso);
-            logging::ready("image", "VHD image ready", vhd_out.to_string_lossy());
+            logging::ready("image", "VHD image ready", &vhd_out.to_string_lossy(), &[]);
         }
     }
 
@@ -127,7 +127,7 @@ fn generate_raw_image(iso_src: &Path, img_dest: &Path) -> Result<()> {
 
     if let Some(qemu_img) = process::find_qemu_img() {
         process::run_checked(
-            qemu_img,
+            &qemu_img,
             &["convert", "-O", "raw", &iso_src.to_string_lossy(), &img_dest.to_string_lossy()],
         )?;
     } else {
@@ -143,7 +143,7 @@ fn generate_vhd_image(iso_src: &Path, vhd_dest: &Path) -> Result<()> {
 
     if let Some(qemu_img) = process::find_qemu_img() {
         process::run_checked(
-            qemu_img,
+            &qemu_img,
             &["convert", "-O", "vpc", &iso_src.to_string_lossy(), &vhd_dest.to_string_lossy()],
         )?;
     } else {

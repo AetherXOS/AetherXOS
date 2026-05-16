@@ -1,6 +1,6 @@
 use anyhow::{Result, Context};
 use std::path::Path;
-use crate::engine::{Task, ExecutionContext, task::TaskStatus};
+use crate::engine::{Task, ExecutionContext, TaskStatus};
 use crate::utils::logging;
 use crate::constants::cargo as cargo_consts;
 use aethercore_common::{TargetArch, KernelFeatures};
@@ -12,8 +12,8 @@ pub struct KernelCompileTask {
 }
 
 impl Task for KernelCompileTask {
-    fn name(&self) -> &str { "Kernel Compilation" }
-    fn description(&self) -> &str { "Compiles the AetherX core kernel binary" }
+    fn name(&self) -> String { "Kernel Compilation".to_string() }
+    fn description(&self) -> String { "Compiles the AetherX core kernel binary".to_string() }
     
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
         let target_triple = self.arch.to_bare_metal_triple();
@@ -48,7 +48,6 @@ impl Task for KernelCompileTask {
         let kernel_src = ctx.repo_root.join("kernel");
         if !kernel_src.exists() { return Ok(None); }
         
-        // Hash the directory content + compilation flags (release, features)
         let dir_hash = hash_dir(&kernel_src, HashAlgo::Sha256)?;
         let context_data = format!("{}-{}-{:?}", self.arch, self.release, self.features);
         
@@ -59,8 +58,8 @@ impl Task for KernelCompileTask {
 pub struct InitramfsTask;
 
 impl Task for InitramfsTask {
-    fn name(&self) -> &str { "Initramfs Generation" }
-    fn description(&self) -> &str { "Packs the early userspace into a CPIO archive" }
+    fn name(&self) -> String { "Initramfs Generation".to_string() }
+    fn description(&self) -> String { "Packs the early userspace into a CPIO archive".to_string() }
     
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
         use crate::constants::paths;

@@ -45,6 +45,6 @@ pub fn update_badges() -> Result<()> {
 
     fs::write(&readme_path, content).context("Failed to write updated README.md")?;
 
-    logging::ready("report", "README badges updated", "SUCCESS");
+    logging::ready("report", "README badges updated", "SUCCESS", &[]);
     Ok(())
 }

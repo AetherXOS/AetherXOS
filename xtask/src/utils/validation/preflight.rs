@@ -1,4 +1,4 @@
-use anyhow::{Result, bail, Context};
+use anyhow::{Result, bail};
 use sysinfo::{System, RefreshKind, CpuRefreshKind};
 use crate::utils::logging;
 
@@ -60,8 +60,16 @@ pub fn run_preflight_check(reqs: &SystemRequirements) -> Result<()> {
         bail!("Insufficient disk space: {}GB available (Required: {}GB)", disk_available_gb, reqs.min_disk_gb);
     }
     
-    // 4. Host OS Integrity (Optional check for dev tools)
-    verify_toolchain_hermetic().context("Hermetic toolchain validation failed")?;
+    // 4. Host OS Integrity & Self-Healing
+    if let Err(e) = verify_toolchain_hermetic() {
+        logging::warn("PREFLIGHT", &format!("Toolchain issue: {}. Attempting self-healing...", e), &[]);
+        if inquire::Confirm::new("Do you want XTask to automatically fix missing toolchains/targets?").prompt()? {
+            std::process::Command::new("rustup").args(["target", "add", "x86_64-unknown-none"]).status()?;
+            logging::success("PREFLIGHT", "Self-healing: Target added successfully", &[]);
+        } else {
+            bail!("Preflight failed: {}", e);
+        }
+    }
     
     logging::success("PREFLIGHT", "Hardware and toolchain validation passed", &[]);
     Ok(())

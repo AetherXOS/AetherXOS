@@ -45,6 +45,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, tick_rate: Duration) -> io::R
 
     loop {
         terminal.draw(|f| ui(f, &mut sys))?;
+        
+        // Broadcast state to Collaboration Buffer
+        let size = terminal.size()?;
+        crate::utils::ui::vterm::update_vterm(size.width, size.height, vec![]);
 
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
@@ -64,6 +68,14 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, tick_rate: Duration) -> io::R
 }
 
 fn ui(f: &mut Frame, sys: &mut System) {
+    let size = f.size();
+    if size.width < 80 || size.height < 20 {
+        let msg = Paragraph::new("Terminal too small! Please resize to at least 80x20.")
+            .style(Style::default().fg(Color::Red));
+        f.render_widget(msg, size);
+        return;
+    }
+    
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([

@@ -1,7 +1,9 @@
 pub mod cargo;
+pub mod config;
 pub mod executable;
 pub mod process;
 pub mod sandbox;
 pub mod wsl;
-
-pub use self::cargo::*;
+pub mod discovery;
+pub mod sentinel;
+pub mod execution;

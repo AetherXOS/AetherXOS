@@ -1,6 +1,6 @@
 use anyhow::{Result, Context};
 use std::fs;
-use crate::engine::{Task, ExecutionContext, task::TaskStatus};
+use crate::engine::{Task, ExecutionContext, TaskStatus};
 use crate::utils::logging;
 
 pub struct DocsGenerateTask {
@@ -9,12 +9,11 @@ pub struct DocsGenerateTask {
 }
 
 impl Task for DocsGenerateTask {
-    fn name(&self) -> &str { "API Documentation Generation" }
-    fn description(&self) -> &str { "Scans source code for doc comments and generates a markdown reference" }
+    fn name(&self) -> String { "API Documentation Generation".to_string() }
+    fn description(&self) -> String { "Scans source code for doc comments and generates a markdown reference".to_string() }
     
     fn run(&self, ctx: &ExecutionContext) -> Result<TaskStatus> {
         logging::status("DOCS", &format!("Generating documentation for {}...", self.source_dir));
-        
         let mut markdown = format!("# AetherX OS API Reference\n\nGenerated on: {}\n\n", chrono::Utc::now());
         
         let src_path = ctx.repo_root.join(&self.source_dir);
@@ -49,7 +48,7 @@ impl Task for DocsGenerateTask {
         let out_path = ctx.artifact_path(&self.output_file);
         fs::write(&out_path, markdown).context("Failed to write documentation")?;
         
-        logging::ready("DOCS", "Documentation generated successfully", &out_path.to_string_lossy());
+        logging::ready("DOCS", "Documentation generated successfully", &out_path.to_string_lossy(), &[]);
         Ok(TaskStatus::Success)
     }
 }

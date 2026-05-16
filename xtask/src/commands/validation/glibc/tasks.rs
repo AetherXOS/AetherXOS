@@ -1,5 +1,5 @@
 use anyhow::Result;
-use crate::engine::{Task, ExecutionContext, task::TaskStatus};
+use crate::engine::{Task, ExecutionContext, TaskStatus};
 use crate::utils::logging;
 
 pub struct GlibcAuditTask {
@@ -7,8 +7,8 @@ pub struct GlibcAuditTask {
 }
 
 impl Task for GlibcAuditTask {
-    fn name(&self) -> &str { "Glibc ABI Audit" }
-    fn description(&self) -> &str { "Analyzes the kernel's compatibility with various Glibc versions" }
+    fn name(&self) -> String { "Glibc ABI Audit".to_string() }
+    fn description(&self) -> String { "Analyzes the kernel's compatibility with various Glibc versions".to_string() }
     
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
         logging::status("GLIBC", &format!("Starting ABI audit (Format: {})", self.format));

@@ -86,7 +86,6 @@ pub fn execute(action: &BuildAction) -> Result<()> {
             let kernel_path = if let Some(k) = kernel {
                 std::path::PathBuf::from(k)
             } else {
-                // Rebuild logic remains similar but wrapped in a pipeline if we want
                 let features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
                 let arch = crate::constants::defaults::build::ARCH;
                 kernel::build_kernel(arch, false, features)?;
@@ -107,7 +106,6 @@ pub fn execute(action: &BuildAction) -> Result<()> {
         BuildAction::VerifyElf { common, elf } => {
             verify_elf_action(common.arch, common.release, elf.as_deref())
                 .context("ELF verification pipeline failed")?;
-            // Skip the generic "pipeline completed" ready-log — verify_elf prints its own
             return Ok(());
         }
         BuildAction::Interactive => {
@@ -117,15 +115,14 @@ pub fn execute(action: &BuildAction) -> Result<()> {
     }
 
     logging::ready(
-        "xtask",
-        "pipeline process execution completed successfully",
-        constants::paths::ARTIFACTS_DIR,
+        "build",
+        "Pipeline completed successfully",
+        &crate::utils::core::context::out_dir().to_string_lossy(),
+        &[],
     );
     Ok(())
 }
 
-
-/// Archives the system's ephemeral early userspace into a boot-ready CPIO packet.
 fn build_initramfs() -> Result<()> {
     logging::info("ramfs", "generating CPIO compressed initramfs archive", &[]);
 
@@ -146,66 +143,46 @@ fn build_initramfs() -> Result<()> {
     Ok(())
 }
 
-/// Standalone ELF integrity verification action.
-///
-/// Flow:
-///  1. If `elf_path` is given, skip the rebuild and verify that binary directly.
-///  2. Otherwise rebuild the kernel for `arch`, then validate the output ELF.
-///
-/// Useful for rapid iteration: `cargo xtask build verify-elf` is much faster
-/// than a full `cargo xtask build distro-iso`.
 fn verify_elf_action(arch: aethercore_common::TargetArch, release: bool, elf_path: Option<&str>) -> Result<()> {
     use std::time::Instant;
-
     let t0 = Instant::now();
 
     let elf = if let Some(path) = elf_path {
-        // Use supplied binary — skip rebuild entirely
         let p = std::path::PathBuf::from(path);
         if !p.exists() {
             anyhow::bail!("Supplied ELF path does not exist: {}", p.display());
         }
-        logging::info("verify-elf", "using pre-built binary (skipping rebuild)", &[
-            ("path", path),
-        ]);
+        logging::info("verify-elf", "using pre-built binary", &[("path", path)]);
         p
     } else {
-        // Rebuild the kernel first
         logging::info("verify-elf", "rebuilding kernel before verification", &[
-            ("arch",    arch.as_str()),
+            ("arch", arch.as_str()),
             ("profile", if release { "release" } else { "debug" }),
         ]);
-        let features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])
-            .context("Failed resolving default kernel features for verify-elf")?;
-        kernel::build_kernel(arch, release, features).context("Kernel rebuild failed")?;
+        let features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
+        kernel::build_kernel(arch, release, features)?;
 
-        // Resolve the output ELF path
         let triple = arch.to_bare_metal_triple();
         let profile = if release { "release" } else { "debug" };
         crate::utils::paths::resolve(&format!("target/{}/{}/aethercore", triple, profile))
     };
 
-    logging::info("verify-elf", "running ELF security audit", &[
-        ("file", &elf.to_string_lossy()),
-    ]);
+    logging::info("verify-elf", "running ELF security audit", &[("file", &elf.to_string_lossy())]);
 
     match crate::utils::elf::validate_elf(&elf) {
         Ok(()) => {
             let elapsed = t0.elapsed();
-            logging::ready(
+            logging::success(
                 "verify-elf",
                 "ELF integrity audit PASSED",
-                &format!("{:.2}s", elapsed.as_secs_f32()),
+                &[("elapsed", &format!("{:.2}s", elapsed.as_secs_f32()))],
             );
         }
         Err(_e) => {
-            logging::warn("verify-elf", "ELF integrity audit FAILED", &[
-                ("reason", &_e.to_string()),
-            ]);
+            logging::warn("verify-elf", "ELF integrity audit FAILED", &[("reason", &_e.to_string())]);
             return Err(_e);
         }
     }
-
     Ok(())
 }
 
@@ -215,10 +192,8 @@ fn resolve_kernel_features(purpose: &str, features: &Option<aethercore_common::K
         None => {
             if crate::utils::config::is_non_interactive() {
                 crate::utils::features::kernel_features_from_default(&[])
-                    .context("Failed resolving default kernel features from Cargo.toml")
             } else {
                 crate::utils::features::prompt_kernel_feature_selection(purpose, &[])
-                    .context("Interactive kernel feature selection failed")
             }
         }
     }

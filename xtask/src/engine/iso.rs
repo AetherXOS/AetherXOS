@@ -1,6 +1,6 @@
 use anyhow::{Result, Context};
 use std::path::PathBuf;
-use crate::engine::{Task, ExecutionContext, task::TaskStatus};
+use crate::engine::{Task, ExecutionContext, TaskStatus};
 use crate::utils::{logging, paths};
 
 pub struct IsoFinalizeTask {
@@ -9,8 +9,8 @@ pub struct IsoFinalizeTask {
 }
 
 impl Task for IsoFinalizeTask {
-    fn name(&self) -> &str { "ISO Finalization" }
-    fn description(&self) -> &str { "Packages the staging directory into a bootable ISO" }
+    fn name(&self) -> String { "ISO Finalization".to_string() }
+    fn description(&self) -> String { "Packages the staging directory into a bootable ISO image".to_string() }
     
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
         logging::status("ISO", &format!("Finalizing ISO: {}", self.output_iso.display()));
@@ -33,8 +33,8 @@ pub struct LimineSetupTask {
 }
 
 impl Task for LimineSetupTask {
-    fn name(&self) -> &str { "Limine Bootloader Setup" }
-    fn description(&self) -> &str { "Configures Limine and copies necessary binaries to the staging area" }
+    fn name(&self) -> String { "Limine Bootloader Setup".to_string() }
+    fn description(&self) -> String { "Configures Limine and copies necessary binaries to the staging area".to_string() }
     
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
         let boot_dir = self.staging_dir.join("boot");

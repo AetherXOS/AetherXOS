@@ -1,7 +1,7 @@
 use anyhow::{Result, Context};
 use serde::{Serialize, Deserialize};
 use std::path::PathBuf;
-use crate::engine::{Task, ExecutionContext, task::TaskStatus};
+use crate::engine::{Task, ExecutionContext, TaskStatus};
 use crate::utils::logging;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -17,8 +17,8 @@ pub struct ManifestExportTask {
 }
 
 impl Task for ManifestExportTask {
-    fn name(&self) -> &str { "Build Manifest Export" }
-    fn description(&self) -> &str { "Saves the current build configuration to a JSON file for traceability and reproducibility" }
+    fn name(&self) -> String { "Build Manifest Export".to_string() }
+    fn description(&self) -> String { "Saves the current build configuration to a JSON file for traceability and reproducibility".to_string() }
     
     fn run(&self, ctx: &ExecutionContext) -> Result<TaskStatus> {
         let manifest = BuildManifest {

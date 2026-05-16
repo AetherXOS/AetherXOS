@@ -24,16 +24,22 @@ pub mod profile;
 pub mod cache;
 pub mod macros;
 pub mod snapshot;
+pub mod profiler;
 pub mod controller;
 
-pub use task::Task;
+// High-level re-exports for a clean public API
+pub use task::{Task, TaskStatus};
 pub use pipeline::Pipeline;
 pub use context::ExecutionContext;
-pub use net::DownloadTask;
-pub use staging::StagingArea;
 pub use state::EngineState;
+pub use staging::StagingArea;
+pub use operations::Op;
+pub use net::DownloadTask;
+#[allow(unused_imports)]
+pub use qemu::QemuRunTask;
 pub use debug::DebugBridgeTask;
 pub use docs::DocsGenerateTask;
 pub use resource_audit::ResourceAuditTask;
+#[allow(unused_imports)]
+pub use hook::HookTask;
 pub use profile::BuildProfile;
-pub use operations::Op;

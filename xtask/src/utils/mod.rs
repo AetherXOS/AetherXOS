@@ -15,6 +15,7 @@ pub use sys::cargo;
 pub use sys::executable;
 pub use sys::process;
 pub use sys::wsl;
+#[allow(unused_imports)]
 pub use ui::help;
 pub use ui::logging;
 pub use ui::orchestrator as ui_orchestrator;

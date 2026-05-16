@@ -44,12 +44,13 @@ impl DagPipeline {
 
             loop {
                 let start = std::time::Instant::now();
+                logging::set_current_task(Some(task_name.clone()));
                 logging::status("TASK", &format!("Running: {}", task_name));
                 let status = node.task.run(ctx)?;
                 let duration = start.elapsed();
                 
                 // Record metrics for the timeline
-                crate::utils::ui::navigator::record_task_metric(&task_name, duration);
+                crate::utils::ui::telemetry::Telemetry::record(&task_name, duration);
                 
                 match status {
                     TaskStatus::Success => {
@@ -82,7 +83,8 @@ impl DagPipeline {
                 }
             }
         }
-
+        
+        logging::set_current_task(None);
         Ok(())
     }
 
@@ -133,6 +135,15 @@ impl DagPipeline {
                 graph.push(format!("    {}", sanitized_name));
             }
         }
+        
+        // Highlight current task
+        if let Ok(task_lock) = crate::utils::ui::logging::CURRENT_TASK.lock() {
+            if let Some(ref current) = *task_lock {
+                let sanitized_current = current.replace(' ', "_");
+                graph.push(format!("    style {} fill:#00ffcc,stroke:#333,stroke-width:4px", sanitized_current));
+            }
+        }
+        
         graph.join("\n")
     }
 

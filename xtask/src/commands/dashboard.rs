@@ -98,5 +98,6 @@ pub fn execute(action: &DashboardAction) -> Result<()> {
             }
         }
         DashboardAction::Live => unreachable!("Live dashboard handled in CLI layer"),
+        DashboardAction::Join { .. } => unreachable!("Join handled in CLI layer"),
     }
 }

@@ -361,9 +361,10 @@ pub fn build_distro_iso(
     crate::commands::infra::iso::finalize_iso_from_root(iso_root, &out_iso)?;
 
     logging::ready(
-        "distro-iso",
-        "distro-based ISO completed",
-        out_iso.to_string_lossy(),
+        "distro",
+        "Distro rootfs extraction complete",
+        &iso_root.to_string_lossy(),
+        &[],
     );
     Ok(())
 }

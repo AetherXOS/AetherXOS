@@ -1,36 +1,30 @@
-use anyhow::Result;
-use super::context::ExecutionContext;
+use crate::engine::ExecutionContext;
 
-/// A high-level result from a task execution.
+/// Represents the possible outcomes of a task.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TaskStatus {
     Success,
-    Skipped(String),
     Failed(String),
+    Skipped(String),
 }
 
-/// A single, atomic operation in the xtask pipeline.
+/// The core abstraction for all build units in AetherX.
 pub trait Task: Send + Sync {
-    /// Human-readable name of the task.
-    fn name(&self) -> &str;
+    /// Unique identifier for the task instance.
+    fn name(&self) -> String;
     
-    /// Description of what this task does.
-    fn description(&self) -> &str;
+    /// Human-readable explanation.
+    fn description(&self) -> String;
     
-    /// Execute the task logic.
-    fn run(&self, ctx: &ExecutionContext) -> Result<TaskStatus>;
+    /// Main execution logic.
+    fn run(&self, ctx: &ExecutionContext) -> anyhow::Result<TaskStatus>;
     
-    /// Check if the task needs to run (e.g. file timestamps).
-    fn should_run(&self, _ctx: &ExecutionContext) -> bool {
-        true
-    }
-
-    /// Returns a stable fingerprint of the task's inputs.
-    fn fingerprint(&self, _ctx: &ExecutionContext) -> Result<Option<String>> {
-        Ok(None)
-    }
+    /// Predicate to check if the task is needed in the current context.
+    fn should_run(&self, _ctx: &ExecutionContext) -> bool { true }
     
-    /// Cleanup logic if the task or pipeline fails.
-    fn cleanup(&self, _ctx: &ExecutionContext) -> Result<()> {
-        Ok(())
-    }
+    /// Optional hash for incremental builds.
+    fn fingerprint(&self, _ctx: &ExecutionContext) -> anyhow::Result<Option<String>> { Ok(None) }
+    
+    /// Cleanup logic on failure.
+    fn cleanup(&self, _ctx: &ExecutionContext) -> anyhow::Result<()> { Ok(()) }
 }
