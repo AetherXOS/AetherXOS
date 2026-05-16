@@ -18,12 +18,12 @@ impl Default for SystemRequirements {
     }
 }
 
-pub fn run_audit() -> Result<()> {
+pub fn run_audit(strict: bool) -> Result<()> {
     let reqs = SystemRequirements::default();
-    run_preflight_check(&reqs)
+    run_preflight_check(&reqs, strict)
 }
 
-pub fn run_preflight_check(reqs: &SystemRequirements) -> Result<()> {
+pub fn run_preflight_check(reqs: &SystemRequirements, strict: bool) -> Result<()> {
     logging::status("PREFLIGHT", "Verifying hardware requirements...");
     
     let mut sys = System::new_with_specifics(
@@ -57,16 +57,22 @@ pub fn run_preflight_check(reqs: &SystemRequirements) -> Result<()> {
     }
     
     if disk_available_gb < reqs.min_disk_gb {
-        bail!("Insufficient disk space: {}GB available (Required: {}GB)", disk_available_gb, reqs.min_disk_gb);
+        let msg = format!("Insufficient disk space: {}GB available (Required: {}GB)", disk_available_gb, reqs.min_disk_gb);
+        if strict {
+            bail!(msg);
+        } else {
+            logging::warn("PREFLIGHT", &msg, &[]);
+        }
     }
     
     // 4. Host OS Integrity & Self-Healing
     if let Err(e) = verify_toolchain_hermetic() {
         logging::warn("PREFLIGHT", &format!("Toolchain issue: {}. Attempting self-healing...", e), &[]);
-        if inquire::Confirm::new("Do you want XTask to automatically fix missing toolchains/targets?").prompt()? {
+        if !crate::utils::config::is_non_interactive() && 
+           inquire::Confirm::new("Do you want XTask to automatically fix missing toolchains/targets?").prompt().unwrap_or(false) {
             std::process::Command::new("rustup").args(["target", "add", "x86_64-unknown-none"]).status()?;
             logging::success("PREFLIGHT", "Self-healing: Target added successfully", &[]);
-        } else {
+        } else if strict {
             bail!("Preflight failed: {}", e);
         }
     }
@@ -76,7 +82,6 @@ pub fn run_preflight_check(reqs: &SystemRequirements) -> Result<()> {
 }
 
 fn verify_toolchain_hermetic() -> Result<()> {
-    // This is where we verify rustc/cargo versions against a pinned set
     let output = std::process::Command::new("rustc").arg("--version").output()?;
     let version = String::from_utf8_lossy(&output.stdout);
     logging::info("PREFLIGHT", &format!("Toolchain: {}", version.trim()), &[]);

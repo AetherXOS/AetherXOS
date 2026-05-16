@@ -11,6 +11,7 @@ pub mod test;
 pub mod pipeline;
 pub mod completion;
 pub mod interactive;
+pub mod clean;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
@@ -31,16 +32,12 @@ pub use test::TestAction;
 pub use pipeline::PipelineAction;
 pub use completion::CompletionAction;
 pub use interactive::InteractiveAction;
+pub use clean::CleanAction;
 
 /// The central automation tool for the Aether X OS pipeline.
-/// Designed to streamline development, testing, image creation, and validation operations.
 #[derive(Parser, Debug)]
 #[command(name = "xtask")]
 #[command(about = "Aether X OS Task Runner - Unified High-Performance Operations")]
-#[command(
-    long_about = "Replaces all legacy scripts with a single, modular, type-safe Rust binary. \
-    Every OS workflow is dynamically accessible via subcommands."
-)]
 pub struct Cli {
     /// Global output directory for generated artifacts and images.
     #[arg(long, global = true, default_value = "artifacts")]
@@ -60,22 +57,31 @@ pub struct Cli {
 }
 
 macro_rules! define_commands {
-    ($($variant:ident($action:ident) => $desc:expr),* $(; $($simple_variant:ident => $simple_desc:expr),*)?) => {
+    (
+        SUB { $($sub_variant:ident($sub_action:ident) => $sub_desc:expr),* }
+        FLAT { $($flat_variant:ident($flat_action:ident) => $flat_desc:expr),* }
+        SIMPLE { $($simple_variant:ident => $simple_desc:expr),* }
+    ) => {
         #[derive(Subcommand, Debug)]
         pub enum Commands {
             $(
-                #[doc = $desc]
-                $variant {
+                #[doc = $sub_desc]
+                $sub_variant {
                     #[command(subcommand)]
-                    action: $action,
+                    action: $sub_action,
                 },
             )*
             $(
-                $(
-                    #[doc = $simple_desc]
-                    $simple_variant,
-                )*
-            )?
+                #[doc = $flat_desc]
+                $flat_variant {
+                    #[command(flatten)]
+                    action: $flat_action,
+                },
+            )*
+            $(
+                #[doc = $simple_desc]
+                $simple_variant,
+            )*
             CorePressure {
                 #[arg(long)]
                 words: String,
@@ -93,18 +99,19 @@ macro_rules! define_commands {
                 use anyhow::Context;
                 match self {
                     $(
-                        Commands::$variant { action } => action.execute().context(concat!(stringify!($variant), " failure")),
+                        Commands::$sub_variant { action } => action.execute().context(concat!(stringify!($sub_variant), " failure")),
                     )*
                     $(
-                        $(
-                            Commands::$simple_variant => {
-                                match stringify!($simple_variant) {
-                                    "CrashRecovery" => crate::commands::runtime::crash_recovery::execute().context("Crash recovery failure"),
-                                    _ => Ok(())
-                                }
+                        Commands::$flat_variant { action } => action.execute().context(concat!(stringify!($flat_variant), " failure")),
+                    )*
+                    $(
+                        Commands::$simple_variant => {
+                            match stringify!($simple_variant) {
+                                "CrashRecovery" => crate::commands::runtime::crash_recovery::execute().context("Crash recovery failure"),
+                                _ => Ok(())
                             }
-                        )*
-                    )?
+                        }
+                    )*
                     Commands::CorePressure { words, lottery_words, format, out } => {
                         crate::commands::runtime::core_pressure::execute(words, lottery_words, format, out)
                             .context("Core pressure report failure")
@@ -116,18 +123,25 @@ macro_rules! define_commands {
 }
 
 define_commands! {
-    Build(BuildAction) => "Infrastructure build operations",
-    Run(RunAction) => "Emulation and deployment gateways",
-    Test(TestAction) => "Validation suites",
-    Setup(SetupAction) => "Host setup and bootstrapping",
-    Dashboard(DashboardAction) => "Pipeline health visualization",
-    LinuxAbi(LinuxAbiAction) => "Linux ABI compatibility",
-    Secureboot(SecurebootAction) => "Secure Boot protocols",
-    Release(ReleaseAction) => "Release engineering",
-    AbSlot(AbSlotAction) => "A/B slot management",
-    Glibc(GlibcAction) => "Glibc audit",
-    Pipeline(PipelineAction) => "Unified pipeline orchestrator",
-    Completion(CompletionAction) => "Generate shell completion scripts",
-    Interactive(InteractiveAction) => "Interactive build & distro management";
-    CrashRecovery => "Panic diagnostics"
+    SUB {
+        Build(BuildAction) => "Infrastructure build operations",
+        Run(RunAction) => "Emulation and deployment gateways",
+        Test(TestAction) => "Validation suites",
+        Setup(SetupAction) => "Host setup and bootstrapping",
+        Dashboard(DashboardAction) => "Pipeline health visualization",
+        LinuxAbi(LinuxAbiAction) => "Linux ABI compatibility",
+        Secureboot(SecurebootAction) => "Secure Boot protocols",
+        Release(ReleaseAction) => "Release engineering",
+        AbSlot(AbSlotAction) => "A/B slot management",
+        Glibc(GlibcAction) => "Glibc audit",
+        Pipeline(PipelineAction) => "Unified pipeline orchestrator",
+        Completion(CompletionAction) => "Generate shell completion scripts",
+        Interactive(InteractiveAction) => "Interactive build & distro management"
+    }
+    FLAT {
+        Clean(CleanAction) => "Purge build artifacts, staging areas, and temporary files"
+    }
+    SIMPLE {
+        CrashRecovery => "Panic diagnostics"
+    }
 }

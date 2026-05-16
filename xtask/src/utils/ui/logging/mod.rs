@@ -30,10 +30,22 @@ pub fn log(level: &str, tag: &str, msg: &str) {
     }
 }
 
-pub fn info(tag: &str, msg: &str, _fields: &[(&str, &str)]) { log("INFO", tag, msg); }
-pub fn warn(tag: &str, msg: &str, _fields: &[(&str, &str)]) { log("WARN", tag, msg); }
-pub fn error(tag: &str, msg: &str, _fields: &[(&str, &str)]) { log("ERROR", tag, msg); }
-pub fn success(tag: &str, msg: &str, _fields: &[(&str, &str)]) { log("SUCCESS", tag, msg); }
+pub fn info(tag: &str, msg: &str, fields: &[(&str, &str)]) { 
+    log("INFO", tag, msg); 
+    for (k, v) in fields { println!("  -> {}: {}", k, v); }
+}
+pub fn warn(tag: &str, msg: &str, fields: &[(&str, &str)]) { 
+    log("WARN", tag, msg); 
+    for (k, v) in fields { println!("  -> {}: {}", k, v); }
+}
+pub fn error(tag: &str, msg: &str, fields: &[(&str, &str)]) { 
+    log("ERROR", tag, msg); 
+    for (k, v) in fields { println!("  -> {}: {}", k, v); }
+}
+pub fn success(tag: &str, msg: &str, fields: &[(&str, &str)]) { 
+    log("SUCCESS", tag, msg); 
+    for (k, v) in fields { println!("  -> {}: {}", k, v); }
+}
 pub fn ready(tag: &str, msg: &str, path: &str, _fields: &[(&str, &str)]) { 
     log("READY", tag, &format!("{}: {}", msg, path)); 
 }

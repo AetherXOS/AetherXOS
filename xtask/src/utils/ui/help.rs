@@ -1,48 +1,42 @@
-use clap::CommandFactory;
-use colored::*;
-use crate::cli::Cli;
-
 pub fn print_autonomous_help() {
-    let cmd = Cli::command();
-    
-    println!("\n{}", " AETHER X OS ".on_bright_blue().white().bold());
-    println!("{}", format!(" Autonomous Pipeline Orchestrator v{}", env!("CARGO_PKG_VERSION")).bright_blue().italic());
-    
-    println!("\n{}", "USAGE:".yellow().bold());
-    println!("  xtask [OPTIONS] <COMMAND>");
+    println!("\n=== AETHER X OS | THE NEXUS BUILD ENGINE ===");
+    println!("Industrial-Grade Automation for Next-Generation OS Engineering\n");
 
-    println!("\n{}", "COMMANDS:".yellow().bold());
-    
-    // Group subcommands by their doc comment categories or just list them
-    for sub in cmd.get_subcommands() {
-        let name = sub.get_name();
-        let about = sub.get_about().map(|a| a.to_string()).unwrap_or_default();
-        
-        println!("  {: <18} {}", name.cyan().bold(), about);
-    }
+    println!("CORE COMMANDS:");
+    println!("  build        [Subsystem]  Infrastructure & Kernel orchestration");
+    println!("  run          [Subsystem]  Hardware emulation & QEMU gateways");
+    println!("  test         [Suite]      Validation, ABI checks, and security audits");
+    println!("  clean        [Direct]     Neutralize artifacts & staging areas");
+    println!("  pipeline     [Unified]    Execute end-to-end OS workflows");
+    println!("  interactive  [Wizard]     Guided build & distro assembly menu");
+    println!("  setup        [Host]       Environmental bootstrapping & toolchain sync");
 
-    if let Ok(registry) = std::fs::read_to_string(crate::utils::fs::paths::resolve("xtask/distro-registry.json")) {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&registry) {
-            if let Some(distros_obj) = json.get("distros").and_then(|v| v.as_object()) {
-                println!("\n{}", "REGISTERED DISTROS (Autonomous Discovery):".magenta().bold());
-                let distros: Vec<String> = distros_obj.keys()
-                    .take(8)
-                    .map(|s| s.to_string())
-                    .collect();
-                println!("  {} (and {} more...)", distros.join(", ").cyan(), distros_obj.len().saturating_sub(distros.len()));
-            }
-        }
-    }
+    println!("\nSPECIALIZED AUDITS:");
+    println!("  linux-abi    Gap analysis & POSIX compatibility inventory");
+    println!("  glibc        Verification of glibc/musl binary boundaries");
+    println!("  secureboot   TPM and EFI signature validation suite");
+    println!("  ab-slot      A/B partitioning and bootloader state audit");
 
-    println!("\n{}", "OPTIONS:".yellow().bold());
-    for arg in cmd.get_arguments() {
-        if arg.get_short().is_some() || arg.get_long().is_some() {
-            let short = arg.get_short().map(|s| format!("-{}, ", s)).unwrap_or_default();
-            let long = arg.get_long().map(|l| format!("--{}", l)).unwrap_or_default();
-            let help = arg.get_help().map(|h| h.to_string()).unwrap_or_default();
-            println!("  {: <18} {}", format!("{}{}", short, long).white(), help);
-        }
-    }
-    
-    println!("\n{}", "Tip: Use 'xtask <COMMAND> --help' for deep inspection of any subsystem.".bright_black());
+    println!("\nAUTONOMOUS DISCOVERY:");
+    let distros = vec!["almalinux", "alpine", "archlinux", "debian", "fedora", "opensuse", "rockylinux"];
+    println!("  Registered Distros: {}", distros.join(", "));
+    println!("  Active Workflows: Full ISO, Kernel Dev, Docs, Debug Bridge");
+
+    println!("\nPROFESSIONAL TIPS:");
+    println!("  💡 Pro-Tip: Use 'xtask clean --all' for a deep purge of cargo caches.");
+    println!("  💡 Pro-Tip: Run 'xtask interactive' if you're unsure about build parameters.");
+    println!("  💡 Pro-Tip: Add '--log-level debug' for verbose architectural tracing.");
+
+    println!("\nNEXT STEPS:");
+    println!("  1. Start with 'xtask setup' to ensure your toolchain is hermetic.");
+    println!("  2. Run 'xtask build kernel' to compile the core OS modules.");
+    println!("  3. Execute 'xtask pipeline run FullISO' for a production image.");
+
+    println!("\nGLOBAL OPTIONS:");
+    println!("  --outdir <PATH>      Target directory for artifacts [Default: artifacts]");
+    println!("  --non-interactive    Bypass prompts for CI/CD environments");
+    println!("  --log-level <LVL>    [trace, debug, info, warn, error]");
+
+    println!("\nFor detailed help on a command: xtask <COMMAND> --help");
+    println!("==========================================================\n");
 }

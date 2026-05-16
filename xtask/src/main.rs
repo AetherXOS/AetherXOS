@@ -28,7 +28,7 @@ fn main() -> Result<()> {
 
     logging::print_header(&about, &system, &target);
 
-    // 1. Initialize Logger with Defaults (will be updated after parse if needed)
+    // 1. Initialize Logger with Defaults
     logging::init_logger(logging::LogLevel::Info, true)?;
 
     // Initial check for no args or explicit help
@@ -37,11 +37,12 @@ fn main() -> Result<()> {
         // Run interactive mode if no arguments
         utils::paths::ensure_dir(std::path::Path::new("artifacts")).context("Failed to initialize artifacts directory")?;
         app_context::init("artifacts".into()).context("Failed to initialize xtask runtime context")?;
-        utils::preflight::run_audit().context("System health audit encountered a terminal failure")?;
+        // Interactive mode is strict by default since it leads to actions
+        utils::preflight::run_audit(true).context("System health audit encountered a terminal failure")?;
         return interactive::menu::launch_main_menu();
     }
 
-    if args_vec.iter().any(|a| a == "--help" || a == "-h" || a == "help") {
+    if args_vec.len() == 2 && args_vec.iter().any(|a| a == "--help" || a == "-h" || a == "help") {
         crate::utils::ui::help::print_autonomous_help();
         return Ok(());
     }
@@ -59,8 +60,6 @@ fn main() -> Result<()> {
     };
     logging::init_logger(log_lvl, true)?;
 
-    // If caller requested non-interactive via CLI flag, propagate to utils
-    // config so helpers that consult `is_non_interactive()` see it.
     if args.non_interactive {
         utils::config::set_non_interactive(true);
     }
@@ -68,8 +67,21 @@ fn main() -> Result<()> {
     utils::paths::ensure_dir(&args.outdir).context("Failed to initialize artifacts directory")?;
     app_context::init(args.outdir.clone()).context("Failed to initialize xtask runtime context")?;
 
+    // Determine if we need strict pre-flight audit
+    let is_info_command = match &args.command {
+        cli::Commands::Pipeline { action } => matches!(action, 
+            cli::PipelineAction::List | 
+            cli::PipelineAction::Visualize { .. }
+        ),
+        cli::Commands::LinuxAbi { .. } => true, // ABI scans are read-only audits
+        cli::Commands::Glibc { .. } => true,   // Glibc audit is read-only
+        cli::Commands::Completion { .. } => true,
+        cli::Commands::Interactive { .. } => false, // Interactive usually leads to builds
+        _ => false,
+    };
+
     // Global Integrity and Pre-flight Audits
-    utils::preflight::run_audit().context("System health audit encountered a terminal failure")?;
+    utils::preflight::run_audit(!is_info_command).context("System health audit encountered a terminal failure")?;
 
     // Autonomous execution via trait dispatch
     use utils::executable::Executable;
