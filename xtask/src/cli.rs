@@ -16,7 +16,7 @@ use crate::utils::executable::Executable;
 
 pub use crate::types::{Bootloader, ImageFormat};
 
-pub use build::BuildAction;
+pub use build::{BuildAction, CommonBuildArgs};
 pub use dashboard::DashboardAction;
 pub use glibc::GlibcAction;
 pub use linux::LinuxAbiAction;

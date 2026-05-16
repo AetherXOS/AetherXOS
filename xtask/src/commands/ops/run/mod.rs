@@ -4,14 +4,16 @@ use crate::constants;
 use crate::utils::logging;
 
 pub mod guest;
+pub mod tasks;
 
 /// Entry point for `cargo run -p xtask -- run <action>`.
 pub fn execute(action: &RunAction) -> Result<()> {
     match action {
         RunAction::Smoke { bootloader } => {
-            logging::info("run::smoke", "Starting automated generic smoke test.", &[]);
-            logging::info("run::smoke", "Target bootloader sequence", &[("bootloader", &format!("{:?}", bootloader))]);
-            crate::commands::ops::qemu::smoke_test().context("Smoke test failed")?;
+            let ctx = crate::engine::ExecutionContext::from_defaults();
+            crate::engine::Pipeline::new("Smoke Test Workflow")
+                .add_task(Box::new(tasks::SmokeTestTask { bootloader: *bootloader }))
+                .run(&ctx)?;
         }
         RunAction::Live { firmware } => {
             logging::info("run::live", "Launching interactive QEMU graphic interface", &[("firmware", firmware)]);

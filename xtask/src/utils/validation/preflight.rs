@@ -12,7 +12,7 @@ pub fn run_audit() -> Result<()> {
     pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
     pb.set_message("Auditing binary dependencies...");
-    check_binary_dependencies(&pb)?;
+    crate::utils::validation::binary_audit::run_comprehensive_audit()?;
 
     pb.set_message("Verifying cryptographic utility availability...");
     check_crypto_tools(&pb)?;
@@ -27,21 +27,7 @@ pub fn run_audit() -> Result<()> {
     Ok(())
 }
 
-fn check_binary_dependencies(pb: &ProgressBar) -> Result<()> {
-    let required: &[&str] = if cfg!(windows) {
-        &["wsl", "tar", "7z"]
-    } else {
-        &["tar", "xorriso", "mkisofs"]
-    };
-
-    for tool in required {
-        if !process::which(tool) {
-            pb.println(format!("  {} Recommendation: '{}' is missing from PATH.",
-                "⚠️".yellow(), tool));
-        }
-    }
-    Ok(())
-}
+// check_binary_dependencies removed in favor of comprehensive binary_audit
 
 fn check_crypto_tools(pb: &ProgressBar) -> Result<()> {
     if !cfg!(windows) {

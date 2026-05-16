@@ -1,5 +1,4 @@
-use anyhow::{Result, Context};
-use colored::*;
+use anyhow::Result;
 use crate::utils::logging;
 
 pub fn check_prerequisites() -> Result<()> {

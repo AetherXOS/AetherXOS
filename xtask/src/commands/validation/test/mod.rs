@@ -83,11 +83,13 @@ fn quality_gate() -> Result<()> {
     let boot_features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
     crate::commands::validation::linux_abi::execute(&crate::cli::LinuxAbiAction::Gate)?;
     crate::commands::infra::build::execute(&crate::cli::BuildAction::Full {
-        arch: constants::defaults::build::ARCH,
+        common: crate::cli::CommonBuildArgs {
+            arch: constants::defaults::build::ARCH,
+            features: Some(boot_features),
+            release: false,
+        },
         bootloader: crate::cli::Bootloader::Limine,
         format: crate::cli::ImageFormat::Iso,
-        features: Some(boot_features),
-        release: false,
         rootfs: None,
     })?;
     crate::commands::ops::qemu::smoke_test()?;

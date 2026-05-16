@@ -1,4 +1,5 @@
 pub mod glibc;
+pub mod safety;
 pub mod linux_abi;
 pub mod reports;
 pub mod secureboot;

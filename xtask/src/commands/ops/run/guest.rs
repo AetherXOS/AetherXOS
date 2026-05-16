@@ -88,11 +88,13 @@ pub fn launch_guest_session(
     }
     
     let bld = crate::cli::BuildAction::Full {
-        arch: constants::defaults::build::ARCH,
+        common: crate::cli::CommonBuildArgs {
+            arch: constants::defaults::build::ARCH,
+            features: Some(features),
+            release: false,
+        },
         bootloader: crate::cli::Bootloader::Limine,
         format: crate::cli::ImageFormat::Iso,
-        features: Some(features),
-        release: false,
         rootfs: resolved,
     };
 

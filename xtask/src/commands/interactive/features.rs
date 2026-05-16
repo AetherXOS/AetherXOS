@@ -1,7 +1,7 @@
 use anyhow::Result;
 use crate::utils::{logging, core::features as feature_utils};
 use crate::commands::interactive::config;
-use aethercore_common::KernelFeatures;
+// KernelFeatures removed
 
 pub fn manage_features() -> Result<()> {
     logging::status("FEATURES", "Managing Kernel Features");

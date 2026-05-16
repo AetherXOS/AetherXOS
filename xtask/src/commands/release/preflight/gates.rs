@@ -35,11 +35,13 @@ pub fn preflight(
         println!("[release::preflight] Step 4: Full boot artifact build validation");
         let boot_features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
         infra::build::execute(&crate::cli::BuildAction::Full {
-            arch: constants::defaults::build::ARCH,
+            common: crate::cli::CommonBuildArgs {
+                arch: constants::defaults::build::ARCH,
+                features: Some(boot_features),
+                release: false,
+            },
             bootloader: crate::cli::Bootloader::Limine,
             format: crate::cli::ImageFormat::Iso,
-            features: Some(boot_features),
-            release: false,
             rootfs: None,
         })?;
     } else {

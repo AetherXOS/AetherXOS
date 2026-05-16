@@ -1,15 +1,32 @@
 use anyhow::{Result, Context};
 use inquire::Select;
 use colored::*;
-use crate::utils::{logging, ui};
-use crate::commands::interactive::features;
-use crate::commands::interactive::config;
+use crate::utils::logging;
+use super::menu_commands::*;
 
 pub fn launch_main_menu() -> Result<()> {
     print_banner();
     
+    let commands: Vec<Box<dyn MenuCommand>> = vec![
+        Box::new(BuildKernelCommand),
+        Box::new(DistroOpsCommand),
+        Box::new(ManageFeaturesCommand),
+        Box::new(ExitCommand),
+    ];
+
     loop {
-        match run_menu_iteration() {
+        print_system_info();
+        
+        let labels: Vec<&str> = commands.iter().map(|c| c.label()).collect();
+
+        let selection = Select::new("AetherX Control Center", labels)
+            .with_help_message("Use arrow keys to navigate, Enter to select")
+            .prompt()
+            .context("Failed to get menu selection")?;
+
+        let cmd = commands.iter().find(|c| c.label() == selection).unwrap();
+        
+        match cmd.execute() {
             Ok(should_exit) => {
                 if should_exit {
                     println!("{}", "\n  Thank you for using AetherX OS Build System. Happy coding! 🚀\n".green().bold());
@@ -17,13 +34,8 @@ pub fn launch_main_menu() -> Result<()> {
                 }
             }
             Err(e) => {
-                logging::error("INTERACTIVE", "An error occurred during operation", &[
-                    ("error", &format!("{:#}", e)),
-                    ("context", "Please check the logs for details")
-                ]);
-                
-                // Allow user to return to menu instead of crashing the whole xtask
-                if !ui::confirm("Return to main menu?", true).unwrap_or(false) {
+                logging::error("INTERACTIVE", "Operation failed", &[("error", &format!("{:#}", e))]);
+                if !crate::utils::ui::confirm("Return to main menu?", true).unwrap_or(false) {
                     break;
                 }
             }
@@ -31,55 +43,6 @@ pub fn launch_main_menu() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn run_menu_iteration() -> Result<bool> {
-    print_system_info();
-    
-    let options = vec![
-        "🚀 Build AetherX Kernel",
-        "📦 Distro Operations (ISO, Rootfs)",
-        "🛠️  Kernel Configuration (Features)",
-        "🧪 Test Suite",
-        "📊 Dashboard",
-        "💾 Save/Load Configuration",
-        "🚪 Exit"
-    ];
-
-    let selection = Select::new("AetherX Control Center", options)
-        .with_help_message("Use arrow keys to navigate, Enter to select")
-        .prompt()
-        .context("Failed to get menu selection")?;
-
-    match selection {
-        "🚀 Build AetherX Kernel" => {
-            crate::commands::infra::build::interactive::run()?;
-            Ok(false)
-        },
-        "📦 Distro Operations (ISO, Rootfs)" => {
-            logging::info("MENU", "Distro wizard is being initialized...", &[]);
-            // We can add a standalone distro wizard here later
-            Ok(false)
-        },
-        "🛠️  Kernel Configuration (Features)" => {
-            features::manage_features()?;
-            Ok(false)
-        },
-        "🧪 Test Suite" => {
-            crate::commands::validation::test::run_interactive()?;
-            Ok(false)
-        },
-        "📊 Dashboard" => {
-            crate::commands::dashboard::execute()?;
-            Ok(false)
-        },
-        "💾 Save/Load Configuration" => {
-            config::manage_config()?;
-            Ok(false)
-        },
-        "🚪 Exit" => Ok(true),
-        _ => unreachable!(),
-    }
 }
 
 fn print_banner() {

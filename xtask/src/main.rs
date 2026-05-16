@@ -3,6 +3,7 @@
 mod builders;
 mod cli;
 mod commands;
+mod engine;
 mod config;
 mod constants;
 mod types;
@@ -30,7 +31,7 @@ fn main() -> Result<()> {
     let args_vec: Vec<String> = env::args().collect();
     if args_vec.len() == 1 {
         // Run interactive mode if no arguments
-        utils::paths::ensure_dir("artifacts").context("Failed to initialize artifacts directory")?;
+        utils::paths::ensure_dir(std::path::Path::new("artifacts")).context("Failed to initialize artifacts directory")?;
         app_context::init("artifacts".into()).context("Failed to initialize xtask runtime context")?;
         utils::preflight::run_audit().context("System health audit encountered a terminal failure")?;
         return interactive::menu::launch_main_menu();

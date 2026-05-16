@@ -1,14 +1,28 @@
 use crate::types::{Bootloader, ImageFormat};
 use aethercore_common::TargetArch;
-use clap::Subcommand;
+use clap::{Subcommand, Args};
+
+#[derive(Args, Debug, Clone)]
+pub struct CommonBuildArgs {
+    /// Explicit Host/Guest compiler target architecture (e.g., x86_64, aarch64)
+    #[arg(long, default_value_t = TargetArch::X86_64)]
+    pub arch: TargetArch,
+
+    /// Toggle LLVM/Rust optimization profiles flag
+    #[arg(long)]
+    pub release: bool,
+
+    /// Optional kernel feature gates (comma-separated). If omitted, resolved dynamically from Cargo.toml defaults.
+    #[arg(long)]
+    pub features: Option<aethercore_common::KernelFeatures>,
+}
 
 #[derive(Subcommand, Debug)]
 pub enum BuildAction {
     /// Integrates OS elements (Kernel + RootFS) into an immediately bootable payload target
     Full {
-        /// Explicit Host/Guest compiler target architecture (e.g., x86_64, aarch64)
-        #[arg(long, default_value_t = TargetArch::X86_64)]
-        arch: TargetArch,
+        #[command(flatten)]
+        common: CommonBuildArgs,
 
         /// Assigned boot target application protocol for OS handoff
         #[arg(long, default_value_t = Bootloader::Limine)]
@@ -18,13 +32,6 @@ pub enum BuildAction {
         #[arg(long, default_value_t = ImageFormat::Iso)]
         format: ImageFormat,
 
-        /// Optional kernel feature gates (comma-separated). If omitted, resolved dynamically from Cargo.toml defaults.
-        #[arg(long)]
-        features: Option<aethercore_common::KernelFeatures>,
-
-        /// Toggle LLVM/Rust optimization profiles flag
-        #[arg(long)]
-        release: bool,
         /// Optional external guest rootfs (directory or tarball) to include in image
         #[arg(long)]
         rootfs: Option<String>,
@@ -41,15 +48,8 @@ pub enum BuildAction {
 
     /// Instructs the compiler to strictly compile the Kernel ELF void of external wrappers
     Kernel {
-        #[arg(long, default_value_t = TargetArch::X86_64)]
-        arch: TargetArch,
-
-        /// Optional kernel feature gates. If omitted, resolved dynamically from Cargo.toml defaults.
-        #[arg(long)]
-        features: Option<aethercore_common::KernelFeatures>,
-
-        #[arg(long)]
-        release: bool,
+        #[command(flatten)]
+        common: CommonBuildArgs,
     },
 
     /// Archives core userspace modules into the pre-mount Initial RAM filesystem layout
@@ -82,7 +82,6 @@ pub enum BuildAction {
     },
 
     /// Replace the kernel inside an existing ISO image without rebuilding the whole ISO.
-    /// Useful for fast kernel iteration: extracts ISO, swaps `boot/aethercore.elf`, and re-packages.
     UpdateIsoKernel {
         /// Path to existing ISO to update
         #[arg(long)]
@@ -95,7 +94,7 @@ pub enum BuildAction {
         /// Optional output ISO path (defaults to <iso>-updated.iso)
         #[arg(long)]
         out: Option<String>,
-        /// Optional working directory to extract ISO into (use a drive with free space)
+        /// Optional working directory to extract ISO into
         #[arg(long)]
         workdir: Option<String>,
     },
@@ -104,23 +103,17 @@ pub enum BuildAction {
     TierStatus,
 
     /// Rebuild the kernel ELF and run a full ELF integrity + security audit.
-    /// Faster than a full ISO build — ideal for iterating on kernel changes.
     #[command(name = "verify-elf")]
     VerifyElf {
-        /// Target architecture to build and verify (default: x86_64)
-        #[arg(long, default_value_t = TargetArch::X86_64)]
-        arch: TargetArch,
-
-        /// Build in release mode before verification
-        #[arg(long)]
-        release: bool,
+        #[command(flatten)]
+        common: CommonBuildArgs,
 
         /// Path to a pre-built ELF binary (skips rebuild, just verifies)
         #[arg(long)]
         elf: Option<String>,
     },
 
-    /// Interactive build wizard (feature matrix + pipeline settings)
+    /// Interactive build wizard
     Interactive,
 }
 

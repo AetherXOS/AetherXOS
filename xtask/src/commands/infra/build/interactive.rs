@@ -4,8 +4,10 @@ use strum::IntoEnumIterator;
 
 use crate::cli::{Bootloader, ImageFormat};
 use crate::utils::{features, logging, ui};
-
-use super::{image, kernel};
+use crate::engine::{Pipeline, ExecutionContext, StagingArea};
+use crate::commands::infra::build::tasks::{KernelCompileTask, InitramfsTask};
+use crate::commands::infra::build::image_tasks::{KernelStageTask, BootConfigTask, ImageFinalizeTask};
+use crate::commands::validation::safety::KernelSafetyAuditTask;
 
 #[derive(Clone, Copy)]
 enum BuildMode {
@@ -23,7 +25,7 @@ impl core::fmt::Display for BuildMode {
 }
 
 pub fn run() -> Result<()> {
-    logging::info("build::interactive", "starting interactive build wizard", &[]);
+    logging::info("build::interactive", "Initializing Interactive Masterpiece Wizard", &[]);
 
     let modes = [BuildMode::KernelOnly, BuildMode::FullPipeline];
     let mode = *ui::select("Select build mode", &modes)?;
@@ -35,51 +37,47 @@ pub fn run() -> Result<()> {
     let profile = *ui::select("Select build profile", &profile_choices)?;
     let release = profile == "release";
 
-    let features = features::prompt_kernel_feature_selection("Build", &[])?;
+    let resolved_features = features::prompt_kernel_feature_selection("Build", &[])?;
 
-    logging::info(
-        "build::interactive",
-        "selected kernel build settings",
-        &[
-            ("mode", &mode.to_string()),
-            ("arch", arch.as_str()),
-            ("release", &release.to_string()),
-            ("features", &features.to_string()),
-        ],
-    );
+    let mut pipeline = Pipeline::new("Interactive Build Workflow");
+    
+    // Create execution context
+    let mut ctx = ExecutionContext {
+        repo_root: crate::utils::core::context::repo_root(),
+        out_dir: crate::utils::core::context::out_dir(),
+        is_release: release,
+        arch: arch.to_string(),
+        features: resolved_features.to_cargo_features().iter().map(|&s| s.to_string()).collect(),
+        staging: None,
+        state: crate::engine::EngineState::load(),
+    };
 
-    kernel::build_kernel(arch, release, features)?;
+    // Add core compilation task
+    pipeline = pipeline.add_task(Box::new(KernelCompileTask {
+        arch,
+        release,
+        features: resolved_features,
+    }));
+
+    // Add safety audit for production-ready code
+    pipeline = pipeline.add_task(Box::new(KernelSafetyAuditTask));
 
     if matches!(mode, BuildMode::FullPipeline) {
-        let bootloaders: Vec<Bootloader> = Bootloader::iter().collect();
-        let bootloader = *ui::select("Select bootloader", &bootloaders)?;
+        let bootloader = *ui::select("Select bootloader", &Bootloader::iter().collect::<Vec<_>>())?;
+        let format = *ui::select("Select image format", &ImageFormat::iter().collect::<Vec<_>>())?;
 
-        let formats: Vec<ImageFormat> = ImageFormat::iter().collect();
-        let format = *ui::select("Select image format", &formats)?;
+        // Initialize staging for full pipeline
+        ctx.staging = Some(StagingArea::new(ctx.out_dir.join("stage"))?);
 
-        let rootfs = if ui::confirm("Use external rootfs source?", false)? {
-            let value = ui::input("External rootfs path (directory or archive)", None)?;
-            let trimmed = value.trim().to_string();
-            if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed)
-            }
-        } else {
-            None
-        };
-
-        super::build_initramfs()?;
-        image::bundle_image(
-            arch,
-            &bootloader,
-            &format,
-            rootfs
-                .as_deref()
-                .map(std::path::Path::new),
-        )?;
+        pipeline = pipeline
+            .add_task(Box::new(InitramfsTask))
+            .add_task(Box::new(KernelStageTask))
+            .add_task(Box::new(BootConfigTask { bootloader }))
+            .add_task(Box::new(ImageFinalizeTask { format }));
     }
 
-    logging::ready("build::interactive", "interactive build flow completed", "ok");
+    pipeline.run(&ctx)?;
+
+    logging::ready("build::interactive", "Masterpiece pipeline completed successfully", "ok");
     Ok(())
 }
