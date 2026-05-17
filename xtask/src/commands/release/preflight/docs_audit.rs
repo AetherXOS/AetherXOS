@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use super::relative_display;
 
@@ -32,7 +33,7 @@ struct DocsCommandAuditDoc {
 
 pub(super) fn run(strict: bool) -> Result<()> {
     println!("[release::docs-command-audit] Scanning docs for xtask command drift");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
     let mut issues = Vec::new();
     let mut scanned_files = 0usize;
     let mut command_hits = 0usize;
@@ -41,7 +42,7 @@ pub(super) fn run(strict: bool) -> Result<()> {
         r"cargo\s+run\s+-p\s+xtask(?:\s+--target\s+\S+)?\s+--\s+([a-zA-Z0-9-]+)(?:\s+([a-zA-Z0-9-]+))?",
     )?;
 
-    for path in collect_docs_markdown_paths(&root) {
+    for path in collect_docs_markdown_paths(root) {
         scanned_files += 1;
         let text = fs::read_to_string(&path)
             .with_context(|| format!("failed reading markdown file: {}", path.display()))?;
@@ -60,7 +61,7 @@ pub(super) fn run(strict: bool) -> Result<()> {
 
                 if !is_known_top_command(&top) {
                     issues.push(DocsCommandAuditIssue {
-                        path: relative_display(&root, &path),
+                        path: relative_display(root, &path),
                         line: line_index + 1,
                         command: line.trim().to_string(),
                         severity: "high".to_string(),
@@ -71,7 +72,7 @@ pub(super) fn run(strict: bool) -> Result<()> {
 
                 if !sub.is_empty() && !sub.starts_with('-') && !is_known_subcommand(&top, &sub) {
                     issues.push(DocsCommandAuditIssue {
-                        path: relative_display(&root, &path),
+                        path: relative_display(root, &path),
                         line: line_index + 1,
                         command: line.trim().to_string(),
                         severity: "medium".to_string(),

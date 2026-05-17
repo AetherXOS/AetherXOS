@@ -4,7 +4,8 @@ use serde_json::Value;
 use std::fs;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub(crate) struct AbiTrendPoint {
@@ -25,7 +26,7 @@ pub(crate) struct AbiTrendDashboard {
 
 pub(crate) fn execute(limit: usize, strict: bool) -> Result<()> {
     super::semantic_matrix::execute()?;
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     let matrix_path = root.join(config::repo_paths::LINUX_ABI_SEMANTIC_MATRIX_JSON);
     let matrix_text = fs::read_to_string(&matrix_path)

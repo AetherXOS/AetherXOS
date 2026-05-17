@@ -4,7 +4,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 pub fn read_json_doc(path: &Path) -> Option<Value> {
     let text = fs::read_to_string(path).ok()?;
@@ -12,7 +13,7 @@ pub fn read_json_doc(path: &Path) -> Option<Value> {
 }
 
 pub fn execute() -> Result<()> {
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     let policy_guard = read_json_doc(&root.join(config::repo_paths::CRITICAL_POLICY_GUARD_JSON));
     let policy_ok = policy_guard

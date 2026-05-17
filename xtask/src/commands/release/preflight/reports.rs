@@ -5,7 +5,8 @@ use std::collections::BTreeMap;
 use std::fs;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use super::ci::{build_file_entry, capture_command_output, ci_bundle};
 use super::models::{
@@ -20,7 +21,7 @@ pub fn gate_report(prev: Option<&str>, strict: bool) -> Result<()> {
 
 pub fn export_junit(out: Option<&str>, strict: bool) -> Result<()> {
     println!("[release::export-junit] Exporting release gate summary to JUnit XML");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     ci_bundle(false)?;
     let ci_bundle_path = root.join(config::repo_paths::CI_BUNDLE_JSON);
@@ -107,7 +108,7 @@ pub fn render_trend_dashboard_md(doc: &TrendDashboardDoc) -> String {
 
 pub fn freeze_check(strict: bool, allow_dirty: bool) -> Result<()> {
     println!("[release::freeze-check] Running branch/worktree freeze checks");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     let branch = capture_command_output("git", &["rev-parse", "--abbrev-ref", "HEAD"])
         .unwrap_or_else(|| "unknown".to_string());
@@ -158,7 +159,7 @@ fn render_freeze_check_md(doc: &FreezeCheckDoc) -> String {
 
 pub fn sbom_audit(strict: bool) -> Result<()> {
     println!("[release::sbom-audit] Auditing Cargo.lock package inventory");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
     let lock_path = root.join("Cargo.lock");
     let text = fs::read_to_string(&lock_path)
         .with_context(|| format!("failed reading Cargo.lock: {}", lock_path.display()))?;
@@ -249,7 +250,7 @@ pub fn release_notes(out: Option<&str>) -> Result<()> {
 
 pub fn release_manifest(strict: bool) -> Result<()> {
     println!("[release::manifest] Generating machine-readable release manifest");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     super::ci::gate_fixup(false)?;
     super::abi::abi_drift_report(None, false)?;
@@ -266,7 +267,7 @@ pub fn release_manifest(strict: bool) -> Result<()> {
 
     let mut required_files = Vec::new();
     for rel in required_paths {
-        required_files.push(build_file_entry(&root, rel, true)?);
+        required_files.push(build_file_entry(root, rel, true)?);
     }
     let required_missing = required_files.iter().filter(|f| !f.exists).count();
     let overall_ok = required_missing == 0;

@@ -81,7 +81,7 @@ echo "Image creation complete."
         process::run_checked("qemu-img", &["create", "-f", "raw", img_out.to_string_lossy().as_ref(), size_spec.as_str()])?;
     } else {
         let f = std::fs::File::create(img_out)?;
-        f.set_len((size_mb as u64) * 1024 * 1024)?;
+        f.set_len(size_mb * 1024 * 1024)?;
     }
 
     if !process::which("parted") { return Err(anyhow!("'parted' not found on host")); }
@@ -92,7 +92,7 @@ echo "Image creation complete."
     process::run_checked("parted", &["-s", img_out.to_string_lossy().as_ref(), "mklabel", "msdos"])?;
     process::run_checked("parted", &["-s", img_out.to_string_lossy().as_ref(), "mkpart", "primary", "ext4", "1MiB", "100%"])?;
 
-    let losetup_out = Command::new("losetup").arg("--find").arg("--show").arg(&img_out).output()?;
+    let losetup_out = Command::new("losetup").arg("--find").arg("--show").arg(img_out).output()?;
     if !losetup_out.status.success() { return Err(anyhow!("losetup failed")); }
     let loop_dev = String::from_utf8_lossy(&losetup_out.stdout).trim().to_string();
 

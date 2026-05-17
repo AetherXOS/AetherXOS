@@ -5,13 +5,14 @@ use std::path::Path;
 use walkdir::WalkDir;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use crate::commands::release::preflight::models::{PolicyGuardReport, PolicyViolation};
 
 pub fn execute(strict: bool) -> Result<()> {
     println!("[release::policy-guard] Scanning critical kernel modules for forbidden patterns");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     let targets = [
         "kernel/src/hal",
@@ -29,7 +30,7 @@ pub fn execute(strict: bool) -> Result<()> {
         (Regex::new(r"FIXME")?, "medium", "FIXME marker"),
     ];
 
-    let (violations, scanned_files) = scan_policy_targets(&root, &targets, &rules)?;
+    let (violations, scanned_files) = scan_policy_targets(root, &targets, &rules)?;
 
     let overall_ok = violations.is_empty();
     let report_obj = PolicyGuardReport {

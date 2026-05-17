@@ -4,9 +4,6 @@
 //! and kernel subsystems. Follows the same hook pattern as syscall_integration.rs.
 
 
-use alloc::format;
-use crate::kernel::log;
-use crate::kernel_runtime::integration_utils::audit_service_event;
 
 
 

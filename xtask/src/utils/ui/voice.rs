@@ -19,9 +19,9 @@ pub fn speak(message: &str) {
         );
         
         let _ = std::process::Command::new("powershell")
-            .args(&["-Command", &script])
+            .args(["-Command", &script])
             .spawn()
-            .map(|mut c| crate::utils::sys::process::track_child(&mut c))
+            .map(|c| crate::utils::sys::process::track_child(&c))
             .map_err(|e| crate::utils::logging::debug("VOICE", "Failed to speak", &[("error", &e.to_string())])).ok();
     } else {
         // Try espeak on Linux

@@ -5,7 +5,8 @@ use std::process::{Command, Stdio};
 use std::time::Instant;
 
 use crate::constants::{cargo as cargo_consts, tools};
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Serialize)]
 struct StepResult {
@@ -28,9 +29,8 @@ struct PosixSummary {
 pub fn run_gate() -> Result<()> {
     println!("[test::posix] Running POSIX deep tests conformance gate (native)");
 
-    let _root = paths::repo_root();
-    let out_dir = paths::resolve("reports/posix_conformance");
-    paths::ensure_dir(&out_dir)?;
+    let out_dir = LAYOUT.root.join("reports/posix_conformance");
+    fs::create_dir_all(&out_dir)?;
     let host_target = crate::utils::cargo::detect_host_triple().ok();
 
     let mut steps = Vec::new();
@@ -119,7 +119,7 @@ pub fn run_gate() -> Result<()> {
 
 fn run_cmd(args: &[String], name: &str) -> StepResult {
     let start = Instant::now();
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     let output = Command::new(&args[0])
         .args(args.iter().skip(1))
@@ -161,7 +161,7 @@ fn tail_lines(text: &str, n: usize) -> String {
 }
 
 fn discover_deep_tests() -> Result<usize> {
-    let deep_dir = paths::kernel_src("modules/posix/tests_deep");
+    let deep_dir = LAYOUT.root.join("modules/posix/tests_deep");
     if !deep_dir.exists() {
         return Ok(0);
     }

@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use std::process::Command;
 
-use crate::utils::paths;
+use crate::utils::fs::paths::LAYOUT;
 
 mod constants;
 mod helpers;
@@ -185,7 +185,7 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         "md",
         &Some("reports/linux_app_compat_syscall_coverage.md".to_string()),
     );
-    let cov_ok = paths::resolve("reports/syscall_coverage_summary.json").exists();
+    let cov_ok = LAYOUT.root.join("reports/syscall_coverage_summary.json").exists();
     if cov_ok {
         println!(" OK");
         kernel.total += 1;

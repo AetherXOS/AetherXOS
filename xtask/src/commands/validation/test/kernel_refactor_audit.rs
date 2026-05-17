@@ -4,8 +4,8 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 
-use crate::constants;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Serialize)]
 struct FileHotspot {
@@ -40,8 +40,8 @@ struct AuditReport {
 pub fn run(max_lines: usize, magic_repeat_threshold: usize) -> Result<()> {
     println!("[test::kernel-refactor-audit] Scanning kernel structure hotspots");
 
-    let root = paths::repo_root();
-    let src_kernel = paths::kernel_src("kernel");
+    let root = &LAYOUT.root;
+    let src_kernel = root.join("kernel");
 
     let number_re = Regex::new(r"\b(?:0x[0-9a-fA-F]+|\d{2,})\b")?;
 
@@ -58,7 +58,7 @@ pub fn run(max_lines: usize, magic_repeat_threshold: usize) -> Result<()> {
         scanned += 1;
         let abs = entry.path();
         let rel = abs
-            .strip_prefix(&root)
+            .strip_prefix(root)
             .unwrap_or(abs)
             .to_string_lossy()
             .replace('\\', "/");
@@ -128,8 +128,8 @@ pub fn run(max_lines: usize, magic_repeat_threshold: usize) -> Result<()> {
         top_coupling_files,
     };
 
-    let out_dir = constants::paths::kernel_refactor_audit_dir();
-    paths::ensure_dir(&out_dir)?;
+    let out_dir = LAYOUT.root.join("reports/kernel_refactor_audit");
+    fs::create_dir_all(&out_dir)?;
     report::write_json_report(&out_dir.join("summary.json"), &report_obj)?;
 
     let mut md = String::new();

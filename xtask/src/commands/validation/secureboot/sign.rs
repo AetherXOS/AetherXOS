@@ -3,10 +3,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::constants;
-use crate::utils::paths;
 use crate::utils::process;
 use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use super::REPORT_SCHEMA_VERSION;
 use super::models::{SignReport, SignRow};
@@ -17,11 +16,11 @@ pub fn sign(dry_run: bool, strict_verify: bool) -> Result<()> {
         dry_run, strict_verify
     );
 
-    let efi_dir = constants::paths::boot_image_iso_root().join("EFI/BOOT");
-    let out_dir = constants::paths::secureboot_signed_dir();
-    let report_path = constants::paths::secureboot_sign_report();
+    let efi_dir = LAYOUT.root.join("boot/iso_root/EFI/BOOT");
+    let out_dir = LAYOUT.artifacts.join("secureboot/signed");
+    let report_path = LAYOUT.root.join("reports/secureboot/sign_report.json");
 
-    paths::ensure_dir(&out_dir)?;
+    fs::create_dir_all(&out_dir)?;
 
     if !efi_dir.exists() {
         bail!("EFI directory not found: {}", efi_dir.display());
@@ -286,10 +285,10 @@ fn resolve_sbsign_material() -> Option<(PathBuf, PathBuf)> {
     }
 
     let candidates = [
-        (paths::resolve("keys/db.key"), paths::resolve("keys/db.crt")),
+        (LAYOUT.root.join("keys/db.key"), LAYOUT.root.join("keys/db.crt")),
         (
-            paths::resolve("keys/MOK.key"),
-            paths::resolve("keys/MOK.crt"),
+            LAYOUT.root.join("keys/MOK.key"),
+            LAYOUT.root.join("keys/MOK.crt"),
         ),
     ];
 

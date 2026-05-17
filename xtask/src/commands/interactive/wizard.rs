@@ -2,6 +2,7 @@ use anyhow::Result;
 use inquire::{Select, MultiSelect, Text, Confirm};
 use crate::engine::{Pipeline, ExecutionContext, BuildProfile};
 use crate::utils::logging;
+use crate::utils::fs::paths::LAYOUT;
 
 pub fn launch_supreme_wizard() -> Result<()> {
     use crate::constants::workflows::*;
@@ -51,13 +52,13 @@ pub fn launch_supreme_wizard() -> Result<()> {
 
 fn load_profile_logic(ctx: &mut ExecutionContext) -> Result<()> {
     use crate::constants::ui::prompts::*;
-    let repo_root = crate::utils::paths::repo_root();
-    let profiles = BuildProfile::list(&repo_root);
+    let repo_root = &LAYOUT.root;
+    let profiles = BuildProfile::list(repo_root);
     if profiles.is_empty() {
         logging::warn("WIZARD", "No profiles found. Starting fresh...", &[]);
     } else {
         let profile_name = Select::new(PROFILE_SELECT, profiles).prompt()?;
-        let profile = BuildProfile::load(&repo_root, &profile_name)?;
+        let profile = BuildProfile::load(repo_root, &profile_name)?;
         profile.apply_to(ctx);
         logging::success("WIZARD", &format!("Profile '{}' loaded", profile_name), &[]);
     }
@@ -84,7 +85,7 @@ fn save_profile_logic(ctx: &ExecutionContext) -> Result<()> {
         features: ctx.features.clone(),
         parameters: ctx.parameters.clone(),
     };
-    profile.save(&crate::utils::paths::repo_root())?;
+    profile.save(&LAYOUT.root)?;
     logging::success("WIZARD", &format!("Profile '{}' saved", name), &[]);
     Ok(())
 }

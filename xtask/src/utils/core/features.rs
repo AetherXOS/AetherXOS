@@ -2,7 +2,8 @@ use anyhow::{Context, Result};
 use aethercore_common::KernelFeatures;
 use std::collections::BTreeSet;
 
-use crate::utils::{logging, paths, ui};
+use crate::utils::{logging, ui};
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Clone, Debug)]
 pub struct FeatureCatalog {
@@ -47,7 +48,7 @@ impl core::fmt::Display for KernelFeatureSelectionMode {
 }
 
 pub fn load_feature_catalog() -> Result<FeatureCatalog> {
-    let cargo_toml_path = paths::repo_root().join("Cargo.toml");
+    let cargo_toml_path = LAYOUT.root.join("Cargo.toml");
     let text = std::fs::read_to_string(&cargo_toml_path)
         .with_context(|| format!("failed to read {}", cargo_toml_path.display()))?;
 

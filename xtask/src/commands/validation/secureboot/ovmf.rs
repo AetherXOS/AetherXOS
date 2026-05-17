@@ -4,10 +4,9 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
-use crate::constants;
-use crate::utils::paths;
 use crate::utils::process;
 use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use super::models::{OvmfCaseResult, OvmfSummary};
 
@@ -16,8 +15,8 @@ pub fn ovmf_matrix(dry_run: bool) -> Result<()> {
         "[secureboot::ovmf] Running OVMF Secure Boot matrix (dry_run={})",
         dry_run
     );
-    let out_dir = constants::paths::secureboot_ovmf_matrix_dir();
-    paths::ensure_dir(&out_dir)?;
+    let out_dir = LAYOUT.root.join("reports/secureboot/ovmf_matrix");
+    fs::create_dir_all(&out_dir)?;
     let summary_path = out_dir.join("summary.json");
 
     if dry_run {
@@ -31,9 +30,9 @@ pub fn ovmf_matrix(dry_run: bool) -> Result<()> {
     }
 
     let qemu = find_qemu()?;
-    let iso = paths::resolve("artifacts/boot_image/aethercore.iso");
-    let ovmf_code = constants::paths::ovmf_dir().join("OVMF_CODE.fd");
-    let ovmf_vars = constants::paths::ovmf_dir().join("OVMF_VARS.fd");
+    let iso = LAYOUT.artifacts.join("boot_image/aethercore.iso");
+    let ovmf_code = LAYOUT.root.join("ovmf/OVMF_CODE.fd");
+    let ovmf_vars = LAYOUT.root.join("ovmf/OVMF_VARS.fd");
 
     let mut failures = Vec::new();
     if !iso.exists() {

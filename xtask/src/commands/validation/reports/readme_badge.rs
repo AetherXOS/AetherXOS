@@ -1,4 +1,5 @@
 use crate::utils::logging;
+use crate::utils::fs::paths::LAYOUT;
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::fs;
@@ -13,7 +14,7 @@ pub fn update_badges() -> Result<()> {
     let stats = crate::commands::validation::linux_abi::audit_syscall_stats()
         .context("Failed to audit syscall stats for badge update")?;
 
-    let readme_path = crate::utils::paths::repo_root().join("README.md");
+    let readme_path = LAYOUT.root.join("README.md");
     let mut content = fs::read_to_string(&readme_path).context("Failed to read README.md")?;
 
     // 1. Update Linux ABI Badge

@@ -5,7 +5,8 @@ use std::fs;
 
 use crate::commands::release::preflight;
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Serialize)]
 pub(crate) struct ExplainFailureDoc {
@@ -18,7 +19,7 @@ pub(crate) struct ExplainFailureDoc {
 
 pub(crate) fn execute(strict: bool) -> Result<()> {
     println!("[release::explain-failure] Building actionable remediation plan");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     preflight::release_diagnostics(false)?;
     let diag_path = root.join(config::repo_paths::RELEASE_DIAGNOSTICS_JSON);

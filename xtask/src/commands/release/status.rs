@@ -6,7 +6,8 @@ use std::path::Path;
 
 use crate::config;
 use crate::utils::logging;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 #[path = "status/scorecard.rs"]
 mod scorecard;
@@ -63,15 +64,18 @@ pub fn run() -> Result<()> {
         &[("tiers", "baseline/expansion/maturity")],
     );
 
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
     let out_json = root.join(config::repo_paths::P_TIER_STATUS_JSON);
     let out_md = root.join(config::repo_paths::P_TIER_STATUS_MD);
-    paths::ensure_dir(out_json.parent().unwrap())?;
+    
+    if let Some(parent) = out_json.parent() {
+        fs::create_dir_all(parent)?;
+    }
 
     // Baseline checks
     let p0_checks = vec![
         bool_check(
-            &root,
+            root,
             "health_score",
             vec!["reports/tooling/health_report.json"],
             true,
@@ -82,7 +86,7 @@ pub fn run() -> Result<()> {
             "missing health_report",
         ),
         bool_check(
-            &root,
+            root,
             "policy_gate",
             vec!["reports/tooling/policy_gate.json"],
             true,
@@ -95,7 +99,7 @@ pub fn run() -> Result<()> {
             "missing policy gate",
         ),
         bool_check(
-            &root,
+            root,
             "syscall_default",
             vec![config::repo_paths::SYSCALL_COVERAGE_SUMMARY],
             true,
@@ -109,7 +113,7 @@ pub fn run() -> Result<()> {
             "missing syscall coverage summary",
         ),
         bool_check(
-            &root,
+            root,
             "syscall_linux_compat",
             vec!["reports/syscall_coverage_linux_compat_summary.json"],
             true,
@@ -127,7 +131,7 @@ pub fn run() -> Result<()> {
     // Expansion checks
     let p1_checks = vec![
         bool_check(
-            &root,
+            root,
             "posix_conformance",
             vec![config::repo_paths::POSIX_CONFORMANCE_SUMMARY],
             true,
@@ -142,7 +146,7 @@ pub fn run() -> Result<()> {
             "missing posix conformance summary",
         ),
         bool_check(
-            &root,
+            root,
             "soak_stress_chaos",
             vec!["reports/soak_stress_chaos.json"],
             true,
@@ -160,7 +164,7 @@ pub fn run() -> Result<()> {
 
     // Maturity checks
     let p2_checks = vec![bool_check(
-        &root,
+        root,
         "p2_gap_gate",
         vec!["reports/p2_gap/gate_summary.json"],
         true,
@@ -257,7 +261,7 @@ pub fn run() -> Result<()> {
 
     fs::write(&out_md, md)?;
 
-    scorecard::write_production_acceptance_scorecard(&root)?;
+    scorecard::write_production_acceptance_scorecard(root)?;
 
     logging::ready(
         "release::status",

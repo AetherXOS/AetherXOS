@@ -96,7 +96,7 @@ pub fn resolve_distro_urls(distro: &str) -> Vec<String> {
     }
 
     // Try to match by alias
-    for (_, entry) in &registry.distros {
+    for entry in registry.distros.values() {
         if let Some(aliases) = &entry.aliases {
             if aliases.contains(&base_spec.to_string()) {
                 urls.extend(extract_all_urls(entry, variant_filter));
@@ -123,7 +123,7 @@ pub fn resolve_distro_urls(distro: &str) -> Vec<String> {
     }
 
     // Try matching by alias for version pattern
-    for (_, entry) in &registry.distros {
+    for entry in registry.distros.values() {
         if let Some(aliases) = &entry.aliases {
             for alias in aliases {
                 if alias.starts_with(&format!("{}-", parts[0])) || 
@@ -145,7 +145,7 @@ pub fn resolve_distro_urls(distro: &str) -> Vec<String> {
 /// Extract all available URLs from a distro entry
 fn extract_all_urls(entry: &DistroEntry, variant_filter: Option<&str>) -> Vec<String> {
     let mut urls = Vec::new();
-    for (_, version) in &entry.versions {
+    for version in entry.versions.values() {
         urls.extend(extract_urls_from_version(version, variant_filter));
     }
     urls

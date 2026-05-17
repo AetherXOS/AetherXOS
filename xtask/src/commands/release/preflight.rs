@@ -6,7 +6,7 @@ pub mod diagnostics;
 pub mod docs_audit;
 pub mod evidence_bundle;
 pub mod gates;
-pub mod host_tools;
+
 pub mod models;
 pub mod reports;
 pub mod repro_compare;
@@ -50,7 +50,7 @@ pub fn execute(action: &ReleaseAction) -> Result<()> {
             abi::abi_drift_report(baseline.as_deref(), *strict)
         }
         ReleaseAction::Diagnostics { strict } => diagnostics::release_diagnostics(*strict),
-        ReleaseAction::HostToolVerify { strict } => host_tools::host_tool_verify(*strict),
+        ReleaseAction::HostToolVerify { strict } => crate::utils::validation::doctor::host_tool_verify_report(*strict),
         ReleaseAction::PolicyGuard { strict } => diagnostics::critical_policy_guard(*strict),
         ReleaseAction::WarningAudit { strict, from_file } => {
             diagnostics::warning_audit(*strict, from_file.as_deref())

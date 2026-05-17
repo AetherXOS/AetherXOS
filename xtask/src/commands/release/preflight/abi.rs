@@ -6,7 +6,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AbiConstEntry {
@@ -45,11 +46,11 @@ pub struct AbiDriftReport {
 
 pub fn abi_drift_report(baseline: Option<&str>, strict: bool) -> Result<()> {
     println!("[release::abi-drift] Building ABI drift report");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
     let baseline_rel = baseline.unwrap_or(config::repo_paths::ABI_DRIFT_BASELINE_JSON);
     let baseline_path = root.join(baseline_rel);
 
-    let current = collect_abi_snapshot(&root)?;
+    let current = collect_abi_snapshot(root)?;
 
     let baseline_exists = baseline_path.exists();
     if !baseline_exists {

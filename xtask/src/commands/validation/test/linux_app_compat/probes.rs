@@ -1,4 +1,4 @@
-use crate::utils::paths;
+use crate::utils::fs::paths::LAYOUT;
 
 use super::helpers::{command_exists, count_occurrences, file_contains, file_contains_all};
 use super::probe_output::{
@@ -21,44 +21,44 @@ pub(super) fn run_runtime_probes(
     let require_package_stack = opts.require_package_stack;
     let require_desktop_app_stack = opts.require_desktop_app_stack || desktop_smoke;
 
-    let root = paths::repo_root();
-    let wayland_mod = paths::kernel_src("modules/userspace_graphics/wayland/mod.rs");
-    let wayland_proto = paths::kernel_src("modules/userspace_graphics/wayland/protocol.rs");
-    let x11_mod = paths::kernel_src("modules/userspace_graphics/x11/mod.rs");
-    let x11_proto = paths::kernel_src("modules/userspace_graphics/x11/protocol.rs");
-    let vfs_mod = paths::kernel_src("modules/vfs/mod.rs");
-    let linux_mount_setup = paths::kernel_src("modules/vfs/linux_mount_setup.rs");
-    let mount_table = paths::kernel_src("modules/vfs/mount_table.rs");
-    let disk_fs = paths::kernel_src("modules/vfs/disk_fs.rs");
-    let writeback = paths::kernel_src("modules/vfs/writeback.rs");
-    let writeback_tests = paths::kernel_src("modules/vfs/writeback/tests.rs");
+    let root = &LAYOUT.root;
+    let wayland_mod = root.join("modules/userspace_graphics/wayland/mod.rs");
+    let wayland_proto = root.join("modules/userspace_graphics/wayland/protocol.rs");
+    let x11_mod = root.join("modules/userspace_graphics/x11/mod.rs");
+    let x11_proto = root.join("modules/userspace_graphics/x11/protocol.rs");
+    let vfs_mod = root.join("modules/vfs/mod.rs");
+    let linux_mount_setup = root.join("modules/vfs/linux_mount_setup.rs");
+    let mount_table = root.join("modules/vfs/mount_table.rs");
+    let disk_fs = root.join("modules/vfs/disk_fs.rs");
+    let writeback = root.join("modules/vfs/writeback.rs");
+    let writeback_tests = root.join("modules/vfs/writeback/tests.rs");
     let diskfs_bootstrap = root.join("boot/initramfs/usr/bin/aethercore-diskfs-setup");
     let pivot_root_setup = root.join("boot/initramfs/usr/bin/aethercore-pivot-root");
     let userspace_seed = root.join("xtask/src/commands/infra/userspace_seed.rs");
     let apt_seed = root.join("xtask/src/commands/infra/apt_binary_seed.rs");
-    let syscall_consts = paths::kernel_src("kernel/syscalls/syscalls_consts.rs");
-    let syscall_dispatch = paths::kernel_src("kernel/syscalls/mod.rs");
-    let dynamic_linker = paths::kernel_src("kernel/dynamic_linker.rs");
-    let dynamic_linker_entry = paths::kernel_src("kernel/dynamic_linker_entry.rs");
-    let dynamic_linker_helpers = paths::kernel_src("kernel/dynamic_linker_helpers.rs");
-    let so_loader_load = paths::kernel_src("kernel/so_loader/load.rs");
-    let so_loader_mod = paths::kernel_src("kernel/so_loader/mod.rs");
-    let dl_api = paths::kernel_src("kernel/api.rs");
-    let vfs_health = paths::kernel_src("modules/vfs/health.rs");
-    let network_metrics_snapshot = paths::kernel_src("modules/network/metrics_snapshot.rs");
-    let syscall_stats_api = paths::kernel_src("kernel/syscalls/stats_api.rs");
-    let gpu_mod = paths::kernel_src("modules/drivers/gpu/mod.rs");
-    let gpu_tests = paths::kernel_src("modules/drivers/gpu/tests.rs");
-    let linux_shim_dispatch = paths::kernel_src("kernel/syscalls/linux_shim/dispatch.rs");
-    let linux_compat_io = paths::kernel_src("modules/linux_compat/fs/io.rs");
-    let kernel_tests_mod = paths::kernel_src("kernel/tests/mod.rs");
+    let syscall_consts = root.join("kernel/syscalls/syscalls_consts.rs");
+    let syscall_dispatch = root.join("kernel/syscalls/mod.rs");
+    let dynamic_linker = root.join("kernel/dynamic_linker.rs");
+    let dynamic_linker_entry = root.join("kernel/dynamic_linker_entry.rs");
+    let dynamic_linker_helpers = root.join("kernel/dynamic_linker_helpers.rs");
+    let so_loader_load = root.join("kernel/so_loader/load.rs");
+    let so_loader_mod = root.join("kernel/so_loader/mod.rs");
+    let dl_api = root.join("kernel/api.rs");
+    let vfs_health = root.join("modules/vfs/health.rs");
+    let network_metrics_snapshot = root.join("modules/network/metrics_snapshot.rs");
+    let syscall_stats_api = root.join("kernel/syscalls/stats_api.rs");
+    let gpu_mod = root.join("modules/drivers/gpu/mod.rs");
+    let gpu_tests = root.join("modules/drivers/gpu/tests.rs");
+    let linux_shim_dispatch = root.join("kernel/syscalls/linux_shim/dispatch.rs");
+    let linux_compat_io = root.join("modules/linux_compat/fs/io.rs");
+    let kernel_tests_mod = root.join("kernel/tests/mod.rs");
     let linux_abi_platform = root.join("xtask/src/commands/validation/linux_abi/platform.rs");
     let linux_abi_desktop_plan =
         root.join("xtask/src/commands/validation/linux_abi/desktop_plan.rs");
     let linux_host_e2e_script = root.join("scripts/linux_host_e2e_proof.sh");
     let linux_host_e2e_doc = root.join("docs/LINUX_HOST_E2E_PROOF_PIPELINE.md");
     let gpu_ioctl_inventory = root.join("config/gpu_ioctl_coverage_p0.json");
-    let posix_lifecycle = paths::kernel_src("modules/posix/fs/lifecycle_support.rs");
+    let posix_lifecycle = root.join("modules/posix/fs/lifecycle_support.rs");
     let cargo_toml = root.join("Cargo.toml");
 
     let wayland_probe_ok = file_contains(&wayland_mod, "validate_client_handshake_prefix")
@@ -260,6 +260,7 @@ pub(super) fn run_runtime_probes(
                 "dt_needed",
                 "process_relocations",
                 "resolve_runtime_search_paths",
+                "starts_with('/')",
             ],
         ) && file_contains_all(
             &dynamic_linker_helpers,

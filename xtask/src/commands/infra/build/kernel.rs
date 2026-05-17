@@ -1,6 +1,7 @@
 use anyhow::{Result, Context};
 use crate::constants::{cargo as cargo_consts};
 use crate::utils::{logging};
+use crate::utils::fs::paths::LAYOUT;
 use aethercore_common::TargetArch;
 
 /// Compiles the kernel ELF payload for the explicitly defined target architecture.
@@ -35,8 +36,8 @@ pub fn build_kernel(arch: TargetArch, is_release: bool, features: aethercore_com
 
     // Run cargo from the `kernel` directory so kernel-local `.cargo/config.toml`
     // and other per-package config are applied when building the kernel.
-    let kernel_dir = std::path::Path::new("kernel");
-    crate::utils::cargo::cargo_in_dir(&args, kernel_dir)
+    let kernel_dir = LAYOUT.root.join("kernel");
+    crate::utils::cargo::cargo_in_dir(&args, &kernel_dir)
         .context("Platform cargo build invocation aborted")?;
     logging::info("kernel", "architecture compilation finalized", &[]);
     Ok(())

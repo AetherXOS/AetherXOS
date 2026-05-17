@@ -1,5 +1,6 @@
 use crate::constants;
-use crate::utils::{context, features, logging, net, paths, registry, ui};
+use crate::utils::{features, logging, net, registry, ui};
+use crate::utils::fs::paths::LAYOUT;
 use aethercore_common::TargetArch;
 use anyhow::{Result, bail};
 use std::fs;
@@ -57,13 +58,17 @@ pub fn build_distro_iso(
     // 4. Prepare staging directory
     let stage_dir = constants::paths::boot_image_stage_boot();
     let iso_root = stage_dir.parent().unwrap();
-    paths::ensure_dir(&stage_dir)?;
+    if !stage_dir.exists() {
+        fs::create_dir_all(&stage_dir)?;
+    }
 
     // 5. Download and Extract (Caching & Hashing)
-    let cache_dir = context::out_dir().join("guest_cache");
-    paths::ensure_dir(&cache_dir)?;
+    let cache_dir = LAYOUT.artifacts.join("guest_cache");
+    if !cache_dir.exists() {
+        fs::create_dir_all(&cache_dir)?;
+    }
 
-    let filename = url.split('/').last().unwrap_or("rootfs.tar.xz");
+    let filename = url.split('/').next_back().unwrap_or("rootfs.tar.xz");
     let target_archive = cache_dir.join(filename);
 
     let mut download_needed = !target_archive.exists();
@@ -296,7 +301,7 @@ pub fn build_distro_iso(
 
     // 6. Copy our kernel
     let target_triple = selected_arch.to_bare_metal_triple();
-    let kernel_src = paths::resolve(&format!("target/{}/debug/aethercore", target_triple));
+    let kernel_src = LAYOUT.target.join(target_triple).join("debug/aethercore");
     
     logging::info("distro-iso", "validating kernel ELF integrity", &[("path", &kernel_src.to_string_lossy())]);
     crate::utils::elf::validate_elf(&kernel_src)?;
@@ -304,8 +309,11 @@ pub fn build_distro_iso(
     fs::copy(&kernel_src, stage_dir.join("aethercore.elf"))?;
 
     // 7. Copy Limine binaries — with self-healing auto-fetch
-    let limine_bin_dir = paths::resolve("artifacts/limine/bin");
-    paths::ensure_dir(&iso_root.join("EFI/BOOT"))?;
+    let limine_bin_dir = LAYOUT.artifacts.join("limine/bin");
+    let efi_boot_dir = iso_root.join("EFI/BOOT");
+    if !efi_boot_dir.exists() {
+        fs::create_dir_all(&efi_boot_dir)?;
+    }
 
     ensure_limine_binaries(&limine_bin_dir)?;
 
@@ -314,7 +322,7 @@ pub fn build_distro_iso(
     fs::copy(limine_bin_dir.join("limine-bios-cd.bin"), stage_dir.join("limine-bios-cd.bin"))?;
     fs::copy(&bios_sys, stage_dir.join("limine-bios.sys"))?;
     fs::copy(limine_bin_dir.join("limine-uefi-cd.bin"), stage_dir.join("limine-uefi-cd.bin"))?;
-    fs::copy(limine_bin_dir.join("BOOTX64.EFI"), iso_root.join("EFI/BOOT/BOOTX64.EFI"))?;
+    fs::copy(limine_bin_dir.join("BOOTX64.EFI"), efi_boot_dir.join("BOOTX64.EFI"))?;
 
     // Also mirror limine-bios.sys to ISO root for BIOS boot compatibility
     fs::copy(&bios_sys, iso_root.join("limine-bios.sys"))?;
@@ -322,7 +330,7 @@ pub fn build_distro_iso(
     // 8. Build Initramfs (Interactive)
     let mut final_initrd = None;
     if ui::confirm("Include AetherXOS Initramfs (initrd)?", true)? {
-        let initramfs_src = paths::resolve("artifacts/initramfs_root");
+        let initramfs_src = LAYOUT.artifacts.join("initramfs_root");
         let initramfs_dst = stage_dir.join("initramfs.cpio.gz");
         let initrd_dst = stage_dir.join("initrd.cpio.gz");
         if initramfs_src.exists() {
@@ -357,7 +365,7 @@ pub fn build_distro_iso(
     // Copy limine.conf to root as well for backup
     fs::copy(stage_dir.join("limine.conf"), iso_root.join("limine.conf"))?;
 
-    let out_iso = context::out_dir().join(format!("aetherxos-{}-{}.iso", selected_distro, selected_var));
+    let out_iso = LAYOUT.artifacts.join(format!("aetherxos-{}-{}.iso", selected_distro, selected_var));
     crate::commands::infra::iso::finalize_iso_from_root(iso_root, &out_iso)?;
 
     logging::ready(
@@ -463,7 +471,7 @@ fn resolve_distro_interactively(
             } else {
                 let choice =
                     ui::select(&format!("Select {} Architecture", selected_distro), &keys)?;
-                TargetArch::from_str(&choice)
+                TargetArch::from_str(choice)
                     .map_err(|_| anyhow::anyhow!("Invalid arch selected: {}", choice))?
             }
         }

@@ -3,7 +3,8 @@ use std::fs;
 use std::path::Path;
 use crate::cli::{Bootloader, ImageFormat};
 use crate::constants;
-use crate::utils::{logging, paths, context, process, fs as fs_utils};
+use crate::utils::{logging, process, fs as fs_utils};
+use crate::utils::fs::paths::LAYOUT;
 use aethercore_common::TargetArch;
 
 use super::rootfs;
@@ -18,12 +19,14 @@ pub fn bundle_image(
     external_rootfs: Option<&Path>,
 ) -> Result<()> {
     let stage_dir = constants::paths::boot_image_stage_boot();
-    paths::ensure_dir(&stage_dir)?;
+    if !stage_dir.exists() {
+        fs::create_dir_all(&stage_dir)?;
+    }
     let target_triple = arch.to_bare_metal_triple();
 
     // Abstracted stage kernel artifact path
-    let kernel_src = paths::resolve(&format!("target/{}/debug/aethercore", target_triple));
-    let kernel_src_release = paths::resolve(&format!("target/{}/release/aethercore", target_triple));
+    let kernel_src = LAYOUT.target.join(target_triple).join("debug/aethercore");
+    let kernel_src_release = LAYOUT.target.join(target_triple).join("release/aethercore");
 
     let active_kernel = if kernel_src_release.exists() {
         &kernel_src_release
@@ -42,9 +45,13 @@ pub fn bundle_image(
     if let Some(rootfs_path) = external_rootfs {
         let target_root = stage_dir.join("var/lib/hypercore/rootfs");
         if let Some(parent) = target_root.parent() {
-            paths::ensure_dir(parent)?;
+            if !parent.exists() {
+                fs::create_dir_all(parent)?;
+            }
         }
-        paths::ensure_dir(&target_root)?;
+        if !target_root.exists() {
+            fs::create_dir_all(&target_root)?;
+        }
 
         if rootfs_path.exists() {
             if rootfs_path.is_dir() {
@@ -62,7 +69,7 @@ pub fn bundle_image(
     if let Some(rootfs_path) = external_rootfs {
         if rootfs_path.is_dir() {
             let src_dir = stage_dir.join("var/lib/hypercore/rootfs");
-            let output_img = context::out_dir().join("aethercore-rootfs.img");
+            let output_img = LAYOUT.artifacts.join("aethercore-rootfs.img");
             match raw_disk::create_partitioned_raw_image_from_dir(&src_dir, &output_img) {
                 Ok(_) => logging::ready("image", "partitioned rootfs disk image created", &output_img.to_string_lossy(), &[]),
                 Err(e) => logging::warn("image", "failed to produce partitioned rootfs image; skipping", &[("error", &e.to_string())]),
@@ -92,7 +99,7 @@ pub fn bundle_image(
     }
 
     // Final image assembly
-    let cli_outdir = context::out_dir();
+    let cli_outdir = &LAYOUT.artifacts;
     match format {
         ImageFormat::Iso => {
             let iso_out = cli_outdir.join("aethercore.iso");

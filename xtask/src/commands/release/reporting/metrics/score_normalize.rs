@@ -8,11 +8,12 @@ use super::helpers::{
 use crate::commands::release::preflight::ci_bundle;
 use crate::commands::release::preflight::models::ScoreNormalizeDoc;
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 pub(crate) fn execute(strict: bool) -> Result<()> {
     println!("[release::score-normalize] Normalizing gate score for host drift-aware comparison");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     ci_bundle(false)?;
     let ci_path = root.join(config::repo_paths::CI_BUNDLE_JSON);

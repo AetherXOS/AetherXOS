@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, bail, Context};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -6,7 +6,6 @@ use std::path::Path;
 
 use crate::cli::AbSlotAction;
 use crate::constants;
-use crate::utils::paths;
 use crate::utils::report;
 
 /// Entry point for `cargo run -p xtask -- ab-slot <action>`.
@@ -104,7 +103,11 @@ fn load_state() -> Result<SlotState> {
 
 fn save_state(state: &SlotState) -> Result<()> {
     let p = state_path();
-    paths::ensure_dir(p.parent().unwrap())?;
+    if let Some(parent) = p.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent).context("failed creating ab-slot state directory")?;
+        }
+    }
     let json = serde_json::to_string_pretty(state)?;
     fs::write(&p, json)?;
     Ok(())
@@ -147,7 +150,9 @@ fn stage(slot: &str) -> Result<()> {
     let mut state = load_state()?;
     let ab_root = constants::paths::boot_ab_root();
     let slot_boot = ab_root.join("slots").join(slot).join("boot");
-    paths::ensure_dir(&slot_boot)?;
+    if !slot_boot.exists() {
+        fs::create_dir_all(&slot_boot).context("failed creating slot boot directory")?;
+    }
 
     // Copy current build artifacts to slot
     let kernel_src = constants::paths::boot_image_stage_kernel();
@@ -240,7 +245,9 @@ fn recovery_gate() -> Result<()> {
 
     let soak_path = constants::paths::qemu_soak_root().join("summary.json");
     let out_dir = constants::paths::reports_ab_boot_recovery_gate();
-    paths::ensure_dir(&out_dir)?;
+    if !out_dir.exists() {
+        fs::create_dir_all(&out_dir).context("failed creating ab-boot recovery gate report directory")?;
+    }
 
     if !soak_path.exists() {
         let summary = serde_json::json!({ "ok": false, "reason": "soak summary not found" });

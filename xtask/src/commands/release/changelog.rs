@@ -1,6 +1,7 @@
 use anyhow::{Result, Context};
 use std::process::Command;
 use crate::utils::logging;
+use crate::utils::fs::paths::LAYOUT;
 
 pub fn generate_changelog(since_tag: Option<&str>) -> Result<String> {
     logging::status("RELEASE", "Extracting git commit history for changelog...");
@@ -25,7 +26,7 @@ pub fn generate_changelog(since_tag: Option<&str>) -> Result<String> {
 }
 
 pub fn save_changelog(content: &str) -> Result<()> {
-    let path = crate::utils::paths::repo_root().join("CHANGELOG_DRAFT.md");
+    let path = LAYOUT.root.join("CHANGELOG_DRAFT.md");
     std::fs::write(&path, content)?;
     logging::success("RELEASE", &format!("Changelog draft saved to {}", path.display()), &[]);
     Ok(())

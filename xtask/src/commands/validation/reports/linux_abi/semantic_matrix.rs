@@ -4,7 +4,8 @@ use serde::Serialize;
 use crate::commands::validation::linux_abi::refresh_shim_errno_conformance_report;
 use crate::commands::validation::syscall_coverage;
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use super::helpers::{
     SyscallCoverageRow, SyscallFamilyTier, compute_family_tiers, read_json, read_syscall_rows,
@@ -41,7 +42,7 @@ pub(crate) struct UnsupportedSyscallEntry {
 }
 
 pub(crate) fn execute() -> Result<()> {
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
     refresh_shim_errno_conformance_report()?;
 
     let rows_path = root.join(config::repo_paths::LINUX_ABI_SYSCALL_COVERAGE_ROWS_JSON);

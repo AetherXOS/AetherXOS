@@ -2,8 +2,7 @@
 //! Keeps paths, defaults, and tool names in one place so command modules stay thin.
 
 use std::path::PathBuf;
-
-use crate::utils::paths as fs_paths;
+use crate::utils::fs::paths::LAYOUT;
 
 /// Cargo-related constants.
 
@@ -107,115 +106,115 @@ pub mod paths {
     pub const SECUREBOOT_ROOT: &str = "artifacts/secureboot";
 
     pub fn artifact_dir() -> PathBuf {
-        fs_paths::resolve(ARTIFACTS_DIR)
+        LAYOUT.root.join(ARTIFACTS_DIR)
     }
 
     pub fn boot_initramfs_src() -> PathBuf {
-        fs_paths::resolve(BOOT_INITRAMFS_SRC)
+        LAYOUT.root.join(BOOT_INITRAMFS_SRC)
     }
 
     pub fn boot_image_stage_boot() -> PathBuf {
-        fs_paths::resolve(BOOT_IMAGE_STAGE_BOOT)
+        LAYOUT.root.join(BOOT_IMAGE_STAGE_BOOT)
     }
 
     pub fn boot_image_stage_kernel() -> PathBuf {
-        fs_paths::resolve(BOOT_IMAGE_STAGE_KERNEL)
+        LAYOUT.root.join(BOOT_IMAGE_STAGE_KERNEL)
     }
 
     pub fn boot_image_stage_initramfs() -> PathBuf {
-        fs_paths::resolve(BOOT_IMAGE_STAGE_INITRAMFS)
+        LAYOUT.root.join(BOOT_IMAGE_STAGE_INITRAMFS)
     }
 
     pub fn boot_image_stage_limine() -> PathBuf {
-        fs_paths::resolve(BOOT_IMAGE_STAGE_LIMINE)
+        LAYOUT.root.join(BOOT_IMAGE_STAGE_LIMINE)
     }
 
     pub fn boot_ab_root() -> PathBuf {
-        fs_paths::resolve(BOOT_AB_ROOT)
+        LAYOUT.root.join(BOOT_AB_ROOT)
     }
 
     pub fn boot_ab_state() -> PathBuf {
-        fs_paths::resolve(BOOT_AB_STATE)
+        LAYOUT.root.join(BOOT_AB_STATE)
     }
 
     pub fn boot_image_iso_root() -> PathBuf {
-        fs_paths::resolve(BOOT_IMAGE_ISO_ROOT)
+        LAYOUT.root.join(BOOT_IMAGE_ISO_ROOT)
     }
 
     pub fn dashboard_dir() -> PathBuf {
-        fs_paths::resolve(DASHBOARD_DIR)
+        LAYOUT.root.join(DASHBOARD_DIR)
     }
 
     pub fn host_tools_bin() -> PathBuf {
-        fs_paths::resolve(HOST_TOOLS_BIN)
+        LAYOUT.root.join(HOST_TOOLS_BIN)
     }
 
     pub fn limine_bin_dir() -> PathBuf {
-        fs_paths::resolve(LIMINE_BIN_DIR)
+        LAYOUT.root.join(LIMINE_BIN_DIR)
     }
 
     pub fn crash_logs_dir() -> PathBuf {
-        fs_paths::resolve(CRASH_LOGS_DIR)
+        LAYOUT.root.join(CRASH_LOGS_DIR)
     }
 
     pub fn crash_reports_dir() -> PathBuf {
-        fs_paths::resolve(CRASH_REPORTS_DIR)
+        LAYOUT.root.join(CRASH_REPORTS_DIR)
     }
 
     pub fn kernel_refactor_audit_dir() -> PathBuf {
-        fs_paths::resolve(KERNEL_REFACTOR_AUDIT_DIR)
+        LAYOUT.root.join(KERNEL_REFACTOR_AUDIT_DIR)
     }
 
     pub fn qemu_smoke_log() -> PathBuf {
-        fs_paths::resolve(QEMU_SMOKE_LOG)
+        LAYOUT.root.join(QEMU_SMOKE_LOG)
     }
 
     pub fn qemu_smoke_junit() -> PathBuf {
-        fs_paths::resolve(QEMU_SMOKE_JUNIT)
+        LAYOUT.root.join(QEMU_SMOKE_JUNIT)
     }
 
     pub fn qemu_smoke_json() -> PathBuf {
-        fs_paths::resolve(QEMU_SMOKE_JSON)
+        LAYOUT.root.join(QEMU_SMOKE_JSON)
     }
 
     pub fn qemu_soak_root() -> PathBuf {
-        fs_paths::resolve(QEMU_SOAK_ROOT)
+        LAYOUT.root.join(QEMU_SOAK_ROOT)
     }
 
     pub fn reports_ab_boot_recovery_gate() -> PathBuf {
-        fs_paths::resolve(REPORTS_AB_BOOT_RECOVERY_GATE)
+        LAYOUT.root.join(REPORTS_AB_BOOT_RECOVERY_GATE)
     }
 
     pub fn syscall_coverage_summary() -> PathBuf {
-        fs_paths::resolve(SYSCALL_COVERAGE_SUMMARY)
+        LAYOUT.root.join(SYSCALL_COVERAGE_SUMMARY)
     }
 
     pub fn secureboot_signed_dir() -> PathBuf {
-        fs_paths::resolve(SECUREBOOT_SIGNED_DIR)
+        LAYOUT.root.join(SECUREBOOT_SIGNED_DIR)
     }
 
     pub fn secureboot_sign_report() -> PathBuf {
-        fs_paths::resolve(SECUREBOOT_SIGN_REPORT)
+        LAYOUT.root.join(SECUREBOOT_SIGN_REPORT)
     }
 
     pub fn secureboot_sbat_report() -> PathBuf {
-        fs_paths::resolve(SECUREBOOT_SBAT_REPORT)
+        LAYOUT.root.join(SECUREBOOT_SBAT_REPORT)
     }
 
     pub fn secureboot_pcr_report() -> PathBuf {
-        fs_paths::resolve(SECUREBOOT_PCR_REPORT)
+        LAYOUT.root.join(SECUREBOOT_PCR_REPORT)
     }
 
     pub fn secureboot_ovmf_matrix_dir() -> PathBuf {
-        fs_paths::resolve(SECUREBOOT_OVMF_MATRIX_DIR)
+        LAYOUT.root.join(SECUREBOOT_OVMF_MATRIX_DIR)
     }
 
     pub fn ovmf_dir() -> PathBuf {
-        fs_paths::resolve(OVMF_DIR)
+        LAYOUT.root.join(OVMF_DIR)
     }
 
     pub fn secureboot_root() -> PathBuf {
-        fs_paths::resolve(SECUREBOOT_ROOT)
+        LAYOUT.root.join(SECUREBOOT_ROOT)
     }
 }
 

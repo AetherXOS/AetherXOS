@@ -4,6 +4,7 @@ use crate::commands::validation;
 use crate::constants;
 use crate::utils::process;
 use anyhow::{Context, Result, bail};
+use std::fs;
 
 pub fn execute(action: &SecurebootAction) -> Result<()> {
     match action {
@@ -52,7 +53,9 @@ fn execute_sign() -> Result<()> {
         println!(
             "[secureboot::sign] MOK cryptographic identities not detected on host. Automating key generation locally..."
         );
-        crate::utils::paths::ensure_dir(&secureboot_root)?;
+        if !secureboot_root.exists() {
+            fs::create_dir_all(&secureboot_root).context("failed creating secureboot directory")?;
+        }
 
         let key_args = openssl_mok_args(&key_path.to_string_lossy(), &cert_path.to_string_lossy());
         if !process::run_best_effort(

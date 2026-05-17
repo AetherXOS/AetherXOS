@@ -1,6 +1,7 @@
 use anyhow::{Result, Context};
 use std::path::{Path, PathBuf};
-use crate::utils::{paths, logging};
+use crate::utils::logging;
+use std::fs;
 
 #[derive(Clone)]
 pub struct StagingArea {
@@ -9,7 +10,7 @@ pub struct StagingArea {
 
 impl StagingArea {
     pub fn new(root: PathBuf) -> Result<Self> {
-        paths::ensure_dir(&root)?;
+        fs::create_dir_all(&root)?;
         Ok(Self { root })
     }
 
@@ -21,7 +22,7 @@ impl StagingArea {
             // We'll try a few times before giving up.
             let mut retries = 3;
             while retries > 0 {
-                if let Err(e) = std::fs::remove_dir_all(&self.root) {
+                if let Err(e) = fs::remove_dir_all(&self.root) {
                     if retries == 1 {
                         return Err(e).context(format!("Failed to clear staging area at {}", self.root.display()));
                     }
@@ -31,7 +32,7 @@ impl StagingArea {
                     break;
                 }
             }
-            paths::ensure_dir(&self.root)?;
+            fs::create_dir_all(&self.root)?;
         }
         Ok(())
     }
@@ -39,18 +40,18 @@ impl StagingArea {
     pub fn copy_file(&self, src: &Path, rel_dest: &str) -> Result<PathBuf> {
         let dest = self.root.join(rel_dest);
         if let Some(parent) = dest.parent() {
-            paths::ensure_dir(parent)?;
+            fs::create_dir_all(parent)?;
         }
-        std::fs::copy(src, &dest)?;
+        fs::copy(src, &dest)?;
         Ok(dest)
     }
 
     pub fn write_file(&self, rel_dest: &str, content: &[u8]) -> Result<PathBuf> {
         let dest = self.root.join(rel_dest);
         if let Some(parent) = dest.parent() {
-            paths::ensure_dir(parent)?;
+            fs::create_dir_all(parent)?;
         }
-        std::fs::write(&dest, content)?;
+        fs::write(&dest, content)?;
         Ok(dest)
     }
 }

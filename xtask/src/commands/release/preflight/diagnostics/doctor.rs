@@ -3,15 +3,16 @@ use serde_json::Value;
 use std::fs;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use crate::commands::release::preflight::models::{BundleCheck, DoctorReport};
 
 pub fn execute(strict: bool) -> Result<()> {
     println!("[release::doctor] Running release doctor checks");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
-    crate::commands::release::preflight::host_tools::host_tool_verify(false)?;
+    crate::utils::validation::doctor::host_tool_verify_report(false)?;
     super::policy_guard::execute(false)?;
     super::warning_audit::execute(false, None)?;
     super::release::execute(false)?;

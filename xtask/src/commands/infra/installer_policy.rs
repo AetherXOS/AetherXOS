@@ -1,6 +1,7 @@
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use crate::utils::fs::paths::LAYOUT;
 
 const POLICY_CATALOG_PATH: &str = "artifacts/tooling/installer/policies.json";
 
@@ -41,7 +42,7 @@ pub fn resolve_policy(profile: &str) -> Result<InstallerPolicy> {
 }
 
 fn load_policy_catalog() -> Result<InstallerPolicyCatalog> {
-    let path = crate::utils::paths::resolve(POLICY_CATALOG_PATH);
+    let path = LAYOUT.root.join(POLICY_CATALOG_PATH);
     let raw = fs::read_to_string(&path)
         .map_err(|e| anyhow::anyhow!("failed to read {}: {}", path.display(), e))?;
     let catalog: InstallerPolicyCatalog = serde_json::from_str(&raw)

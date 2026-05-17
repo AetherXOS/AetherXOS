@@ -2,13 +2,14 @@ use anyhow::{Context, Result, bail};
 use std::fs;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use crate::commands::release::preflight::models::{WarningAuditHit, WarningAuditReport};
 
 pub fn execute(strict: bool, from_file: Option<&str>) -> Result<()> {
     println!("[release::warning-audit] Auditing warning lines for critical kernel paths");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     let mut logs = Vec::new();
     if let Some(path) = from_file {
@@ -42,7 +43,7 @@ pub fn execute(strict: bool, from_file: Option<&str>) -> Result<()> {
             if critical_paths.iter().any(|path| lower.contains(path)) {
                 hits.push(WarningAuditHit {
                     source_file: log
-                        .strip_prefix(&root)
+                        .strip_prefix(root)
                         .unwrap_or(log.as_path())
                         .to_string_lossy()
                         .replace('\\', "/"),

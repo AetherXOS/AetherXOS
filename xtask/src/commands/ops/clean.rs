@@ -1,183 +1,110 @@
-use anyhow::{Result, Context};
+use anyhow::Result;
 use std::fs;
 use crate::utils::logging;
 use crate::engine::operations::Op;
 use crate::utils::sys::process::Executor;
-use crate::utils::fs::stats::{self, DirStats};
+use crate::utils::fs::stats::{self, DirStats, ScanOrchestrator};
+use crate::utils::fs::paths::LAYOUT;
 
+/// Purge build artifacts, staging areas, and logs.
+/// 
+/// If `all` is true, also runs `cargo clean`.
+/// If `distros` is true, also removes downloaded distro images.
 pub fn execute(all: bool, distros: bool, logs: bool, no_stats: bool, dry_run: bool) -> Result<()> {
     logging::info("clean", "Initiating system-wide purge sequence...", &[]);
 
     let mut total_stats = DirStats::new();
-    let mut stats_aborted = no_stats;
+    let orchestrator = ScanOrchestrator::new(3); // Total 3 second timeout for all scans
 
     if dry_run {
         logging::warn("clean", "DRY-RUN MODE: No files will be deleted", &[]);
     }
 
     if no_stats {
-        logging::info("clean", "Stats calculation skipped by user request", &[]);
+        logging::info("clean", "Stats calculation disabled for this run", &[]);
     }
 
-    // 1. Core Artifacts
-    let artifacts = crate::utils::paths::repo_root().join("artifacts");
-    if artifacts.exists() {
-        let mut s = DirStats::new();
-        if !stats_aborted {
-            s = stats::get_dir_stats(&artifacts);
-            if s.interrupted { stats_aborted = true; }
-            total_stats.merge(&s);
-        }
-        
-        if dry_run {
-            let fields = if !stats_aborted {
-                vec![
-                    ("path".to_string(), artifacts.to_string_lossy().to_string()),
-                    ("files".to_string(), s.file_count.to_string()),
-                    ("size".to_string(), s.format_size()),
-                ]
-            } else {
-                vec![("path".to_string(), artifacts.to_string_lossy().to_string())]
-            };
-            let field_refs: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
-            logging::info("clean", "[DRY-RUN] Would remove artifacts directory", &field_refs);
-        } else {
-            if !stats_aborted {
-                logging::info("clean", "Purging artifacts...", &[("size", &s.format_size())]);
-            } else {
-                logging::info("clean", "Purging artifacts...", &[]);
-            }
-            Op::clean_dir(&artifacts, "CLEAN")?;
-        }
-    }
+    // Define targets based on centralized LAYOUT
+    let targets = vec![
+        ("Artifacts", &LAYOUT.artifacts, true),
+        ("Staging", &LAYOUT.staging, true),
+        ("Distros", &LAYOUT.distros, distros || all), // Distros included if 'all' or explicit
+    ];
 
-    // 2. Staging Areas
-    let staging = crate::utils::paths::repo_root().join("staging");
-    if staging.exists() {
-        let mut s = DirStats::new();
-        if !stats_aborted {
-            s = stats::get_dir_stats(&staging);
-            if s.interrupted { stats_aborted = true; }
+    for (name, path, enabled) in targets {
+        if !enabled || !path.exists() { continue; }
+
+        if !no_stats && !total_stats.interrupted {
+            let s = orchestrator.scan(path);
             total_stats.merge(&s);
         }
 
         if dry_run {
-            let fields = if !stats_aborted {
-                vec![
-                    ("path".to_string(), staging.to_string_lossy().to_string()),
-                    ("files".to_string(), s.file_count.to_string()),
-                    ("size".to_string(), s.format_size()),
-                ]
-            } else {
-                vec![("path".to_string(), staging.to_string_lossy().to_string())]
-            };
-            let field_refs: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
-            logging::info("clean", "[DRY-RUN] Would remove staging directory", &field_refs);
+            logging::info("clean", &format!("[DRY-RUN] Would remove {} directory", name), &[
+                ("path", &path.to_string_lossy()),
+            ]);
         } else {
-            if !stats_aborted {
-                logging::info("clean", "Purging staging area...", &[("size", &s.format_size())]);
-            } else {
-                logging::info("clean", "Purging staging area...", &[]);
-            }
-            Op::clean_dir(&staging, "CLEAN")?;
-        }
-    }
-
-    // 3. Optional: Distros
-    if distros {
-        let distros = crate::utils::paths::repo_root().join("distros");
-        if distros.exists() {
-            let mut s = DirStats::new();
-            if !stats_aborted {
-                s = stats::get_dir_stats(&distros);
-                if s.interrupted { stats_aborted = true; }
-                total_stats.merge(&s);
-            }
-
-            if dry_run {
-                let fields = if !stats_aborted {
-                    vec![
-                        ("path".to_string(), distros.to_string_lossy().to_string()),
-                        ("files".to_string(), s.file_count.to_string()),
-                        ("size".to_string(), s.format_size()),
-                    ]
-                } else {
-                    vec![("path".to_string(), distros.to_string_lossy().to_string())]
-                };
-                let field_refs: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
-                logging::info("clean", "[DRY-RUN] Would remove distros directory", &field_refs);
-            } else {
-                if !stats_aborted {
-                    logging::info("clean", "Purging distro rootfs and ISO images...", &[("size", &s.format_size())]);
-                } else {
-                    logging::info("clean", "Purging distro rootfs and ISO images...", &[]);
+            logging::info("clean", &format!("Purging {}...", name), &[]);
+            
+            if name == "Distros" {
+                // We keep the directory but clear contents to avoid structure break
+                if let Ok(entries) = fs::read_dir(path) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if p.is_dir() {
+                            let _ = fs::remove_dir_all(p);
+                        } else {
+                            let _ = fs::remove_file(p);
+                        }
+                    }
                 }
-                fs::remove_dir_all(&distros).context("Failed to remove distros directory")?;
-                fs::create_dir_all(&distros).context("Failed to re-create empty distros directory")?;
-            }
-        }
-    }
-
-    // 4. Optional: Logs
-    if logs {
-        let log_file = crate::utils::paths::repo_root().join("xtask.log");
-        if log_file.exists() {
-            let mut s = DirStats::new();
-            if !stats_aborted {
-                s = stats::get_file_stats(&log_file);
-                total_stats.merge(&s);
-            }
-
-            if dry_run {
-                let fields = if !stats_aborted {
-                    vec![
-                        ("path".to_string(), log_file.to_string_lossy().to_string()),
-                        ("size".to_string(), s.format_size()),
-                    ]
-                } else {
-                    vec![("path".to_string(), log_file.to_string_lossy().to_string())]
-                };
-                let field_refs: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
-                logging::info("clean", "[DRY-RUN] Would remove xtask.log", &field_refs);
             } else {
-                if !stats_aborted {
-                    logging::info("clean", "Removing execution logs...", &[("size", &s.format_size())]);
-                } else {
-                    logging::info("clean", "Removing execution logs...", &[]);
-                }
-                fs::remove_file(&log_file).context("Failed to remove xtask.log")?;
+                Op::clean_dir(path, "CLEAN")?;
             }
         }
     }
 
-    // 5. Deep Clean: Cargo
+    // Handle Logs
+    if (logs || all) && LAYOUT.logs.exists() {
+        if !no_stats && !total_stats.interrupted {
+            let s = stats::get_file_stats(&LAYOUT.logs);
+            total_stats.merge(&s);
+        }
+
+        if dry_run {
+            logging::info("clean", "[DRY-RUN] Would remove execution log", &[("path", &LAYOUT.logs.to_string_lossy())]);
+        } else {
+            logging::info("clean", "Removing execution logs...", &[]);
+            let _ = fs::remove_file(&LAYOUT.logs);
+        }
+    }
+
+    // Deep Clean: Cargo
     if all {
         if dry_run {
-            logging::info("clean", "[DRY-RUN] Would run 'cargo clean' for all targets", &[]);
+            logging::info("clean", "[DRY-RUN] Would run 'cargo clean'", &[]);
         } else {
             logging::info("clean", "Running deep cargo clean...", &[]);
-            Executor::new("cargo").arg("clean").run()?;
+            let _ = Executor::new("cargo").arg("clean").run();
         }
     }
 
     if !dry_run {
         let mut fields = vec![];
-        if !stats_aborted {
-            fields.push(("total_files".to_string(), total_stats.file_count.to_string()));
-            fields.push(("space_reclaimed".to_string(), total_stats.format_size()));
-        } else {
-            fields.push(("stats".to_string(), "SKIPPED/INTERRUPTED".to_string()));
+        if !no_stats && !total_stats.interrupted {
+            fields.push(("files".to_string(), total_stats.file_count.to_string()));
+            fields.push(("reclaimed".to_string(), total_stats.format_size()));
+        } else if total_stats.interrupted {
+            fields.push(("stats".to_string(), "INTERRUPTED".to_string()));
         }
-        let fields_refs: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
 
+        let fields_refs: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
         logging::ready(
             "clean",
-            "System purge complete. All designated staging areas are neutralized.",
+            "System purge complete. Staging areas neutralized.",
             "SUCCESS",
             &fields_refs,
         );
-    } else {
-        logging::info("clean", "Dry-run analysis complete. No changes made.", &[]);
     }
 
     Ok(())

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::sync::RwLock;
-use crate::utils::core::context as app_ctx;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Clone)]
 pub struct ExecutionContext {
@@ -19,8 +19,8 @@ pub struct ExecutionContext {
 impl ExecutionContext {
     pub fn from_defaults() -> Self {
         Self {
-            repo_root: app_ctx::repo_root(),
-            out_dir: app_ctx::out_dir(),
+            repo_root: LAYOUT.root.clone(),
+            out_dir: LAYOUT.artifacts.clone(),
             is_release: false,
             arch: "x86_64".to_string(),
             features: Vec::new(),
@@ -34,8 +34,7 @@ impl ExecutionContext {
 
     pub fn resolve_target_binary(&self, _package: &str, bin: &str) -> PathBuf {
         let profile = if self.is_release { "release" } else { "debug" };
-        self.repo_root
-            .join("target")
+        LAYOUT.target
             .join(&self.arch)
             .join(profile)
             .join(bin)

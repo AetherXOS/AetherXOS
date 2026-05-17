@@ -2,17 +2,16 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 use std::fs;
 
-use crate::constants;
-use crate::utils::paths;
 use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use super::models::PcrReport;
 
 pub fn pcr_report() -> Result<()> {
     println!("[secureboot::pcr] Generating TPM PCR / event-log summary");
 
-    let event_log = paths::resolve("artifacts/tpm/eventlog.bin");
-    let report_path = constants::paths::secureboot_pcr_report();
+    let event_log = LAYOUT.artifacts.join("tpm/eventlog.bin");
+    let report_path = LAYOUT.root.join("reports/secureboot/pcr_report.json");
 
     let exists = event_log.exists();
     let (size, hash) = if exists {

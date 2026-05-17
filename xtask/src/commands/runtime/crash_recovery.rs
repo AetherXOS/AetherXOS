@@ -1,9 +1,8 @@
-use anyhow::Result;
+use anyhow::{Result, Context};
 use serde::Serialize;
 use std::fs;
 
 use crate::constants;
-use crate::utils::paths;
 use crate::utils::report;
 
 // ---------------------------------------------------------------------------
@@ -40,7 +39,9 @@ pub fn execute() -> Result<()> {
 
     let logs_dir = constants::paths::crash_logs_dir();
     let out_dir = constants::paths::crash_reports_dir();
-    paths::ensure_dir(&out_dir)?;
+    if !out_dir.exists() {
+        fs::create_dir_all(&out_dir).context("failed creating crash reports directory")?;
+    }
 
     if !logs_dir.exists() {
         let summary = CrashReport {

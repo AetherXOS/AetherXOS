@@ -1,7 +1,8 @@
 use anyhow::{Result, bail};
 use std::path::Path;
 use std::process::Command;
-use crate::utils::{process, logging, paths};
+use crate::utils::{process, logging};
+use crate::utils::fs::paths::LAYOUT;
 
 pub fn ensure_iso_tools() -> Result<()> {
     if process::which("xorriso") || process::which("mkisofs") || process::which("oscdimg") {
@@ -10,11 +11,11 @@ pub fn ensure_iso_tools() -> Result<()> {
     
     #[cfg(target_os = "windows")]
     {
-        let script = paths::resolve("scripts/ensure_iso_tools.ps1");
+        let script = LAYOUT.root.join("scripts/ensure_iso_tools.ps1");
         if script.exists() {
             logging::info("iso", "Installing ISO creation tools...", &[]);
             let output = Command::new("powershell")
-                .args(&["-ExecutionPolicy", "Bypass", "-File", script.to_string_lossy().as_ref()])
+                .args(["-ExecutionPolicy", "Bypass", "-File", script.to_string_lossy().as_ref()])
                 .output();
             
             if let Ok(output) = output {

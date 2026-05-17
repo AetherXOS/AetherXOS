@@ -46,7 +46,7 @@ impl Sentinel {
         } else {
             let _ = std::process::Command::new("kill")
                 .arg("-9")
-                .arg(&pid.to_string())
+                .arg(pid.to_string())
                 .status();
         }
     }

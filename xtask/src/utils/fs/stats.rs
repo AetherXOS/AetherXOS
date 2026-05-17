@@ -1,6 +1,6 @@
 use crate::utils::config;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -53,25 +53,33 @@ impl DirStats {
 
 /// Orchestrates the background scanning and user interaction.
 pub struct ScanOrchestrator {
-    path: PathBuf,
     timeout: Duration,
+    cumulative_start: Instant,
     stop_signal: Arc<AtomicBool>,
 }
 
 impl ScanOrchestrator {
-    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+    pub fn new(total_timeout_secs: u64) -> Self {
         Self {
-            path: path.as_ref().to_path_buf(),
-            timeout: Duration::from_secs(3),
+            timeout: Duration::from_secs(total_timeout_secs),
+            cumulative_start: Instant::now(),
             stop_signal: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    /// Executes the scan and handles potential interactive interruptions.
-    pub fn run(self) -> DirStats {
+    /// Executes a scan on a specific path, respecting the cumulative timeout.
+    pub fn scan<P: AsRef<Path>>(&self, path: P) -> DirStats {
+        let path = path.as_ref().to_path_buf();
         let (tx, rx) = unbounded();
         let stop_signal_worker = Arc::clone(&self.stop_signal);
-        let scan_path = self.path.clone();
+        let scan_path = path.clone();
+
+        // If already interrupted, just return empty
+        if self.stop_signal.load(Ordering::SeqCst) {
+            let mut s = DirStats::new();
+            s.interrupted = true;
+            return s;
+        }
 
         // Spawn worker thread for background scanning
         thread::spawn(move || {
@@ -79,18 +87,16 @@ impl ScanOrchestrator {
             let _ = tx.send(stats);
         });
 
-        let start = Instant::now();
-
         loop {
-            // Check if calculation finished
+            // 1. Check if calculation finished
             if let Ok(stats) = rx.try_recv() {
                 return stats;
             }
 
-            // Check if we hit the threshold
-            if start.elapsed() > self.timeout {
+            // 2. Check if we hit the cumulative threshold
+            if self.cumulative_start.elapsed() > self.timeout {
                 if config::is_non_interactive() {
-                    // In non-interactive mode, we just keep waiting
+                    // In non-interactive mode, we just wait (or we could skip if it's too long)
                     thread::sleep(Duration::from_millis(100));
                     continue;
                 } else {
@@ -104,7 +110,7 @@ impl ScanOrchestrator {
 
     /// Enters a non-blocking interactive loop to allow users to skip or wait.
     fn enter_interaction_gate(&self, rx: Receiver<DirStats>) -> DirStats {
-        let _ = write!(stdout(), "\r[WARN] Scan latency threshold exceeded. [S]kip or wait? ");
+        let _ = write!(stdout(), "\r[STATS] Calculation taking longer than expected. [S]kip or wait? ");
         let _ = stdout().flush();
 
         loop {
@@ -120,7 +126,8 @@ impl ScanOrchestrator {
                     match key.code {
                         KeyCode::Char('s') | KeyCode::Char('S') => {
                             self.stop_signal.store(true, Ordering::SeqCst);
-                            println!("\n[INFO] Scan aborted by user.");
+                            self.clear_gate_line();
+                            println!("[INFO] Stats calculation skipped by user.");
                             let mut stats = DirStats::new();
                             stats.interrupted = true;
                             return stats;
@@ -172,9 +179,10 @@ impl ScanOrchestrator {
     }
 }
 
-/// Facade function for external access.
+/// Facade for quick one-off stats (legacy compatibility)
 pub fn get_dir_stats<P: AsRef<Path>>(path: P) -> DirStats {
-    ScanOrchestrator::new(path).run()
+    let orchestrator = ScanOrchestrator::new(3);
+    orchestrator.scan(path)
 }
 
 pub fn get_file_stats<P: AsRef<Path>>(path: P) -> DirStats {

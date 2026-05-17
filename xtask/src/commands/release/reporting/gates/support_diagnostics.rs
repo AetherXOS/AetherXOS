@@ -5,7 +5,8 @@ use std::fs;
 
 use crate::commands::release::preflight;
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Serialize)]
 pub(crate) struct SupportCheck {
@@ -25,7 +26,7 @@ pub(crate) struct SupportDiagnosticsDoc {
 
 pub(crate) fn execute(strict: bool) -> Result<()> {
     println!("[release::support-diagnostics] Building support diagnostics bundle");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     preflight::release_doctor(false)?;
     super::gate_report::execute(None, false)?;

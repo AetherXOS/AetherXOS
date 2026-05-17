@@ -4,6 +4,9 @@ use std::sync::Mutex;
 use crate::utils::logging;
 use std::time::Duration;
 use once_cell::sync::Lazy;
+use std::fs;
+use std::io::Write;
+use crate::utils::fs::paths::LAYOUT;
 
 /// Central registry for build metrics and performance trends.
 static REGISTRY: Lazy<Mutex<TelemetryRegistry>> = Lazy::new(|| Mutex::new(TelemetryRegistry::default()));
@@ -37,15 +40,16 @@ impl Telemetry {
     }
 
     fn save_trend(name: &str, duration: Duration) -> Result<()> {
-        let path = crate::utils::paths::repo_root()
+        let path = LAYOUT.root
             .join(".xtask")
             .join("metrics")
             .join(format!("{}.trend", name));
             
-        crate::utils::paths::ensure_dir(&path.parent().unwrap())?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
         
-        use std::io::Write;
-        let mut f = std::fs::OpenOptions::new()
+        let mut f = fs::OpenOptions::new()
             .append(true)
             .create(true)
             .open(path)?;

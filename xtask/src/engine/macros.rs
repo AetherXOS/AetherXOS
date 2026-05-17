@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use crate::utils::logging;
 use crate::utils::sys::process::Executor;
 use crate::engine::{Task, TaskStatus, ExecutionContext};
+use crate::utils::fs::paths::LAYOUT;
 
 pub struct Macro {
     pub name: String,
@@ -29,7 +30,7 @@ pub fn record_macro(name: &str, commands: Vec<String>) -> Result<()> {
 }
 
 thread_local! {
-    static MACRO_DEPTH: std::cell::Cell<usize> = std::cell::Cell::new(0);
+    static MACRO_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 pub fn replay_macro(name: &str) -> Result<()> {
@@ -64,5 +65,5 @@ pub fn replay_macro(name: &str) -> Result<()> {
 }
 
 fn get_macro_path(name: &str) -> PathBuf {
-    crate::utils::paths::repo_root().join(".xtask").join("macros").join(format!("{}.macro", name))
+    LAYOUT.root.join(".xtask").join("macros").join(format!("{}.macro", name))
 }

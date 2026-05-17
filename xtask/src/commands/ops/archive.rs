@@ -3,8 +3,8 @@ use serde::Serialize;
 use std::fs;
 
 use crate::utils::logging;
-use crate::utils::paths;
 use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 /// Default source paths to archive from nightly runs.
 const SOURCE_PATHS: &[&str] = &[
@@ -35,9 +35,11 @@ pub fn execute(run_id: &Option<String>) -> Result<()> {
         .clone()
         .unwrap_or_else(|| chrono::Local::now().format("%Y%m%d_%H%M%S").to_string());
 
-    let archive_root = paths::resolve("artifacts/nightly_runs");
+    let archive_root = LAYOUT.root.join("artifacts/nightly_runs");
     let dest = archive_root.join(&id);
-    paths::ensure_dir(&dest)?;
+    if !dest.exists() {
+        fs::create_dir_all(&dest).context("failed creating archive directory")?;
+    }
 
     logging::info(
         "ops::archive",
@@ -49,7 +51,7 @@ pub fn execute(run_id: &Option<String>) -> Result<()> {
     let mut missing = Vec::new();
 
     for source in SOURCE_PATHS {
-        let src = paths::resolve(source);
+        let src = LAYOUT.root.join(source);
         if src.exists() {
             let leaf = src.file_name().unwrap().to_string_lossy().to_string();
             let dst = dest.join(&leaf);

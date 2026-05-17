@@ -1,7 +1,8 @@
 use anyhow::Result;
 use std::fs;
 use std::path::PathBuf;
-use crate::utils::{logging, paths};
+use crate::utils::logging;
+use crate::utils::fs::paths::LAYOUT;
 use inquire::{Select, Text};
 use serde::{Serialize, Deserialize};
 
@@ -67,7 +68,7 @@ fn load_named_profile() -> Result<()> {
 
     let files: Vec<String> = fs::read_dir(dir)?
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "toml"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
         .map(|e| e.file_name().to_string_lossy().into_owned())
         .collect();
 
@@ -94,9 +95,9 @@ fn reset_to_defaults() -> Result<()> {
 }
 
 fn get_active_config_path() -> Result<PathBuf> {
-    Ok(paths::repo_root().join("xtask").join("active_config.toml"))
+    Ok(LAYOUT.root.join("xtask").join("active_config.toml"))
 }
 
 fn get_profiles_dir() -> Result<PathBuf> {
-    Ok(paths::repo_root().join("xtask").join("profiles"))
+    Ok(LAYOUT.root.join("xtask").join("profiles"))
 }

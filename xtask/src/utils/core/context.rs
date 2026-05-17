@@ -1,9 +1,10 @@
 use anyhow::{Context, Result, bail};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use std::sync::OnceLock;
 
 use crate::constants::tools;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Debug)]
 pub struct AppContext {
@@ -15,10 +16,7 @@ pub struct AppContext {
 static APP_CONTEXT: OnceLock<AppContext> = OnceLock::new();
 
 pub fn init(outdir: PathBuf) -> Result<()> {
-    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("xtask must be nested one level under repo root")
-        .to_path_buf();
+    let repo_root = LAYOUT.root.clone();
     
     let outdir_abs = if outdir.is_absolute() {
         outdir
@@ -43,19 +41,14 @@ pub fn repo_root() -> PathBuf {
     APP_CONTEXT
         .get()
         .map(|ctx| ctx.repo_root.clone())
-        .unwrap_or_else(|| {
-            Path::new(env!("CARGO_MANIFEST_DIR"))
-                .parent()
-                .expect("xtask must be nested one level under repo root")
-                .to_path_buf()
-        })
+        .unwrap_or_else(|| LAYOUT.root.clone())
 }
 
 pub fn out_dir() -> PathBuf {
     APP_CONTEXT
         .get()
         .map(|ctx| ctx.outdir.clone())
-        .unwrap_or_else(|| repo_root().join("artifacts"))
+        .unwrap_or_else(|| LAYOUT.artifacts.clone())
 }
 
 pub fn host_target() -> Result<&'static str> {

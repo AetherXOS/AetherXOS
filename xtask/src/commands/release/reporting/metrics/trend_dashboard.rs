@@ -6,11 +6,12 @@ use super::helpers::render_trend_dashboard_md;
 use crate::commands::release::preflight::ci_bundle;
 use crate::commands::release::preflight::models::{TrendDashboardDoc, TrendPoint};
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 pub(crate) fn execute(limit: usize, strict: bool) -> Result<()> {
     println!("[release::trend-dashboard] Updating trend history and dashboard");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     ci_bundle(false)?;
     let ci_path = root.join(config::repo_paths::CI_BUNDLE_JSON);

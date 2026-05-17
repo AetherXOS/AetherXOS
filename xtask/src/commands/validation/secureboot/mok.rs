@@ -1,15 +1,15 @@
 use anyhow::Result;
+use std::fs;
 
-use crate::constants;
-use crate::utils::paths;
 use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 pub fn mok_plan() -> Result<()> {
     println!("[secureboot::mok] Generating MOK enrollment plan");
 
-    let cert = paths::resolve("keys/MOK.cer");
-    let out_dir = constants::paths::secureboot_root();
-    paths::ensure_dir(&out_dir)?;
+    let cert = LAYOUT.root.join("keys/MOK.cer");
+    let out_dir = LAYOUT.root.join("reports/secureboot");
+    fs::create_dir_all(&out_dir)?;
 
     let steps = [
         "1) Copy certificate to target machine.",

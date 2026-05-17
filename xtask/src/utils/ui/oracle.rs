@@ -9,7 +9,7 @@ pub struct Oracle;
 impl Oracle {
     /// Diagnose a build failure based on known error patterns.
     pub fn diagnose(error: &str) -> Option<&'static str> {
-        const PATTERNS: &[(&str, &'static str)] = &[
+        const PATTERNS: &[(&str, &str)] = &[
             ("rustc", "Toolchain missing or corrupted. Try: 'xtask setup --tools'"),
             ("qemu", "QEMU not found or version incompatible. Check your PATH."),
             ("lld", "Linker error: 'lld' missing. Required for bare-metal builds."),
@@ -38,16 +38,14 @@ impl Oracle {
         }
 
         match workflow {
-            "full_iso" => {
-                if Confirm::new("ISO Build Complete. Launch in QEMU?").prompt()? {
+            "full_iso"
+                if Confirm::new("ISO Build Complete. Launch in QEMU?").prompt()? => {
                     Self::dispatch("debug")?;
                 }
-            }
-            "kernel" => {
-                if Confirm::new("Kernel Ready. Run Safety Audit?").prompt()? {
+            "kernel"
+                if Confirm::new("Kernel Ready. Run Safety Audit?").prompt()? => {
                     Self::dispatch("audit")?;
                 }
-            }
             _ => {}
         }
 

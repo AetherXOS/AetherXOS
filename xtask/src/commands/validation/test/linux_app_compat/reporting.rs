@@ -1,6 +1,7 @@
 use anyhow::Result;
-
-use crate::utils::{paths, report};
+use std::fs;
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use super::models::{Layer, Scorecard};
 use super::profile::NormalizedOptions;
@@ -11,8 +12,8 @@ pub(super) fn write_reports(
     desktop_probes: serde_json::Map<String, serde_json::Value>,
     scorecard: &Scorecard,
 ) -> Result<()> {
-    let reports = paths::resolve("reports");
-    paths::ensure_dir(&reports)?;
+    let reports = LAYOUT.root.join("reports");
+    fs::create_dir_all(&reports)?;
     report::write_json_report(
         &reports.join("linux_app_compat_validation_scorecard.json"),
         scorecard,

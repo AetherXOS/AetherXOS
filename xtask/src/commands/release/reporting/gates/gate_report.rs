@@ -6,7 +6,8 @@ use std::fs;
 
 use crate::commands::release::preflight;
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Serialize)]
 pub(crate) struct GateReportDoc {
@@ -21,7 +22,7 @@ pub(crate) struct GateReportDoc {
 
 pub(crate) fn execute(prev: Option<&str>, strict: bool) -> Result<()> {
     println!("[release::gate-report] Generating CI gate delta report");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     preflight::ci_bundle(false)?;
     let current_path = root.join(config::repo_paths::CI_BUNDLE_JSON);

@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
+use crate::utils::fs::paths::LAYOUT;
 
 const PROFILE_CATALOG_PATH: &str = "artifacts/tooling/installer/profiles.json";
 const APP_TARGET_CATALOG_PATH: &str = "artifacts/tooling/installer/app_targets.json";
@@ -223,7 +224,7 @@ fn find_preset<'a>(
 }
 
 fn load_catalog_from_source() -> Result<InstallerPresetCatalog> {
-    let path = crate::utils::paths::resolve(PROFILE_CATALOG_PATH);
+    let path = LAYOUT.root.join(PROFILE_CATALOG_PATH);
     let raw = fs::read_to_string(&path)
         .map_err(|e| anyhow::anyhow!("failed to read {}: {}", path.display(), e))?;
     let catalog: InstallerPresetCatalog = serde_json::from_str(&raw)
@@ -233,7 +234,7 @@ fn load_catalog_from_source() -> Result<InstallerPresetCatalog> {
 }
 
 fn load_app_target_catalog_from_source() -> Result<InstallerAppTargetCatalog> {
-    let path = crate::utils::paths::resolve(APP_TARGET_CATALOG_PATH);
+    let path = LAYOUT.root.join(APP_TARGET_CATALOG_PATH);
     let raw = fs::read_to_string(&path)
         .map_err(|e| anyhow::anyhow!("failed to read {}: {}", path.display(), e))?;
     let catalog: InstallerAppTargetCatalog = serde_json::from_str(&raw)

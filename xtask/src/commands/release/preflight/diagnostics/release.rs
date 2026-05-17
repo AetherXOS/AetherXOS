@@ -4,7 +4,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use crate::commands::release::preflight::models::{
     ReleaseDiagnosticIssue, ReleaseDiagnosticsReport,
@@ -12,14 +13,14 @@ use crate::commands::release::preflight::models::{
 
 pub fn execute(strict: bool) -> Result<()> {
     println!("[release::diagnostics] Generating release diagnostics");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     let mut issues = Vec::new();
-    collect_scorecard_issues(&root, &mut issues)?;
-    collect_p_tier_issues(&root, &mut issues)?;
-    collect_evidence_bundle_issues(&root, &mut issues)?;
+    collect_scorecard_issues(root, &mut issues)?;
+    collect_p_tier_issues(root, &mut issues)?;
+    collect_evidence_bundle_issues(root, &mut issues)?;
     collect_overall_ok_issue(
-        &root,
+        root,
         &mut issues,
         "host_tool_verify_failed",
         "high",
@@ -28,7 +29,7 @@ pub fn execute(strict: bool) -> Result<()> {
         "Run: cargo run -p xtask -- release host-tool-verify --strict",
     )?;
     collect_overall_ok_issue(
-        &root,
+        root,
         &mut issues,
         "critical_policy_guard_failed",
         "high",
@@ -37,7 +38,7 @@ pub fn execute(strict: bool) -> Result<()> {
         "Run: cargo run -p xtask -- release policy-guard --strict",
     )?;
     collect_overall_ok_issue(
-        &root,
+        root,
         &mut issues,
         "warning_audit_failed",
         "high",

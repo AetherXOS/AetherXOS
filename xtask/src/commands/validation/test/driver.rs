@@ -2,17 +2,18 @@ use anyhow::{Result, bail};
 use std::collections::HashMap;
 use std::fs;
 
-use crate::utils::{logging, paths};
+use crate::utils::logging;
+use crate::utils::fs::paths::LAYOUT;
 
 pub fn run_smoke() -> Result<()> {
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
     logging::info(
         "test",
         "running driver smoke gate",
         &[("root", &root.to_string_lossy())],
     );
     let cargo_path = root.join("Cargo.toml");
-    let generated_path = paths::kernel_src("generated_consts.rs");
+    let generated_path = root.join("generated_consts.rs");
 
     if !cargo_path.exists() || !generated_path.exists() {
         bail!("Missing Cargo.toml or kernel/src/generated_consts.rs at root");

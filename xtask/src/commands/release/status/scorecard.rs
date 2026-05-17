@@ -5,10 +5,11 @@ use std::path::Path;
 use std::string::ToString;
 
 use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 pub(super) fn write_production_acceptance_scorecard(root: &Path) -> Result<()> {
-    let scorecard_json = root.join("reports/tooling/production_acceptance_scorecard.json");
-    let scorecard_md = root.join("reports/tooling/production_acceptance_scorecard.md");
+    let scorecard_json = LAYOUT.root.join("reports/tooling/production_acceptance_scorecard.json");
+    let scorecard_md = LAYOUT.root.join("reports/tooling/production_acceptance_scorecard.md");
 
     let p_tier = read_json(root.join(crate::config::repo_paths::P_TIER_STATUS_JSON));
     let linux_app = read_json(root.join("reports/linux_app_compat_summary.json"));
@@ -85,7 +86,7 @@ pub(super) fn write_production_acceptance_scorecard(root: &Path) -> Result<()> {
         .unwrap_or(0.0);
     let syscall_ok = syscall_implemented_pct >= 95.0;
 
-    let qemu_log = root.join("artifacts/boot_image/qemu_smoke.log");
+    let qemu_log = LAYOUT.artifacts.join("boot_image/qemu_smoke.log");
     let qemu_log_markers_ok = fs::read_to_string(&qemu_log)
         .map(|text| {
             text.contains("[aether_init] early userspace bootstrap")
@@ -93,7 +94,7 @@ pub(super) fn write_production_acceptance_scorecard(root: &Path) -> Result<()> {
                 || text.contains("[aether_init] pivot-root setup exit status:")
         })
         .unwrap_or(false);
-    let qemu_smoke_junit_ok = fs::read_to_string(root.join("artifacts/qemu_smoke_junit.xml"))
+    let qemu_smoke_junit_ok = fs::read_to_string(LAYOUT.artifacts.join("qemu_smoke_junit.xml"))
         .map(|text| text.contains("failures=\"0\"") && text.contains("errors=\"0\""))
         .unwrap_or(false);
     let ubuntu_smoke_json_ok =

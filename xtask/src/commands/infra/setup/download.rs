@@ -1,8 +1,10 @@
 use crate::constants;
-use crate::utils::{logging, paths};
+use crate::utils::logging;
+use crate::utils::fs::paths::LAYOUT;
 use anyhow::{bail, Context, Result};
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -59,12 +61,14 @@ const TARBALL_PREFIX: &str = "limine-binary/";
 /// 6. Optionally verify SHA-256 when a hash is set in `REQUIRED_FILES`.
 pub fn fetch_limine_binaries() -> Result<()> {
     let dest_dir = constants::paths::limine_bin_dir();
-    paths::ensure_dir(&dest_dir).context("Failed to create Limine binary directory")?;
+    if !dest_dir.exists() {
+        fs::create_dir_all(&dest_dir).context("Failed to create Limine binary directory")?;
+    }
 
     // ── Fast-path: user pre-extracted the tarball locally ─────────────────
     // If `artifacts/limine-binary/` exists (e.g. user manually extracted the
     // downloaded tarball), copy directly from there — no internet required.
-    let local_extracted = crate::utils::paths::resolve("artifacts/limine-binary");
+    let local_extracted = LAYOUT.root.join("artifacts/limine-binary");
     if local_extracted.is_dir() {
         logging::info("limine", "local tarball extract found — skipping download", &[
             ("path", &local_extracted.to_string_lossy()),

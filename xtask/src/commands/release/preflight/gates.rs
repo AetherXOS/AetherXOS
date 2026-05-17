@@ -6,13 +6,14 @@ use crate::commands::ops;
 use crate::commands::validation;
 use crate::config;
 use crate::constants;
-use crate::utils::{cargo, paths, process};
+use crate::utils::{cargo, process};
+use crate::utils::fs::paths::LAYOUT;
 
 use super::abi::abi_drift_report;
 use super::ci::reproducible_evidence;
 use super::diagnostics::{critical_policy_guard, release_diagnostics};
 use super::evidence_bundle;
-use super::host_tools::host_tool_verify;
+use crate::utils::validation::doctor::host_tool_verify_report;
 
 pub fn preflight(
     skip_host_tests: bool,
@@ -91,7 +92,7 @@ pub fn preflight(
 }
 
 pub fn enforce_production_acceptance_gate() -> Result<()> {
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
     let scorecard_path = root.join(config::repo_paths::PRODUCTION_ACCEPTANCE_SCORECARD_JSON);
 
     let scorecard_text = std::fs::read_to_string(&scorecard_path).with_context(|| {
@@ -141,7 +142,7 @@ pub fn abi_perf_gate(strict: bool) -> Result<()> {
 }
 
 pub fn enforce_p_tier_trend_no_regression() -> Result<()> {
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
     let p_tier_path = root.join(config::repo_paths::P_TIER_STATUS_JSON);
 
     let p_tier_text = std::fs::read_to_string(&p_tier_path).with_context(|| {
@@ -230,7 +231,7 @@ pub fn candidate_gate() -> Result<()> {
     println!("[release::candidate-gate] Running native release candidate gate");
     p0_p1_nightly()?;
     release_diagnostics(false)?;
-    host_tool_verify(true)?;
+    host_tool_verify_report(true)?;
     critical_policy_guard(true)?;
     reproducible_evidence()?;
     abi_drift_report(None, true)?;

@@ -3,9 +3,8 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 
-use crate::constants;
-use crate::utils::paths;
 use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 // ---------------------------------------------------------------------------
 // Types matching Python syscall_coverage_report.py output
@@ -39,12 +38,12 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
         linux_compat, format
     );
 
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     // Scan dispatch files for syscall mappings.
     let dispatch_dirs = vec![
-        paths::kernel_src("modules/linux_compat/sys_dispatcher"),
-        paths::kernel_src("kernel/syscalls"),
+        root.join("modules/linux_compat/sys_dispatcher"),
+        root.join("kernel/syscalls"),
     ];
 
     let mut mappings: HashMap<String, String> = HashMap::new();
@@ -81,8 +80,8 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
 
     // Scan handler files for function bodies.
     let handler_dirs = vec![
-        paths::kernel_src("modules/linux_compat"),
-        paths::kernel_src("kernel/syscalls"),
+        root.join("modules/linux_compat"),
+        root.join("kernel/syscalls"),
     ];
 
     let fn_def_re = regex::Regex::new(r"\bfn\s+(sys_linux_[a-zA-Z0-9_]+)\s*\(").unwrap();
@@ -100,7 +99,7 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
             let text = fs::read_to_string(entry.path()).unwrap_or_default();
             let rel = entry
                 .path()
-                .strip_prefix(&root)
+                .strip_prefix(root)
                 .unwrap_or(entry.path())
                 .to_string_lossy()
                 .replace('\\', "/");
@@ -234,8 +233,10 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
 
     // Write output
     if let Some(out_path) = out {
-        let p = paths::resolve(out_path);
-        paths::ensure_dir(p.parent().unwrap())?;
+        let p = LAYOUT.root.join(out_path);
+        if let Some(parent) = p.parent() {
+            fs::create_dir_all(parent)?;
+        }
         report::write_text_report(&p, &rendered)?;
         println!("[syscall-coverage] Report written: {}", p.display());
     } else {
@@ -243,7 +244,7 @@ pub fn execute(linux_compat: bool, format: &str, out: &Option<String>) -> Result
     }
 
     // Always write summary JSON
-    let summary_path = constants::paths::syscall_coverage_summary();
+    let summary_path = LAYOUT.root.join("reports/syscall_coverage_summary.json");
     report::write_json_report(&summary_path, &summary)?;
 
     println!(

@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use crate::utils::executable::Executable;
 use crate::engine::{ExecutionContext, controller::UniversalController};
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Subcommand, Debug)]
 pub enum PipelineAction {
@@ -75,7 +76,7 @@ impl Executable for PipelineAction {
                 println!("  - {}", DOCS);
                 println!("  - {}", DEBUG);
                 
-                let profiles = crate::engine::BuildProfile::list(&crate::utils::paths::repo_root());
+                let profiles = crate::engine::BuildProfile::list(&LAYOUT.root);
                 if !profiles.is_empty() {
                     println!("\nAvailable Profiles:");
                     for p in profiles {

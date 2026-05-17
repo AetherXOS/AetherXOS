@@ -6,6 +6,7 @@ use anyhow::{Context, Result};
 use regex::Regex;
 use serde::Serialize;
 use std::fs;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Serialize)]
 struct ShimErrnoResult {
@@ -156,7 +157,7 @@ pub fn execute(action: &LinuxAbiAction) -> Result<()> {
 }
 
 pub(crate) fn refresh_shim_errno_conformance_report() -> Result<()> {
-    let root = crate::utils::paths::repo_root();
+    let root = &LAYOUT.root;
     let mut results = Vec::with_capacity(SHIM_ERRNO_CHECKS.len());
 
     for spec in SHIM_ERRNO_CHECKS {
@@ -212,9 +213,9 @@ pub(crate) struct SyscallStats {
 }
 
 pub(crate) fn audit_syscall_stats() -> Result<SyscallStats> {
-    let kernel_dir = crate::utils::paths::kernel_src("");
+    let kernel_dir = LAYOUT.root.join("kernel");
     if !kernel_dir.exists() {
-        anyhow::bail!("'kernel/src' not found");
+        anyhow::bail!("'kernel' directory not found");
     }
 
     let pattern =
@@ -288,11 +289,11 @@ pub(crate) fn audit_syscall_stats() -> Result<SyscallStats> {
 }
 
 fn audit_syscalls() -> Result<()> {
-    let kernel_dir = crate::utils::paths::kernel_src("");
+    let kernel_dir = LAYOUT.root.join("kernel");
     if !kernel_dir.exists() {
         logging::warn(
             "abi",
-            "'kernel/src' OS namespace not detected. Xtask must launch from the repository root.",
+            "'kernel' directory not detected. Xtask must launch from the repository root.",
             &[],
         );
         return Ok(());

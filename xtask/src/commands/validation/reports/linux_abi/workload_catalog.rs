@@ -4,7 +4,8 @@ use serde_json::Value;
 use std::fs;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub(crate) struct WorkloadBundle {
@@ -50,7 +51,7 @@ pub(crate) struct WorkloadTrendDoc {
 }
 
 pub(crate) fn execute(limit: usize, strict: bool) -> Result<()> {
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
     let bundles_dir = root.join("artifacts/userspace_apps");
     let mut bundles = Vec::new();
 

@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use super::{ReproducibleBuildEvidence, parse_csv_lower, relative_display, reproducible_evidence};
 
@@ -38,7 +39,7 @@ struct ReproCompareDoc {
 
 pub(super) fn run(strict: bool, host_matrix: Option<&str>, inputs: Option<&str>) -> Result<()> {
     println!("[release::repro-compare] Comparing reproducible-build evidence across hosts");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     reproducible_evidence()?;
 
@@ -57,7 +58,7 @@ pub(super) fn run(strict: bool, host_matrix: Option<&str>, inputs: Option<&str>)
             )
         })?;
 
-    let candidate_paths = collect_inputs(&root, inputs)?;
+    let candidate_paths = collect_inputs(root, inputs)?;
     let mut parse_errors = Vec::new();
     let mut loaded = Vec::<(String, ReproducibleBuildEvidence)>::new();
 
@@ -70,7 +71,7 @@ pub(super) fn run(strict: bool, host_matrix: Option<&str>, inputs: Option<&str>)
             }
         };
         match serde_json::from_str::<ReproducibleBuildEvidence>(&text) {
-            Ok(doc) => loaded.push((relative_display(&root, path), doc)),
+            Ok(doc) => loaded.push((relative_display(root, path), doc)),
             Err(err) => parse_errors.push(format!("{}: {}", path.display(), err)),
         }
     }

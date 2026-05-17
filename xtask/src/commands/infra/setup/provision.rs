@@ -1,7 +1,7 @@
 use super::platform::{HostPlatform, ProvisionPlan, detect_platform, ensure_tool_with_plan};
 use crate::constants;
-use crate::utils::paths;
-use anyhow::Result;
+use anyhow::{Result, Context};
+use std::fs;
 
 fn qemu_plan() -> ProvisionPlan {
     ProvisionPlan {
@@ -70,7 +70,10 @@ pub(crate) fn provision_host_environment() -> Result<()> {
     println!(
         "[setup::provision] Host evaluation layout locked. Native dependencies should be established."
     );
-    paths::ensure_dir(&constants::paths::host_tools_bin())?;
+    let host_tools_bin = constants::paths::host_tools_bin();
+    if !host_tools_bin.exists() {
+        fs::create_dir_all(&host_tools_bin).context("failed creating host tools bin directory")?;
+    }
 
     Ok(())
 }

@@ -17,7 +17,7 @@ impl Task for DistroBuildTask {
     fn run(&self, ctx: &ExecutionContext) -> Result<TaskStatus> {
         let cache_dir = ctx.out_dir.join("guest_cache");
         let url = self.image.url();
-        let filename = url.split('/').last().unwrap_or("rootfs.tar.xz");
+        let filename = url.split('/').next_back().unwrap_or("rootfs.tar.xz");
         let archive_path = cache_dir.join(filename);
         
         let download = crate::engine::DownloadTask {

@@ -9,7 +9,6 @@ pub mod validation;
 pub use core::config;
 pub use core::context;
 pub use core::features;
-pub use fs::paths;
 pub use fs::registry;
 pub use sys::cargo;
 pub use sys::executable;
@@ -21,7 +20,7 @@ pub use ui::logging;
 pub use ui::orchestrator as ui_orchestrator;
 pub use ui::parser;
 pub use validation::elf;
-pub use validation::preflight;
+pub use validation as preflight;
 pub use validation::report;
 
 // 2. Forward items for backward compatibility (utils::ensure_dir)

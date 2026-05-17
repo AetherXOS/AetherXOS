@@ -1,7 +1,8 @@
 use anyhow::{Result, Context};
 use std::path::PathBuf;
 use crate::engine::{Task, ExecutionContext, TaskStatus};
-use crate::utils::{logging, paths};
+use crate::utils::logging;
+use std::fs;
 
 pub struct IsoFinalizeTask {
     pub staging_dir: PathBuf,
@@ -16,7 +17,7 @@ impl Task for IsoFinalizeTask {
         logging::status("ISO", &format!("Finalizing ISO: {}", self.output_iso.display()));
         
         if let Some(parent) = self.output_iso.parent() {
-            paths::ensure_dir(parent)?;
+            fs::create_dir_all(parent)?;
         }
 
         crate::commands::infra::iso::finalize_iso_from_root(&self.staging_dir, &self.output_iso)
@@ -38,14 +39,14 @@ impl Task for LimineSetupTask {
     
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
         let boot_dir = self.staging_dir.join("boot");
-        paths::ensure_dir(&boot_dir)?;
+        fs::create_dir_all(&boot_dir)?;
         
-        std::fs::copy(&self.kernel_path, boot_dir.join("aethercore.elf"))?;
+        fs::copy(&self.kernel_path, boot_dir.join("aethercore.elf"))?;
         
         let mut initrd_name = None;
         if let Some(initrd) = &self.initrd_path {
             let name = "initrd.cpio.gz";
-            std::fs::copy(initrd, boot_dir.join(name))?;
+            fs::copy(initrd, boot_dir.join(name))?;
             initrd_name = Some(name);
         }
 

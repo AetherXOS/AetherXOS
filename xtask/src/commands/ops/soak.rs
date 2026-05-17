@@ -1,8 +1,9 @@
-use anyhow::Result;
+use anyhow::{Result, Context};
 use serde::Serialize;
+use std::fs;
 
 use crate::constants;
-use crate::utils::{paths, report};
+use crate::utils::report;
 
 /// Run QEMU soak/stress testing matrix.
 ///
@@ -15,7 +16,9 @@ pub fn execute(dry_run: bool) -> Result<()> {
 
     let out_dir = constants::paths::qemu_soak_root();
     let summary_path = out_dir.join("summary.json");
-    paths::ensure_dir(&out_dir)?;
+    if !out_dir.exists() {
+        fs::create_dir_all(&out_dir).context("failed creating soak output directory")?;
+    }
 
     if dry_run {
         let summary = dry_run_summary(report::utc_now_iso());
@@ -108,14 +111,15 @@ fn dry_run_summary(generated_utc: String) -> SoakSummary {
 #[cfg(test)]
 mod tests {
     use super::dry_run_summary;
-    use crate::utils::paths;
+    use crate::utils::fs::paths::LAYOUT;
     use std::fs;
 
     #[test]
     fn dry_run_summary_matches_fixture() {
         let summary = dry_run_summary("2026-04-02T00:00:00Z".to_string());
         let json = serde_json::to_string_pretty(&summary).expect("dry-run summary must serialize");
-        let expected = fs::read_to_string(paths::xtask_test_fixture("soak_dry_run_summary.json"))
+        let fixture_path = LAYOUT.root.join("xtask/fixtures/soak_dry_run_summary.json");
+        let expected = fs::read_to_string(fixture_path)
             .expect("fixture must be readable");
         let expected = expected.replace("\r\n", "\n");
         assert_eq!(json, expected.trim_end());

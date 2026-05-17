@@ -3,7 +3,8 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use crate::utils::{logging, paths as utils_paths, process, fs as fs_utils};
+use crate::utils::{logging, process, fs as fs_utils};
+use crate::utils::fs::paths::LAYOUT;
 
 pub mod iso_paths;
 pub mod tools;
@@ -17,7 +18,7 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
     let xorriso = tools::find_iso_tool()?;
     logging::info("iso", &format!("Using ISO tool: {}", xorriso), &[]);
 
-    let limine_bin_dir = utils_paths::resolve("artifacts/limine/bin");
+    let limine_bin_dir = LAYOUT.root.join("artifacts/limine/bin");
     let required = ["limine-bios-cd.bin", "limine-bios.sys", "limine-uefi-cd.bin", "BOOTX64.EFI"];
     for name in &required {
         let p = limine_bin_dir.join(name);
@@ -56,7 +57,11 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
         fs::copy(limine_bin_dir.join(src_name), iso_root.join(dest_rel))?;
     }
 
-    utils_paths::ensure_dir(out_iso.parent().unwrap())?;
+    if let Some(parent) = out_iso.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent).context("failed creating iso output directory")?;
+        }
+    }
     // Write ISO to a temporary path first to avoid delete races on Windows.
     let tmp_out = out_iso.with_file_name(format!("{}.tmp", out_iso.file_name().unwrap().to_string_lossy()));
 
@@ -153,7 +158,11 @@ pub fn finalize_iso_from_root(iso_root: &Path, out_iso: &Path) -> Result<()> {
     tools::ensure_iso_tools()?;
     let xorriso = tools::find_iso_tool()?;
     
-    utils_paths::ensure_dir(out_iso.parent().unwrap())?;
+    if let Some(parent) = out_iso.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent).context("failed creating iso output directory")?;
+        }
+    }
     let tmp_out = out_iso.with_file_name(format!("{}.tmp", out_iso.file_name().unwrap().to_string_lossy()));
 
     if xorriso.contains("oscdimg") {

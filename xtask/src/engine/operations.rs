@@ -1,6 +1,7 @@
 use anyhow::{Result, Context};
 use std::path::Path;
-use crate::utils::{paths, logging};
+use std::fs;
+use crate::utils::logging;
 
 /// Higher-level operations that encapsulate common filesystem and process patterns.
 pub struct Op;
@@ -12,7 +13,7 @@ impl Op {
         let dest = dest.as_ref();
         
         if let Some(parent) = dest.parent() {
-            paths::ensure_dir(parent)?;
+            fs::create_dir_all(parent)?;
         }
         
         logging::info(label, "Copying file", &[
@@ -20,7 +21,7 @@ impl Op {
             ("to", &dest.to_string_lossy())
         ]);
         
-        std::fs::copy(src, dest)
+        fs::copy(src, dest)
             .with_context(|| format!("Failed to copy {} to {}", src.display(), dest.display()))?;
         Ok(())
     }
@@ -45,9 +46,9 @@ impl Op {
         let path = path.as_ref();
         if path.exists() {
             logging::info(label, "Cleaning directory", &[("path", &path.to_string_lossy())]);
-            std::fs::remove_dir_all(path)?;
+            fs::remove_dir_all(path)?;
         }
-        paths::ensure_dir(path)?;
+        fs::create_dir_all(path)?;
         Ok(())
     }
 }

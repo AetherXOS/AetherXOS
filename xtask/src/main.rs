@@ -14,76 +14,65 @@ use clap::Parser;
 use cli::Cli;
 use std::env;
 use utils::{context as app_context, logging};
+use utils::fs::paths::LAYOUT;
 use commands::interactive;
 
 fn main() -> Result<()> {
     utils::sys::process::init_signal_handler();
+    
     let version = env!("CARGO_PKG_VERSION");
-    let cpu_model = get_cpu_model();
-    let rustc_version = get_rustc_version();
-
-    let about = format!("Aether X OS xtask v{} ({})", version, rustc_version);
-    let system = format!("{} {} ({})", env::consts::OS, env::consts::ARCH, cpu_model);
+    let about = format!("Aether X OS xtask v{} ({})", version, get_rustc_version());
+    let system = format!("{} {} ({})", env::consts::OS, env::consts::ARCH, get_cpu_model());
     let target = format!("AetherX - Mode: {}", if cfg!(debug_assertions) { "Development" } else { "Release" });
 
     logging::print_header(&about, &system, &target);
-
-    // 1. Initialize Logger with Defaults
     logging::init_logger(logging::LogLevel::Info, true)?;
 
-    // Initial check for no args or explicit help
     let args_vec: Vec<String> = env::args().collect();
+    
+    // 1. Interactive / Help Early Gates
     if args_vec.len() == 1 {
-        // Run interactive mode if no arguments
-        utils::paths::ensure_dir(std::path::Path::new("artifacts")).context("Failed to initialize artifacts directory")?;
-        app_context::init("artifacts".into()).context("Failed to initialize xtask runtime context")?;
-        // Interactive mode is strict by default since it leads to actions
-        utils::preflight::run_audit(true).context("System health audit encountered a terminal failure")?;
+        LAYOUT.ensure_hermetic().context("Failed to stabilize project layout")?;
+        app_context::init(LAYOUT.artifacts.clone()).context("Failed to initialize xtask runtime context")?;
+        utils::preflight::NexusDoctor::new().audit(true).context("Nexus Doctor: System health audit failed")?;
         return interactive::menu::launch_main_menu();
     }
 
     if args_vec.len() == 2 && args_vec.iter().any(|a| a == "--help" || a == "-h" || a == "help") {
+        let _ = utils::preflight::NexusDoctor::new().audit(false);
         crate::utils::ui::help::print_autonomous_help();
         return Ok(());
     }
 
+    // 2. CLI Execution Flow
     let args = Cli::parse();
     
-    // Update Logger based on CLI args
+    // Configure environment
+    if args.non_interactive {
+        utils::config::set_non_interactive(true);
+    }
+    
     let log_lvl = match args.log_level.to_lowercase().as_str() {
         "trace" => logging::LogLevel::Trace,
         "debug" => logging::LogLevel::Debug,
-        "info"  => logging::LogLevel::Info,
         "warn"  => logging::LogLevel::Warn,
         "error" => logging::LogLevel::Error,
         _       => logging::LogLevel::Info,
     };
     logging::init_logger(log_lvl, true)?;
 
-    if args.non_interactive {
-        utils::config::set_non_interactive(true);
-    }
-
-    utils::paths::ensure_dir(&args.outdir).context("Failed to initialize artifacts directory")?;
+    // Stabilize Workspace
+    LAYOUT.ensure_hermetic().context("Failed to stabilize project layout")?;
     app_context::init(args.outdir.clone()).context("Failed to initialize xtask runtime context")?;
 
-    // Determine if we need strict pre-flight audit
-    let is_info_command = match &args.command {
-        cli::Commands::Pipeline { action } => matches!(action, 
-            cli::PipelineAction::List | 
-            cli::PipelineAction::Visualize { .. }
-        ),
-        cli::Commands::LinuxAbi { .. } => true, // ABI scans are read-only audits
-        cli::Commands::Glibc { .. } => true,   // Glibc audit is read-only
-        cli::Commands::Completion { .. } => true,
-        cli::Commands::Interactive { .. } => false, // Interactive usually leads to builds
-        _ => false,
-    };
+    // Determine audit strictness
+    let is_info_command = matches!(&args.command, cli::Commands::LinuxAbi { .. } | cli::Commands::Glibc { .. } | cli::Commands::Completion { .. });
 
-    // Global Integrity and Pre-flight Audits
-    utils::preflight::run_audit(!is_info_command).context("System health audit encountered a terminal failure")?;
+    // 3. System Health Check
+    let doctor = utils::preflight::NexusDoctor::new();
+    doctor.audit(!is_info_command).context("Nexus Doctor: System health audit failed")?;
 
-    // Autonomous execution via trait dispatch
+    // 4. Autonomous Command Execution
     use utils::executable::Executable;
     args.command.execute()
 }
@@ -99,14 +88,12 @@ fn get_cpu_model() -> String {
             }
         }
     }
-
     #[cfg(target_os = "macos")]
     {
         if let Ok(output) = std::process::Command::new("sysctl").args(["-n", "machdep.cpu.brand_string"]).output() {
             return String::from_utf8_lossy(&output.stdout).trim().to_string();
         }
     }
-
     #[cfg(target_os = "windows")]
     {
         if let Ok(output) = std::process::Command::new("wmic").args(["cpu", "get", "name"]).output() {
@@ -114,15 +101,11 @@ fn get_cpu_model() -> String {
             return s.lines().nth(1).unwrap_or("Generic Windows CPU").trim().to_string();
         }
     }
-
     env::var("PROCESSOR_IDENTIFIER").unwrap_or_else(|_| "Generic Host CPU".to_string())
 }
 
 fn get_rustc_version() -> String {
-    std::process::Command::new("rustc")
-        .arg("-V")
-        .output()
-        .ok()
+    std::process::Command::new("rustc").arg("-V").output().ok()
         .and_then(|output| String::from_utf8(output.stdout).ok())
         .map(|value| value.split(' ').nth(1).unwrap_or("unknown").to_string())
         .unwrap_or_else(|| "unknown".to_string())

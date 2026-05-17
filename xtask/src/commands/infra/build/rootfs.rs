@@ -100,7 +100,7 @@ pub fn extract_rootfs_archive(src: &Path, dst: &Path) -> Result<()> {
             return Ok(());
         }
         
-        logging::warn("image", "host tar failed", &[("error", &stderr.trim())]);
+        logging::warn("image", "host tar failed", &[("error", stderr.trim())]);
         if stderr.contains("Truncated input file") {
             if config::is_non_interactive() {
                 return Err(anyhow!("REDOWNLOAD_REQUESTED"));

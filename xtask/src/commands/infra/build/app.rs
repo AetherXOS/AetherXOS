@@ -1,7 +1,8 @@
 use anyhow::{Result, Context, bail};
 use std::fs;
 use crate::constants::{self, cargo as cargo_consts};
-use crate::utils::{paths, logging, cargo};
+use crate::utils::{logging, cargo};
+use crate::utils::fs::paths::LAYOUT;
 
 /// Automates generic isolation compilation of peripheral userspace binaries.
 pub fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
@@ -11,7 +12,7 @@ pub fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
         &[("name", name)],
     );
 
-    let app_dir = paths::userspace_src(name);
+    let app_dir = LAYOUT.root.join("userspace").join(name);
     if !app_dir.exists() {
         bail!(
             "Requested userspace application directory not found: {}",
@@ -42,7 +43,9 @@ pub fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
     ));
 
     let init_bin_dir = constants::paths::boot_image_stage_boot().join("initramfs/usr/bin");
-    paths::ensure_dir(&init_bin_dir)?;
+    if !init_bin_dir.exists() {
+        fs::create_dir_all(&init_bin_dir).context("failed creating initramfs bin directory")?;
+    }
 
     if compiled_elf.exists() {
         logging::info("app", "verifying application binary integrity", &[("name", name)]);

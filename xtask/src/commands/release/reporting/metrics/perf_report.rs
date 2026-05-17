@@ -8,11 +8,12 @@ use super::helpers::{
 };
 use crate::commands::release::preflight::models::PerfEngineeringReportDoc;
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 pub(crate) fn execute(strict: bool) -> Result<()> {
     println!("[release::perf-report] Building performance engineering report");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     super::score_normalize::execute(false)?;
     super::trend_dashboard::execute(60, false)?;

@@ -2,19 +2,20 @@ use anyhow::{Result, bail};
 use serde_json::Value;
 
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use super::{ReleaseEvidenceBundle, build_file_entry, evaluate_gate, render_bundle_md};
 
 pub(super) fn run(strict: bool) -> Result<()> {
     println!("[release::evidence-bundle] Building release evidence bundle");
 
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
     let specs = evidence_specs();
 
     let mut entries = Vec::with_capacity(specs.len());
     for (path, required) in specs {
-        entries.push(build_file_entry(&root, path, required)?);
+        entries.push(build_file_entry(root, path, required)?);
     }
 
     for entry in &mut entries {

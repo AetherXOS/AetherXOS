@@ -24,7 +24,7 @@ impl Task for DocsGenerateTask {
         for entry in walkdir::WalkDir::new(src_path)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "rs")) 
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs")) 
         {
             let content = fs::read_to_string(entry.path())?;
             let rel_path = entry.path().strip_prefix(&ctx.repo_root).unwrap_or(entry.path());

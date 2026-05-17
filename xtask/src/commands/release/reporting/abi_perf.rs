@@ -7,7 +7,8 @@ use crate::cli::LinuxAbiAction;
 use crate::commands::release::reporting::metrics;
 use crate::commands::validation;
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Serialize)]
 struct AbiPerfGateDoc {
@@ -27,7 +28,7 @@ struct AbiPerfGateDoc {
 
 pub(crate) fn abi_perf_gate(strict: bool) -> Result<()> {
     println!("[release::abi-perf-gate] Evaluating ABI and performance production gates");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     validation::linux_abi::execute(&LinuxAbiAction::SemanticMatrix)?;
     validation::linux_abi::execute(&LinuxAbiAction::TrendDashboard {

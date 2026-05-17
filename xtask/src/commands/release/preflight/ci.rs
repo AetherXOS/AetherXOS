@@ -7,14 +7,15 @@ use std::path::Path;
 use crate::cli::LinuxAbiAction;
 use crate::commands::validation;
 use crate::config;
-use crate::utils::{paths, report};
+use crate::utils::report;
+use crate::utils::fs::paths::LAYOUT;
 
 use super::abi::abi_drift_report;
 use super::diagnostics::{
     critical_policy_guard, release_diagnostics, seed_release_support_reports, warning_audit,
 };
 use super::evidence_bundle;
-use super::host_tools::host_tool_verify;
+use crate::utils::validation::doctor::host_tool_verify_report;
 use super::models::{
     BundleCheck, CiBundleDoc, EvidenceFileEntry, ReleaseEvidenceBundle, ReproducibleBuildEvidence,
 };
@@ -56,7 +57,7 @@ pub fn relative_display(root: &Path, path: &Path) -> String {
 pub fn reproducible_evidence() -> Result<()> {
     println!("[release::reproducible-evidence] Generating reproducible build evidence");
 
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
     let candidates = [
         ("Cargo.toml", true),
         ("Cargo.lock", true),
@@ -74,7 +75,7 @@ pub fn reproducible_evidence() -> Result<()> {
 
     let mut files = Vec::with_capacity(candidates.len());
     for (path, required) in candidates {
-        files.push(build_file_entry(&root, path, required)?);
+        files.push(build_file_entry(root, path, required)?);
     }
 
     let evidence = ReproducibleBuildEvidence {
@@ -278,7 +279,7 @@ pub fn render_bundle_md(bundle: &ReleaseEvidenceBundle) -> String {
 
 pub fn gate_fixup(strict: bool) -> Result<()> {
     println!("[release::gate-fixup] Regenerating release gates and evidence artifacts");
-    host_tool_verify(false)?;
+    host_tool_verify_report(false)?;
     critical_policy_guard(false)?;
     warning_audit(false, None)?;
     seed_release_support_reports()?;
@@ -298,7 +299,7 @@ pub fn gate_fixup(strict: bool) -> Result<()> {
 
 pub fn ci_bundle(strict: bool) -> Result<()> {
     println!("[release::ci-bundle] Building consolidated CI bundle report");
-    let root = paths::repo_root();
+    let root = &LAYOUT.root;
 
     gate_fixup(false)?;
     abi_drift_report(None, false)?;

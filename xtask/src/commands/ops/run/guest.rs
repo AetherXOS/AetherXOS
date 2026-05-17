@@ -1,6 +1,7 @@
 use anyhow::{Result, Context};
 use std::path::Path;
-use crate::utils::{context, features, logging, paths, process};
+use std::fs;
+use crate::utils::{context, features, logging, process};
 use crate::constants;
 
 const MIN_VALID_ROOTFS_BYTES: u64 = 1024 * 1024;
@@ -41,7 +42,9 @@ pub fn launch_guest_session(
             if urls.is_empty() {
                 logging::warn("run::guest", &format!("No known URLs for distro '{}'.", key), &[]);
             } else {
-                paths::ensure_dir(&cache_dir)?;
+                if !cache_dir.exists() {
+                    fs::create_dir_all(&cache_dir).context("failed creating guest cache directory")?;
+                }
                 let mut download_succeeded = false;
                 
                 for (idx, url) in urls.iter().enumerate() {
@@ -55,7 +58,6 @@ pub fn launch_guest_session(
                     let wget_ok = if !curl_ok {
                         process::run_best_effort("wget", &["-q", "--show-progress", "-O", &tmp_out, url])
                     } else { false };
-
                     if curl_ok || wget_ok {
                         let size_bytes = std::fs::metadata(&tmp_out).map(|m| m.len()).unwrap_or(0);
                         if size_bytes < MIN_VALID_ROOTFS_BYTES {

@@ -1,5 +1,6 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, bail, Context};
 use serde::Serialize;
+use std::fs;
 
 // ---------------------------------------------------------------------------
 // Core Pressure Snapshot decoder
@@ -167,9 +168,13 @@ pub fn execute(
     };
 
     if let Some(out_path) = out {
-        let p = crate::utils::paths::resolve(out_path);
-        crate::utils::paths::ensure_dir(p.parent().unwrap())?;
-        std::fs::write(&p, &rendered)?;
+        let p = std::path::PathBuf::from(out_path);
+        if let Some(parent) = p.parent() {
+            if !parent.exists() {
+                fs::create_dir_all(parent).context("failed creating report directory")?;
+            }
+        }
+        fs::write(&p, &rendered)?;
         println!("[core-pressure] Report written: {}", p.display());
     } else {
         println!("{}", rendered);

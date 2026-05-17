@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use crate::cli::BuildAction;
 use crate::constants;
 use crate::utils::logging;
+use crate::utils::fs::paths::LAYOUT;
 
 pub mod app;
 pub mod distro;
@@ -26,8 +27,8 @@ pub fn execute(action: &BuildAction) -> Result<()> {
             let resolved_features = resolve_kernel_features("Build full pipeline", &common.features)?;
             
             let ctx = crate::engine::ExecutionContext {
-                repo_root: crate::utils::core::context::repo_root(),
-                out_dir: crate::utils::core::context::out_dir(),
+                repo_root: LAYOUT.root.clone(),
+                out_dir: LAYOUT.artifacts.clone(),
                 is_release: common.release,
                 arch: common.arch.to_string(),
                 features: resolved_features.to_cargo_features().iter().map(|&s| s.to_string()).collect(),
@@ -47,7 +48,7 @@ pub fn execute(action: &BuildAction) -> Result<()> {
                 .add_task(Box::new(tasks::InitramfsTask))
                 .run(&ctx)?;
 
-            image::bundle_image(common.arch, bootloader, format, rootfs.as_deref().map(|s| std::path::Path::new(s)))
+            image::bundle_image(common.arch, bootloader, format, rootfs.as_deref().map(std::path::Path::new))
                 .context("Failed to assemble bootable image hierarchy")?;
         }
         BuildAction::Image { bootloader, format } => {
@@ -89,7 +90,7 @@ pub fn execute(action: &BuildAction) -> Result<()> {
                 let features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
                 let arch = crate::constants::defaults::build::ARCH;
                 kernel::build_kernel(arch, false, features)?;
-                crate::utils::paths::resolve(&format!("target/{}/debug/aethercore", arch.to_bare_metal_triple()))
+                LAYOUT.target.join(arch.to_bare_metal_triple()).join("debug/aethercore")
             };
 
             let ctx = crate::engine::ExecutionContext::from_defaults();
@@ -117,7 +118,7 @@ pub fn execute(action: &BuildAction) -> Result<()> {
     logging::ready(
         "build",
         "Pipeline completed successfully",
-        &crate::utils::core::context::out_dir().to_string_lossy(),
+        &LAYOUT.artifacts.to_string_lossy(),
         &[],
     );
     Ok(())
@@ -130,8 +131,10 @@ fn build_initramfs() -> Result<()> {
     let out_archive = constants::paths::boot_image_stage_initramfs();
 
     if let Some(parent) = out_archive.parent() {
-        crate::utils::paths::ensure_dir(parent)
-            .context("Failed resolving parent directory for initramfs stage")?;
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)
+                .context("Failed resolving parent directory for initramfs stage")?;
+        }
     }
 
     crate::commands::infra::initramfs::build(&initramfs_src, &out_archive)?;
@@ -164,7 +167,7 @@ fn verify_elf_action(arch: aethercore_common::TargetArch, release: bool, elf_pat
 
         let triple = arch.to_bare_metal_triple();
         let profile = if release { "release" } else { "debug" };
-        crate::utils::paths::resolve(&format!("target/{}/{}/aethercore", triple, profile))
+        LAYOUT.target.join(triple).join(profile).join("aethercore")
     };
 
     logging::info("verify-elf", "running ELF security audit", &[("file", &elf.to_string_lossy())]);
