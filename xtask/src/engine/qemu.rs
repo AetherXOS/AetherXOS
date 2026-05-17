@@ -23,6 +23,7 @@ impl Task for QemuRunTask {
         
         crate::utils::sys::process::Executor::new(qemu)
             .args(&args)
+            .without_progress()
             .run()?;
             
         Ok(TaskStatus::Success)

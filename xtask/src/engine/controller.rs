@@ -1,6 +1,5 @@
 use anyhow::Result;
 use crate::engine::{ExecutionContext, BuildProfile};
-use crate::utils::logging;
 
 pub struct UniversalController;
 
@@ -57,22 +56,23 @@ impl UniversalController {
     }
 
     pub fn dispatch_workflow(name: &str, ctx: &ExecutionContext) -> Result<()> {
-        logging::status("DISPATCH", &format!("Orchestrating workflow: {}", name));
-        let dag = Self::build_pipeline(name, ctx)?;
-        match dag.run(ctx) {
-            Ok(_) => {
-                crate::utils::ui::notifications::pipeline_success(name);
-                crate::utils::ui::voice::pipeline_success_voice(name);
-                let _ = crate::utils::ui::oracle::Oracle::suggest_next(name, true, None);
-                Ok(())
+        crate::utils::ui::logging::aop_wrap_result("DISPATCH", &format!("Orchestrating workflow: {}", name), || {
+            let dag = Self::build_pipeline(name, ctx)?;
+            match dag.run(ctx) {
+                Ok(_) => {
+                    crate::utils::ui::notifications::pipeline_success(name);
+                    crate::utils::ui::voice::pipeline_success_voice(name);
+                    let _ = crate::utils::ui::oracle::Oracle::suggest_next(name, true, None);
+                    Ok(())
+                }
+                Err(e) => {
+                    crate::utils::ui::telemetry::Telemetry::record_failure(name, &e.to_string());
+                    crate::utils::ui::notifications::pipeline_failed(name, &e.to_string());
+                    crate::utils::ui::voice::pipeline_failed_voice(name);
+                    let _ = crate::utils::ui::oracle::Oracle::suggest_next(name, false, Some(&e.to_string()));
+                    Err(e)
+                }
             }
-            Err(e) => {
-                crate::utils::ui::telemetry::Telemetry::record_failure(name, &e.to_string());
-                crate::utils::ui::notifications::pipeline_failed(name, &e.to_string());
-                crate::utils::ui::voice::pipeline_failed_voice(name);
-                let _ = crate::utils::ui::oracle::Oracle::suggest_next(name, false, Some(&e.to_string()));
-                Err(e)
-            }
-        }
+        })
     }
 }

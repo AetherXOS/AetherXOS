@@ -4,6 +4,10 @@ use std::collections::HashMap;
 use anyhow::{Result, Context, bail};
 use crate::utils::logging;
 use super::sentinel::Sentinel;
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+pub static TUI_HUD_LOG_SENDER: Lazy<Mutex<Option<crossbeam_channel::Sender<String>>>> = Lazy::new(|| Mutex::new(None));
 
 /// A fluent builder for executing processes with logging and tracking.
 pub struct Executor {
@@ -13,6 +17,7 @@ pub struct Executor {
     env: HashMap<String, String>,
     capture_output: bool,
     best_effort: bool,
+    use_progress: bool,
 }
 
 impl Executor {
@@ -24,6 +29,7 @@ impl Executor {
             env: HashMap::new(),
             capture_output: false,
             best_effort: false,
+            use_progress: true,
         }
     }
 
@@ -59,10 +65,24 @@ impl Executor {
         self
     }
 
+    pub fn with_progress(mut self) -> Self {
+        self.use_progress = true;
+        self
+    }
+
+    pub fn without_progress(mut self) -> Self {
+        self.use_progress = false;
+        self
+    }
+
     pub fn run(self) -> Result<()> {
         let label = self.program.clone();
         let cmd_str = self.to_command_string();
         logging::exec(&label, &cmd_str);
+
+        if self.use_progress {
+            return self.run_with_progress();
+        }
 
         let mut command = self.build_command();
         let mut child = command.spawn().context(format!("Failed to spawn {}", self.program))?;
@@ -73,6 +93,75 @@ impl Executor {
         if !status.success() && !self.best_effort {
             bail!("{} failed with exit code {}", self.program, status.code().unwrap_or(-1));
         }
+        Ok(())
+    }
+
+    fn run_with_progress(self) -> Result<()> {
+        use indicatif::{ProgressBar, ProgressStyle};
+        use std::io::{BufRead, BufReader};
+        
+        let pb = ProgressBar::new_spinner();
+        pb.set_style(ProgressStyle::default_spinner()
+            .template("{spinner:.green} [{elapsed_precise}] {msg}")
+            .unwrap()
+            .tick_chars("⠋⠙⠹⠸⼼⠴⠦⠧⠇⠏ "));
+        pb.set_message(format!("Starting {}...", self.program));
+
+        let is_tui = crate::utils::core::config::get_settings().tui_hud_enabled;
+        if is_tui {
+            pb.set_draw_target(indicatif::ProgressDrawTarget::hidden());
+        }
+
+        let hud_sender = crate::utils::sys::execution::TUI_HUD_LOG_SENDER.lock().unwrap().clone();
+        let hud_sender_clone = hud_sender.clone();
+
+        let mut command = self.build_command();
+        command.stdout(Stdio::piped());
+        command.stderr(Stdio::piped());
+        
+        let mut child = command.spawn().context(format!("Failed to spawn {}", self.program))?;
+        Sentinel::track(&child);
+
+        let stdout = child.stdout.take().unwrap();
+        let stderr = child.stderr.take().unwrap();
+        
+        let pb_clone1 = pb.clone();
+        let stdout_thread = std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                if let Ok(l) = line {
+                    if let Some(ref tx) = hud_sender {
+                        let _ = tx.send(l.clone());
+                    }
+                    pb_clone1.set_message(l);
+                }
+            }
+        });
+
+        let hud_sender_clone2 = hud_sender_clone;
+        let pb_clone2 = pb.clone();
+        let stderr_thread = std::thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines() {
+                if let Ok(l) = line {
+                    if let Some(ref tx) = hud_sender_clone2 {
+                        let _ = tx.send(l.clone());
+                    }
+                    pb_clone2.set_message(l);
+                }
+            }
+        });
+
+        let status = child.wait()?;
+        let _ = stdout_thread.join();
+        let _ = stderr_thread.join();
+
+        if !status.success() && !self.best_effort {
+            pb.finish_with_message(format!("❌ Failed: {}", self.program));
+            bail!("{} failed with exit code {}", self.program, status.code().unwrap_or(-1));
+        }
+
+        pb.finish_and_clear();
         Ok(())
     }
 

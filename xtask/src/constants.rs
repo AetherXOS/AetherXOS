@@ -322,6 +322,8 @@ pub mod workflows {
     pub const DEBUG: &str = "Debug Bridge";
     pub const UI_CUSTOM: &str = "Custom Pipeline";
     pub const UI_LOAD_PROFILE: &str = "Load Profile";
+    pub const MACRO_RECORD: &str = "Record Terminal Macro";
+    pub const MACRO_REPLAY: &str = "Replay Terminal Macro";
     pub const ARCH_LIST: &[&str] = &["x86_64", "riscv64", "aarch64"];
 }
 

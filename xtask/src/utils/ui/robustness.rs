@@ -25,15 +25,5 @@ pub fn wrap_execution<F, T>(module: &str, operation: &str, f: F) -> Result<T>
 where
     F: FnOnce() -> Result<T>,
 {
-    logging::status(module, &format!("Starting {}...", operation));
-    match f() {
-        Ok(val) => {
-            logging::success(module, &format!("{} completed successfully", operation), &[]);
-            Ok(val)
-        }
-        Err(e) => {
-            logging::error(module, &format!("{} failed", operation), &[("error", &format!("{:#}", e))]);
-            Err(e)
-        }
-    }
+    crate::utils::ui::logging::aop_wrap_result(module, operation, f)
 }

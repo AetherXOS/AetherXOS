@@ -8,10 +8,18 @@ pub fn launch_supreme_wizard() -> Result<()> {
     use crate::constants::workflows::*;
     use crate::constants::ui::prompts::*;
     
-    logging::status("WIZARD", "Initializing AetherX OS Supreme Configuration Wizard...");
+    use colored::*;
+    
+    println!();
+    println!("{}", "╔═══════════════════════════════════════════════════════════╗".bright_magenta().bold());
+    println!("║  🌌  {}  🌌  ║", "AETHERX OS SUPREME CONFIGURATION WIZARD".bright_cyan().bold());
+    println!("{}", "╚═══════════════════════════════════════════════════════════╝".bright_magenta().bold());
+    println!();
+    
+    logging::status("WIZARD", "Initializing interactive setup...");
 
     // 1. Select Workflow
-    let workflows = vec![FULL_ISO, KERNEL_DEV, DOCS, DEBUG, UI_CUSTOM, UI_LOAD_PROFILE];
+    let workflows = vec![FULL_ISO, KERNEL_DEV, DOCS, DEBUG, UI_CUSTOM, UI_LOAD_PROFILE, MACRO_RECORD, MACRO_REPLAY];
     let workflow = Select::new(WORKFLOW_SELECT, workflows).prompt()?;
 
     let mut ctx = ExecutionContext::from_defaults();
@@ -22,6 +30,32 @@ pub fn launch_supreme_wizard() -> Result<()> {
     
     // 2. Select Architecture
     ctx.arch = Select::new(ARCH_SELECT, ARCH_LIST.to_vec()).prompt()?.to_string();
+
+    if workflow == FULL_ISO {
+        let distros = vec!["almalinux", "alpine", "archlinux", "debian", "fedora", "opensuse", "rockylinux", "none"];
+        let distro = Select::new("Target Distro Integration:", distros).prompt()?;
+        if distro != "none" {
+            ctx.parameters.insert("distro".to_string(), distro.to_string());
+        }
+    }
+
+    if workflow == MACRO_RECORD {
+        let name = Text::new("Macro Name:").prompt()?;
+        let mut cmds = Vec::new();
+        loop {
+            let cmd = Text::new("Command (empty to finish):").prompt()?;
+            if cmd.is_empty() { break; }
+            cmds.push(cmd);
+        }
+        crate::engine::macros::record_macro(&name, cmds)?;
+        return Ok(());
+    }
+
+    if workflow == MACRO_REPLAY {
+        let name = Text::new("Macro Name to Replay:").prompt()?;
+        crate::engine::macros::replay_macro(&name)?;
+        return Ok(());
+    }
 
     // 3. Dry Run Mode
     ctx.dry_run = Confirm::new(DRY_RUN_CONFIRM).prompt()?;

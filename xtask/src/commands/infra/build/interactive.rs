@@ -68,6 +68,12 @@ pub fn run() -> Result<()> {
     if matches!(mode, BuildMode::FullPipeline) {
         let bootloader = *ui::select("Select bootloader", &Bootloader::iter().collect::<Vec<_>>())?;
         let format = *ui::select("Select image format", &ImageFormat::iter().collect::<Vec<_>>())?;
+        
+        let distros = vec!["almalinux", "alpine", "archlinux", "debian", "fedora", "opensuse", "rockylinux", "none"];
+        let distro = *ui::select("Select Target Distro Integration", &distros)?;
+        if distro != "none" {
+            ctx.parameters.insert("distro".to_string(), distro.to_string());
+        }
 
         // Initialize staging for full pipeline
         ctx.staging = Some(StagingArea::new(ctx.out_dir.join("stage"))?);

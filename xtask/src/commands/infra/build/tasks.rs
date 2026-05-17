@@ -1,7 +1,6 @@
 use anyhow::{Result, Context};
 use std::path::Path;
 use crate::engine::{Task, ExecutionContext, TaskStatus};
-use crate::utils::logging;
 use crate::constants::cargo as cargo_consts;
 use aethercore_common::{TargetArch, KernelFeatures};
 
@@ -32,13 +31,13 @@ impl Task for KernelCompileTask {
             args.push(&features_str);
         }
 
-        logging::status("BUILD", &format!("Compiling kernel for {} (Profile: {})", target_triple, if self.release { "release" } else { "debug" }));
-        
-        crate::utils::sys::process::run_checked_in_dir(
-            "cargo",
-            &args,
-            Path::new("kernel")
-        ).context("Failed to compile kernel")?;
+        // Removed manual logging::status since AOP handles it
+        crate::utils::sys::execution::Executor::new("cargo")
+            .args(&args)
+            .current_dir(Path::new("kernel"))
+            .with_progress()
+            .run()
+            .context("Failed to compile kernel")?;
         
         Ok(TaskStatus::Success)
     }

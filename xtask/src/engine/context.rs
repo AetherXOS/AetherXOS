@@ -34,8 +34,9 @@ impl ExecutionContext {
 
     pub fn resolve_target_binary(&self, _package: &str, bin: &str) -> PathBuf {
         let profile = if self.is_release { "release" } else { "debug" };
+        let target_triple = format!("{}-unknown-none", self.arch);
         LAYOUT.target
-            .join(&self.arch)
+            .join(target_triple)
             .join(profile)
             .join(bin)
     }

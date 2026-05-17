@@ -1,6 +1,5 @@
 use anyhow::Result;
 use crate::engine::{Task, ExecutionContext, TaskStatus};
-use crate::utils::logging;
 use crate::utils::sys::process::Executor;
 
 pub struct KernelSafetyAuditTask;
@@ -10,11 +9,10 @@ impl Task for KernelSafetyAuditTask {
     fn description(&self) -> String { "Analyzes kernel source code for unsafe usage patterns and potential memory leaks".to_string() }
     
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
-        logging::status("SAFETY", "Performing static analysis of kernel sources...");
-        
+        // AOP handles logging
         // Execute clippy audit using the new Executor API
         Executor::new("cargo")
-            .args(&["clippy", "-p", "aethercore", "--", "-D", "warnings"])
+            .args(&["clippy", "-p", "aether-x-os", "--", "-D", "warnings"])
             .best_effort() 
             .run()?;
         

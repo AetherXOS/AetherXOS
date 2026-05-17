@@ -25,6 +25,11 @@ impl Pipeline {
 
     /// Execute all tasks in the pipeline sequentially.
     pub fn run(&self, ctx: &ExecutionContext) -> Result<()> {
+        let is_tui = crate::utils::core::config::get_settings().tui_hud_enabled;
+        if is_tui {
+            return self.run_tui_hud(ctx);
+        }
+
         logging::status("PIPELINE", &format!("Executing Workflow: {}", self.name));
         let pipeline_start = Instant::now();
         
@@ -51,13 +56,13 @@ impl Pipeline {
             }
 
             // 3. Execution
-            logging::info(&task_name, &format!("{} Running...", progress), &[]);
-            let task_start = Instant::now();
+            // 3. Execution
+            let result = crate::utils::ui::logging::aop_wrap(&task_name, &format!("{} {}", progress, task.description()), || {
+                task.run(ctx)
+            });
             
-            match task.run(ctx) {
+            match result {
                 Ok(TaskStatus::Success) => {
-                    let elapsed = task_start.elapsed();
-                    logging::success(&task_name, &format!("{} Done in {:?}", progress, elapsed), &[]);
                     executed_tasks.push(task);
                     
                     // Update Cache
@@ -101,5 +106,102 @@ impl Pipeline {
                 logging::error(&task_name, &format!("Cleanup failed: {}", e), &[]);
             }
         }
+    }
+
+    fn run_tui_hud(&self, ctx: &ExecutionContext) -> Result<()> {
+        use crate::utils::ui::pipeline_hud::{HudEvent, run_hud};
+        use crate::utils::sys::execution::TUI_HUD_LOG_SENDER;
+
+        let (event_tx, event_rx) = crossbeam_channel::unbounded();
+        let (log_tx, log_rx) = crossbeam_channel::unbounded();
+
+        // 1. Set global log redirector
+        *TUI_HUD_LOG_SENDER.lock().unwrap() = Some(log_tx);
+
+        let task_names: Vec<(String, String)> = self.tasks.iter()
+            .map(|t| (t.name().to_string(), t.description().to_string()))
+            .collect();
+
+        let mut final_result = Ok(());
+        std::thread::scope(|s| {
+            let event_tx_clone = event_tx.clone();
+            let event_tx_clone2 = event_tx.clone();
+
+            // Background pipeline executor thread
+            let runner = s.spawn(move || {
+                let mut executed_tasks = Vec::new();
+                let mut pipeline_res = Ok(());
+
+                for (idx, task) in self.tasks.iter().enumerate() {
+                    let task_name = task.name();
+                    
+                    if !task.should_run(ctx) {
+                        continue;
+                    }
+
+                    if let Some(fp) = task.fingerprint(ctx).unwrap_or(None) {
+                        let state = ctx.state.read().unwrap();
+                        if state.get_hash(&task_name) == Some(&fp) {
+                            continue;
+                        }
+                    }
+
+                    let _ = event_tx_clone.send(HudEvent::TaskStarted { index: idx });
+
+                    let result = task.run(ctx);
+
+                    match result {
+                        Ok(TaskStatus::Success) => {
+                            executed_tasks.push(task);
+                            if let Some(fp) = task.fingerprint(ctx).unwrap_or(None) {
+                                let mut state = ctx.state.write().unwrap();
+                                state.set_hash(task_name, fp);
+                                let _ = state.save();
+                            }
+                            let _ = event_tx_clone.send(HudEvent::TaskFinished { index: idx, success: true, reason: None });
+                        }
+                        Ok(TaskStatus::Skipped(reason)) => {
+                            let _ = event_tx_clone.send(HudEvent::TaskFinished { index: idx, success: true, reason: Some(reason) });
+                        }
+                        Ok(TaskStatus::Failed(reason)) => {
+                            let _ = event_tx_clone.send(HudEvent::TaskFinished { index: idx, success: false, reason: Some(reason.clone()) });
+                            pipeline_res = Err(anyhow!("Task '{}' failed: {}", task_name, reason));
+                            break;
+                        }
+                        Err(e) => {
+                            let _ = event_tx_clone.send(HudEvent::TaskFinished { index: idx, success: false, reason: Some(e.to_string()) });
+                            pipeline_res = Err(e);
+                            break;
+                        }
+                    }
+                }
+
+                if pipeline_res.is_err() {
+                    self.initiate_rollback(ctx, &executed_tasks);
+                }
+                
+                let success = pipeline_res.is_ok();
+                let _ = event_tx_clone.send(HudEvent::Finished { success });
+                pipeline_res
+            });
+
+            // Bridge thread to forward executor logs to HUD
+            s.spawn(move || {
+                while let Ok(line) = log_rx.recv() {
+                    let _ = event_tx_clone2.send(HudEvent::TaskLog { line });
+                }
+            });
+
+            // Run TUI HUD in the main thread (blocks until HUD loop exits)
+            let _ = run_hud(event_rx, task_names);
+
+            // Wait for runner thread and capture final result
+            final_result = runner.join().unwrap_or_else(|_| Err(anyhow!("Pipeline thread crashed")));
+        });
+
+        // Clean up log redirector
+        *TUI_HUD_LOG_SENDER.lock().unwrap() = None;
+
+        final_result
     }
 }

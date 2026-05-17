@@ -20,12 +20,54 @@ pub fn init_logger(_level: LogLevel, to_file: bool) -> anyhow::Result<()> {
 }
 
 pub fn log(level: &str, tag: &str, msg: &str) {
-    let formatted = format!("[{}] [{}] {}", level, tag, msg);
+    let color_code = match level {
+        "INFO" => "\x1b[34m", // Blue
+        "WARN" => "\x1b[33m", // Yellow
+        "ERROR" => "\x1b[31m", // Red
+        "SUCCESS" => "\x1b[32m", // Green
+        "READY" => "\x1b[35m", // Magenta
+        "STATUS" => "\x1b[36m", // Cyan
+        "STEP" => "\x1b[90m", // Gray
+        "EXEC" => "\x1b[94m", // Bright Blue
+        "DEBUG" => "\x1b[90m", // Gray
+        "AOP" => "\x1b[95m", // Bright Magenta
+        _ => "\x1b[0m",
+    };
+    let reset = "\x1b[0m";
+    let formatted = format!("{}[{}] [{}] {}{}", color_code, level, tag, msg, reset);
     println!("{}", formatted);
     
+    // For file logging, strip ANSI
+    let raw_formatted = format!("[{}] [{}] {}", level, tag, msg);
     if let Ok(tx_opt) = LOG_TX.lock() {
         if let Some(tx) = tx_opt.as_ref() {
-            let _ = tx.send(LogCommand::Write(formatted));
+            let _ = tx.send(LogCommand::Write(raw_formatted));
+        }
+    }
+}
+
+pub fn aop_wrap<T, F: FnOnce() -> T>(tag: &str, action: &str, f: F) -> T {
+    log("AOP", tag, &format!("Enter: {}", action));
+    let start = std::time::Instant::now();
+    let result = f();
+    log("AOP", tag, &format!("Exit: {} (took {:?})", action, start.elapsed()));
+    result
+}
+
+pub fn aop_wrap_result<T, E, F: FnOnce() -> Result<T, E>>(tag: &str, action: &str, f: F) -> Result<T, E>
+where
+    E: std::fmt::Display,
+{
+    log("AOP", tag, &format!("Enter: {}", action));
+    let start = std::time::Instant::now();
+    match f() {
+        Ok(val) => {
+            log("AOP", tag, &format!("Success: {} (took {:?})", action, start.elapsed()));
+            Ok(val)
+        }
+        Err(e) => {
+            log("AOP", tag, &format!("Failure: {} - Error: {} (took {:?})", action, e, start.elapsed()));
+            Err(e)
         }
     }
 }

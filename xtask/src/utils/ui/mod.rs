@@ -13,5 +13,7 @@ pub mod vterm;
 pub mod parser;
 pub mod robustness;
 pub mod prompts;
+pub mod webhook;
+pub mod pipeline_hud;
 
 pub use self::prompts::*;

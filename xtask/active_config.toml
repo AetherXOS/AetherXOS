@@ -1,0 +1,5 @@
+last_features = ["KernelFeatures(VFS | DRIVERS | SMP | TEST_MODE | DEBUG_TEST_OUTPUT)"]
+last_arch = ""
+last_profile = ""
+last_bootloader = ""
+last_image_format = ""

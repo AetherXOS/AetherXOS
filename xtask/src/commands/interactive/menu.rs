@@ -10,7 +10,10 @@ pub fn launch_main_menu() -> Result<()> {
     let commands: Vec<Box<dyn MenuCommand>> = vec![
         Box::new(BuildKernelCommand),
         Box::new(DistroOpsCommand),
+        Box::new(MacroOpsCommand),
         Box::new(ManageFeaturesCommand),
+        Box::new(DashboardCommand),
+        Box::new(SystemSettingsCommand),
         Box::new(ExitCommand),
     ];
 
@@ -47,14 +50,16 @@ pub fn launch_main_menu() -> Result<()> {
 
 fn print_banner() {
     let banner = r#"
-    ___         __  __              _  __   ____  _____
-   /   |  ___  / /_/ /_  ___  _____| |/ /  / __ \/ ___/
-  / /| | / _ \/ __/ __ \/ _ \/ ___/|   /  / / / /\__ \ 
- / ___ |/  __/ /_/ / / /  __/ /   /   |  / /_/ /___/ / 
-/_/  |_|\___/\__/_/ /_/\___/_/   /_/|_|  \____//____/  
+    █████╗ ███████╗████████╗██╗  ██╗███████╗██████╗ ██╗  ██╗
+   ██╔══██╗██╔════╝╚══██╔══╝██║  ██║██╔════╝██╔══██╗╚██╗██╔╝
+   ███████║█████╗     ██║   ███████║█████╗  ██████╔╝ ╚███╔╝ 
+   ██╔══██║██╔══╝     ██║   ██╔══██║██╔══╝  ██╔══██╗ ██╔██╗ 
+   ██║  ██║███████╗   ██║   ██║  ██║███████╗██║  ██║██╔╝ ██╗
+   ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝
     "#;
-    println!("{}", banner.cyan().bold());
-    println!("{}", "      --- The Ultimate Agentic OS Build Engine ---".dimmed());
+    println!("{}", banner.bright_magenta().bold());
+    println!("{}", "   ░▒▓█ The Ultimate Agentic OS Build Engine █▓▒░".bright_cyan().bold());
+    println!("{}", "   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_black());
     println!();
 }
 
