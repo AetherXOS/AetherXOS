@@ -90,6 +90,33 @@ impl MenuCommand for SystemSettingsCommand {
     }
 }
 
+pub struct KernelBloatCommand;
+impl MenuCommand for KernelBloatCommand {
+    fn label(&self) -> &str { "📊 Interactive Kernel Bloat Analyzer" }
+    fn execute(&self) -> Result<bool> {
+        crate::utils::ui::bloat_analyzer::run_analyzer()?;
+        Ok(false)
+    }
+}
+
+pub struct SerialMonitorCommand;
+impl MenuCommand for SerialMonitorCommand {
+    fn label(&self) -> &str { "🔌 Live Serial Debug Monitor & QEMU GDB Portal" }
+    fn execute(&self) -> Result<bool> {
+        crate::utils::ui::serial_monitor::run_serial_monitor()?;
+        Ok(false)
+    }
+}
+
+pub struct BootTestCommand;
+impl MenuCommand for BootTestCommand {
+    fn label(&self) -> &str { "🧪 Autonomous Integration Boot Test" }
+    fn execute(&self) -> Result<bool> {
+        crate::utils::ui::boot_tester::run_boot_test()?;
+        Ok(false)
+    }
+}
+
 pub struct ExitCommand;
 impl MenuCommand for ExitCommand {
     fn label(&self) -> &str { "🚪 Exit" }

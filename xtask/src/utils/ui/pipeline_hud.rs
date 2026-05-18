@@ -20,18 +20,34 @@ pub enum HudEvent {
     Finished { success: bool },
 }
 
+pub enum HudResult {
+    Exit(anyhow::Result<()>),
+    Retry,
+}
+
 struct TaskState {
     name: String,
     description: String,
     status: String, // "Pending", "Running", "Success", "Failed"
 }
 
-pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> anyhow::Result<()> {
-    enable_raw_mode()?;
+pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> HudResult {
+    if let Err(e) = enable_raw_mode() {
+        return HudResult::Exit(Err(anyhow::anyhow!("Failed to enable raw mode: {}", e)));
+    }
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    if let Err(e) = execute!(stdout, EnterAlternateScreen) {
+        let _ = disable_raw_mode();
+        return HudResult::Exit(Err(anyhow::anyhow!("Failed to enter alternate screen: {}", e)));
+    }
     let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    let mut terminal = match Terminal::new(backend) {
+        Ok(t) => t,
+        Err(e) => {
+            let _ = disable_raw_mode();
+            return HudResult::Exit(Err(anyhow::anyhow!("Failed to create terminal: {}", e)));
+        }
+    };
 
     let mut tasks: Vec<TaskState> = task_names.into_iter().map(|(name, desc)| TaskState {
         name,
@@ -44,6 +60,12 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> any
     let start_time = Instant::now();
     let mut finished = false;
     let mut build_success = true;
+
+    // Initialize sysinfo telemetry
+    use sysinfo::System;
+    let mut sys = System::new_all();
+    sys.refresh_all();
+    let mut tick_counter = 0;
 
     // Get TUI theme configuration
     let theme = crate::utils::core::config::get_settings().hud_theme;
@@ -83,8 +105,42 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> any
             }
         }
 
+        // Refresh hardware CPU/RAM status every 500ms (10 * 50ms)
+        tick_counter += 1;
+        if tick_counter >= 10 {
+            sys.refresh_cpu();
+            sys.refresh_memory();
+            tick_counter = 0;
+        }
+
+        let cpu_usage = sys.global_cpu_info().cpu_usage();
+        let total_mem = sys.total_memory();
+        let used_mem = sys.used_memory();
+
+        // Build CPU bar: e.g. [████░░░░]
+        let cpu_bar_len = 8;
+        let cpu_filled = (((cpu_usage / 100.0) * cpu_bar_len as f32).round() as usize).min(cpu_bar_len);
+        let cpu_bar = format!(
+            "[{}{}] {:.0}%",
+            "█".repeat(cpu_filled),
+            "░".repeat(cpu_bar_len - cpu_filled),
+            cpu_usage
+        );
+
+        // Build RAM bar: e.g. [██░░░░░░]
+        let mem_bar_len = 8;
+        let mem_ratio = if total_mem > 0 { used_mem as f64 / total_mem as f64 } else { 0.0 };
+        let mem_filled = ((mem_ratio * mem_bar_len as f64).round() as usize).min(mem_bar_len);
+        let mem_bar = format!(
+            "[{}{}] {}/{}",
+            "█".repeat(mem_filled),
+            "░".repeat(mem_bar_len - mem_filled),
+            crate::utils::fs::format::format_size(used_mem),
+            crate::utils::fs::format::format_size(total_mem)
+        );
+
         // TUI Render
-        terminal.draw(|f| {
+        let render_res = terminal.draw(|f| {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
@@ -146,7 +202,7 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> any
             // Footer Panel
             let footer_text = if finished {
                 if build_success {
-                    " 🚀 WORKFLOW COMPLETED SUCCESSFULLY. Press Enter to exit TUI HUD."
+                    " 🚀 WORKFLOW COMPLETED SUCCESSFULLY. Press Enter to exit."
                 } else {
                     " ❌ WORKFLOW FAILED. Press 'd' to run AI Diagnostics, or Enter to exit."
                 }
@@ -155,37 +211,50 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> any
             };
 
             let elapsed = start_time.elapsed();
-            let footer = Paragraph::new(format!(" Elapsed: {:?} |{}", elapsed, footer_text))
+            let footer_content = format!(
+                " Elapsed: {:?} | CPU: {} | RAM: {} |{}", 
+                elapsed, cpu_bar, mem_bar, footer_text
+            );
+            let footer = Paragraph::new(footer_content)
                 .style(Style::default().fg(Color::DarkGray))
                 .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(accent_fg)));
             f.render_widget(footer, chunks[2]);
-        })?;
+        });
+
+        if let Err(e) = render_res {
+            let _ = disable_raw_mode();
+            let _ = execute!(terminal.backend_mut(), LeaveAlternateScreen);
+            return HudResult::Exit(Err(anyhow::anyhow!("Failed to draw TUI frame: {}", e)));
+        }
 
         // Handle Exit key in finished state
         if finished {
-            if event::poll(Duration::from_millis(50))? {
-                if let Event::Key(key) = event::read()? {
-                    if let KeyCode::Enter = key.code {
-                        break;
-                    }
-                    if let KeyCode::Char('d') = key.code {
-                        if !build_success {
-                            // Find the failed task
-                            if let Some(failed_task) = tasks.iter().find(|t| t.status.starts_with("Failed")) {
-                                // 1. De-initialize raw TUI screen
-                                disable_raw_mode()?;
-                                execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-                                terminal.show_cursor()?;
+            let mut key_event = None;
+            if let Ok(true) = event::poll(Duration::from_millis(50)) {
+                if let Ok(Event::Key(key)) = event::read() {
+                    key_event = Some(key.code);
+                }
+            }
 
-                                // 2. Trigger AI Diagnostics
-                                println!("\n🔍  Running AI Diagnostics for: {}\n", failed_task.name);
-                                let _ = crate::utils::ui::oracle::Oracle::suggest_next(&failed_task.name, false, Some(&failed_task.status));
-                                
-                                println!("\nPress Enter to return...");
-                                let mut input = String::new();
-                                let _ = std::io::stdin().read_line(&mut input);
-                                
-                                return Ok(());
+            if let Some(code) = key_event {
+                if let KeyCode::Enter = code {
+                    break;
+                }
+                if let KeyCode::Char('d') = code {
+                    if !build_success {
+                        // Find the failed task
+                        if let Some(failed_task) = tasks.iter().find(|t| t.status.starts_with("Failed")) {
+                            // 1. De-initialize raw TUI screen
+                            let _ = disable_raw_mode();
+                            let _ = execute!(terminal.backend_mut(), LeaveAlternateScreen);
+                            let _ = terminal.show_cursor();
+
+                            // 2. Trigger AI Diagnostics
+                            println!("\n🔍  Running AI Diagnostics for: {}\n", failed_task.name);
+                            match crate::utils::ui::oracle::Oracle::suggest_next(&failed_task.name, false, Some(&failed_task.status)) {
+                                Ok(true) => return HudResult::Retry,
+                                Ok(false) => return HudResult::Exit(Err(anyhow::anyhow!("Build failed at step '{}': {}", failed_task.name, failed_task.status))),
+                                Err(e) => return HudResult::Exit(Err(e)),
                             }
                         }
                     }
@@ -196,12 +265,16 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> any
         }
     }
 
-    disable_raw_mode()?;
-    execute!(
+    let _ = disable_raw_mode();
+    let _ = execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen
-    )?;
-    terminal.show_cursor()?;
+    );
+    let _ = terminal.show_cursor();
 
-    Ok(())
+    if build_success {
+        HudResult::Exit(Ok(()))
+    } else {
+        HudResult::Exit(Err(anyhow::anyhow!("Pipeline execution failed")))
+    }
 }

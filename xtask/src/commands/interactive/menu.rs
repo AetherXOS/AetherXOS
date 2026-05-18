@@ -13,6 +13,9 @@ pub fn launch_main_menu() -> Result<()> {
         Box::new(MacroOpsCommand),
         Box::new(ManageFeaturesCommand),
         Box::new(DashboardCommand),
+        Box::new(KernelBloatCommand),
+        Box::new(SerialMonitorCommand),
+        Box::new(BootTestCommand),
         Box::new(SystemSettingsCommand),
         Box::new(ExitCommand),
     ];

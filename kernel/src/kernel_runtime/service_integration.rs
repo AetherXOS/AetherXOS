@@ -3,10 +3,6 @@
 //! Integrates system services (signals, networking, audit logging) with security policies
 //! and kernel subsystems. Follows the same hook pattern as syscall_integration.rs.
 
-
-
-
-
 /// Signal delivery hook - called when a signal is about to be sent to a process
 ///
 /// # Arguments
@@ -33,7 +29,10 @@ pub fn on_signal_send(pid: usize, signal: i32, sender_uid: u32) -> Result<(), &'
         audit_service_event("signal_send", pid as u32, sender_uid, true, description);
     }
 
-    log::debug(&format!("Signal delivery allowed: sig={} pid={}", signal, pid));
+    log::debug(&format!(
+        "Signal delivery allowed: sig={} pid={}",
+        signal, pid
+    ));
     Ok(())
 }
 
@@ -48,7 +47,11 @@ pub fn on_signal_send(pid: usize, signal: i32, sender_uid: u32) -> Result<(), &'
 /// - `Ok(())` if signal can be delivered
 /// - `Err(&str)` if delivery should be blocked
 #[cfg(feature = "posix_signal")]
-pub fn on_signal_receive(pid: usize, signal: i32, handler_action: &str) -> Result<(), &'static str> {
+pub fn on_signal_receive(
+    pid: usize,
+    signal: i32,
+    handler_action: &str,
+) -> Result<(), &'static str> {
     // Validate signal and action
     if signal < 1 || signal > 64 {
         return Err("invalid_signal");
@@ -56,7 +59,10 @@ pub fn on_signal_receive(pid: usize, signal: i32, handler_action: &str) -> Resul
 
     #[cfg(feature = "audit_logging")]
     {
-        let description = format!("Signal {} delivered to pid {} with action {}", signal, pid, handler_action);
+        let description = format!(
+            "Signal {} delivered to pid {} with action {}",
+            signal, pid, handler_action
+        );
         audit_service_event("signal_receive", pid as u32, 0, true, description);
     }
 
@@ -79,7 +85,12 @@ pub fn on_signal_receive(pid: usize, signal: i32, handler_action: &str) -> Resul
 /// - `Ok(())` if socket creation is allowed
 /// - `Err(&str)` if denied by policy
 #[cfg(feature = "posix_net")]
-pub fn on_socket_create(domain: usize, socket_type: usize, protocol: usize, uid: u32) -> Result<(), &'static str> {
+pub fn on_socket_create(
+    domain: usize,
+    socket_type: usize,
+    protocol: usize,
+    uid: u32,
+) -> Result<(), &'static str> {
     // Validate socket domain
     const AF_INET: usize = 2;
     const AF_INET6: usize = 10;
@@ -123,10 +134,18 @@ pub fn on_socket_create(domain: usize, socket_type: usize, protocol: usize, uid:
 /// - `Ok(())` if connection is allowed
 /// - `Err(&str)` if denied by policy
 #[cfg(feature = "posix_net")]
-pub fn on_socket_connect(_domain: usize, remote_addr: &str, remote_port: u16, uid: u32) -> Result<(), &'static str> {
+pub fn on_socket_connect(
+    _domain: usize,
+    remote_addr: &str,
+    remote_port: u16,
+    uid: u32,
+) -> Result<(), &'static str> {
     // Policy: deny connections to localhost on high ports (example)
     if remote_addr == "127.0.0.1" && remote_port > 32768 {
-        log::warn(&format!("Blocked connection to {}:{}", remote_addr, remote_port));
+        log::warn(&format!(
+            "Blocked connection to {}:{}",
+            remote_addr, remote_port
+        ));
         #[cfg(feature = "audit_logging")]
         {
             let description = format!("Connection denied to {}:{}", remote_addr, remote_port);
@@ -141,7 +160,10 @@ pub fn on_socket_connect(_domain: usize, remote_addr: &str, remote_port: u16, ui
         audit_service_event("socket_connect", 0, uid, true, description);
     }
 
-    log::debug(&format!("Connection allowed to {}:{}", remote_addr, remote_port));
+    log::debug(&format!(
+        "Connection allowed to {}:{}",
+        remote_addr, remote_port
+    ));
     Ok(())
 }
 
@@ -258,7 +280,10 @@ pub fn on_socket_listen(fd: usize, backlog: usize, uid: u32) -> Result<(), &'sta
         audit_service_event("socket_listen", 0, uid, true, description);
     }
 
-    log::debug(&format!("Listen allowed: fd={} backlog={}", fd, effective_backlog));
+    log::debug(&format!(
+        "Listen allowed: fd={} backlog={}",
+        fd, effective_backlog
+    ));
     Ok(())
 }
 
@@ -409,4 +434,3 @@ mod tests {
         assert_eq!(result.unwrap(), 1024 * 1024); // Capped to 1MB
     }
 }
-

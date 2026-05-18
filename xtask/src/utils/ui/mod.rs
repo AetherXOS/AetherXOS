@@ -15,5 +15,8 @@ pub mod robustness;
 pub mod prompts;
 pub mod webhook;
 pub mod pipeline_hud;
+pub mod bloat_analyzer;
+pub mod serial_monitor;
+pub mod boot_tester;
 
 pub use self::prompts::*;
