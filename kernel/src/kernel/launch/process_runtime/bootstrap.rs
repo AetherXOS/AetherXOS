@@ -68,99 +68,12 @@ pub fn publish_bootstrap_process_and_task(
     task_id: TaskId,
     registry_boot_image: BootImageRecord,
 ) -> Result<(usize, usize), LaunchError> {
-    let process_id = process.id.0;
-    crate::kernel::debug_trace::record_optional(
-        "launch.bootstrap",
-        "publish_begin",
-        Some(process_id as u64),
-        false,
-    );
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::serial::write_raw(
-        "[EARLY SERIAL] launch bootstrap register process begin\n",
-    );
-    let proc_ref = support::register_process(process);
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::serial::write_raw(
-        "[EARLY SERIAL] launch bootstrap register process returned\n",
-    );
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::serial::write_raw(
-        "[EARLY SERIAL] launch bootstrap registry image begin\n",
-    );
-    support::register_process_with_task_image(proc_ref, task_id, registry_boot_image);
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::serial::write_raw(
-        "[EARLY SERIAL] launch bootstrap registry image returned\n",
-    );
-    crate::kernel::debug_trace::record_optional(
-        "launch.bootstrap",
-        "registry_image_returned",
-        Some(task_id.0 as u64),
-        false,
-    );
-
-    let cpu = match unsafe { CpuLocal::try_get() } {
-        Some(cpu) => cpu,
-        None => {
-            ENQUEUE_FAILURES.fetch_add(1, Ordering::Relaxed);
-            return Err(LaunchError::SchedulerUnavailable);
-        }
-    };
-
-    crate::kernel::task::register_task_arc(task.clone());
-    crate::kernel::debug_trace::record_optional(
-        "launch.bootstrap",
-        "register_task_returned",
-        Some(task_id.0 as u64),
-        false,
-    );
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::serial::write_raw(
-        "[EARLY SERIAL] launch bootstrap register task returned\n",
-    );
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::serial::write_raw(
-        "[EARLY SERIAL] launch bootstrap scheduler lock begin\n",
-    );
-    let mut scheduler = cpu.scheduler.lock();
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::serial::write_raw(
-        "[EARLY SERIAL] launch bootstrap scheduler lock returned\n",
-    );
-    scheduler.add_task(task.clone());
-    crate::kernel::debug_trace::record_optional(
-        "launch.bootstrap",
-        "scheduler_add_returned",
-        Some(task_id.0 as u64),
-        false,
-    );
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::serial::write_raw(
-        "[EARLY SERIAL] launch bootstrap scheduler add returned\n",
-    );
-
-    crate::kernel::rt_preemption::request_forced_reschedule();
-    crate::kernel::debug_trace::record_optional(
-        "launch.bootstrap",
-        "forced_reschedule_requested",
-        Some(task_id.0 as u64),
-        false,
-    );
-    #[cfg(all(target_arch = "x86_64", target_os = "none"))]
-    crate::hal::serial::write_raw(
-        "[EARLY SERIAL] launch bootstrap forced reschedule requested\n",
-    );
-
-    LAST_TASK_ID.store(task_id.0, Ordering::Relaxed);
-    SPAWN_SUCCESS.fetch_add(1, Ordering::Relaxed);
-    crate::kernel::debug_trace::record_optional(
-        "launch.bootstrap",
-        "spawn_returned",
-        Some(process_id as u64),
-        false,
-    );
-    Ok((process_id, task_id.0))
+    crate::kernel::launch::process_runtime::bootstrap_publish::publish_bootstrap_process_and_task(
+        process,
+        task,
+        task_id,
+        registry_boot_image,
+    )
 }
 
 #[cfg(feature = "process_abstraction")]

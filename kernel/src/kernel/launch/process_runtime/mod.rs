@@ -3,9 +3,19 @@ use super::*;
 pub mod support;
 pub mod wrappers;
 pub mod query;
+pub mod query_helpers;
 pub mod lifecycle;
+pub mod lifecycle_helpers;
+pub mod terminate_helpers;
 pub mod bootstrap;
 pub mod bootstrap_spawn;
+pub mod bootstrap_spawn_helpers;
+pub mod bootstrap_publish_helpers;
+pub mod bootstrap_spawn_materialize;
+pub mod bootstrap_spawn_utils;
+pub mod bootstrap_spawn_observability;
+pub mod bootstrap_spawn_task;
+pub mod bootstrap_publish;
 
 #[cfg(feature = "process_abstraction")]
 pub mod bootstrap_dispatch;
