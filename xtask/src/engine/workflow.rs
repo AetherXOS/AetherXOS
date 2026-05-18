@@ -1,15 +1,17 @@
-use anyhow::Result;
-use crate::engine::{Pipeline, ExecutionContext};
-use crate::commands::infra::build::tasks::{KernelCompileTask, InitramfsTask};
-use crate::commands::infra::build::image_tasks::{KernelStageTask, BootConfigTask, ImageFinalizeTask};
+use crate::commands::infra::build::image_tasks::{
+    BootConfigTask, ImageFinalizeTask, KernelStageTask,
+};
+use crate::commands::infra::build::tasks::{InitramfsTask, KernelCompileTask};
 use crate::commands::validation::safety::KernelSafetyAuditTask;
+use crate::engine::{ExecutionContext, Pipeline};
+use anyhow::Result;
 
 pub struct WorkflowRegistry;
 
 impl WorkflowRegistry {
     pub fn full_iso_pipeline(ctx: &ExecutionContext) -> Result<Pipeline> {
         let mut p = Pipeline::new("Full ISO Pipeline");
-        
+
         // 0. Environment Audit
         p = p.add_task(Box::new(crate::engine::audit::ToolchainAuditTask));
         p = p.add_task(Box::new(crate::engine::ResourceAuditTask));
@@ -29,7 +31,7 @@ impl WorkflowRegistry {
 
         // 4. Staging & Bundling
         p = p.add_task(Box::new(KernelStageTask));
-        
+
         p = p.add_task(Box::new(BootConfigTask {
             bootloader: crate::types::Bootloader::Limine,
         }));

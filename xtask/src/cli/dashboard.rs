@@ -21,7 +21,9 @@ impl crate::utils::executable::Executable for DashboardAction {
             DashboardAction::Live => crate::utils::ui::dashboard::launch(),
             DashboardAction::Join { address } => {
                 let rt = tokio::runtime::Runtime::new()?;
-                rt.block_on(crate::utils::ui::collaborative::run_collaboration_client(address))
+                rt.block_on(crate::utils::ui::collaborative::run_collaboration_client(
+                    address,
+                ))
             }
             _ => crate::commands::dashboard::execute(self),
         }

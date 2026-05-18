@@ -1,6 +1,6 @@
+use crate::utils::fs::paths::LAYOUT;
 use std::path::PathBuf;
 use std::sync::RwLock;
-use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Clone)]
 pub struct ExecutionContext {
@@ -35,10 +35,7 @@ impl ExecutionContext {
     pub fn resolve_target_binary(&self, _package: &str, bin: &str) -> PathBuf {
         let profile = if self.is_release { "release" } else { "debug" };
         let target_triple = format!("{}-unknown-none", self.arch);
-        LAYOUT.target
-            .join(target_triple)
-            .join(profile)
-            .join(bin)
+        LAYOUT.target.join(target_triple).join(profile).join(bin)
     }
 
     pub fn artifact_path(&self, name: &str) -> PathBuf {

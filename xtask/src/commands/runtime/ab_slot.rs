@@ -1,4 +1,4 @@
-use anyhow::{Result, bail, Context};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -246,7 +246,8 @@ fn recovery_gate() -> Result<()> {
     let soak_path = constants::paths::qemu_soak_root().join("summary.json");
     let out_dir = constants::paths::reports_ab_boot_recovery_gate();
     if !out_dir.exists() {
-        fs::create_dir_all(&out_dir).context("failed creating ab-boot recovery gate report directory")?;
+        fs::create_dir_all(&out_dir)
+            .context("failed creating ab-boot recovery gate report directory")?;
     }
 
     if !soak_path.exists() {

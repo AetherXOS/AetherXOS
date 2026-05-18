@@ -153,9 +153,13 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
     let desktop_probes = probes::run_runtime_probes(&mut compat, &mut totals, &opts);
 
     println!("\nPhase 2: Kernel Gates");
-    let linux_gate_features = crate::utils::features::cargo_features_from_default(&["linux_compat"])
-        .unwrap_or_else(|_| "linux_compat".to_string());
-    print!("[GATE] cargo check --lib --features {}", linux_gate_features);
+    let linux_gate_features =
+        crate::utils::features::cargo_features_from_default(&["linux_compat"])
+            .unwrap_or_else(|_| "linux_compat".to_string());
+    print!(
+        "[GATE] cargo check --lib --features {}",
+        linux_gate_features
+    );
     let host_target = crate::utils::cargo::detect_host_triple().ok();
     let mut cargo_args = vec!["check", "--lib", "--features", linux_gate_features.as_str()];
     if let Some(target) = host_target.as_deref() {
@@ -185,7 +189,10 @@ pub fn run(opts: LinuxAppCompatOptions) -> Result<()> {
         "md",
         &Some("reports/linux_app_compat_syscall_coverage.md".to_string()),
     );
-    let cov_ok = LAYOUT.root.join("reports/syscall_coverage_summary.json").exists();
+    let cov_ok = LAYOUT
+        .root
+        .join("reports/syscall_coverage_summary.json")
+        .exists();
     if cov_ok {
         println!(" OK");
         kernel.total += 1;

@@ -1,10 +1,10 @@
-pub mod telemetry;
 pub mod providers;
+pub mod telemetry;
 
-use std::time::Duration;
-use anyhow::{Result, Context};
 use crate::utils::logging;
-use providers::{get_registered_providers, NotificationProvider};
+use anyhow::{Context, Result};
+use providers::{NotificationProvider, get_registered_providers};
+use std::time::Duration;
 use telemetry::NotificationTelemetry;
 
 pub struct WebhookNotifier {
@@ -33,18 +33,26 @@ impl WebhookNotifier {
             .build()
             .unwrap_or_else(|_| reqwest::blocking::Client::new());
 
-        Self { client, url, provider }
+        Self {
+            client,
+            url,
+            provider,
+        }
     }
 
     /// Gathers dynamic host telemetry and dispatches the payload packet to the resolved endpoint provider
     pub fn send_notification(&self, title: &str, message: &str, is_success: bool) -> Result<()> {
         let telemetry = NotificationTelemetry::gather();
-        let payload = self.provider.format_payload(title, message, is_success, &telemetry);
+        let payload = self
+            .provider
+            .format_payload(title, message, is_success, &telemetry);
 
-        let body = serde_json::to_string(&payload)
-            .context("Failed to serialize webhook payload")?;
+        let body =
+            serde_json::to_string(&payload).context("Failed to serialize webhook payload")?;
 
-        let response = self.client.post(&self.url)
+        let response = self
+            .client
+            .post(&self.url)
             .header("Content-Type", "application/json")
             .body(body)
             .send()
@@ -53,13 +61,22 @@ impl WebhookNotifier {
         if !response.status().is_success() {
             let status = response.status();
             let err_body = response.text().unwrap_or_else(|_| "No body".to_string());
-            anyhow::bail!("Webhook server returned error status: {} | Body: {}", status, err_body);
+            anyhow::bail!(
+                "Webhook server returned error status: {} | Body: {}",
+                status,
+                err_body
+            );
         }
 
-        logging::log("AOP", "WEBHOOK", &format!(
-            "Dispatched notification via {} provider: {}", 
-            self.provider.provider_name(), title
-        ));
+        logging::log(
+            "AOP",
+            "WEBHOOK",
+            &format!(
+                "Dispatched notification via {} provider: {}",
+                self.provider.provider_name(),
+                title
+            ),
+        );
         Ok(())
     }
 }

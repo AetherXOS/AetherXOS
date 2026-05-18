@@ -4,8 +4,8 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 #[derive(Serialize)]
 struct FileHotspot {

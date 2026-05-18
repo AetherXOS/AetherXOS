@@ -4,8 +4,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 pub fn read_json_doc(path: &Path) -> Option<Value> {
     let text = fs::read_to_string(path).ok()?;

@@ -1,41 +1,77 @@
-use anyhow::Result;
-use inquire::{Select, MultiSelect, Text, Confirm};
-use crate::engine::{Pipeline, ExecutionContext, BuildProfile};
-use crate::utils::logging;
+use crate::engine::{BuildProfile, ExecutionContext, Pipeline};
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::logging;
+use anyhow::Result;
+use inquire::{Confirm, MultiSelect, Select, Text};
 
 pub fn launch_supreme_wizard() -> Result<()> {
-    use crate::constants::workflows::*;
     use crate::constants::ui::prompts::*;
-    
+    use crate::constants::workflows::*;
+
     use colored::*;
-    
+
     println!();
-    println!("{}", "╔═══════════════════════════════════════════════════════════╗".bright_magenta().bold());
-    println!("║  🌌  {}  🌌  ║", "AETHERX OS SUPREME CONFIGURATION WIZARD".bright_cyan().bold());
-    println!("{}", "╚═══════════════════════════════════════════════════════════╝".bright_magenta().bold());
+    println!(
+        "{}",
+        "╔═══════════════════════════════════════════════════════════╗"
+            .bright_magenta()
+            .bold()
+    );
+    println!(
+        "║  🌌  {}  🌌  ║",
+        "AETHERX OS SUPREME CONFIGURATION WIZARD"
+            .bright_cyan()
+            .bold()
+    );
+    println!(
+        "{}",
+        "╚═══════════════════════════════════════════════════════════╝"
+            .bright_magenta()
+            .bold()
+    );
     println!();
-    
+
     logging::status("WIZARD", "Initializing interactive setup...");
 
     // 1. Select Workflow
-    let workflows = vec![FULL_ISO, KERNEL_DEV, DOCS, DEBUG, UI_CUSTOM, UI_LOAD_PROFILE, MACRO_RECORD, MACRO_REPLAY];
+    let workflows = vec![
+        FULL_ISO,
+        KERNEL_DEV,
+        DOCS,
+        DEBUG,
+        UI_CUSTOM,
+        UI_LOAD_PROFILE,
+        MACRO_RECORD,
+        MACRO_REPLAY,
+    ];
     let workflow = Select::new(WORKFLOW_SELECT, workflows).prompt()?;
 
     let mut ctx = ExecutionContext::from_defaults();
-    
+
     if workflow == UI_LOAD_PROFILE {
         load_profile_logic(&mut ctx)?;
     }
-    
+
     // 2. Select Architecture
-    ctx.arch = Select::new(ARCH_SELECT, ARCH_LIST.to_vec()).prompt()?.to_string();
+    ctx.arch = Select::new(ARCH_SELECT, ARCH_LIST.to_vec())
+        .prompt()?
+        .to_string();
 
     if workflow == FULL_ISO {
-        let distros = vec!["almalinux", "alpine", "archlinux", "debian", "fedora", "opensuse", "rockylinux", "none"];
+        let distros = vec![
+            "almalinux",
+            "alpine",
+            "archlinux",
+            "debian",
+            "fedora",
+            "opensuse",
+            "rockylinux",
+            "none",
+        ];
         let distro = Select::new("Target Distro Integration:", distros).prompt()?;
         if distro != "none" {
-            ctx.parameters.insert("distro".to_string(), distro.to_string());
+            ctx.parameters
+                .insert("distro".to_string(), distro.to_string());
         }
     }
 
@@ -44,7 +80,9 @@ pub fn launch_supreme_wizard() -> Result<()> {
         let mut cmds = Vec::new();
         loop {
             let cmd = Text::new("Command (empty to finish):").prompt()?;
-            if cmd.is_empty() { break; }
+            if cmd.is_empty() {
+                break;
+            }
             cmds.push(cmd);
         }
         crate::engine::macros::record_macro(&name, cmds)?;
@@ -80,7 +118,7 @@ pub fn launch_supreme_wizard() -> Result<()> {
 
     // 7. Dispatch via Controller
     crate::engine::controller::UniversalController::dispatch_workflow(workflow, &ctx)?;
-    
+
     Ok(())
 }
 
@@ -102,9 +140,12 @@ fn load_profile_logic(ctx: &mut ExecutionContext) -> Result<()> {
 fn collect_parameters(ctx: &mut ExecutionContext) -> Result<()> {
     loop {
         let param = Text::new("Parameter (leave empty to finish):").prompt()?;
-        if param.is_empty() { break; }
+        if param.is_empty() {
+            break;
+        }
         if let Some((k, v)) = param.split_once('=') {
-            ctx.parameters.insert(k.trim().to_string(), v.trim().to_string());
+            ctx.parameters
+                .insert(k.trim().to_string(), v.trim().to_string());
         }
     }
     Ok(())
@@ -130,5 +171,7 @@ trait PipelineExt {
     fn into_result(self) -> Result<Pipeline>;
 }
 impl PipelineExt for Pipeline {
-    fn into_result(self) -> Result<Pipeline> { Ok(self) }
+    fn into_result(self) -> Result<Pipeline> {
+        Ok(self)
+    }
 }

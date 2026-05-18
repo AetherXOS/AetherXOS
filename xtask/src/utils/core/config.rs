@@ -1,7 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::env;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 static NON_INTERACTIVE: AtomicBool = AtomicBool::new(false);
 
@@ -47,10 +47,11 @@ impl Default for XtaskSettings {
     }
 }
 
-static SETTINGS: once_cell::sync::Lazy<std::sync::RwLock<XtaskSettings>> = once_cell::sync::Lazy::new(|| {
-    let settings = load_settings().unwrap_or_default();
-    std::sync::RwLock::new(settings)
-});
+static SETTINGS: once_cell::sync::Lazy<std::sync::RwLock<XtaskSettings>> =
+    once_cell::sync::Lazy::new(|| {
+        let settings = load_settings().unwrap_or_default();
+        std::sync::RwLock::new(settings)
+    });
 
 fn settings_path() -> PathBuf {
     PathBuf::from("artifacts/xtask_settings.json")

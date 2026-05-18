@@ -17,13 +17,13 @@ static APP_CONTEXT: OnceLock<AppContext> = OnceLock::new();
 
 pub fn init(outdir: PathBuf) -> Result<()> {
     let repo_root = LAYOUT.root.clone();
-    
+
     let outdir_abs = if outdir.is_absolute() {
         outdir
     } else {
         repo_root.join(outdir)
     };
-    
+
     let host_target = detect_host_triple()?;
 
     APP_CONTEXT

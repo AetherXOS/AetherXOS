@@ -1,9 +1,9 @@
-use anyhow::Result;
-use clap::{Subcommand, CommandFactory};
-use clap_complete::{generate, Shell};
-use std::io;
 use crate::cli::Cli;
 use crate::utils::executable::Executable;
+use anyhow::Result;
+use clap::{CommandFactory, Subcommand};
+use clap_complete::{Shell, generate};
+use std::io;
 
 #[derive(Subcommand, Debug)]
 pub enum CompletionAction {

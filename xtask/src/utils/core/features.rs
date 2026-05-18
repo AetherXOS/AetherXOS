@@ -1,9 +1,9 @@
-use anyhow::{Context, Result};
 use aethercore_common::KernelFeatures;
+use anyhow::{Context, Result};
 use std::collections::BTreeSet;
 
-use crate::utils::{logging, ui};
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::{logging, ui};
 
 #[derive(Clone, Debug)]
 pub struct FeatureCatalog {
@@ -113,10 +113,7 @@ pub fn kernel_features_from_all(required: &[&str]) -> Result<KernelFeatures> {
     Ok(kernel_features_from_names(&names))
 }
 
-pub fn prompt_kernel_feature_selection(
-    purpose: &str,
-    required: &[&str],
-) -> Result<KernelFeatures> {
+pub fn prompt_kernel_feature_selection(purpose: &str, required: &[&str]) -> Result<KernelFeatures> {
     let catalog = load_feature_catalog()?;
 
     if catalog.kernel_all.is_empty() {

@@ -5,8 +5,8 @@ use std::process::{Command, Stdio};
 use std::time::Instant;
 
 use crate::constants::{cargo as cargo_consts, tools};
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 #[derive(Serialize)]
 struct StepResult {

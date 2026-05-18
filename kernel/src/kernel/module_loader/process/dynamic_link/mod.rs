@@ -227,8 +227,7 @@ pub(super) fn apply_dynamic_linking_and_runtime_trampolines(
                                     for m in &mappings {
                                         if v >= m.start && v + 8 <= m.end {
                                             unsafe {
-                                                let ptr = v as *const u64;
-                                                return Some(core::ptr::read_unaligned(ptr));
+                                                return Some(crate::kernel::dynamic_linker::elf_dynamic::ptr_read_unaligned_u64(v));
                                             }
                                         }
                                     }
@@ -238,8 +237,7 @@ pub(super) fn apply_dynamic_linking_and_runtime_trampolines(
                                     for m in &mappings {
                                         if v >= m.start && v + 4 <= m.end {
                                             unsafe {
-                                                let ptr = v as *const u32;
-                                                return Some(core::ptr::read_unaligned(ptr));
+                                                return Some(crate::kernel::dynamic_linker::elf_dynamic::ptr_read_unaligned_u32(v));
                                             }
                                         }
                                     }
@@ -249,8 +247,7 @@ pub(super) fn apply_dynamic_linking_and_runtime_trampolines(
                                     for m in &mappings {
                                         if v >= m.start && v + 8 <= m.end {
                                             unsafe {
-                                                let ptr = v as *mut u64;
-                                                core::ptr::write_unaligned(ptr, val);
+                                                crate::kernel::dynamic_linker::elf_dynamic::ptr_write_unaligned_u64(v, val);
                                             }
                                             return;
                                         }
@@ -260,11 +257,7 @@ pub(super) fn apply_dynamic_linking_and_runtime_trampolines(
                                     for m in &mappings {
                                         if v >= m.start && v + (data.len() as u64) <= m.end {
                                             unsafe {
-                                                core::ptr::copy_nonoverlapping(
-                                                    data.as_ptr(),
-                                                    v as *mut u8,
-                                                    data.len(),
-                                                );
+                                                crate::kernel::dynamic_linker::elf_dynamic::ptr_copy_bytes_from_slice(v, data);
                                             }
                                             return;
                                         }

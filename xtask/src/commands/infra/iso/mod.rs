@@ -1,10 +1,10 @@
-use anyhow::{Result, bail, Context};
+use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use crate::utils::{logging, process, fs as fs_utils};
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::{fs as fs_utils, logging, process};
 
 pub mod iso_paths;
 pub mod tools;
@@ -12,18 +12,30 @@ pub mod utils;
 
 /// Assemble a bootable ISO image from staged boot artifacts and Limine binaries.
 pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
-    logging::info("iso", &format!("Assembling bootable ISO: {}", out_iso.display()), &[]);
+    logging::info(
+        "iso",
+        &format!("Assembling bootable ISO: {}", out_iso.display()),
+        &[],
+    );
 
     tools::ensure_iso_tools()?;
     let xorriso = tools::find_iso_tool()?;
     logging::info("iso", &format!("Using ISO tool: {}", xorriso), &[]);
 
     let limine_bin_dir = LAYOUT.root.join("artifacts/limine/bin");
-    let required = ["limine-bios-cd.bin", "limine-bios.sys", "limine-uefi-cd.bin", "BOOTX64.EFI"];
+    let required = [
+        "limine-bios-cd.bin",
+        "limine-bios.sys",
+        "limine-uefi-cd.bin",
+        "BOOTX64.EFI",
+    ];
     for name in &required {
         let p = limine_bin_dir.join(name);
         if !p.exists() {
-            bail!("Missing Limine binary: {}. Run limine fetch first.", p.display());
+            bail!(
+                "Missing Limine binary: {}. Run limine fetch first.",
+                p.display()
+            );
         }
     }
 
@@ -63,38 +75,76 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
         }
     }
     // Write ISO to a temporary path first to avoid delete races on Windows.
-    let tmp_out = out_iso.with_file_name(format!("{}.tmp", out_iso.file_name().unwrap().to_string_lossy()));
+    let tmp_out = out_iso.with_file_name(format!(
+        "{}.tmp",
+        out_iso.file_name().unwrap().to_string_lossy()
+    ));
 
     if xorriso.contains("oscdimg") {
         let boot_sector = iso_root.join("boot/limine-bios-cd.bin");
         let efi_boot = iso_root.join("boot/limine-uefi-cd.bin");
-        let boot_data = format!("2#p0,e,b\"{}\"#pEF,e,b\"{}\"", 
+        let boot_data = format!(
+            "2#p0,e,b\"{}\"#pEF,e,b\"{}\"",
             boot_sector.to_string_lossy().replace('\\', "/"),
-            efi_boot.to_string_lossy().replace('\\', "/"));
-        
-        process::run_checked(&xorriso, &[
-            "-m", "-o", "-u2", &format!("-bootdata:{}", boot_data),
-            iso_root.to_string_lossy().as_ref(), tmp_out.to_string_lossy().as_ref(),
-        ])?;
+            efi_boot.to_string_lossy().replace('\\', "/")
+        );
+
+        process::run_checked(
+            &xorriso,
+            &[
+                "-m",
+                "-o",
+                "-u2",
+                &format!("-bootdata:{}", boot_data),
+                iso_root.to_string_lossy().as_ref(),
+                tmp_out.to_string_lossy().as_ref(),
+            ],
+        )?;
     } else {
         let iso_root_arg = iso_paths::maybe_msys_path(&iso_root, &xorriso);
         let out_iso_arg = iso_paths::maybe_msys_path(&tmp_out, &xorriso);
-        
-        let mut args = if xorriso.contains("xorriso") { vec!["-as", "mkisofs"] } else { vec![] };
+
+        let mut args = if xorriso.contains("xorriso") {
+            vec!["-as", "mkisofs"]
+        } else {
+            vec![]
+        };
         args.extend(&[
-            "-R", "-J", "-b", "boot/limine-bios-cd.bin", "-c", "boot/bootcat",
-            "-no-emul-boot", "-boot-load-size", "4", "-boot-info-table",
-            "--efi-boot", "boot/limine-uefi-cd.bin", "-efi-boot-part", "--efi-boot-image",
-            "--protective-msdos-label", "-o", &out_iso_arg, &iso_root_arg,
+            "-R",
+            "-J",
+            "-b",
+            "boot/limine-bios-cd.bin",
+            "-c",
+            "boot/bootcat",
+            "-no-emul-boot",
+            "-boot-load-size",
+            "4",
+            "-boot-info-table",
+            "--efi-boot",
+            "boot/limine-uefi-cd.bin",
+            "-efi-boot-part",
+            "--efi-boot-image",
+            "--protective-msdos-label",
+            "-o",
+            &out_iso_arg,
+            &iso_root_arg,
         ]);
 
         let output = Command::new(&xorriso).args(&args).output()?;
         if !output.status.success() {
-            bail!("ISO tool failed: {}", String::from_utf8_lossy(&output.stderr));
+            bail!(
+                "ISO tool failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
     }
 
-    logging::ready("iso", "ISO assembled successfully", &tmp_out.to_string_lossy(), &[]);
+    logging::ready(
+        "iso",
+        "ISO assembled successfully",
+        &tmp_out.to_string_lossy(),
+        &[],
+    );
 
     // Post-Assembly Verification
     verify_iso_integrity(&tmp_out)?;
@@ -112,7 +162,14 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
                     Ok(_) => {}
                     Err(e2) => {
                         // Final fallback: copy then remove tmp
-                        fs::copy(&tmp_out, out_iso).with_context(|| format!("Failed to copy {} to {}: {}", tmp_out.display(), out_iso.display(), e2))?;
+                        fs::copy(&tmp_out, out_iso).with_context(|| {
+                            format!(
+                                "Failed to copy {} to {}: {}",
+                                tmp_out.display(),
+                                out_iso.display(),
+                                e2
+                            )
+                        })?;
                         let _ = fs::remove_file(&tmp_out);
                     }
                 }
@@ -125,26 +182,39 @@ pub fn assemble(stage_boot_dir: &Path, out_iso: &Path) -> Result<()> {
 }
 
 fn verify_iso_integrity(iso_path: &Path) -> Result<()> {
-    logging::info("iso", "starting post-assembly integrity audit", &[("path", &iso_path.to_string_lossy())]);
-    
+    logging::info(
+        "iso",
+        "starting post-assembly integrity audit",
+        &[("path", &iso_path.to_string_lossy())],
+    );
+
     if !iso_path.exists() {
         bail!("Verification Fault: ISO image was not presented at expected location.");
     }
 
     let meta = fs::metadata(iso_path)?;
     if meta.len() < 1024 * 1024 {
-        logging::warn("iso", "ISO size is unusually small. Verify content manually.", &[("size", &format!("{} bytes", meta.len()))]);
+        logging::warn(
+            "iso",
+            "ISO size is unusually small. Verify content manually.",
+            &[("size", &format!("{} bytes", meta.len()))],
+        );
     }
 
     // Try to list contents if 7z is available to ensure bootloader files are present
     if process::which("7z") {
-        let output = Command::new("7z").args(["l", &iso_path.to_string_lossy()]).output()?;
+        let output = Command::new("7z")
+            .args(["l", &iso_path.to_string_lossy()])
+            .output()?;
         let list = String::from_utf8_lossy(&output.stdout);
-        
+
         let critical_files = ["aethercore.elf", "limine.conf", "limine-bios.sys"];
         for file in &critical_files {
             if !list.contains(file) {
-                bail!("Integrity Fault: Critical boot asset '{}' is missing from the finalized ISO.", file);
+                bail!(
+                    "Integrity Fault: Critical boot asset '{}' is missing from the finalized ISO.",
+                    file
+                );
             }
         }
         logging::info("iso", "deep content inspection successful", &[]);
@@ -157,40 +227,73 @@ fn verify_iso_integrity(iso_path: &Path) -> Result<()> {
 pub fn finalize_iso_from_root(iso_root: &Path, out_iso: &Path) -> Result<()> {
     tools::ensure_iso_tools()?;
     let xorriso = tools::find_iso_tool()?;
-    
+
     if let Some(parent) = out_iso.parent() {
         if !parent.exists() {
             fs::create_dir_all(parent).context("failed creating iso output directory")?;
         }
     }
-    let tmp_out = out_iso.with_file_name(format!("{}.tmp", out_iso.file_name().unwrap().to_string_lossy()));
+    let tmp_out = out_iso.with_file_name(format!(
+        "{}.tmp",
+        out_iso.file_name().unwrap().to_string_lossy()
+    ));
 
     if xorriso.contains("oscdimg") {
         let boot_sector = iso_root.join("boot/limine-bios-cd.bin");
         let efi_boot = iso_root.join("boot/limine-uefi-cd.bin");
-        let boot_data = format!("2#p0,e,b\"{}\"#pEF,e,b\"{}\"", 
+        let boot_data = format!(
+            "2#p0,e,b\"{}\"#pEF,e,b\"{}\"",
             boot_sector.to_string_lossy().replace('\\', "/"),
-            efi_boot.to_string_lossy().replace('\\', "/"));
-        
-        process::run_checked(&xorriso, &[
-            "-m", "-o", "-u2", &format!("-bootdata:{}", boot_data),
-            iso_root.to_string_lossy().as_ref(), tmp_out.to_string_lossy().as_ref(),
-        ])?;
+            efi_boot.to_string_lossy().replace('\\', "/")
+        );
+
+        process::run_checked(
+            &xorriso,
+            &[
+                "-m",
+                "-o",
+                "-u2",
+                &format!("-bootdata:{}", boot_data),
+                iso_root.to_string_lossy().as_ref(),
+                tmp_out.to_string_lossy().as_ref(),
+            ],
+        )?;
     } else {
         let iso_root_arg = iso_paths::maybe_msys_path(iso_root, &xorriso);
         let out_iso_arg = iso_paths::maybe_msys_path(&tmp_out, &xorriso);
-        
-        let mut args = if xorriso.contains("xorriso") { vec!["-as", "mkisofs"] } else { vec![] };
+
+        let mut args = if xorriso.contains("xorriso") {
+            vec!["-as", "mkisofs"]
+        } else {
+            vec![]
+        };
         args.extend(&[
-            "-R", "-J", "-b", "boot/limine-bios-cd.bin", "-c", "boot/bootcat",
-            "-no-emul-boot", "-boot-load-size", "4", "-boot-info-table",
-            "--efi-boot", "boot/limine-uefi-cd.bin", "-efi-boot-part", "--efi-boot-image",
-            "--protective-msdos-label", "-o", &out_iso_arg, &iso_root_arg,
+            "-R",
+            "-J",
+            "-b",
+            "boot/limine-bios-cd.bin",
+            "-c",
+            "boot/bootcat",
+            "-no-emul-boot",
+            "-boot-load-size",
+            "4",
+            "-boot-info-table",
+            "--efi-boot",
+            "boot/limine-uefi-cd.bin",
+            "-efi-boot-part",
+            "--efi-boot-image",
+            "--protective-msdos-label",
+            "-o",
+            &out_iso_arg,
+            &iso_root_arg,
         ]);
 
         let output = Command::new(&xorriso).args(&args).output()?;
         if !output.status.success() {
-            bail!("ISO tool failed: {}", String::from_utf8_lossy(&output.stderr));
+            bail!(
+                "ISO tool failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
     }
 
@@ -199,9 +302,20 @@ pub fn finalize_iso_from_root(iso_root: &Path, out_iso: &Path) -> Result<()> {
         if out_iso.exists() {
             let _ = fs_utils::try_remove_file_with_retries(out_iso, 10);
         }
-        fs::rename(&tmp_out, out_iso).with_context(|| format!("Failed to move {} to {}", tmp_out.display(), out_iso.display()))?;
+        fs::rename(&tmp_out, out_iso).with_context(|| {
+            format!(
+                "Failed to move {} to {}",
+                tmp_out.display(),
+                out_iso.display()
+            )
+        })?;
     }
 
-    logging::ready("iso", "ISO finalized successfully", &out_iso.to_string_lossy(), &[]);
+    logging::ready(
+        "iso",
+        "ISO finalized successfully",
+        &out_iso.to_string_lossy(),
+        &[],
+    );
     Ok(())
 }

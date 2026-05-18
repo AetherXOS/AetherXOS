@@ -1,7 +1,7 @@
+use crate::utils::fs::paths::LAYOUT;
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use crate::utils::fs::paths::LAYOUT;
 
 const POLICY_CATALOG_PATH: &str = "artifacts/tooling/installer/policies.json";
 

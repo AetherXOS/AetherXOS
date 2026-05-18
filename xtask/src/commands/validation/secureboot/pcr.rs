@@ -2,8 +2,8 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 use std::fs;
 
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 use super::models::PcrReport;
 

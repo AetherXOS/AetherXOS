@@ -1,8 +1,8 @@
-use std::sync::mpsc;
-use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::sync::Mutex;
+use std::sync::mpsc;
 
 pub enum LogCommand {
     Write(String),

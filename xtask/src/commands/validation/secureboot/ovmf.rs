@@ -4,9 +4,9 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
+use crate::utils::fs::paths::LAYOUT;
 use crate::utils::process;
 use crate::utils::report;
-use crate::utils::fs::paths::LAYOUT;
 
 use super::models::{OvmfCaseResult, OvmfSummary};
 

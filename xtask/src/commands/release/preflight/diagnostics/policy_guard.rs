@@ -5,8 +5,8 @@ use std::path::Path;
 use walkdir::WalkDir;
 
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 use crate::commands::release::preflight::models::{PolicyGuardReport, PolicyViolation};
 

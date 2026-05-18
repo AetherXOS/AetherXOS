@@ -4,6 +4,42 @@ use super::*;
 mod inplace;
 pub use inplace::process_relocations_inplace;
 
+impl RelocationTable {
+    pub fn parse(
+        image: &[u8],
+        offset: u64,
+        count: usize,
+        rel_type: RelocationType,
+    ) -> Option<Self> {
+        let mut entries = alloc::vec::Vec::new();
+        let base = offset as usize;
+        let entry_size = match rel_type {
+            RelocationType::Rel => 16,  // offset + info
+            RelocationType::Rela => 24, // offset + info + addend
+        };
+        for i in 0..count {
+            let off = base + i * entry_size;
+            if off + entry_size > image.len() {
+                return None;
+            }
+            let offset_val = u64::from_le_bytes(image[off..off + 8].try_into().ok()?);
+            let info = u64::from_le_bytes(image[off + 8..off + 16].try_into().ok()?);
+            let addend = match rel_type {
+                RelocationType::Rel => None,
+                RelocationType::Rela => Some(u64::from_le_bytes(
+                    image[off + 16..off + 24].try_into().ok()?,
+                )),
+            };
+            entries.push(RelocationEntry {
+                offset: offset_val,
+                info,
+                addend,
+            });
+        }
+        Some(RelocationTable { entries, rel_type })
+    }
+}
+
 /// Process all relocations for an image, using the symbol table and base address
 pub fn process_relocations(
     relocs: &RelocationTable,

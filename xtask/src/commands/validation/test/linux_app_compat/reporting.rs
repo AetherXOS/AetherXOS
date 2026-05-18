@@ -1,7 +1,7 @@
+use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 use anyhow::Result;
 use std::fs;
-use crate::utils::report;
-use crate::utils::fs::paths::LAYOUT;
 
 use super::models::{Layer, Scorecard};
 use super::profile::NormalizedOptions;

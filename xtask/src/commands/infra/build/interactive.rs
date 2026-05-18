@@ -1,13 +1,15 @@
-use anyhow::Result;
 use aethercore_common::TargetArch;
+use anyhow::Result;
 use strum::IntoEnumIterator;
 
 use crate::cli::{Bootloader, ImageFormat};
-use crate::utils::{features, logging, ui};
-use crate::engine::{Pipeline, ExecutionContext, StagingArea};
-use crate::commands::infra::build::tasks::{KernelCompileTask, InitramfsTask};
-use crate::commands::infra::build::image_tasks::{KernelStageTask, BootConfigTask, ImageFinalizeTask};
+use crate::commands::infra::build::image_tasks::{
+    BootConfigTask, ImageFinalizeTask, KernelStageTask,
+};
+use crate::commands::infra::build::tasks::{InitramfsTask, KernelCompileTask};
 use crate::commands::validation::safety::KernelSafetyAuditTask;
+use crate::engine::{ExecutionContext, Pipeline, StagingArea};
+use crate::utils::{features, logging, ui};
 
 #[derive(Clone, Copy)]
 enum BuildMode {
@@ -25,7 +27,11 @@ impl core::fmt::Display for BuildMode {
 }
 
 pub fn run() -> Result<()> {
-    logging::info("build::interactive", "Initializing Interactive Masterpiece Wizard", &[]);
+    logging::info(
+        "build::interactive",
+        "Initializing Interactive Masterpiece Wizard",
+        &[],
+    );
 
     let modes = [BuildMode::KernelOnly, BuildMode::FullPipeline];
     let mode = *ui::select("Select build mode", &modes)?;
@@ -40,14 +46,18 @@ pub fn run() -> Result<()> {
     let resolved_features = features::prompt_kernel_feature_selection("Build", &[])?;
 
     let mut pipeline = Pipeline::new("Interactive Build Workflow");
-    
+
     // Create execution context
     let mut ctx = ExecutionContext {
         repo_root: crate::utils::core::context::repo_root(),
         out_dir: crate::utils::core::context::out_dir(),
         is_release: release,
         arch: arch.to_string(),
-        features: resolved_features.to_cargo_features().iter().map(|&s| s.to_string()).collect(),
+        features: resolved_features
+            .to_cargo_features()
+            .iter()
+            .map(|&s| s.to_string())
+            .collect(),
         staging: None,
         state: std::sync::Arc::new(std::sync::RwLock::new(crate::engine::EngineState::load())),
         non_interactive: false,
@@ -67,12 +77,25 @@ pub fn run() -> Result<()> {
 
     if matches!(mode, BuildMode::FullPipeline) {
         let bootloader = *ui::select("Select bootloader", &Bootloader::iter().collect::<Vec<_>>())?;
-        let format = *ui::select("Select image format", &ImageFormat::iter().collect::<Vec<_>>())?;
-        
-        let distros = vec!["almalinux", "alpine", "archlinux", "debian", "fedora", "opensuse", "rockylinux", "none"];
+        let format = *ui::select(
+            "Select image format",
+            &ImageFormat::iter().collect::<Vec<_>>(),
+        )?;
+
+        let distros = vec![
+            "almalinux",
+            "alpine",
+            "archlinux",
+            "debian",
+            "fedora",
+            "opensuse",
+            "rockylinux",
+            "none",
+        ];
         let distro = *ui::select("Select Target Distro Integration", &distros)?;
         if distro != "none" {
-            ctx.parameters.insert("distro".to_string(), distro.to_string());
+            ctx.parameters
+                .insert("distro".to_string(), distro.to_string());
         }
 
         // Initialize staging for full pipeline
@@ -87,6 +110,11 @@ pub fn run() -> Result<()> {
 
     pipeline.run(&ctx)?;
 
-    logging::ready("build::interactive", "Masterpiece pipeline completed successfully", "ok", &[]);
+    logging::ready(
+        "build::interactive",
+        "Masterpiece pipeline completed successfully",
+        "ok",
+        &[],
+    );
     Ok(())
 }

@@ -18,7 +18,15 @@ pub fn print_autonomous_help() {
     println!("  ab-slot      A/B partitioning and bootloader state audit");
 
     println!("\nAUTONOMOUS DISCOVERY:");
-    let distros = ["almalinux", "alpine", "archlinux", "debian", "fedora", "opensuse", "rockylinux"];
+    let distros = [
+        "almalinux",
+        "alpine",
+        "archlinux",
+        "debian",
+        "fedora",
+        "opensuse",
+        "rockylinux",
+    ];
     println!("  Registered Distros: {}", distros.join(", "));
     println!("  Active Workflows: Full ISO, Kernel Dev, Docs, Debug Bridge");
 

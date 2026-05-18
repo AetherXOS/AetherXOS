@@ -1,8 +1,8 @@
 //! Centralized constants for xtask commands.
 //! Keeps paths, defaults, and tool names in one place so command modules stay thin.
 
-use std::path::PathBuf;
 use crate::utils::fs::paths::LAYOUT;
+use std::path::PathBuf;
 
 /// Cargo-related constants.
 
@@ -338,7 +338,7 @@ pub mod ui {
         pub const PROFILE_NAME: &str = "Profile Name:";
         pub const PROFILE_SELECT: &str = "Select profile to load:";
     }
-    
+
     pub mod symbols {
         pub const SUCCESS: &str = "✔";
         pub const WARNING: &str = "⚠";

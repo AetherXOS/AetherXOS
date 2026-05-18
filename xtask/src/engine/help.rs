@@ -1,5 +1,5 @@
+use crate::engine::{ExecutionContext, Pipeline, Task, TaskStatus};
 use anyhow::Result;
-use crate::engine::{Task, ExecutionContext, TaskStatus, Pipeline};
 
 pub struct PipelineHelpTask {
     pub pipeline_name: String,
@@ -7,9 +7,13 @@ pub struct PipelineHelpTask {
 }
 
 impl Task for PipelineHelpTask {
-    fn name(&self) -> String { "Workflow Intelligence".to_string() }
-    fn description(&self) -> String { "Provides detailed insights and documentation for the current workflow".to_string() }
-    
+    fn name(&self) -> String {
+        "Workflow Intelligence".to_string()
+    }
+    fn description(&self) -> String {
+        "Provides detailed insights and documentation for the current workflow".to_string()
+    }
+
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
         println!("\n📖 Workflow Intelligence: {}", self.pipeline_name);
         println!("========================================");
@@ -22,7 +26,9 @@ impl Task for PipelineHelpTask {
 }
 
 pub fn generate_help(pipeline: &Pipeline) -> PipelineHelpTask {
-    let task_descriptions = pipeline.tasks.iter()
+    let task_descriptions = pipeline
+        .tasks
+        .iter()
         .map(|t| (t.name(), t.description()))
         .collect();
     PipelineHelpTask {

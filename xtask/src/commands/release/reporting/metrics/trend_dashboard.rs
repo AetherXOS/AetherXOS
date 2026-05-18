@@ -6,8 +6,8 @@ use super::helpers::render_trend_dashboard_md;
 use crate::commands::release::preflight::ci_bundle;
 use crate::commands::release::preflight::models::{TrendDashboardDoc, TrendPoint};
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 pub(crate) fn execute(limit: usize, strict: bool) -> Result<()> {
     println!("[release::trend-dashboard] Updating trend history and dashboard");

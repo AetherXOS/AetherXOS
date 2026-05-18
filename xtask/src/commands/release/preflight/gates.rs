@@ -6,8 +6,8 @@ use crate::commands::ops;
 use crate::commands::validation;
 use crate::config;
 use crate::constants;
-use crate::utils::{cargo, process};
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::{cargo, process};
 
 use super::abi::abi_drift_report;
 use super::ci::reproducible_evidence;
@@ -34,7 +34,8 @@ pub fn preflight(
 
     if !skip_boot_artifacts {
         println!("[release::preflight] Step 4: Full boot artifact build validation");
-        let boot_features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
+        let boot_features =
+            crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
         infra::build::execute(&crate::cli::BuildAction::Full {
             common: crate::cli::CommonBuildArgs {
                 arch: constants::defaults::build::ARCH,
@@ -64,7 +65,8 @@ pub fn preflight(
     )?;
 
     println!("[release::preflight] Step 7: linux_compat profile compile + syscall gate");
-    let linux_compat_features = crate::utils::features::cargo_features_from_default(&["linux_compat", "posix_deep_tests"])?;
+    let linux_compat_features =
+        crate::utils::features::cargo_features_from_default(&["linux_compat", "posix_deep_tests"])?;
     cargo::cargo(&["check", "--features", &linux_compat_features])?;
     validation::syscall_coverage::execute(
         true,

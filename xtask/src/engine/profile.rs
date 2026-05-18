@@ -1,7 +1,7 @@
-use anyhow::Result;
-use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
 use crate::engine::ExecutionContext;
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -17,7 +17,7 @@ impl BuildProfile {
     pub fn save(&self, root: &Path) -> Result<()> {
         let profiles_dir = root.join(".xtask").join("profiles");
         fs::create_dir_all(&profiles_dir)?;
-        
+
         let path = profiles_dir.join(format!("{}.json", self.name));
         let json = serde_json::to_string_pretty(self)?;
         fs::write(path, json)?;
@@ -25,7 +25,10 @@ impl BuildProfile {
     }
 
     pub fn load(root: &Path, name: &str) -> Result<Self> {
-        let path = root.join(".xtask").join("profiles").join(format!("{}.json", name));
+        let path = root
+            .join(".xtask")
+            .join("profiles")
+            .join(format!("{}.json", name));
         let json = fs::read_to_string(path)?;
         let profile = serde_json::from_str(&json)?;
         Ok(profile)
@@ -33,13 +36,21 @@ impl BuildProfile {
 
     pub fn list(root: &Path) -> Vec<String> {
         let profiles_dir = root.join(".xtask").join("profiles");
-        if !profiles_dir.exists() { return Vec::new(); }
-        
+        if !profiles_dir.exists() {
+            return Vec::new();
+        }
+
         fs::read_dir(profiles_dir)
-            .map(|rd| rd.filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().is_some_and(|ext| ext == "json"))
-                .filter_map(|e| e.path().file_stem().map(|s| s.to_string_lossy().to_string()))
-                .collect())
+            .map(|rd| {
+                rd.filter_map(|e| e.ok())
+                    .filter(|e| e.path().extension().is_some_and(|ext| ext == "json"))
+                    .filter_map(|e| {
+                        e.path()
+                            .file_stem()
+                            .map(|s| s.to_string_lossy().to_string())
+                    })
+                    .collect()
+            })
             .unwrap_or_default()
     }
 

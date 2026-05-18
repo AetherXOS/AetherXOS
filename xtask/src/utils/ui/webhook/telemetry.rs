@@ -17,7 +17,7 @@ impl NotificationTelemetry {
         let (git_hash, git_author, git_message) = Self::get_git_info();
         let (cpu_cores, total_ram) = Self::get_sys_telemetry();
         let kernel_size = Self::get_kernel_size().unwrap_or_else(|| "N/A".to_string());
-        
+
         Self {
             os_name: std::env::consts::OS.to_string(),
             cpu_cores,
@@ -30,10 +30,7 @@ impl NotificationTelemetry {
     }
 
     fn run_git_cmd(args: &[&str]) -> Option<String> {
-        let output = Command::new("git")
-            .args(args)
-            .output()
-            .ok()?;
+        let output = Command::new("git").args(args).output().ok()?;
         if output.status.success() {
             let s = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if !s.is_empty() { Some(s) } else { None }

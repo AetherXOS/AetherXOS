@@ -1,16 +1,20 @@
-use std::{fs::File, io::Read, time::{Duration, Instant}};
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use crossterm::{
     event::{self, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
-    backend::CrosstermBackend,
-    widgets::{Block, Borders, Paragraph, List, ListItem},
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Style, Modifier},
     Terminal,
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
+    style::{Color, Modifier, Style},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
+};
+use std::{
+    fs::File,
+    io::Read,
+    time::{Duration, Instant},
 };
 
 pub fn run_serial_monitor() -> Result<()> {
@@ -21,8 +25,10 @@ pub fn run_serial_monitor() -> Result<()> {
         Some(p) => p,
         None => match crate::utils::core::paths::WorkspacePaths::find_kernel_elf() {
             Some(p) => p,
-            None => anyhow::bail!("No bootable ISO, image, or kernel binary found. Please build the project first."),
-        }
+            None => anyhow::bail!(
+                "No bootable ISO, image, or kernel binary found. Please build the project first."
+            ),
+        },
     };
 
     // Create artifacts directory if not exists
@@ -38,11 +44,15 @@ pub fn run_serial_monitor() -> Result<()> {
     let drive_arg = format!("file={},format=raw", image_path.display());
     let mut qemu_child = std::process::Command::new(&qemu_bin)
         .args(&[
-            "-m", "1024",
-            "-drive", &drive_arg,
-            "-serial", "file:artifacts/qemu_serial.log",
+            "-m",
+            "1024",
+            "-drive",
+            &drive_arg,
+            "-serial",
+            "file:artifacts/qemu_serial.log",
             "-s", // Enable GDB server on port 1234
-            "-display", "none", // Headless execution to keep everything in the terminal
+            "-display",
+            "none", // Headless execution to keep everything in the terminal
         ])
         .spawn()
         .context("Failed to spawn QEMU")?;
@@ -156,11 +166,15 @@ pub fn run_serial_monitor() -> Result<()> {
                         log_buffer.clear();
                         qemu_child = std::process::Command::new(&qemu_bin)
                             .args(&[
-                                "-m", "1024",
-                                "-drive", &drive_arg,
-                                "-serial", "file:artifacts/qemu_serial.log",
+                                "-m",
+                                "1024",
+                                "-drive",
+                                &drive_arg,
+                                "-serial",
+                                "file:artifacts/qemu_serial.log",
                                 "-s",
-                                "-display", "none",
+                                "-display",
+                                "none",
                             ])
                             .spawn()
                             .context("Failed to restart QEMU")?;
@@ -173,10 +187,7 @@ pub fn run_serial_monitor() -> Result<()> {
     }
 
     disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen
-    )?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
 
     Ok(())

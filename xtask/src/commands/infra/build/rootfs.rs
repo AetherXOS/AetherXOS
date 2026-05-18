@@ -1,6 +1,6 @@
+use crate::utils::{config, logging, process, wsl};
 use anyhow::{Result, anyhow, bail};
 use std::path::Path;
-use crate::utils::{logging, process, wsl, config};
 
 /// Attempt to extract a tar/tar.gz archive into `dst`, first using host `tar`.
 /// On Windows, if host `tar` fails and WSL is available, try extracting via `wsl -- tar ...`
@@ -15,7 +15,11 @@ pub fn extract_rootfs_archive(src: &Path, dst: &Path) -> Result<()> {
     // On Windows prefer extracting Linux tarballs using WSL when available
     if cfg!(windows) && process::which("wsl") {
         tried_tools.push("wsl tar");
-        logging::info("image", "attempting extraction via WSL (preferred on Windows for Linux archives)", &[]);
+        logging::info(
+            "image",
+            "attempting extraction via WSL (preferred on Windows for Linux archives)",
+            &[],
+        );
         let src_w = crate::utils::sys::wsl::to_wsl_path(src)?;
         let dst_w = crate::utils::sys::wsl::to_wsl_path(dst)?;
         let cmd = if is_iso {
@@ -36,8 +40,9 @@ pub fn extract_rootfs_archive(src: &Path, dst: &Path) -> Result<()> {
     if cfg!(windows) && process::which("7z") && !config::prefer_wsl_extraction() {
         tried_tools.push("7z");
         logging::info("image", "extracting via 7z", &[("src", &src_s)]);
-        let (status, stdout, stderr) = process::run_with_output("7z", &["x", &src_s, &format!("-o{}", dst_s), "-y"])?;
-        
+        let (status, stdout, stderr) =
+            process::run_with_output("7z", &["x", &src_s, &format!("-o{}", dst_s), "-y"])?;
+
         if status.success() {
             // 7z on .tar.gz often produces a .tar inside the destination; handle nested tar extraction
             if let Ok(entries) = std::fs::read_dir(&dst_s) {
@@ -46,17 +51,32 @@ pub fn extract_rootfs_archive(src: &Path, dst: &Path) -> Result<()> {
                     if let Some(ext) = p.extension() {
                         if ext == "tar" {
                             let tar_s = p.to_string_lossy().to_string();
-                            logging::info("image", "extracting nested tar produced by 7z", &[("tar", &tar_s)]);
-                            match process::run_with_output("7z", &["x", &tar_s, &format!("-o{}", dst_s), "-y"]) {
+                            logging::info(
+                                "image",
+                                "extracting nested tar produced by 7z",
+                                &[("tar", &tar_s)],
+                            );
+                            match process::run_with_output(
+                                "7z",
+                                &["x", &tar_s, &format!("-o{}", dst_s), "-y"],
+                            ) {
                                 Ok((status2, _stdout2, _stderr2)) => {
                                     if status2.success() {
                                         let _ = std::fs::remove_file(&p);
                                     } else {
-                                        logging::warn("image", "nested tar extraction failed", &[("tar", &tar_s)]);
+                                        logging::warn(
+                                            "image",
+                                            "nested tar extraction failed",
+                                            &[("tar", &tar_s)],
+                                        );
                                     }
                                 }
                                 Err(_) => {
-                                    logging::warn("image", "nested tar extraction command failed to run", &[("tar", &tar_s)]);
+                                    logging::warn(
+                                        "image",
+                                        "nested tar extraction command failed to run",
+                                        &[("tar", &tar_s)],
+                                    );
                                 }
                             }
                         }
@@ -67,7 +87,11 @@ pub fn extract_rootfs_archive(src: &Path, dst: &Path) -> Result<()> {
             return Ok(());
         }
 
-        logging::warn("image", "7z extraction failed", &[("status", &status.to_string())]);
+        logging::warn(
+            "image",
+            "7z extraction failed",
+            &[("status", &status.to_string())],
+        );
         if stdout.contains("Data Error") || stderr.contains("Data Error") {
             logging::error("image", "detected corruption (Data Error) in archive", &[]);
             if config::is_non_interactive() {
@@ -75,7 +99,8 @@ pub fn extract_rootfs_archive(src: &Path, dst: &Path) -> Result<()> {
             }
 
             let options = ["Redownload and Retry", "Try other tools anyway", "Abort"];
-            let choice = crate::utils::ui::select("7z detected data corruption. What to do?", &options)?;
+            let choice =
+                crate::utils::ui::select("7z detected data corruption. What to do?", &options)?;
             if *choice == "Redownload and Retry" {
                 return Err(anyhow!("REDOWNLOAD_REQUESTED"));
             }
@@ -94,12 +119,12 @@ pub fn extract_rootfs_archive(src: &Path, dst: &Path) -> Result<()> {
         } else {
             vec!["-xpf", &src_s, "-C", &dst_s]
         };
-        
+
         let (status, _, stderr) = process::run_with_output("tar", &args)?;
         if status.success() {
             return Ok(());
         }
-        
+
         logging::warn("image", "host tar failed", &[("error", stderr.trim())]);
         if stderr.contains("Truncated input file") {
             if config::is_non_interactive() {
@@ -135,15 +160,17 @@ pub fn extract_rootfs_archive(src: &Path, dst: &Path) -> Result<()> {
 
     let err_msg = format!(
         "Failed to extract archive {}. Tried tools: {}. Archive might be corrupted or tools are missing.",
-        src_s, tried_tools.join(", ")
+        src_s,
+        tried_tools.join(", ")
     );
-    
+
     let final_options = ["Redownload Image", "Abort"];
     if config::is_non_interactive() {
         return Err(anyhow!("REDOWNLOAD_REQUESTED"));
     }
 
-    let final_choice = crate::utils::ui::select(&format!("{}\nWhat to do?", err_msg), &final_options)?;
+    let final_choice =
+        crate::utils::ui::select(&format!("{}\nWhat to do?", err_msg), &final_options)?;
     if *final_choice == "Redownload Image" {
         return Err(anyhow!("REDOWNLOAD_REQUESTED"));
     }

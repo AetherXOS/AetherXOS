@@ -1,9 +1,9 @@
+use crate::engine::{ExecutionContext, Task, task::TaskStatus};
+use crate::utils::logging;
 use anyhow::Result;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use crate::engine::{Task, ExecutionContext, task::TaskStatus};
-use crate::utils::logging;
 
 pub struct ParallelPipeline {
     pub name: String,
@@ -24,11 +24,15 @@ impl ParallelPipeline {
     }
 
     pub fn run(&self, ctx: Arc<ExecutionContext>) -> Result<()> {
-        logging::status("PARALLEL", &format!("Launching parallel workflow: {}", self.name));
-        
+        logging::status(
+            "PARALLEL",
+            &format!("Launching parallel workflow: {}", self.name),
+        );
+
         let mp = MultiProgress::new();
-        let style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {msg} [{elapsed_precise}]")
-            .unwrap();
+        let style =
+            ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {msg} [{elapsed_precise}]")
+                .unwrap();
 
         let mut handles = Vec::new();
         let errors = Arc::new(Mutex::new(Vec::new()));
@@ -36,7 +40,7 @@ impl ParallelPipeline {
         for task in &self.tasks {
             let task = Arc::clone(task);
             let ctx = Arc::clone(&ctx);
-            
+
             let pb = mp.add(ProgressBar::new_spinner());
             pb.set_style(style.clone());
             pb.set_prefix(task.name().to_string());
@@ -48,10 +52,16 @@ impl ParallelPipeline {
                 pb.set_message("Executing...");
                 match task.run(&ctx) {
                     Ok(TaskStatus::Success) => pb.finish_with_message("Done"),
-                    Ok(TaskStatus::Skipped(reason)) => pb.finish_with_message(format!("Skipped: {}", reason)),
+                    Ok(TaskStatus::Skipped(reason)) => {
+                        pb.finish_with_message(format!("Skipped: {}", reason))
+                    }
                     Ok(TaskStatus::Failed(reason)) => {
                         pb.abandon_with_message(format!("Failed: {}", reason));
-                        err_clone.lock().unwrap().push(anyhow::anyhow!("Task '{}' failed: {}", task.name(), reason));
+                        err_clone.lock().unwrap().push(anyhow::anyhow!(
+                            "Task '{}' failed: {}",
+                            task.name(),
+                            reason
+                        ));
                     }
                     Err(e) => {
                         pb.abandon_with_message(format!("Error: {}", e));
@@ -71,7 +81,11 @@ impl ParallelPipeline {
             anyhow::bail!("Parallel workflow failed with {} errors", errs.len());
         }
 
-        logging::success("PARALLEL", &format!("Workflow {} completed", self.name), &[]);
+        logging::success(
+            "PARALLEL",
+            &format!("Workflow {} completed", self.name),
+            &[],
+        );
         Ok(())
     }
 }

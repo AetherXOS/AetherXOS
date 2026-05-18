@@ -1,20 +1,20 @@
-use std::fs::File;
-use std::io::Read;
-use std::time::Duration;
 use anyhow::{Result, bail};
-use xmas_elf::ElfFile;
-use ratatui::{
-    backend::CrosstermBackend,
-    widgets::{Block, Borders, Paragraph, List, ListItem},
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Style, Modifier},
-    Terminal,
-};
 use crossterm::{
     event::{self, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use ratatui::{
+    Terminal,
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
+    style::{Color, Modifier, Style},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
+};
+use std::fs::File;
+use std::io::Read;
+use std::time::Duration;
+use xmas_elf::ElfFile;
 
 pub fn run_analyzer() -> Result<()> {
     let path = match crate::utils::core::paths::WorkspacePaths::find_kernel_elf() {
@@ -46,9 +46,16 @@ pub fn run_analyzer() -> Result<()> {
                 .split(f.size());
 
             // Header Banner
-            let header = Paragraph::new(format!(" 📊 AetherX OS - Interactive Kernel Bloat Analyzer (Binary: {}) ", path.display()))
-                .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-                .block(Block::default().borders(Borders::ALL));
+            let header = Paragraph::new(format!(
+                " 📊 AetherX OS - Interactive Kernel Bloat Analyzer (Binary: {}) ",
+                path.display()
+            ))
+            .style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .block(Block::default().borders(Borders::ALL));
             f.render_widget(header, chunks[0]);
 
             // Body Columns
@@ -66,11 +73,15 @@ pub fn run_analyzer() -> Result<()> {
 
             let mut section_items = Vec::new();
             for sect in elf.section_iter() {
-                if sect.get_name(&elf).is_err() { continue; }
+                if sect.get_name(&elf).is_err() {
+                    continue;
+                }
                 let name = sect.get_name(&elf).unwrap();
                 let size = sect.size();
                 let addr = sect.address();
-                if size == 0 { continue; }
+                if size == 0 {
+                    continue;
+                }
 
                 total_size += size;
                 match name {
@@ -82,54 +93,100 @@ pub fn run_analyzer() -> Result<()> {
                 }
 
                 let formatted_size = crate::utils::fs::format::format_size(size);
-                let item = ListItem::new(format!("  {} - Size: {} - Addr: {:#x}", name, formatted_size, addr));
+                let item = ListItem::new(format!(
+                    "  {} - Size: {} - Addr: {:#x}",
+                    name, formatted_size, addr
+                ));
                 section_items.push(item);
             }
 
-            let section_list = List::new(section_items)
-                .block(Block::default().title(" ELF Binary Sections ").borders(Borders::ALL));
+            let section_list = List::new(section_items).block(
+                Block::default()
+                    .title(" ELF Binary Sections ")
+                    .borders(Borders::ALL),
+            );
             f.render_widget(section_list, body_chunks[0]);
 
             // Details/Bloat visualizer
             let mut details_items = Vec::new();
             details_items.push(ListItem::new("🔴 Kernel Segment Footprint Summary:"));
-            details_items.push(ListItem::new(format!("   - .text (Code Segment):    {} ({:.1}%)", 
+            details_items.push(ListItem::new(format!(
+                "   - .text (Code Segment):    {} ({:.1}%)",
                 crate::utils::fs::format::format_size(text_size),
-                if total_size > 0 { (text_size as f64 / total_size as f64) * 100.0 } else { 0.0 }
+                if total_size > 0 {
+                    (text_size as f64 / total_size as f64) * 100.0
+                } else {
+                    0.0
+                }
             )));
-            details_items.push(ListItem::new(format!("   - .rodata (Read-Only):    {} ({:.1}%)", 
+            details_items.push(ListItem::new(format!(
+                "   - .rodata (Read-Only):    {} ({:.1}%)",
                 crate::utils::fs::format::format_size(rodata_size),
-                if total_size > 0 { (rodata_size as f64 / total_size as f64) * 100.0 } else { 0.0 }
+                if total_size > 0 {
+                    (rodata_size as f64 / total_size as f64) * 100.0
+                } else {
+                    0.0
+                }
             )));
-            details_items.push(ListItem::new(format!("   - .data (Mutable Data):   {} ({:.1}%)", 
+            details_items.push(ListItem::new(format!(
+                "   - .data (Mutable Data):   {} ({:.1}%)",
                 crate::utils::fs::format::format_size(data_size),
-                if total_size > 0 { (data_size as f64 / total_size as f64) * 100.0 } else { 0.0 }
+                if total_size > 0 {
+                    (data_size as f64 / total_size as f64) * 100.0
+                } else {
+                    0.0
+                }
             )));
-            details_items.push(ListItem::new(format!("   - .bss (Zero Initialized): {} ({:.1}%)", 
+            details_items.push(ListItem::new(format!(
+                "   - .bss (Zero Initialized): {} ({:.1}%)",
                 crate::utils::fs::format::format_size(bss_size),
-                if total_size > 0 { (bss_size as f64 / total_size as f64) * 100.0 } else { 0.0 }
+                if total_size > 0 {
+                    (bss_size as f64 / total_size as f64) * 100.0
+                } else {
+                    0.0
+                }
             )));
-            details_items.push(ListItem::new(format!("   - Total Segment Sizes:     {}", 
+            details_items.push(ListItem::new(format!(
+                "   - Total Segment Sizes:     {}",
                 crate::utils::fs::format::format_size(total_size)
             )));
 
             // Add simple visual ASCII progress bars for segment sizing
             let render_bar = |size: u64| -> String {
                 let bar_len = 20;
-                let ratio = if total_size > 0 { size as f64 / total_size as f64 } else { 0.0 };
+                let ratio = if total_size > 0 {
+                    size as f64 / total_size as f64
+                } else {
+                    0.0
+                };
                 let filled = (ratio * bar_len as f64).round() as usize;
                 format!("[{}{}]", "█".repeat(filled), "░".repeat(bar_len - filled))
             };
 
             details_items.push(ListItem::new(""));
             details_items.push(ListItem::new("📊 Segment Allocation Distribution:"));
-            details_items.push(ListItem::new(format!("   .text:   {}", render_bar(text_size))));
-            details_items.push(ListItem::new(format!("   .rodata: {}", render_bar(rodata_size))));
-            details_items.push(ListItem::new(format!("   .data:   {}", render_bar(data_size))));
-            details_items.push(ListItem::new(format!("   .bss:    {}", render_bar(bss_size))));
+            details_items.push(ListItem::new(format!(
+                "   .text:   {}",
+                render_bar(text_size)
+            )));
+            details_items.push(ListItem::new(format!(
+                "   .rodata: {}",
+                render_bar(rodata_size)
+            )));
+            details_items.push(ListItem::new(format!(
+                "   .data:   {}",
+                render_bar(data_size)
+            )));
+            details_items.push(ListItem::new(format!(
+                "   .bss:    {}",
+                render_bar(bss_size)
+            )));
 
-            let details_list = List::new(details_items)
-                .block(Block::default().title(" Segment Breakdown ").borders(Borders::ALL));
+            let details_list = List::new(details_items).block(
+                Block::default()
+                    .title(" Segment Breakdown ")
+                    .borders(Borders::ALL),
+            );
             f.render_widget(details_list, body_chunks[1]);
 
             // Footer
@@ -151,10 +208,7 @@ pub fn run_analyzer() -> Result<()> {
     }
 
     disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen
-    )?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
 
     Ok(())

@@ -7,8 +7,8 @@ use crate::cli::LinuxAbiAction;
 use crate::commands::release::reporting::metrics;
 use crate::commands::validation;
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 #[derive(Serialize)]
 struct AbiPerfGateDoc {

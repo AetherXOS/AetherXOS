@@ -1,6 +1,21 @@
-use strum::{Display, EnumString, EnumIter, IntoStaticStr, AsRefStr};
+use strum::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Display, EnumString, EnumIter, IntoStaticStr, AsRefStr)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Display,
+    EnumString,
+    EnumIter,
+    IntoStaticStr,
+    AsRefStr,
+)]
 #[strum(serialize_all = "snake_case")]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[cfg_attr(feature = "clap", clap(rename_all = "snake_case"))]

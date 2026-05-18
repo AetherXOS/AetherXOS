@@ -1,10 +1,10 @@
-use anyhow::{Result, Context};
-use std::fs;
-use std::path::PathBuf;
+use crate::engine::{ExecutionContext, Task, TaskStatus};
+use crate::utils::fs::paths::LAYOUT;
 use crate::utils::logging;
 use crate::utils::sys::process::Executor;
-use crate::engine::{Task, TaskStatus, ExecutionContext};
-use crate::utils::fs::paths::LAYOUT;
+use anyhow::{Context, Result};
+use std::fs;
+use std::path::PathBuf;
 
 pub struct Macro {
     pub name: String,
@@ -12,8 +12,12 @@ pub struct Macro {
 }
 
 impl Task for Macro {
-    fn name(&self) -> String { format!("Macro: {}", self.name) }
-    fn description(&self) -> String { "Sequentially executes a set of pre-recorded build commands".to_string() }
+    fn name(&self) -> String {
+        format!("Macro: {}", self.name)
+    }
+    fn description(&self) -> String {
+        "Sequentially executes a set of pre-recorded build commands".to_string()
+    }
 
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
         replay_macro(&self.name)?;
@@ -25,7 +29,11 @@ pub fn record_macro(name: &str, commands: Vec<String>) -> Result<()> {
     let path = get_macro_path(name);
     let content = commands.join("\n");
     fs::write(path, content)?;
-    logging::success("MACRO", &format!("Macro '{}' recorded with {} commands", name, commands.len()), &[]);
+    logging::success(
+        "MACRO",
+        &format!("Macro '{}' recorded with {} commands", name, commands.len()),
+        &[],
+    );
     Ok(())
 }
 
@@ -42,15 +50,15 @@ pub fn replay_macro(name: &str) -> Result<()> {
         d.set(current + 1);
         Ok(current + 1)
     })?;
-    
+
     let path = get_macro_path(name);
     if !path.exists() {
         anyhow::bail!("Macro '{}' not found at {}", name, path.display());
     }
-    
+
     let content = fs::read_to_string(path)?;
     let commands: Vec<&str> = content.lines().filter(|l| !l.is_empty()).collect();
-    
+
     logging::status("MACRO", &format!("Replaying macro: {}", name));
     for cmd in commands {
         let args = shlex::split(cmd).context("Failed to parse macro command string")?;
@@ -60,10 +68,14 @@ pub fn replay_macro(name: &str) -> Result<()> {
             .run()
             .with_context(|| format!("Macro failed while executing: {}", cmd))?;
     }
-    
+
     Ok(())
 }
 
 fn get_macro_path(name: &str) -> PathBuf {
-    LAYOUT.root.join(".xtask").join("macros").join(format!("{}.macro", name))
+    LAYOUT
+        .root
+        .join(".xtask")
+        .join("macros")
+        .join(format!("{}.macro", name))
 }

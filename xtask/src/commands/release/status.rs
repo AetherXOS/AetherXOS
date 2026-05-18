@@ -5,9 +5,9 @@ use std::fs;
 use std::path::Path;
 
 use crate::config;
+use crate::utils::fs::paths::LAYOUT;
 use crate::utils::logging;
 use crate::utils::report;
-use crate::utils::fs::paths::LAYOUT;
 
 #[path = "status/scorecard.rs"]
 mod scorecard;
@@ -67,7 +67,7 @@ pub fn run() -> Result<()> {
     let root = &LAYOUT.root;
     let out_json = root.join(config::repo_paths::P_TIER_STATUS_JSON);
     let out_md = root.join(config::repo_paths::P_TIER_STATUS_MD);
-    
+
     if let Some(parent) = out_json.parent() {
         fs::create_dir_all(parent)?;
     }

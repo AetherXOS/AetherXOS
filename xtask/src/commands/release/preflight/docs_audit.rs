@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 use super::relative_display;
 

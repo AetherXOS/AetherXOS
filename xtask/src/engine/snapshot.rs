@@ -1,22 +1,22 @@
-use anyhow::Result;
-use crate::utils::logging;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::logging;
+use anyhow::Result;
 use std::fs;
 
 pub fn create_snapshot(name: &str) -> Result<()> {
     let artifacts_dir = &LAYOUT.artifacts;
     let snapshot_dir = LAYOUT.root.join(".xtask").join("snapshots").join(name);
-    
+
     fs::create_dir_all(&snapshot_dir)?;
     logging::status("SNAPSHOT", &format!("Creating snapshot: {}", name));
-    
+
     // Copy artifacts to snapshot dir (Delta-Optimized)
     if artifacts_dir.exists() {
         for entry in fs::read_dir(artifacts_dir)? {
             let entry = entry?;
             let src = entry.path();
             let dest = snapshot_dir.join(entry.file_name());
-            
+
             // Only copy if changed (size or time)
             let should_copy = if dest.exists() {
                 let src_meta = src.metadata()?;
@@ -33,7 +33,7 @@ pub fn create_snapshot(name: &str) -> Result<()> {
             }
         }
     }
-    
+
     logging::success("SNAPSHOT", "Snapshot created successfully", &[]);
     Ok(())
 }
@@ -41,6 +41,10 @@ pub fn create_snapshot(name: &str) -> Result<()> {
 pub fn diff_snapshots(a: &str, b: &str) -> Result<()> {
     logging::status("DIFF", &format!("Comparing snapshot '{}' and '{}'", a, b));
     // In a real impl, we would compare file sizes and hashes.
-    logging::info("DIFF", "Diff analysis: Binary size increased by 4% in kernel.iso", &[]);
+    logging::info(
+        "DIFF",
+        "Diff analysis: Binary size increased by 4% in kernel.iso",
+        &[],
+    );
     Ok(())
 }

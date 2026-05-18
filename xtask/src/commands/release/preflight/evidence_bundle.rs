@@ -2,8 +2,8 @@ use anyhow::{Result, bail};
 use serde_json::Value;
 
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 use super::{ReleaseEvidenceBundle, build_file_entry, evaluate_gate, render_bundle_md};
 

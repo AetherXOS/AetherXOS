@@ -1,13 +1,13 @@
+use crate::engine::operations::Op;
+use crate::utils::fs::paths::LAYOUT;
+use crate::utils::fs::stats::{self, DirStats, ScanOrchestrator};
+use crate::utils::logging;
+use crate::utils::sys::process::Executor;
 use anyhow::Result;
 use std::fs;
-use crate::utils::logging;
-use crate::engine::operations::Op;
-use crate::utils::sys::process::Executor;
-use crate::utils::fs::stats::{self, DirStats, ScanOrchestrator};
-use crate::utils::fs::paths::LAYOUT;
 
 /// Purge build artifacts, staging areas, and logs.
-/// 
+///
 /// If `all` is true, also runs `cargo clean`.
 /// If `distros` is true, also removes downloaded distro images.
 pub fn execute(all: bool, distros: bool, logs: bool, no_stats: bool, dry_run: bool) -> Result<()> {
@@ -32,7 +32,9 @@ pub fn execute(all: bool, distros: bool, logs: bool, no_stats: bool, dry_run: bo
     ];
 
     for (name, path, enabled) in targets {
-        if !enabled || !path.exists() { continue; }
+        if !enabled || !path.exists() {
+            continue;
+        }
 
         if !no_stats && !total_stats.interrupted {
             let s = orchestrator.scan(path);
@@ -40,12 +42,14 @@ pub fn execute(all: bool, distros: bool, logs: bool, no_stats: bool, dry_run: bo
         }
 
         if dry_run {
-            logging::info("clean", &format!("[DRY-RUN] Would remove {} directory", name), &[
-                ("path", &path.to_string_lossy()),
-            ]);
+            logging::info(
+                "clean",
+                &format!("[DRY-RUN] Would remove {} directory", name),
+                &[("path", &path.to_string_lossy())],
+            );
         } else {
             logging::info("clean", &format!("Purging {}...", name), &[]);
-            
+
             if name == "Distros" {
                 // We keep the directory but clear contents to avoid structure break
                 if let Ok(entries) = fs::read_dir(path) {
@@ -72,7 +76,11 @@ pub fn execute(all: bool, distros: bool, logs: bool, no_stats: bool, dry_run: bo
         }
 
         if dry_run {
-            logging::info("clean", "[DRY-RUN] Would remove execution log", &[("path", &LAYOUT.logs.to_string_lossy())]);
+            logging::info(
+                "clean",
+                "[DRY-RUN] Would remove execution log",
+                &[("path", &LAYOUT.logs.to_string_lossy())],
+            );
         } else {
             logging::info("clean", "Removing execution logs...", &[]);
             let _ = fs::remove_file(&LAYOUT.logs);
@@ -98,7 +106,10 @@ pub fn execute(all: bool, distros: bool, logs: bool, no_stats: bool, dry_run: bo
             fields.push(("stats".to_string(), "INTERRUPTED".to_string()));
         }
 
-        let fields_refs: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
+        let fields_refs: Vec<(&str, &str)> = fields
+            .iter()
+            .map(|(k, v)| (k.as_ref(), v.as_ref()))
+            .collect();
         logging::ready(
             "clean",
             "System purge complete. Staging areas neutralized.",

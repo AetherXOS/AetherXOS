@@ -1,6 +1,6 @@
+use crate::utils::executable::Executable;
 use anyhow::Result;
 use clap::Args;
-use crate::utils::executable::Executable;
 
 #[derive(Args, Debug, Clone)]
 pub struct CleanAction {
@@ -27,6 +27,12 @@ pub struct CleanAction {
 
 impl Executable for CleanAction {
     fn execute(&self) -> Result<()> {
-        crate::commands::ops::clean::execute(self.all, self.distros, self.logs, self.no_stats, self.dry_run)
+        crate::commands::ops::clean::execute(
+            self.all,
+            self.distros,
+            self.logs,
+            self.no_stats,
+            self.dry_run,
+        )
     }
 }

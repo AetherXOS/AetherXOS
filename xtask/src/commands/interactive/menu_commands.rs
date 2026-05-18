@@ -7,7 +7,9 @@ pub trait MenuCommand {
 
 pub struct BuildKernelCommand;
 impl MenuCommand for BuildKernelCommand {
-    fn label(&self) -> &str { "🚀 Build AetherX Kernel" }
+    fn label(&self) -> &str {
+        "🚀 Build AetherX Kernel"
+    }
     fn execute(&self) -> Result<bool> {
         crate::commands::infra::build::interactive::run()?;
         Ok(false)
@@ -16,7 +18,9 @@ impl MenuCommand for BuildKernelCommand {
 
 pub struct DistroOpsCommand;
 impl MenuCommand for DistroOpsCommand {
-    fn label(&self) -> &str { "📦 Distro Operations & Supreme Wizard (ISO, Macros, Distro)" }
+    fn label(&self) -> &str {
+        "📦 Distro Operations & Supreme Wizard (ISO, Macros, Distro)"
+    }
     fn execute(&self) -> Result<bool> {
         crate::commands::interactive::wizard::launch_supreme_wizard()?;
         Ok(false)
@@ -25,7 +29,9 @@ impl MenuCommand for DistroOpsCommand {
 
 pub struct MacroOpsCommand;
 impl MenuCommand for MacroOpsCommand {
-    fn label(&self) -> &str { "⏺️  Terminal Macro Management (Record/Replay)" }
+    fn label(&self) -> &str {
+        "⏺️  Terminal Macro Management (Record/Replay)"
+    }
     fn execute(&self) -> Result<bool> {
         // Just launch the supreme wizard and the user can select Macro Record/Replay
         crate::commands::interactive::wizard::launch_supreme_wizard()?;
@@ -35,7 +41,9 @@ impl MenuCommand for MacroOpsCommand {
 
 pub struct ManageFeaturesCommand;
 impl MenuCommand for ManageFeaturesCommand {
-    fn label(&self) -> &str { "🛠️  Kernel Configuration (Features)" }
+    fn label(&self) -> &str {
+        "🛠️  Kernel Configuration (Features)"
+    }
     fn execute(&self) -> Result<bool> {
         crate::commands::interactive::features::manage_features()?;
         Ok(false)
@@ -44,7 +52,9 @@ impl MenuCommand for ManageFeaturesCommand {
 
 pub struct DashboardCommand;
 impl MenuCommand for DashboardCommand {
-    fn label(&self) -> &str { "📊 Open Nexus Intelligence Dashboard (TUI)" }
+    fn label(&self) -> &str {
+        "📊 Open Nexus Intelligence Dashboard (TUI)"
+    }
     fn execute(&self) -> Result<bool> {
         crate::utils::ui::dashboard::launch()?;
         Ok(false)
@@ -53,35 +63,71 @@ impl MenuCommand for DashboardCommand {
 
 pub struct SystemSettingsCommand;
 impl MenuCommand for SystemSettingsCommand {
-    fn label(&self) -> &str { "⚙️  AetherX Engine Settings" }
+    fn label(&self) -> &str {
+        "⚙️  AetherX Engine Settings"
+    }
     fn execute(&self) -> Result<bool> {
         loop {
             let settings = crate::utils::core::config::get_settings();
             let options = vec![
-                format!("📊 TUI HUD during builds: [{}]", if settings.tui_hud_enabled { "ENABLED" } else { "DISABLED" }),
+                format!(
+                    "📊 TUI HUD during builds: [{}]",
+                    if settings.tui_hud_enabled {
+                        "ENABLED"
+                    } else {
+                        "DISABLED"
+                    }
+                ),
                 format!("🎨 TUI HUD Theme: [{}]", settings.hud_theme),
-                format!("📢 Webhook Notifications: [{}]", if settings.webhook_enabled { "ENABLED" } else { "DISABLED" }),
-                format!("🔊 Voice Feedback: [{}]", if settings.voice_enabled { "ENABLED" } else { "DISABLED" }),
+                format!(
+                    "📢 Webhook Notifications: [{}]",
+                    if settings.webhook_enabled {
+                        "ENABLED"
+                    } else {
+                        "DISABLED"
+                    }
+                ),
+                format!(
+                    "🔊 Voice Feedback: [{}]",
+                    if settings.voice_enabled {
+                        "ENABLED"
+                    } else {
+                        "DISABLED"
+                    }
+                ),
                 "↩️  Back to Main Menu".to_string(),
             ];
 
-            let selection = inquire::Select::new("AetherX Engine Settings", options)
-                .prompt()?;
+            let selection = inquire::Select::new("AetherX Engine Settings", options).prompt()?;
 
             if selection.starts_with("📊") {
-                crate::utils::core::config::update_settings(|s| s.tui_hud_enabled = !s.tui_hud_enabled)?;
+                crate::utils::core::config::update_settings(|s| {
+                    s.tui_hud_enabled = !s.tui_hud_enabled
+                })?;
             } else if selection.starts_with("🎨") {
                 let next_theme = match settings.hud_theme {
-                    crate::utils::core::config::HudTheme::Cyberpunk => crate::utils::core::config::HudTheme::Matrix,
-                    crate::utils::core::config::HudTheme::Matrix => crate::utils::core::config::HudTheme::Steel,
-                    crate::utils::core::config::HudTheme::Steel => crate::utils::core::config::HudTheme::Dracula,
-                    crate::utils::core::config::HudTheme::Dracula => crate::utils::core::config::HudTheme::Cyberpunk,
+                    crate::utils::core::config::HudTheme::Cyberpunk => {
+                        crate::utils::core::config::HudTheme::Matrix
+                    }
+                    crate::utils::core::config::HudTheme::Matrix => {
+                        crate::utils::core::config::HudTheme::Steel
+                    }
+                    crate::utils::core::config::HudTheme::Steel => {
+                        crate::utils::core::config::HudTheme::Dracula
+                    }
+                    crate::utils::core::config::HudTheme::Dracula => {
+                        crate::utils::core::config::HudTheme::Cyberpunk
+                    }
                 };
                 crate::utils::core::config::update_settings(|s| s.hud_theme = next_theme)?;
             } else if selection.starts_with("📢") {
-                crate::utils::core::config::update_settings(|s| s.webhook_enabled = !s.webhook_enabled)?;
+                crate::utils::core::config::update_settings(|s| {
+                    s.webhook_enabled = !s.webhook_enabled
+                })?;
             } else if selection.starts_with("🔊") {
-                crate::utils::core::config::update_settings(|s| s.voice_enabled = !s.voice_enabled)?;
+                crate::utils::core::config::update_settings(|s| {
+                    s.voice_enabled = !s.voice_enabled
+                })?;
             } else {
                 break;
             }
@@ -92,7 +138,9 @@ impl MenuCommand for SystemSettingsCommand {
 
 pub struct KernelBloatCommand;
 impl MenuCommand for KernelBloatCommand {
-    fn label(&self) -> &str { "📊 Interactive Kernel Bloat Analyzer" }
+    fn label(&self) -> &str {
+        "📊 Interactive Kernel Bloat Analyzer"
+    }
     fn execute(&self) -> Result<bool> {
         crate::utils::ui::bloat_analyzer::run_analyzer()?;
         Ok(false)
@@ -101,7 +149,9 @@ impl MenuCommand for KernelBloatCommand {
 
 pub struct SerialMonitorCommand;
 impl MenuCommand for SerialMonitorCommand {
-    fn label(&self) -> &str { "🔌 Live Serial Debug Monitor & QEMU GDB Portal" }
+    fn label(&self) -> &str {
+        "🔌 Live Serial Debug Monitor & QEMU GDB Portal"
+    }
     fn execute(&self) -> Result<bool> {
         crate::utils::ui::serial_monitor::run_serial_monitor()?;
         Ok(false)
@@ -110,7 +160,9 @@ impl MenuCommand for SerialMonitorCommand {
 
 pub struct BootTestCommand;
 impl MenuCommand for BootTestCommand {
-    fn label(&self) -> &str { "🧪 Autonomous Integration Boot Test" }
+    fn label(&self) -> &str {
+        "🧪 Autonomous Integration Boot Test"
+    }
     fn execute(&self) -> Result<bool> {
         crate::utils::ui::boot_tester::run_boot_test()?;
         Ok(false)
@@ -119,6 +171,10 @@ impl MenuCommand for BootTestCommand {
 
 pub struct ExitCommand;
 impl MenuCommand for ExitCommand {
-    fn label(&self) -> &str { "🚪 Exit" }
-    fn execute(&self) -> Result<bool> { Ok(true) }
+    fn label(&self) -> &str {
+        "🚪 Exit"
+    }
+    fn execute(&self) -> Result<bool> {
+        Ok(true)
+    }
 }

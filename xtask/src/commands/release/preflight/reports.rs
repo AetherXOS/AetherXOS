@@ -5,8 +5,8 @@ use std::collections::BTreeMap;
 use std::fs;
 
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 use super::ci::{build_file_entry, capture_command_output, ci_bundle};
 use super::models::{

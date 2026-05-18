@@ -1,6 +1,6 @@
 use super::platform::{HostPlatform, ProvisionPlan, detect_platform, ensure_tool_with_plan};
 use crate::constants;
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use std::fs;
 
 fn qemu_plan() -> ProvisionPlan {

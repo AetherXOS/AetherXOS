@@ -1,12 +1,12 @@
+use crate::config::parse_aop_config;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn};
-use crate::config::parse_aop_config;
+use syn::{ItemFn, parse_macro_input};
 
 pub fn expand(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
     let config = parse_aop_config(attr);
-    
+
     let vis = &input.vis;
     let sig = &input.sig;
     let block = &input.block;

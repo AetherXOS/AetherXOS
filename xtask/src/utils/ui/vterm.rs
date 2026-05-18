@@ -1,5 +1,5 @@
-use std::sync::Mutex;
 use once_cell::sync::Lazy;
+use std::sync::Mutex;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TerminalCell {
@@ -17,8 +17,19 @@ pub struct VirtualTerminal {
 
 impl VirtualTerminal {
     pub fn new(width: u16, height: u16) -> Self {
-        let cells = vec![TerminalCell { char: ' ', fg: (255, 255, 255), bg: (0, 0, 0) }; (width * height) as usize];
-        Self { width, height, cells }
+        let cells = vec![
+            TerminalCell {
+                char: ' ',
+                fg: (255, 255, 255),
+                bg: (0, 0, 0)
+            };
+            (width * height) as usize
+        ];
+        Self {
+            width,
+            height,
+            cells,
+        }
     }
 
     pub fn set_cell(&mut self, x: u16, y: u16, cell: TerminalCell) {
@@ -29,10 +40,15 @@ impl VirtualTerminal {
     }
 }
 
-pub static VTERM: Lazy<Mutex<VirtualTerminal>> = Lazy::new(|| Mutex::new(VirtualTerminal::new(100, 30)));
+pub static VTERM: Lazy<Mutex<VirtualTerminal>> =
+    Lazy::new(|| Mutex::new(VirtualTerminal::new(100, 30)));
 
 pub fn update_vterm(width: u16, height: u16, cells: Vec<TerminalCell>) {
     if let Ok(mut term) = VTERM.lock() {
-        *term = VirtualTerminal { width, height, cells };
+        *term = VirtualTerminal {
+            width,
+            height,
+            cells,
+        };
     }
 }

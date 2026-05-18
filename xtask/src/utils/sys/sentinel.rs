@@ -1,7 +1,7 @@
-use std::sync::Mutex;
+use crate::utils::logging;
 use once_cell::sync::Lazy;
 use std::process::Child;
-use crate::utils::logging;
+use std::sync::Mutex;
 
 /// Global tracker for child processes to prevent orphans.
 static TRACKER: Lazy<Mutex<Vec<u32>>> = Lazy::new(|| Mutex::new(Vec::new()));
@@ -19,9 +19,15 @@ impl Sentinel {
     /// Kill all tracked child processes.
     pub fn cleanup() {
         if let Ok(mut pids) = TRACKER.lock() {
-            if pids.is_empty() { return; }
-            logging::warn("SENTINEL", &format!("Cleaning up {} orphan processes...", pids.len()), &[]);
-            
+            if pids.is_empty() {
+                return;
+            }
+            logging::warn(
+                "SENTINEL",
+                &format!("Cleaning up {} orphan processes...", pids.len()),
+                &[],
+            );
+
             for pid in pids.drain(..) {
                 Self::kill_pid(pid);
             }
@@ -35,7 +41,8 @@ impl Sentinel {
             Self::cleanup();
             crate::utils::ui::logging::shutdown_logger();
             std::process::exit(130);
-        }).expect("Failed to initialize Sentinel signal handler");
+        })
+        .expect("Failed to initialize Sentinel signal handler");
     }
 
     fn kill_pid(pid: u32) {

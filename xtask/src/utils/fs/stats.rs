@@ -1,17 +1,17 @@
 use crate::utils::config;
-use std::fs;
-use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::thread;
-use std::time::{Duration, Instant};
-use crossbeam_channel::{unbounded, Receiver};
+use crossbeam_channel::{Receiver, unbounded};
 use crossterm::{
     event::{self, Event, KeyCode},
-    terminal::{Clear, ClearType},
     execute,
+    terminal::{Clear, ClearType},
 };
-use std::io::{stdout, Write};
+use std::fs;
+use std::io::{Write, stdout};
+use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+use std::time::{Duration, Instant};
 
 /// Represents the collected statistics for a directory tree.
 #[derive(Debug, Clone, Default)]
@@ -110,7 +110,10 @@ impl ScanOrchestrator {
 
     /// Enters a non-blocking interactive loop to allow users to skip or wait.
     fn enter_interaction_gate(&self, rx: Receiver<DirStats>) -> DirStats {
-        let _ = write!(stdout(), "\r[STATS] Calculation taking longer than expected. [S]kip or wait? ");
+        let _ = write!(
+            stdout(),
+            "\r[STATS] Calculation taking longer than expected. [S]kip or wait? "
+        );
         let _ = stdout().flush();
 
         loop {

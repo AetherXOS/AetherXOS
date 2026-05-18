@@ -4,8 +4,8 @@ use serde::Serialize;
 use crate::commands::validation::linux_abi::refresh_shim_errno_conformance_report;
 use crate::commands::validation::syscall_coverage;
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 use super::helpers::{
     SyscallCoverageRow, SyscallFamilyTier, compute_family_tiers, read_json, read_syscall_rows,

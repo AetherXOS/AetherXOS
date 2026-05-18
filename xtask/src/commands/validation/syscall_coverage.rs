@@ -3,8 +3,8 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 // ---------------------------------------------------------------------------
 // Types matching Python syscall_coverage_report.py output

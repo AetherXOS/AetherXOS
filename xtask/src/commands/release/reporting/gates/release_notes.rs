@@ -4,8 +4,8 @@ use std::fs;
 
 use crate::commands::release::preflight;
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 pub(crate) fn execute(out: Option<&str>) -> Result<()> {
     println!("[release::notes] Generating release notes from current gate state");

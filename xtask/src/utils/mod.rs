@@ -19,8 +19,8 @@ pub use ui::help;
 pub use ui::logging;
 pub use ui::orchestrator as ui_orchestrator;
 pub use ui::parser;
-pub use validation::elf;
 pub use validation as preflight;
+pub use validation::elf;
 pub use validation::report;
 
 // 2. Forward items for backward compatibility (utils::ensure_dir)

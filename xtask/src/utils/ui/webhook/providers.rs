@@ -10,27 +10,49 @@ pub const EMOJI_FAILURE: &str = "❌";
 /// Providers self-identify if they can handle a specific endpoint URL!
 pub trait NotificationProvider: Send + Sync {
     fn provider_name(&self) -> &'static str;
-    
+
     /// Returns true if this provider is responsible for handling the target webhook URL
     fn can_handle(&self, url: &str) -> bool;
-    
+
     /// Formats the payload according to provider-specific specifications
-    fn format_payload(&self, title: &str, message: &str, is_success: bool, telemetry: &NotificationTelemetry) -> serde_json::Value;
+    fn format_payload(
+        &self,
+        title: &str,
+        message: &str,
+        is_success: bool,
+        telemetry: &NotificationTelemetry,
+    ) -> serde_json::Value;
 }
 
 // ==================== Discord Provider ====================
 pub struct DiscordProvider;
 impl NotificationProvider for DiscordProvider {
-    fn provider_name(&self) -> &'static str { "Discord" }
+    fn provider_name(&self) -> &'static str {
+        "Discord"
+    }
 
     fn can_handle(&self, url: &str) -> bool {
         url.contains("discord.com") || url.contains("discordapp.com")
     }
 
-    fn format_payload(&self, title: &str, message: &str, is_success: bool, telemetry: &NotificationTelemetry) -> serde_json::Value {
-        let color = if is_success { COLOR_SUCCESS } else { COLOR_FAILURE };
-        let emoji = if is_success { EMOJI_SUCCESS } else { EMOJI_FAILURE };
-        
+    fn format_payload(
+        &self,
+        title: &str,
+        message: &str,
+        is_success: bool,
+        telemetry: &NotificationTelemetry,
+    ) -> serde_json::Value {
+        let color = if is_success {
+            COLOR_SUCCESS
+        } else {
+            COLOR_FAILURE
+        };
+        let emoji = if is_success {
+            EMOJI_SUCCESS
+        } else {
+            EMOJI_FAILURE
+        };
+
         let mut fields = vec![
             serde_json::json!({
                 "name": "🖥️  Host System Information",
@@ -41,7 +63,7 @@ impl NotificationProvider for DiscordProvider {
                 "name": "📦 Build Target Metadata",
                 "value": format!("**Kernel Size:** {}", telemetry.kernel_size),
                 "inline": true
-            })
+            }),
         ];
 
         if let Some(ref hash) = telemetry.git_hash {
@@ -72,22 +94,45 @@ impl NotificationProvider for DiscordProvider {
 // ==================== Slack Provider ====================
 pub struct SlackProvider;
 impl NotificationProvider for SlackProvider {
-    fn provider_name(&self) -> &'static str { "Slack" }
+    fn provider_name(&self) -> &'static str {
+        "Slack"
+    }
 
     fn can_handle(&self, url: &str) -> bool {
         url.contains("slack.com") || url.contains("hooks.slack.com")
     }
 
-    fn format_payload(&self, title: &str, message: &str, is_success: bool, telemetry: &NotificationTelemetry) -> serde_json::Value {
-        let emoji = if is_success { EMOJI_SUCCESS } else { EMOJI_FAILURE };
-        
-        let mut text = format!("*{} {}*\n_{}_\n\n*🖥️ Host Info:* OS: {}, CPU: {} Cores, RAM: {}\n*📦 Target Size:* {}", 
-            emoji, title, message, telemetry.os_name, telemetry.cpu_cores, telemetry.total_ram, telemetry.kernel_size);
+    fn format_payload(
+        &self,
+        title: &str,
+        message: &str,
+        is_success: bool,
+        telemetry: &NotificationTelemetry,
+    ) -> serde_json::Value {
+        let emoji = if is_success {
+            EMOJI_SUCCESS
+        } else {
+            EMOJI_FAILURE
+        };
+
+        let mut text = format!(
+            "*{} {}*\n_{}_\n\n*🖥️ Host Info:* OS: {}, CPU: {} Cores, RAM: {}\n*📦 Target Size:* {}",
+            emoji,
+            title,
+            message,
+            telemetry.os_name,
+            telemetry.cpu_cores,
+            telemetry.total_ram,
+            telemetry.kernel_size
+        );
 
         if let Some(ref hash) = telemetry.git_hash {
             let author = telemetry.git_author.as_deref().unwrap_or("Unknown");
             let msg = telemetry.git_message.as_deref().unwrap_or("No message");
-            text.push_str(&format!("\n*🌿 Git Info:* `{}` by *{}* - _{}_", hash, author, msg));
+            text.push_str(&format!(
+                "\n*🌿 Git Info:* `{}` by *{}* - _{}_",
+                hash, author, msg
+            ));
         }
 
         serde_json::json!({
@@ -99,13 +144,21 @@ impl NotificationProvider for SlackProvider {
 // ==================== Generic JSON Provider ====================
 pub struct GenericProvider;
 impl NotificationProvider for GenericProvider {
-    fn provider_name(&self) -> &'static str { "Generic Webhook" }
+    fn provider_name(&self) -> &'static str {
+        "Generic Webhook"
+    }
 
     fn can_handle(&self, _url: &str) -> bool {
         true // Serves as the ultimate fallback provider
     }
 
-    fn format_payload(&self, title: &str, message: &str, is_success: bool, telemetry: &NotificationTelemetry) -> serde_json::Value {
+    fn format_payload(
+        &self,
+        title: &str,
+        message: &str,
+        is_success: bool,
+        telemetry: &NotificationTelemetry,
+    ) -> serde_json::Value {
         serde_json::json!({
             "title": title,
             "message": message,

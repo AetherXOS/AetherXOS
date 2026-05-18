@@ -12,12 +12,8 @@ pub fn apply_repair(contents: &str, fix_type: &str) -> Option<String> {
                 None
             }
         }
-        "convert_to_core" => {
-            Some(contents.replace("use std::", "use core::"))
-        }
-        "convert_to_spin" => {
-            Some(contents.replace("std::sync::Mutex", "spin::Mutex"))
-        }
+        "convert_to_core" => Some(contents.replace("use std::", "use core::")),
+        "convert_to_spin" => Some(contents.replace("std::sync::Mutex", "spin::Mutex")),
         _ => None,
     }
 }

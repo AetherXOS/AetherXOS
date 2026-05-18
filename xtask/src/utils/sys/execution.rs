@@ -1,13 +1,14 @@
-use std::process::{Command, Stdio, ExitStatus};
-use std::path::PathBuf;
-use std::collections::HashMap;
-use anyhow::{Result, Context, bail};
-use crate::utils::logging;
 use super::sentinel::Sentinel;
-use std::sync::Mutex;
+use crate::utils::logging;
+use anyhow::{Context, Result, bail};
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::process::{Command, ExitStatus, Stdio};
+use std::sync::Mutex;
 
-pub static TUI_HUD_LOG_SENDER: Lazy<Mutex<Option<crossbeam_channel::Sender<String>>>> = Lazy::new(|| Mutex::new(None));
+pub static TUI_HUD_LOG_SENDER: Lazy<Mutex<Option<crossbeam_channel::Sender<String>>>> =
+    Lazy::new(|| Mutex::new(None));
 
 /// A fluent builder for executing processes with logging and tracking.
 pub struct Executor {
@@ -85,13 +86,19 @@ impl Executor {
         }
 
         let mut command = self.build_command();
-        let mut child = command.spawn().context(format!("Failed to spawn {}", self.program))?;
-        
+        let mut child = command
+            .spawn()
+            .context(format!("Failed to spawn {}", self.program))?;
+
         Sentinel::track(&child);
         let status = child.wait()?;
 
         if !status.success() && !self.best_effort {
-            bail!("{} failed with exit code {}", self.program, status.code().unwrap_or(-1));
+            bail!(
+                "{} failed with exit code {}",
+                self.program,
+                status.code().unwrap_or(-1)
+            );
         }
         Ok(())
     }
@@ -99,12 +106,14 @@ impl Executor {
     fn run_with_progress(self) -> Result<()> {
         use indicatif::{ProgressBar, ProgressStyle};
         use std::io::{BufRead, BufReader};
-        
+
         let pb = ProgressBar::new_spinner();
-        pb.set_style(ProgressStyle::default_spinner()
-            .template("{spinner:.green} [{elapsed_precise}] {msg}")
-            .unwrap()
-            .tick_chars("⠋⠙⠹⠸⼼⠴⠦⠧⠇⠏ "));
+        pb.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.green} [{elapsed_precise}] {msg}")
+                .unwrap()
+                .tick_chars("⠋⠙⠹⠸⼼⠴⠦⠧⠇⠏ "),
+        );
         pb.set_message(format!("Starting {}...", self.program));
 
         let is_tui = crate::utils::core::config::get_settings().tui_hud_enabled;
@@ -112,19 +121,24 @@ impl Executor {
             pb.set_draw_target(indicatif::ProgressDrawTarget::hidden());
         }
 
-        let hud_sender = crate::utils::sys::execution::TUI_HUD_LOG_SENDER.lock().unwrap().clone();
+        let hud_sender = crate::utils::sys::execution::TUI_HUD_LOG_SENDER
+            .lock()
+            .unwrap()
+            .clone();
         let hud_sender_clone = hud_sender.clone();
 
         let mut command = self.build_command();
         command.stdout(Stdio::piped());
         command.stderr(Stdio::piped());
-        
-        let mut child = command.spawn().context(format!("Failed to spawn {}", self.program))?;
+
+        let mut child = command
+            .spawn()
+            .context(format!("Failed to spawn {}", self.program))?;
         Sentinel::track(&child);
 
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
-        
+
         let pb_clone1 = pb.clone();
         let stdout_thread = std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
@@ -158,7 +172,11 @@ impl Executor {
 
         if !status.success() && !self.best_effort {
             pb.finish_with_message(format!("❌ Failed: {}", self.program));
-            bail!("{} failed with exit code {}", self.program, status.code().unwrap_or(-1));
+            bail!(
+                "{} failed with exit code {}",
+                self.program,
+                status.code().unwrap_or(-1)
+            );
         }
 
         pb.finish_and_clear();
@@ -168,12 +186,18 @@ impl Executor {
     pub fn run_capture(self) -> Result<String> {
         let mut command = self.build_command();
         command.stdout(Stdio::piped());
-        
-        let output = command.output().context(format!("Failed to execute {}", self.program))?;
+
+        let output = command
+            .output()
+            .context(format!("Failed to execute {}", self.program))?;
         if !output.status.success() && !self.best_effort {
-            bail!("{} failed with exit code {}", self.program, output.status.code().unwrap_or(-1));
+            bail!(
+                "{} failed with exit code {}",
+                self.program,
+                output.status.code().unwrap_or(-1)
+            );
         }
-        
+
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     }
 
@@ -181,17 +205,21 @@ impl Executor {
         let mut command = self.build_command();
         command.stdout(Stdio::piped());
         command.stderr(Stdio::piped());
-        
-        let output = command.output().context(format!("Failed to execute {}", self.program))?;
+
+        let output = command
+            .output()
+            .context(format!("Failed to execute {}", self.program))?;
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        
+
         Ok((output.status, stdout, stderr))
     }
 
     pub fn run_status(self) -> Result<ExitStatus> {
         let mut command = self.build_command();
-        let mut child = command.spawn().context(format!("Failed to spawn {}", self.program))?;
+        let mut child = command
+            .spawn()
+            .context(format!("Failed to spawn {}", self.program))?;
         Sentinel::track(&child);
         Ok(child.wait()?)
     }

@@ -1,23 +1,36 @@
-use std::{io, time::{Duration, Instant}};
+use crossbeam_channel::Receiver;
 use crossterm::{
     event::{self, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Paragraph, List, ListItem},
-    Terminal,
+    widgets::{Block, Borders, List, ListItem, Paragraph},
 };
-use crossbeam_channel::Receiver;
+use std::{
+    io,
+    time::{Duration, Instant},
+};
 
 pub enum HudEvent {
-    TaskStarted { index: usize },
-    TaskLog { line: String },
-    TaskFinished { index: usize, success: bool, reason: Option<String> },
-    Finished { success: bool },
+    TaskStarted {
+        index: usize,
+    },
+    TaskLog {
+        line: String,
+    },
+    TaskFinished {
+        index: usize,
+        success: bool,
+        reason: Option<String>,
+    },
+    Finished {
+        success: bool,
+    },
 }
 
 pub enum HudResult {
@@ -38,7 +51,10 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
     let mut stdout = io::stdout();
     if let Err(e) = execute!(stdout, EnterAlternateScreen) {
         let _ = disable_raw_mode();
-        return HudResult::Exit(Err(anyhow::anyhow!("Failed to enter alternate screen: {}", e)));
+        return HudResult::Exit(Err(anyhow::anyhow!(
+            "Failed to enter alternate screen: {}",
+            e
+        )));
     }
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = match Terminal::new(backend) {
@@ -49,11 +65,14 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
         }
     };
 
-    let mut tasks: Vec<TaskState> = task_names.into_iter().map(|(name, desc)| TaskState {
-        name,
-        description: desc,
-        status: "Pending".to_string(),
-    }).collect();
+    let mut tasks: Vec<TaskState> = task_names
+        .into_iter()
+        .map(|(name, desc)| TaskState {
+            name,
+            description: desc,
+            status: "Pending".to_string(),
+        })
+        .collect();
 
     let mut logs: Vec<String> = Vec::new();
     let mut active_task: Option<usize> = None;
@@ -70,10 +89,16 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
     // Get TUI theme configuration
     let theme = crate::utils::core::config::get_settings().hud_theme;
     let (header_fg, active_fg, accent_fg) = match theme {
-        crate::utils::core::config::HudTheme::Cyberpunk => (Color::Cyan, Color::Magenta, Color::Cyan),
-        crate::utils::core::config::HudTheme::Matrix => (Color::Green, Color::LightGreen, Color::Green),
+        crate::utils::core::config::HudTheme::Cyberpunk => {
+            (Color::Cyan, Color::Magenta, Color::Cyan)
+        }
+        crate::utils::core::config::HudTheme::Matrix => {
+            (Color::Green, Color::LightGreen, Color::Green)
+        }
         crate::utils::core::config::HudTheme::Steel => (Color::Blue, Color::LightBlue, Color::Blue),
-        crate::utils::core::config::HudTheme::Dracula => (Color::Magenta, Color::Yellow, Color::Magenta),
+        crate::utils::core::config::HudTheme::Dracula => {
+            (Color::Magenta, Color::Yellow, Color::Magenta)
+        }
     };
 
     loop {
@@ -90,7 +115,11 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
                     }
                     logs.push(line);
                 }
-                HudEvent::TaskFinished { index, success, reason } => {
+                HudEvent::TaskFinished {
+                    index,
+                    success,
+                    reason,
+                } => {
                     if success {
                         tasks[index].status = "Success".to_string();
                     } else {
@@ -119,7 +148,8 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
 
         // Build CPU bar: e.g. [████░░░░]
         let cpu_bar_len = 8;
-        let cpu_filled = (((cpu_usage / 100.0) * cpu_bar_len as f32).round() as usize).min(cpu_bar_len);
+        let cpu_filled =
+            (((cpu_usage / 100.0) * cpu_bar_len as f32).round() as usize).min(cpu_bar_len);
         let cpu_bar = format!(
             "[{}{}] {:.0}%",
             "█".repeat(cpu_filled),
@@ -129,7 +159,11 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
 
         // Build RAM bar: e.g. [██░░░░░░]
         let mem_bar_len = 8;
-        let mem_ratio = if total_mem > 0 { used_mem as f64 / total_mem as f64 } else { 0.0 };
+        let mem_ratio = if total_mem > 0 {
+            used_mem as f64 / total_mem as f64
+        } else {
+            0.0
+        };
         let mem_filled = ((mem_ratio * mem_bar_len as f64).round() as usize).min(mem_bar_len);
         let mem_bar = format!(
             "[{}{}] {}/{}",
@@ -151,9 +185,16 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
                 .split(f.size());
 
             // Header Banner
-            let header = Paragraph::new(format!(" 🚀 AetherX OS - Unified Build Pipeline HUD [{}] ", theme))
-                .style(Style::default().fg(header_fg).add_modifier(Modifier::BOLD))
-                .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(accent_fg)));
+            let header = Paragraph::new(format!(
+                " 🚀 AetherX OS - Unified Build Pipeline HUD [{}] ",
+                theme
+            ))
+            .style(Style::default().fg(header_fg).add_modifier(Modifier::BOLD))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(accent_fg)),
+            );
             f.render_widget(header, chunks[0]);
 
             // Body Columns
@@ -178,25 +219,30 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
                     _ => Style::default().fg(Color::DarkGray),
                 };
 
-                let item = ListItem::new(format!("{}{} [{}] - {}", prefix, task.name, task.status, task.description))
-                    .style(status_style);
+                let item = ListItem::new(format!(
+                    "{}{} [{}] - {}",
+                    prefix, task.name, task.status, task.description
+                ))
+                .style(status_style);
                 task_items.push(item);
             }
 
-            let task_list = List::new(task_items)
-                .block(Block::default()
+            let task_list = List::new(task_items).block(
+                Block::default()
                     .title(" Orchestration Sequence ")
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(accent_fg)));
+                    .border_style(Style::default().fg(accent_fg)),
+            );
             f.render_widget(task_list, body_chunks[0]);
 
             // Log Console Panel
             let log_lines: Vec<ListItem> = logs.iter().map(|l| ListItem::new(l.clone())).collect();
-            let log_list = List::new(log_lines)
-                .block(Block::default()
+            let log_list = List::new(log_lines).block(
+                Block::default()
                     .title(" Live Compilation Stream ")
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(accent_fg)));
+                    .border_style(Style::default().fg(accent_fg)),
+            );
             f.render_widget(log_list, body_chunks[1]);
 
             // Footer Panel
@@ -212,12 +258,16 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
 
             let elapsed = start_time.elapsed();
             let footer_content = format!(
-                " Elapsed: {:?} | CPU: {} | RAM: {} |{}", 
+                " Elapsed: {:?} | CPU: {} | RAM: {} |{}",
                 elapsed, cpu_bar, mem_bar, footer_text
             );
             let footer = Paragraph::new(footer_content)
                 .style(Style::default().fg(Color::DarkGray))
-                .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(accent_fg)));
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(accent_fg)),
+                );
             f.render_widget(footer, chunks[2]);
         });
 
@@ -243,7 +293,9 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
                 if let KeyCode::Char('d') = code {
                     if !build_success {
                         // Find the failed task
-                        if let Some(failed_task) = tasks.iter().find(|t| t.status.starts_with("Failed")) {
+                        if let Some(failed_task) =
+                            tasks.iter().find(|t| t.status.starts_with("Failed"))
+                        {
                             // 1. De-initialize raw TUI screen
                             let _ = disable_raw_mode();
                             let _ = execute!(terminal.backend_mut(), LeaveAlternateScreen);
@@ -251,9 +303,19 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
 
                             // 2. Trigger AI Diagnostics
                             println!("\n🔍  Running AI Diagnostics for: {}\n", failed_task.name);
-                            match crate::utils::ui::oracle::Oracle::suggest_next(&failed_task.name, false, Some(&failed_task.status)) {
+                            match crate::utils::ui::oracle::Oracle::suggest_next(
+                                &failed_task.name,
+                                false,
+                                Some(&failed_task.status),
+                            ) {
                                 Ok(true) => return HudResult::Retry,
-                                Ok(false) => return HudResult::Exit(Err(anyhow::anyhow!("Build failed at step '{}': {}", failed_task.name, failed_task.status))),
+                                Ok(false) => {
+                                    return HudResult::Exit(Err(anyhow::anyhow!(
+                                        "Build failed at step '{}': {}",
+                                        failed_task.name,
+                                        failed_task.status
+                                    )));
+                                }
                                 Err(e) => return HudResult::Exit(Err(e)),
                             }
                         }
@@ -266,10 +328,7 @@ pub fn run_hud(rx: Receiver<HudEvent>, task_names: Vec<(String, String)>) -> Hud
     }
 
     let _ = disable_raw_mode();
-    let _ = execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen
-    );
+    let _ = execute!(terminal.backend_mut(), LeaveAlternateScreen);
     let _ = terminal.show_cursor();
 
     if build_success {

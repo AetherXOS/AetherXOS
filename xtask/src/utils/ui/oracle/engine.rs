@@ -1,10 +1,10 @@
+use super::repairs::apply_repair;
+use super::rules::get_active_rules;
+use crate::utils::logging;
+use anyhow::Result;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use anyhow::Result;
-use crate::utils::logging;
-use super::rules::get_active_rules;
-use super::repairs::apply_repair;
 
 #[derive(Debug, Clone)]
 pub struct DiagnosticResult {
@@ -59,7 +59,7 @@ impl DiagnosticEngine {
     /// Run deep diagnosis on compiler log lines
     pub fn diagnose_logs(log_lines: &[String]) -> DiagnosticResult {
         let full_text = log_lines.join("\n");
-        
+
         let error_code = if let Some(pos) = full_text.find("error[E") {
             if pos + 12 <= full_text.len() {
                 Some(full_text[pos + 5..pos + 10].to_string())
@@ -126,14 +126,13 @@ impl DiagnosticEngine {
             DiagnosticResult {
                 message: "OVMF Firmware missing".to_string(),
                 error_code: None,
-                explanation: "OVMF binaries required for booting UEFI systems are missing.".to_string(),
-                fix_options: vec![
-                    FixOption {
-                        label: "📦 Run local setup downloader",
-                        command: "cargo run -p xtask -- setup --tools",
-                        description: "Downloads QEMU firmware binaries and UEFI assets locally.",
-                    }
-                ]
+                explanation: "OVMF binaries required for booting UEFI systems are missing."
+                    .to_string(),
+                fix_options: vec![FixOption {
+                    label: "📦 Run local setup downloader",
+                    command: "cargo run -p xtask -- setup --tools",
+                    description: "Downloads QEMU firmware binaries and UEFI assets locally.",
+                }],
             }
         } else {
             DiagnosticResult {
@@ -163,9 +162,16 @@ impl DiagnosticEngine {
         let rules = get_active_rules();
 
         for dir in &src_dirs {
-            if !dir.exists() { continue; }
-            for entry in walkdir::WalkDir::new(dir).into_iter().filter_map(|e| e.ok()) {
-                if entry.file_type().is_file() && entry.path().extension().map_or(false, |ext| ext == "rs") {
+            if !dir.exists() {
+                continue;
+            }
+            for entry in walkdir::WalkDir::new(dir)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if entry.file_type().is_file()
+                    && entry.path().extension().map_or(false, |ext| ext == "rs")
+                {
                     let file_issues = Self::scan_file(entry.path(), &rules)?;
                     issues.extend(file_issues);
                 }
@@ -175,7 +181,10 @@ impl DiagnosticEngine {
         Ok(issues)
     }
 
-    fn scan_file(path: &Path, rules: &[Box<dyn crate::utils::ui::oracle::rules::DiagnosticRule>]) -> Result<Vec<SafetyIssue>> {
+    fn scan_file(
+        path: &Path,
+        rules: &[Box<dyn crate::utils::ui::oracle::rules::DiagnosticRule>],
+    ) -> Result<Vec<SafetyIssue>> {
         let mut file = File::open(path)?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
@@ -201,8 +210,13 @@ impl DiagnosticEngine {
         }
 
         // 2. Extra workspace-wide safety checks (missing no_std in lib entry points)
-        let is_lib_entry = path.file_name().map_or(false, |n| n == "lib.rs" || n == "main.rs");
-        if is_lib_entry && !contents.contains("#![no_std]") && !path.to_string_lossy().contains("xtask") {
+        let is_lib_entry = path
+            .file_name()
+            .map_or(false, |n| n == "lib.rs" || n == "main.rs");
+        if is_lib_entry
+            && !contents.contains("#![no_std]")
+            && !path.to_string_lossy().contains("xtask")
+        {
             issues.push(SafetyIssue {
                 file: path.to_path_buf(),
                 line_num: 1,
@@ -226,7 +240,12 @@ impl DiagnosticEngine {
             if let Some(new_contents) = apply_repair(&contents, fix_type) {
                 let mut out = File::create(&issue.file)?;
                 out.write_all(new_contents.as_bytes())?;
-                logging::ready("AI_REPAIR", &format!("Successfully applied repair '{}'!", fix_type), "ok", &[]);
+                logging::ready(
+                    "AI_REPAIR",
+                    &format!("Successfully applied repair '{}'!", fix_type),
+                    "ok",
+                    &[],
+                );
             }
         }
 

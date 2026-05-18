@@ -14,7 +14,10 @@ impl WorkspacePaths {
         }
 
         let mut candidate_elfs = Vec::new();
-        for entry in walkdir::WalkDir::new(target_dir).into_iter().filter_map(|e| e.ok()) {
+        for entry in walkdir::WalkDir::new(target_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             if entry.file_type().is_file() {
                 let name = entry.file_name().to_string_lossy();
                 // Find file named exactly 'aethercore' or 'aethercore.elf'
@@ -22,7 +25,10 @@ impl WorkspacePaths {
                     let path = entry.path().to_path_buf();
                     // Avoid anything inside incremental directories or compiler internals
                     let path_str = path.to_string_lossy();
-                    if !path_str.contains("incremental") && !path_str.contains("deps") && !path_str.contains("build") {
+                    if !path_str.contains("incremental")
+                        && !path_str.contains("deps")
+                        && !path_str.contains("build")
+                    {
                         if let Ok(metadata) = std::fs::metadata(&path) {
                             if let Ok(modified) = metadata.modified() {
                                 candidate_elfs.push((path, modified));
@@ -35,7 +41,7 @@ impl WorkspacePaths {
 
         // Sort candidates by modification time descending to pick the most recently built binary
         candidate_elfs.sort_by(|a, b| b.1.cmp(&a.1));
-        
+
         candidate_elfs.first().map(|(path, _)| path.clone())
     }
 
@@ -46,7 +52,10 @@ impl WorkspacePaths {
             let components: Vec<_> = elf_path.components().collect();
             if components.len() >= 4 {
                 let target_idx = components.len() - 3;
-                let target_name = components[target_idx].as_os_str().to_string_lossy().into_owned();
+                let target_name = components[target_idx]
+                    .as_os_str()
+                    .to_string_lossy()
+                    .into_owned();
                 if target_name != "debug" && target_name != "release" {
                     return target_name;
                 }
@@ -60,7 +69,10 @@ impl WorkspacePaths {
         if let Some(elf_path) = Self::find_kernel_elf() {
             let components: Vec<_> = elf_path.components().collect();
             if components.len() >= 3 {
-                let profile = components[components.len() - 2].as_os_str().to_string_lossy().into_owned();
+                let profile = components[components.len() - 2]
+                    .as_os_str()
+                    .to_string_lossy()
+                    .into_owned();
                 return profile;
             }
         }
@@ -70,13 +82,13 @@ impl WorkspacePaths {
     /// Recursively discovers a compiled bootloader image (ISO or IMG) inside the workspace.
     pub fn find_boot_image() -> Option<PathBuf> {
         let mut candidates = Vec::new();
-        
+
         let paths = [
             "artifacts/boot_image/aethercore.iso",
             "artifacts/boot_image/aethercore.img",
-            "artifacts/boot_image/stage/boot/aethercore.elf"
+            "artifacts/boot_image/stage/boot/aethercore.elf",
         ];
-        
+
         for path in &paths {
             let p = Path::new(path);
             if p.exists() {
@@ -84,9 +96,16 @@ impl WorkspacePaths {
             }
         }
 
-        for entry in walkdir::WalkDir::new("artifacts").into_iter().filter_map(|e| e.ok()) {
+        for entry in walkdir::WalkDir::new("artifacts")
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             if entry.file_type().is_file() {
-                let ext = entry.path().extension().map(|s| s.to_string_lossy()).unwrap_or_default();
+                let ext = entry
+                    .path()
+                    .extension()
+                    .map(|s| s.to_string_lossy())
+                    .unwrap_or_default();
                 if ext == "iso" || ext == "img" {
                     candidates.push(entry.path().to_path_buf());
                 }

@@ -1,11 +1,11 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn, Expr};
+use syn::{Expr, ItemFn, parse_macro_input};
 
 pub fn expand_precondition(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
     let expr: Expr = syn::parse_macro_input!(attr as Expr);
-    
+
     let vis = &input.vis;
     let sig = &input.sig;
     let block = &input.block;
@@ -27,7 +27,7 @@ pub fn expand_precondition(attr: TokenStream, item: TokenStream) -> TokenStream 
 pub fn expand_postcondition(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
     let expr: Expr = syn::parse_macro_input!(attr as Expr);
-    
+
     let vis = &input.vis;
     let sig = &input.sig;
     let block = &input.block;

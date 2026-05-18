@@ -1,8 +1,8 @@
+use crate::constants;
+use crate::utils::process;
 use anyhow::Result;
 use std::process::Command;
-use std::time::{Instant, Duration};
-use crate::utils::process;
-use crate::constants;
+use std::time::{Duration, Instant};
 
 pub struct AttemptResult {
     pub success: bool,
@@ -12,7 +12,11 @@ pub struct AttemptResult {
     pub elapsed: Duration,
 }
 
-pub fn run_qemu_attempt(qemu_bin: &str, args: &[String], timeout_sec: u64) -> Result<AttemptResult> {
+pub fn run_qemu_attempt(
+    qemu_bin: &str,
+    args: &[String],
+    timeout_sec: u64,
+) -> Result<AttemptResult> {
     let start = Instant::now();
     let mut child = Command::new(qemu_bin)
         .args(args)
@@ -35,7 +39,13 @@ pub fn run_qemu_attempt(qemu_bin: &str, args: &[String], timeout_sec: u64) -> Re
     let stdout = process::read_optional_pipe_to_string(child.stdout.take());
     let stderr = process::read_optional_pipe_to_string(child.stderr.take());
 
-    Ok(AttemptResult { success, timed_out, stdout, stderr, elapsed: start.elapsed() })
+    Ok(AttemptResult {
+        success,
+        timed_out,
+        stdout,
+        stderr,
+        elapsed: start.elapsed(),
+    })
 }
 
 pub fn format_attempt_log(mode: &str, args: &[String], result: &AttemptResult) -> String {

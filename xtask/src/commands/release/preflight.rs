@@ -50,7 +50,9 @@ pub fn execute(action: &ReleaseAction) -> Result<()> {
             abi::abi_drift_report(baseline.as_deref(), *strict)
         }
         ReleaseAction::Diagnostics { strict } => diagnostics::release_diagnostics(*strict),
-        ReleaseAction::HostToolVerify { strict } => crate::utils::validation::doctor::host_tool_verify_report(*strict),
+        ReleaseAction::HostToolVerify { strict } => {
+            crate::utils::validation::doctor::host_tool_verify_report(*strict)
+        }
         ReleaseAction::PolicyGuard { strict } => diagnostics::critical_policy_guard(*strict),
         ReleaseAction::WarningAudit { strict, from_file } => {
             diagnostics::warning_audit(*strict, from_file.as_deref())

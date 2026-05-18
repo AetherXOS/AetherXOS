@@ -65,7 +65,10 @@ fn run_all_accepts_core_tiers_in_order() {
 
     assert_eq!(labels.first().copied(), Some("nextest"));
     assert!(labels.len() >= 3);
-    assert_eq!(tier_specs_str("fast", false, host).unwrap()[0].label, "nextest");
+    assert_eq!(
+        tier_specs_str("fast", false, host).unwrap()[0].label,
+        "nextest"
+    );
     assert_eq!(
         tier_specs_str("integration", false, host).unwrap()[0].label,
         "nextest"

@@ -1,10 +1,10 @@
+use crate::utils::fs::paths::LAYOUT;
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
-use crate::utils::fs::paths::LAYOUT;
 
 const PROFILE_CATALOG_PATH: &str = "artifacts/tooling/installer/profiles.json";
 const APP_TARGET_CATALOG_PATH: &str = "artifacts/tooling/installer/app_targets.json";

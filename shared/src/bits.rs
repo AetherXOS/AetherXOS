@@ -39,7 +39,6 @@ pub const fn set_bit_range(value: u64, start: u8, end: u8, bits: u64) -> u64 {
     (value & !mask) | ((bits << start) & mask)
 }
 
-
 pub trait BitField {
     type Storage: Copy;
     fn mask() -> Self::Storage;
@@ -76,7 +75,11 @@ macro_rules! impl_bitfield {
 
             #[inline(always)]
             pub const fn set_bit(&self, val: $ty, set: bool) -> $ty {
-                if set { val | (1 << self.shift) } else { val & !(1 << self.shift) }
+                if set {
+                    val | (1 << self.shift)
+                } else {
+                    val & !(1 << self.shift)
+                }
             }
 
             #[inline(always)]

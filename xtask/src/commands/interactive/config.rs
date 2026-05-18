@@ -1,10 +1,10 @@
+use crate::utils::fs::paths::LAYOUT;
+use crate::utils::logging;
 use anyhow::Result;
+use inquire::{Select, Text};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use crate::utils::logging;
-use crate::utils::fs::paths::LAYOUT;
-use inquire::{Select, Text};
-use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PersistentConfig {
@@ -16,7 +16,12 @@ pub struct PersistentConfig {
 }
 
 pub fn manage_config() -> Result<()> {
-    let options = vec!["Save Current Workspace State", "Load Named Profile", "Reset to Defaults", "Back"];
+    let options = vec![
+        "Save Current Workspace State",
+        "Load Named Profile",
+        "Reset to Defaults",
+        "Back",
+    ];
     let selection = Select::new("Configuration Management", options).prompt()?;
 
     match selection {
@@ -50,12 +55,16 @@ fn save_current_state() -> Result<()> {
     let name = Text::new("Profile Name (e.g. night-build):").prompt()?;
     let active = get_active_config()?;
     let path = get_profiles_dir()?.join(format!("{}.toml", name));
-    
+
     let content = toml::to_string_pretty(&active)?;
     fs::create_dir_all(path.parent().unwrap())?;
     fs::write(&path, content)?;
-    
-    logging::success("CONFIG", "Profile saved", &[("name", &name), ("path", &path.to_string_lossy())]);
+
+    logging::success(
+        "CONFIG",
+        "Profile saved",
+        &[("name", &name), ("path", &path.to_string_lossy())],
+    );
     Ok(())
 }
 
@@ -81,10 +90,14 @@ fn load_named_profile() -> Result<()> {
     let path = get_profiles_dir()?.join(&selection);
     let content = fs::read_to_string(&path)?;
     let profile: PersistentConfig = toml::from_str(&content)?;
-    
+
     save_active_config(&profile)?;
-    logging::success("CONFIG", "Profile loaded as active configuration", &[("name", &selection)]);
-    
+    logging::success(
+        "CONFIG",
+        "Profile loaded as active configuration",
+        &[("name", &selection)],
+    );
+
     Ok(())
 }
 

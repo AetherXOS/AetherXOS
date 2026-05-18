@@ -1,6 +1,10 @@
-use std::{fs::File, io::Read, time::{Duration, Instant}};
-use anyhow::{Result, Context};
 use crate::utils::logging;
+use anyhow::{Context, Result};
+use std::{
+    fs::File,
+    io::Read,
+    time::{Duration, Instant},
+};
 
 pub fn run_boot_test() -> Result<bool> {
     logging::status("TESTER", "Launching Headless QEMU Integration Boot Test...");
@@ -10,10 +14,14 @@ pub fn run_boot_test() -> Result<bool> {
         None => match crate::utils::core::paths::WorkspacePaths::find_kernel_elf() {
             Some(p) => p,
             None => {
-                logging::error("TESTER", "No bootable ISO, image, or kernel binary found. Please build the project first.", &[]);
+                logging::error(
+                    "TESTER",
+                    "No bootable ISO, image, or kernel binary found. Please build the project first.",
+                    &[],
+                );
                 return Ok(false);
             }
-        }
+        },
     };
 
     let qemu_bin = crate::utils::sys::process::Discovery::qemu_system_x86_64()
@@ -24,19 +32,27 @@ pub fn run_boot_test() -> Result<bool> {
     let _ = File::create(log_path);
 
     let drive_arg = format!("file={},format=raw", path.display());
-    
+
     // Launch QEMU headlessly and pipe serial output
     let mut child = std::process::Command::new(&qemu_bin)
         .args(&[
-            "-m", "1024",
-            "-drive", &drive_arg,
-            "-serial", "file:artifacts/boot_test_serial.log",
-            "-display", "none",
+            "-m",
+            "1024",
+            "-drive",
+            &drive_arg,
+            "-serial",
+            "file:artifacts/boot_test_serial.log",
+            "-display",
+            "none",
         ])
         .spawn()
         .context("Failed to spawn QEMU headlessly")?;
 
-    logging::info("TESTER", "VM spawned headlessly. Monitoring boot outputs for 5 seconds...", &[]);
+    logging::info(
+        "TESTER",
+        "VM spawned headlessly. Monitoring boot outputs for 5 seconds...",
+        &[],
+    );
 
     let start = Instant::now();
     let mut success = false;
@@ -47,7 +63,11 @@ pub fn run_boot_test() -> Result<bool> {
         // Check if QEMU exited prematurely (indicates crash or triple fault)
         if let Ok(Some(status)) = child.try_wait() {
             crash_detected = true;
-            logging::error("TESTER", &format!("VM crashed or exited prematurely with status: {}", status), &[]);
+            logging::error(
+                "TESTER",
+                &format!("VM crashed or exited prematurely with status: {}", status),
+                &[],
+            );
             break;
         }
 
@@ -57,7 +77,12 @@ pub fn run_boot_test() -> Result<bool> {
             if file.read_to_string(&mut contents).is_ok() {
                 output_lines = contents.lines().map(|s| s.to_string()).collect();
                 for line in &output_lines {
-                    if line.contains("[INIT]") || line.contains("init") || line.contains("AetherX") || line.contains("ready") || line.contains("Sovereign") {
+                    if line.contains("[INIT]")
+                        || line.contains("init")
+                        || line.contains("AetherX")
+                        || line.contains("ready")
+                        || line.contains("Sovereign")
+                    {
                         success = true;
                         break;
                     }

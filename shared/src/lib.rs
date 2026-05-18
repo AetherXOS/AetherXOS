@@ -7,11 +7,11 @@ extern crate alloc;
 extern crate std;
 
 pub mod bits;
+pub mod flags;
 pub mod identifiers;
 pub mod macros;
 pub mod prelude;
 pub mod result;
-pub mod flags;
 pub mod target_arch;
 pub mod telemetry;
 pub mod units;

@@ -4,8 +4,8 @@ use serde_json::Value;
 use std::fs;
 
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub(crate) struct AbiTrendPoint {

@@ -7,10 +7,10 @@ use crate::commands::infra::{installer_policy, installer_profile};
 use crate::utils::context;
 
 mod audit;
+mod distro_check;
 pub mod download;
 mod platform;
 mod provision;
-mod distro_check;
 
 /// Entry layer for generic system orchestrations, toolchain validations, and automated resource provisionings.
 pub fn execute(action: &SetupAction) -> Result<()> {
@@ -80,7 +80,11 @@ pub fn execute(action: &SetupAction) -> Result<()> {
             distro_check::check_registry_integrity(file_ref)
                 .context("Distro registry integrity check failed")?;
         }
-        SetupAction::DistroUrlChecks { file, out, verify_size } => {
+        SetupAction::DistroUrlChecks {
+            file,
+            out,
+            verify_size,
+        } => {
             let file_ref = file.as_deref();
             let out_ref = out.as_deref();
             distro_check::validate_urls(file_ref, out_ref, *verify_size)

@@ -2,9 +2,9 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use std::fs;
 
+use crate::utils::fs::paths::LAYOUT;
 use crate::utils::logging;
 use crate::utils::report;
-use crate::utils::fs::paths::LAYOUT;
 
 /// Default source paths to archive from nightly runs.
 const SOURCE_PATHS: &[&str] = &[

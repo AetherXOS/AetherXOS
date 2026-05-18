@@ -1,5 +1,5 @@
-use anyhow::{Result, Context};
-use serde::{Serialize, Deserialize};
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 // Unused imports removed
 
@@ -18,7 +18,7 @@ impl EngineState {
                 remote_cache_url: None,
             };
         }
-        
+
         let raw = std::fs::read_to_string(&path).unwrap_or_default();
         serde_json::from_str(&raw).unwrap_or_default()
     }

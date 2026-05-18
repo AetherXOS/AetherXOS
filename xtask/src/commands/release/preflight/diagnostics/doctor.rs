@@ -3,8 +3,8 @@ use serde_json::Value;
 use std::fs;
 
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 use crate::commands::release::preflight::models::{BundleCheck, DoctorReport};
 

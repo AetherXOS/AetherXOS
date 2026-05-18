@@ -1,10 +1,10 @@
+use crate::config;
+use crate::utils::fs::paths::LAYOUT;
+use crate::utils::{logging, process, report};
 use anyhow::{Result, bail};
 use serde::Serialize;
 use std::process::Command;
-use sysinfo::{System, RefreshKind, CpuRefreshKind, MemoryRefreshKind, Disks};
-use crate::utils::{logging, process, report};
-use crate::utils::fs::paths::LAYOUT;
-use crate::config;
+use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
 /// Represents a single diagnostic check in the Nexus Doctor system.
 pub trait Diagnostic: Send + Sync {
@@ -31,7 +31,15 @@ impl Requirement {
         if process::which(self.cmd) {
             DiagnosticResult::Pass(format!("{} verified", self.name))
         } else {
-            let msg = format!("Missing {}: {}", if self.critical { "critical tool" } else { "optional tool" }, self.name);
+            let msg = format!(
+                "Missing {}: {}",
+                if self.critical {
+                    "critical tool"
+                } else {
+                    "optional tool"
+                },
+                self.name
+            );
             let rec = self.recommendation.to_string();
             if self.critical && strict {
                 DiagnosticResult::Fail(msg, rec)
@@ -69,14 +77,26 @@ impl NexusDoctor {
                     logging::success("DOCTOR", &format!("{}: {}", diagnostic.name(), msg), &[]);
                 }
                 Ok(DiagnosticResult::Warn(msg, rec)) => {
-                    logging::warn("DOCTOR", &format!("{}: {}", diagnostic.name(), msg), &[("action", &rec)]);
+                    logging::warn(
+                        "DOCTOR",
+                        &format!("{}: {}", diagnostic.name(), msg),
+                        &[("action", &rec)],
+                    );
                 }
                 Ok(DiagnosticResult::Fail(msg, rec)) => {
-                    logging::error("DOCTOR", &format!("{}: {}", diagnostic.name(), msg), &[("action", &rec)]);
+                    logging::error(
+                        "DOCTOR",
+                        &format!("{}: {}", diagnostic.name(), msg),
+                        &[("action", &rec)],
+                    );
                     has_errors = true;
                 }
                 Err(e) => {
-                    logging::error("DOCTOR", &format!("Diagnostic failure in {}: {}", diagnostic.name(), e), &[]);
+                    logging::error(
+                        "DOCTOR",
+                        &format!("Diagnostic failure in {}: {}", diagnostic.name(), e),
+                        &[],
+                    );
                     has_errors = true;
                 }
             }
@@ -94,12 +114,14 @@ impl NexusDoctor {
 
 struct HardwareDiagnostic;
 impl Diagnostic for HardwareDiagnostic {
-    fn name(&self) -> &str { "Hardware" }
+    fn name(&self) -> &str {
+        "Hardware"
+    }
     fn run(&self, _strict: bool) -> Result<DiagnosticResult> {
         let mut sys = System::new_with_specifics(
             RefreshKind::new()
                 .with_cpu(CpuRefreshKind::everything())
-                .with_memory(MemoryRefreshKind::everything())
+                .with_memory(MemoryRefreshKind::everything()),
         );
         sys.refresh_all();
 
@@ -107,16 +129,24 @@ impl Diagnostic for HardwareDiagnostic {
         let cores = sys.cpus().len();
 
         if ram_gb < 8 {
-            return Ok(DiagnosticResult::Warn(format!("RAM: {}GB", ram_gb), "Recommended: 8GB+".to_string()));
+            return Ok(DiagnosticResult::Warn(
+                format!("RAM: {}GB", ram_gb),
+                "Recommended: 8GB+".to_string(),
+            ));
         }
 
-        Ok(DiagnosticResult::Pass(format!("{}GB RAM, {} Cores", ram_gb, cores)))
+        Ok(DiagnosticResult::Pass(format!(
+            "{}GB RAM, {} Cores",
+            ram_gb, cores
+        )))
     }
 }
 
 struct StorageDiagnostic;
 impl Diagnostic for StorageDiagnostic {
-    fn name(&self) -> &str { "Storage" }
+    fn name(&self) -> &str {
+        "Storage"
+    }
     fn run(&self, strict: bool) -> Result<DiagnosticResult> {
         let disks = Disks::new_with_refreshed_list();
         let mut available_gb = 0;
@@ -131,49 +161,94 @@ impl Diagnostic for StorageDiagnostic {
         if available_gb < 15 {
             let msg = format!("Low disk space: {}GB", available_gb);
             let rec = "Requirement: 15GB+ available in project volume".to_string();
-            return Ok(if strict { DiagnosticResult::Fail(msg, rec) } else { DiagnosticResult::Warn(msg, rec) });
+            return Ok(if strict {
+                DiagnosticResult::Fail(msg, rec)
+            } else {
+                DiagnosticResult::Warn(msg, rec)
+            });
         }
 
-        Ok(DiagnosticResult::Pass(format!("{}GB available", available_gb)))
+        Ok(DiagnosticResult::Pass(format!(
+            "{}GB available",
+            available_gb
+        )))
     }
 }
 
 struct ToolchainDiagnostic;
 impl Diagnostic for ToolchainDiagnostic {
-    fn name(&self) -> &str { "Toolchain" }
+    fn name(&self) -> &str {
+        "Toolchain"
+    }
     fn run(&self, strict: bool) -> Result<DiagnosticResult> {
         let output = Command::new("rustc").arg("-V").output();
         if let Ok(out) = output {
             let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            
+
             // Validate target x86_64-unknown-none
-            let target_check = Command::new("rustup").args(["target", "list", "--installed"]).output();
+            let target_check = Command::new("rustup")
+                .args(["target", "list", "--installed"])
+                .output();
             if let Ok(t_out) = target_check {
                 let list = String::from_utf8_lossy(&t_out.stdout);
                 if !list.contains("x86_64-unknown-none") {
                     let msg = "Missing target: x86_64-unknown-none".to_string();
                     let rec = "Run: rustup target add x86_64-unknown-none".to_string();
-                    return Ok(if strict { DiagnosticResult::Fail(msg, rec) } else { DiagnosticResult::Warn(msg, rec) });
+                    return Ok(if strict {
+                        DiagnosticResult::Fail(msg, rec)
+                    } else {
+                        DiagnosticResult::Warn(msg, rec)
+                    });
                 }
             }
 
             Ok(DiagnosticResult::Pass(version))
         } else {
-            Ok(DiagnosticResult::Fail("Rust toolchain not found".to_string(), "Install via https://rustup.rs".to_string()))
+            Ok(DiagnosticResult::Fail(
+                "Rust toolchain not found".to_string(),
+                "Install via https://rustup.rs".to_string(),
+            ))
         }
     }
 }
 
 struct BinaryDiagnostic;
 impl Diagnostic for BinaryDiagnostic {
-    fn name(&self) -> &str { "Binaries" }
+    fn name(&self) -> &str {
+        "Binaries"
+    }
     fn run(&self, strict: bool) -> Result<DiagnosticResult> {
         let requirements = vec![
-            Requirement { cmd: "git", name: "Git VCS", critical: true, recommendation: "Install Git" },
-            Requirement { cmd: "curl", name: "Curl", critical: true, recommendation: "Install curl for external asset fetching" },
-            Requirement { cmd: "qemu-system-x86_64", name: "QEMU (x86_64)", critical: false, recommendation: "Install QEMU for emulation" },
-            Requirement { cmd: "7z", name: "7-Zip / p7zip", critical: false, recommendation: "Install 7-Zip for ISO content inspection" },
-            Requirement { cmd: "xorriso", name: "Xorriso", critical: false, recommendation: "Install xorriso for ISO assembly" },
+            Requirement {
+                cmd: "git",
+                name: "Git VCS",
+                critical: true,
+                recommendation: "Install Git",
+            },
+            Requirement {
+                cmd: "curl",
+                name: "Curl",
+                critical: true,
+                recommendation: "Install curl for external asset fetching",
+            },
+            Requirement {
+                cmd: "qemu-system-x86_64",
+                name: "QEMU (x86_64)",
+                critical: false,
+                recommendation: "Install QEMU for emulation",
+            },
+            Requirement {
+                cmd: "7z",
+                name: "7-Zip / p7zip",
+                critical: false,
+                recommendation: "Install 7-Zip for ISO content inspection",
+            },
+            Requirement {
+                cmd: "xorriso",
+                name: "Xorriso",
+                critical: false,
+                recommendation: "Install xorriso for ISO assembly",
+            },
         ];
 
         let mut warnings = Vec::new();
@@ -186,28 +261,43 @@ impl Diagnostic for BinaryDiagnostic {
         }
 
         if !warnings.is_empty() {
-            Ok(DiagnosticResult::Warn(format!("{} optional tools missing", warnings.len()), "Consider installing missing tools for full feature support".to_string()))
+            Ok(DiagnosticResult::Warn(
+                format!("{} optional tools missing", warnings.len()),
+                "Consider installing missing tools for full feature support".to_string(),
+            ))
         } else {
-            Ok(DiagnosticResult::Pass("All essential and optional binaries verified".to_string()))
+            Ok(DiagnosticResult::Pass(
+                "All essential and optional binaries verified".to_string(),
+            ))
         }
     }
 }
 
 struct EnvironmentDiagnostic;
 impl Diagnostic for EnvironmentDiagnostic {
-    fn name(&self) -> &str { "Environment" }
+    fn name(&self) -> &str {
+        "Environment"
+    }
     fn run(&self, _strict: bool) -> Result<DiagnosticResult> {
         // Check for workspace stability
         if !LAYOUT.root.exists() {
-            return Ok(DiagnosticResult::Fail("Project root invalid".to_string(), "Ensure xtask is run from project root".to_string()));
+            return Ok(DiagnosticResult::Fail(
+                "Project root invalid".to_string(),
+                "Ensure xtask is run from project root".to_string(),
+            ));
         }
 
         // Check for artifacts directory
         if !LAYOUT.artifacts.exists() {
-             return Ok(DiagnosticResult::Warn("Artifacts directory missing".to_string(), "Will be created automatically during build".to_string()));
+            return Ok(DiagnosticResult::Warn(
+                "Artifacts directory missing".to_string(),
+                "Will be created automatically during build".to_string(),
+            ));
         }
 
-        Ok(DiagnosticResult::Pass("Workspace environment stable".to_string()))
+        Ok(DiagnosticResult::Pass(
+            "Workspace environment stable".to_string(),
+        ))
     }
 }
 
@@ -235,14 +325,54 @@ pub fn host_tool_verify_report(strict: bool) -> Result<()> {
 
     // We can reuse the requirements from BinaryDiagnostic and ToolchainDiagnostic
     let requirements = vec![
-        Requirement { cmd: "rustc", name: "Rust Compiler", critical: true, recommendation: "Install Rust" },
-        Requirement { cmd: "cargo", name: "Cargo", critical: true, recommendation: "Install Rust" },
-        Requirement { cmd: "git", name: "Git VCS", critical: true, recommendation: "Install Git" },
-        Requirement { cmd: "curl", name: "Curl", critical: true, recommendation: "Install curl" },
-        Requirement { cmd: "qemu-system-x86_64", name: "QEMU (x86_64)", critical: false, recommendation: "Install QEMU" },
-        Requirement { cmd: "7z", name: "7-Zip / p7zip", critical: false, recommendation: "Install 7-Zip" },
-        Requirement { cmd: "xorriso", name: "Xorriso", critical: false, recommendation: "Install xorriso" },
-        Requirement { cmd: "python", name: "Python", critical: false, recommendation: "Install Python for reporting" },
+        Requirement {
+            cmd: "rustc",
+            name: "Rust Compiler",
+            critical: true,
+            recommendation: "Install Rust",
+        },
+        Requirement {
+            cmd: "cargo",
+            name: "Cargo",
+            critical: true,
+            recommendation: "Install Rust",
+        },
+        Requirement {
+            cmd: "git",
+            name: "Git VCS",
+            critical: true,
+            recommendation: "Install Git",
+        },
+        Requirement {
+            cmd: "curl",
+            name: "Curl",
+            critical: true,
+            recommendation: "Install curl",
+        },
+        Requirement {
+            cmd: "qemu-system-x86_64",
+            name: "QEMU (x86_64)",
+            critical: false,
+            recommendation: "Install QEMU",
+        },
+        Requirement {
+            cmd: "7z",
+            name: "7-Zip / p7zip",
+            critical: false,
+            recommendation: "Install 7-Zip",
+        },
+        Requirement {
+            cmd: "xorriso",
+            name: "Xorriso",
+            critical: false,
+            recommendation: "Install xorriso",
+        },
+        Requirement {
+            cmd: "python",
+            name: "Python",
+            critical: false,
+            recommendation: "Install Python for reporting",
+        },
     ];
 
     let mut checks = Vec::with_capacity(requirements.len());
@@ -257,7 +387,10 @@ pub fn host_tool_verify_report(strict: bool) -> Result<()> {
         let detail = if found {
             format!("{} verified", req.name)
         } else {
-            format!("Missing {}. Recommendation: {}", req.name, req.recommendation)
+            format!(
+                "Missing {}. Recommendation: {}",
+                req.name, req.recommendation
+            )
         };
 
         checks.push(HostToolCheck {
@@ -281,7 +414,7 @@ pub fn host_tool_verify_report(strict: bool) -> Result<()> {
     let root = &LAYOUT.root;
     let out_json = root.join(config::repo_paths::HOST_TOOL_VERIFY_JSON);
     let out_md = root.join(config::repo_paths::HOST_TOOL_VERIFY_MD);
-    
+
     report::write_json_report(&out_json, &report_obj)?;
     report::write_text_report(&out_md, &render_host_tool_verify_md(&report_obj))?;
 
@@ -303,7 +436,10 @@ fn render_host_tool_verify_md(report_obj: &HostToolVerifyReport) -> String {
     md.push_str(&format!("- generated_utc: {}\n", report_obj.generated_utc));
     md.push_str(&format!("- strict: {}\n", report_obj.strict));
     md.push_str(&format!("- overall_ok: {}\n", report_obj.overall_ok));
-    md.push_str(&format!("- required_missing: {}\n\n", report_obj.required_missing));
+    md.push_str(&format!(
+        "- required_missing: {}\n\n",
+        report_obj.required_missing
+    ));
     md.push_str("## Checks\n\n");
     for check in &report_obj.checks {
         md.push_str(&format!(

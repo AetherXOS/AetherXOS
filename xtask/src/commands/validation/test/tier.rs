@@ -2,13 +2,26 @@ use anyhow::Result;
 use std::env;
 
 use crate::constants::{cargo as cargo_consts, tools};
-use crate::utils::{cargo, process};
 use crate::types::TestTier;
+use crate::utils::{cargo, process};
 
 const CLIPPY_LINT_ARGS: &[&str] = &[
-    "-A", "warnings", "-A", "unused", "-A", "dead_code", "-A", "unused_imports",
-    "-A", "unused_variables", "-A", "unused_mut", "-A", "unsafe_op_in_unsafe_fn",
-    "-A", "clippy::all",
+    "-A",
+    "warnings",
+    "-A",
+    "unused",
+    "-A",
+    "dead_code",
+    "-A",
+    "unused_imports",
+    "-A",
+    "unused_variables",
+    "-A",
+    "unused_mut",
+    "-A",
+    "unsafe_op_in_unsafe_fn",
+    "-A",
+    "clippy::all",
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,9 +75,18 @@ fn tier_specs(tier: TestTier, ci: bool, host: &str, test_features: &str) -> Vec<
 
 #[cfg(test)]
 fn tier_specs_str(tier: &str, ci: bool, host: &str) -> Result<Vec<CommandSpec>, anyhow::Error> {
-    let parsed: TestTier = tier.parse().map_err(|_| anyhow::anyhow!("unknown test phase '{}', supported: fast, integration, nightly", tier))?;
-    let test_features = crate::utils::features::cargo_features_from_default(&["kernel_test_mode", "vfs", "drivers"])
-        .unwrap_or_else(|_| crate::utils::features::test_feature_csv());
+    let parsed: TestTier = tier.parse().map_err(|_| {
+        anyhow::anyhow!(
+            "unknown test phase '{}', supported: fast, integration, nightly",
+            tier
+        )
+    })?;
+    let test_features = crate::utils::features::cargo_features_from_default(&[
+        "kernel_test_mode",
+        "vfs",
+        "drivers",
+    ])
+    .unwrap_or_else(|_| crate::utils::features::test_feature_csv());
     Ok(tier_specs(parsed, ci, host, &test_features))
 }
 

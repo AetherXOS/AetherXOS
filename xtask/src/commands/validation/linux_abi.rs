@@ -1,12 +1,12 @@
 use crate::cli::LinuxAbiAction;
 use crate::commands::validation::reports::linux_abi as linux_abi_reports;
 use crate::config;
+use crate::utils::fs::paths::LAYOUT;
 use crate::utils::logging;
 use anyhow::{Context, Result};
 use regex::Regex;
 use serde::Serialize;
 use std::fs;
-use crate::utils::fs::paths::LAYOUT;
 
 #[derive(Serialize)]
 struct ShimErrnoResult {
@@ -243,7 +243,7 @@ pub(crate) fn audit_syscall_stats() -> Result<SyscallStats> {
                             let name = syscall_match.as_str().to_string();
                             if !name.starts_with("linux_") {
                                 continue;
-                            } 
+                            }
                             if seen_names.contains(&name) {
                                 continue;
                             }
@@ -353,12 +353,7 @@ fn audit_syscalls() -> Result<()> {
     );
 
     if implemented > 6 {
-        logging::ready(
-            "linux-abi",
-            "Linux ABI check successful",
-            "REPORTS",
-            &[],
-        );
+        logging::ready("linux-abi", "Linux ABI check successful", "REPORTS", &[]);
     }
 
     if percentage > 25.0 {

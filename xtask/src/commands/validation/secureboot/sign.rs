@@ -3,9 +3,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::utils::fs::paths::LAYOUT;
 use crate::utils::process;
 use crate::utils::report;
-use crate::utils::fs::paths::LAYOUT;
 
 use super::REPORT_SCHEMA_VERSION;
 use super::models::{SignReport, SignRow};
@@ -285,7 +285,10 @@ fn resolve_sbsign_material() -> Option<(PathBuf, PathBuf)> {
     }
 
     let candidates = [
-        (LAYOUT.root.join("keys/db.key"), LAYOUT.root.join("keys/db.crt")),
+        (
+            LAYOUT.root.join("keys/db.key"),
+            LAYOUT.root.join("keys/db.crt"),
+        ),
         (
             LAYOUT.root.join("keys/MOK.key"),
             LAYOUT.root.join("keys/MOK.crt"),

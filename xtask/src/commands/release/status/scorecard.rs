@@ -4,12 +4,16 @@ use std::fs;
 use std::path::Path;
 use std::string::ToString;
 
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 pub(super) fn write_production_acceptance_scorecard(root: &Path) -> Result<()> {
-    let scorecard_json = LAYOUT.root.join("reports/tooling/production_acceptance_scorecard.json");
-    let scorecard_md = LAYOUT.root.join("reports/tooling/production_acceptance_scorecard.md");
+    let scorecard_json = LAYOUT
+        .root
+        .join("reports/tooling/production_acceptance_scorecard.json");
+    let scorecard_md = LAYOUT
+        .root
+        .join("reports/tooling/production_acceptance_scorecard.md");
 
     let p_tier = read_json(root.join(crate::config::repo_paths::P_TIER_STATUS_JSON));
     let linux_app = read_json(root.join("reports/linux_app_compat_summary.json"));

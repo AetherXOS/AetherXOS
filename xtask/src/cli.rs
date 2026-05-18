@@ -1,38 +1,38 @@
 pub mod build;
+pub mod clean;
+pub mod completion;
 pub mod dashboard;
 pub mod glibc;
+pub mod interactive;
 pub mod linux;
+pub mod pipeline;
 pub mod release;
 pub mod run;
 pub mod runtime;
 pub mod secureboot;
 pub mod setup;
 pub mod test;
-pub mod pipeline;
-pub mod completion;
-pub mod interactive;
-pub mod clean;
 
+use crate::utils::executable::Executable;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use crate::utils::executable::Executable;
 
 pub use crate::types::{Bootloader, ImageFormat};
 
 pub use build::{BuildAction, CommonBuildArgs};
+pub use clean::CleanAction;
+pub use completion::CompletionAction;
 pub use dashboard::DashboardAction;
 pub use glibc::GlibcAction;
+pub use interactive::InteractiveAction;
 pub use linux::LinuxAbiAction;
+pub use pipeline::PipelineAction;
 pub use release::ReleaseAction;
 pub use run::RunAction;
 pub use runtime::AbSlotAction;
 pub use secureboot::SecurebootAction;
 pub use setup::SetupAction;
 pub use test::TestAction;
-pub use pipeline::PipelineAction;
-pub use completion::CompletionAction;
-pub use interactive::InteractiveAction;
-pub use clean::CleanAction;
 
 /// The central automation tool for the Aether X OS pipeline.
 #[derive(Parser, Debug)]

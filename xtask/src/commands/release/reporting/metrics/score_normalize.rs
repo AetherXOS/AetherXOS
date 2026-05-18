@@ -8,8 +8,8 @@ use super::helpers::{
 use crate::commands::release::preflight::ci_bundle;
 use crate::commands::release::preflight::models::ScoreNormalizeDoc;
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 pub(crate) fn execute(strict: bool) -> Result<()> {
     println!("[release::score-normalize] Normalizing gate score for host drift-aware comparison");

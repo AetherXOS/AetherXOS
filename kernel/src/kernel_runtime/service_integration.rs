@@ -3,6 +3,10 @@
 //! Integrates system services (signals, networking, audit logging) with security policies
 //! and kernel subsystems. Follows the same hook pattern as syscall_integration.rs.
 
+use crate::core::log;
+use crate::kernel_runtime::integration_utils::audit_service_event;
+
+
 /// Signal delivery hook - called when a signal is about to be sent to a process
 ///
 /// # Arguments

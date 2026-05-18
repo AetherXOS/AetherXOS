@@ -1,5 +1,5 @@
-use clap::Subcommand;
 use crate::utils::executable::Executable;
+use clap::Subcommand;
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum InteractiveAction {

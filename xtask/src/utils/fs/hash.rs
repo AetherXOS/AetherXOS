@@ -1,8 +1,8 @@
 use anyhow::{Result, anyhow};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HashAlgo {
@@ -31,10 +31,7 @@ impl HashAlgo {
 }
 
 /// Calculate multiple hashes for a file in a single pass.
-pub fn calculate_hashes(
-    path: &Path,
-    algos: &[HashAlgo],
-) -> Result<HashMap<HashAlgo, String>> {
+pub fn calculate_hashes(path: &Path, algos: &[HashAlgo]) -> Result<HashMap<HashAlgo, String>> {
     use blake2::Blake2b512;
     use md5::Md5;
     use sha1::Sha1;
@@ -123,17 +120,17 @@ pub fn hash_dir(path: &Path, _algo: HashAlgo) -> Result<String> {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .collect();
-        
+
     // Sort by path for determinism
     entries.sort_by(|a, b| a.path().cmp(b.path()));
 
     for entry in entries {
         let rel_path = entry.path().strip_prefix(path).unwrap_or(entry.path());
         hasher.update(rel_path.to_string_lossy().as_bytes());
-        
+
         let mut file = std::fs::File::open(entry.path())?;
         std::io::copy(&mut file, &mut hasher)?;
     }
-    
+
     Ok(format!("{:x}", hasher.finalize()))
 }

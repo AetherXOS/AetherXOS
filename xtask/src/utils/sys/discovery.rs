@@ -1,6 +1,6 @@
-use std::process::{Command, Stdio};
-use anyhow::{Result, bail};
 use crate::constants::tools;
+use anyhow::{Result, bail};
+use std::process::{Command, Stdio};
 
 /// Logic for discovering host-side binaries and tools.
 pub struct Discovery;
@@ -39,14 +39,30 @@ impl Discovery {
 
     /// Find the platform-appropriate QEMU system binary.
     pub fn qemu_system_x86_64() -> Option<String> {
-        let bin = if cfg!(windows) { tools::QEMU_X86_64_EXE } else { tools::QEMU_X86_64 };
-        if Self::which(bin) { Some(bin.to_string()) } else { None }
+        let bin = if cfg!(windows) {
+            tools::QEMU_X86_64_EXE
+        } else {
+            tools::QEMU_X86_64
+        };
+        if Self::which(bin) {
+            Some(bin.to_string())
+        } else {
+            None
+        }
     }
 
     /// Find the platform-appropriate qemu-img binary.
     pub fn qemu_img() -> Option<String> {
-        let bin = if cfg!(windows) { tools::QEMU_IMG_EXE } else { tools::QEMU_IMG };
-        if Self::which(bin) { Some(bin.to_string()) } else { None }
+        let bin = if cfg!(windows) {
+            tools::QEMU_IMG_EXE
+        } else {
+            tools::QEMU_IMG
+        };
+        if Self::which(bin) {
+            Some(bin.to_string())
+        } else {
+            None
+        }
     }
 
     /// Return the correct npm binary name for the platform.

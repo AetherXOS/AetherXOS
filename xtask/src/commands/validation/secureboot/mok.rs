@@ -1,8 +1,8 @@
 use anyhow::Result;
 use std::fs;
 
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 pub fn mok_plan() -> Result<()> {
     println!("[secureboot::mok] Generating MOK enrollment plan");

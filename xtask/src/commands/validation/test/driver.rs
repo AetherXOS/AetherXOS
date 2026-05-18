@@ -2,8 +2,8 @@ use anyhow::{Result, bail};
 use std::collections::HashMap;
 use std::fs;
 
-use crate::utils::logging;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::logging;
 
 pub fn run_smoke() -> Result<()> {
     let root = &LAYOUT.root;

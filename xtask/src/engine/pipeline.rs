@@ -1,8 +1,8 @@
+use super::context::ExecutionContext;
+use super::task::{Task, TaskStatus};
+use crate::utils::logging;
 use anyhow::{Result, anyhow};
 use std::time::Instant;
-use super::task::{Task, TaskStatus};
-use super::context::ExecutionContext;
-use crate::utils::logging;
 
 /// An orchestrated sequence of Tasks.
 pub struct Pipeline {
@@ -32,17 +32,21 @@ impl Pipeline {
 
         logging::status("PIPELINE", &format!("Executing Workflow: {}", self.name));
         let pipeline_start = Instant::now();
-        
+
         let mut executed_tasks = Vec::new();
         let mut final_result = Ok(());
 
         for (idx, task) in self.tasks.iter().enumerate() {
             let task_name = task.name();
             let progress = format!("[{}/{}]", idx + 1, self.tasks.len());
-            
+
             // 1. Skip check
             if !task.should_run(ctx) {
-                logging::info(&task_name, &format!("{} Skipped (condition not met)", progress), &[]);
+                logging::info(
+                    &task_name,
+                    &format!("{} Skipped (condition not met)", progress),
+                    &[],
+                );
                 continue;
             }
 
@@ -50,36 +54,46 @@ impl Pipeline {
             if let Some(fp) = task.fingerprint(ctx)? {
                 let state = ctx.state.read().unwrap();
                 if state.get_hash(&task_name) == Some(&fp) {
-                    logging::info(&task_name, &format!("{} Up-to-date (cached)", progress), &[]);
+                    logging::info(
+                        &task_name,
+                        &format!("{} Up-to-date (cached)", progress),
+                        &[],
+                    );
                     continue;
                 }
             }
 
             // 3. Execution
             // 3. Execution
-            let result = crate::utils::ui::logging::aop_wrap(&task_name, &format!("{} {}", progress, task.description()), || {
-                task.run(ctx)
-            });
-            
+            let result = crate::utils::ui::logging::aop_wrap(
+                &task_name,
+                &format!("{} {}", progress, task.description()),
+                || task.run(ctx),
+            );
+
             match result {
                 Ok(TaskStatus::Success) => {
                     executed_tasks.push(task);
-                    
+
                     // Update Cache
                     if let Some(fp) = task.fingerprint(ctx)? {
                         let mut state = ctx.state.write().unwrap();
                         state.set_hash(task_name, fp);
                         let _ = state.save();
                     }
-                },
+                }
                 Ok(TaskStatus::Skipped(reason)) => {
-                    logging::info(&task_name, &format!("{} Skipped: {}", progress, reason), &[]);
-                },
+                    logging::info(
+                        &task_name,
+                        &format!("{} Skipped: {}", progress, reason),
+                        &[],
+                    );
+                }
                 Ok(TaskStatus::Failed(reason)) => {
                     logging::error(&task_name, &format!("{} Failed: {}", progress, reason), &[]);
                     final_result = Err(anyhow!("Task '{}' failed: {}", task_name, reason));
                     break;
-                },
+                }
                 Err(e) => {
                     logging::error(&task_name, &format!("{} Crashed: {}", progress, e), &[]);
                     final_result = Err(e);
@@ -92,7 +106,15 @@ impl Pipeline {
         if final_result.is_err() {
             self.initiate_rollback(ctx, &executed_tasks);
         } else {
-            logging::success("PIPELINE", &format!("Workflow '{}' completed in {:?}", self.name, pipeline_start.elapsed()), &[]);
+            logging::success(
+                "PIPELINE",
+                &format!(
+                    "Workflow '{}' completed in {:?}",
+                    self.name,
+                    pipeline_start.elapsed()
+                ),
+                &[],
+            );
         }
 
         final_result
@@ -109,8 +131,8 @@ impl Pipeline {
     }
 
     fn run_tui_hud(&self, ctx: &ExecutionContext) -> Result<()> {
-        use crate::utils::ui::pipeline_hud::{HudEvent, run_hud, HudResult};
         use crate::utils::sys::execution::TUI_HUD_LOG_SENDER;
+        use crate::utils::ui::pipeline_hud::{HudEvent, HudResult, run_hud};
         use std::time::Duration;
 
         loop {
@@ -120,7 +142,9 @@ impl Pipeline {
             // 1. Set global log redirector
             *TUI_HUD_LOG_SENDER.lock().unwrap() = Some(log_tx);
 
-            let task_names: Vec<(String, String)> = self.tasks.iter()
+            let task_names: Vec<(String, String)> = self
+                .tasks
+                .iter()
                 .map(|t| (t.name().to_string(), t.description().to_string()))
                 .collect();
 
@@ -138,7 +162,7 @@ impl Pipeline {
 
                     for (idx, task) in self.tasks.iter().enumerate() {
                         let task_name = task.name();
-                        
+
                         if !task.should_run(ctx) {
                             continue;
                         }
@@ -162,18 +186,35 @@ impl Pipeline {
                                     state.set_hash(task_name, fp);
                                     let _ = state.save();
                                 }
-                                let _ = event_tx_clone.send(HudEvent::TaskFinished { index: idx, success: true, reason: None });
+                                let _ = event_tx_clone.send(HudEvent::TaskFinished {
+                                    index: idx,
+                                    success: true,
+                                    reason: None,
+                                });
                             }
                             Ok(TaskStatus::Skipped(reason)) => {
-                                let _ = event_tx_clone.send(HudEvent::TaskFinished { index: idx, success: true, reason: Some(reason) });
+                                let _ = event_tx_clone.send(HudEvent::TaskFinished {
+                                    index: idx,
+                                    success: true,
+                                    reason: Some(reason),
+                                });
                             }
                             Ok(TaskStatus::Failed(reason)) => {
-                                let _ = event_tx_clone.send(HudEvent::TaskFinished { index: idx, success: false, reason: Some(reason.clone()) });
-                                pipeline_res = Err(anyhow!("Task '{}' failed: {}", task_name, reason));
+                                let _ = event_tx_clone.send(HudEvent::TaskFinished {
+                                    index: idx,
+                                    success: false,
+                                    reason: Some(reason.clone()),
+                                });
+                                pipeline_res =
+                                    Err(anyhow!("Task '{}' failed: {}", task_name, reason));
                                 break;
                             }
                             Err(e) => {
-                                let _ = event_tx_clone.send(HudEvent::TaskFinished { index: idx, success: false, reason: Some(e.to_string()) });
+                                let _ = event_tx_clone.send(HudEvent::TaskFinished {
+                                    index: idx,
+                                    success: false,
+                                    reason: Some(e.to_string()),
+                                });
                                 pipeline_res = Err(e);
                                 break;
                             }
@@ -183,7 +224,7 @@ impl Pipeline {
                     if pipeline_res.is_err() {
                         self.initiate_rollback(ctx, &executed_tasks);
                     }
-                    
+
                     let success = pipeline_res.is_ok();
                     let _ = event_tx_clone.send(HudEvent::Finished { success });
                     pipeline_res
@@ -207,7 +248,9 @@ impl Pipeline {
                 }
 
                 // Wait for runner thread and capture final result if not retrying
-                let thread_res = runner.join().unwrap_or_else(|_| Err(anyhow!("Pipeline thread crashed")));
+                let thread_res = runner
+                    .join()
+                    .unwrap_or_else(|_| Err(anyhow!("Pipeline thread crashed")));
                 if !retry_flag && final_result.is_ok() {
                     final_result = thread_res;
                 }

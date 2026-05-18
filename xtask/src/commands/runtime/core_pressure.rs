@@ -1,4 +1,4 @@
-use anyhow::{Result, bail, Context};
+use anyhow::{Context, Result, bail};
 use serde::Serialize;
 use std::fs;
 

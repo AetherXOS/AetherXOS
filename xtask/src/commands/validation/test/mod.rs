@@ -57,7 +57,13 @@ pub fn execute(action: &TestAction) -> Result<()> {
 }
 
 pub fn run_interactive() -> Result<()> {
-    let options = vec!["Quality Gate", "POSIX Conformance", "Driver Smoke", "Full Test Suite", "Back"];
+    let options = vec![
+        "Quality Gate",
+        "POSIX Conformance",
+        "Driver Smoke",
+        "Full Test Suite",
+        "Back",
+    ];
     let selection = Select::new("Test Suite Selection", options).prompt()?;
     match selection {
         "Quality Gate" => quality_gate()?,

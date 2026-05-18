@@ -7,18 +7,18 @@ use std::path::Path;
 use crate::cli::LinuxAbiAction;
 use crate::commands::validation;
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 use super::abi::abi_drift_report;
 use super::diagnostics::{
     critical_policy_guard, release_diagnostics, seed_release_support_reports, warning_audit,
 };
 use super::evidence_bundle;
-use crate::utils::validation::doctor::host_tool_verify_report;
 use super::models::{
     BundleCheck, CiBundleDoc, EvidenceFileEntry, ReleaseEvidenceBundle, ReproducibleBuildEvidence,
 };
+use crate::utils::validation::doctor::host_tool_verify_report;
 
 pub fn parse_csv_lower(raw: &str) -> Vec<String> {
     raw.split(',')

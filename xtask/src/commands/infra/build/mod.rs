@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
 use crate::cli::BuildAction;
 use crate::constants;
-use crate::utils::logging;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::logging;
+use anyhow::{Context, Result};
 
 pub mod app;
 pub mod distro;
@@ -24,32 +24,44 @@ pub fn execute(action: &BuildAction) -> Result<()> {
             format,
             rootfs,
         } => {
-            let resolved_features = resolve_kernel_features("Build full pipeline", &common.features)?;
-            
+            let resolved_features =
+                resolve_kernel_features("Build full pipeline", &common.features)?;
+
             let ctx = crate::engine::ExecutionContext {
                 repo_root: LAYOUT.root.clone(),
                 out_dir: LAYOUT.artifacts.clone(),
                 is_release: common.release,
                 arch: common.arch.to_string(),
-                features: resolved_features.to_cargo_features().iter().map(|&s| s.to_string()).collect(),
+                features: resolved_features
+                    .to_cargo_features()
+                    .iter()
+                    .map(|&s| s.to_string())
+                    .collect(),
                 staging: None,
-                state: std::sync::Arc::new(std::sync::RwLock::new(crate::engine::EngineState::load())),
+                state: std::sync::Arc::new(std::sync::RwLock::new(
+                    crate::engine::EngineState::load(),
+                )),
                 non_interactive: crate::utils::config::is_non_interactive(),
                 dry_run: false,
                 parameters: std::collections::HashMap::new(),
             };
 
             crate::engine::Pipeline::new("Full Build Pipeline")
-                .add_task(Box::new(tasks::KernelCompileTask { 
-                    arch: common.arch, 
-                    release: common.release, 
-                    features: resolved_features 
+                .add_task(Box::new(tasks::KernelCompileTask {
+                    arch: common.arch,
+                    release: common.release,
+                    features: resolved_features,
                 }))
                 .add_task(Box::new(tasks::InitramfsTask))
                 .run(&ctx)?;
 
-            image::bundle_image(common.arch, bootloader, format, rootfs.as_deref().map(std::path::Path::new))
-                .context("Failed to assemble bootable image hierarchy")?;
+            image::bundle_image(
+                common.arch,
+                bootloader,
+                format,
+                rootfs.as_deref().map(std::path::Path::new),
+            )
+            .context("Failed to assemble bootable image hierarchy")?;
         }
         BuildAction::Image { bootloader, format } => {
             logging::info(
@@ -65,7 +77,8 @@ pub fn execute(action: &BuildAction) -> Result<()> {
         }
         BuildAction::Kernel { common } => {
             let resolved_features = resolve_kernel_features("Build kernel", &common.features)?;
-            kernel::build_kernel(common.arch, common.release, resolved_features).context("Failed to natively compile kernel")?;
+            kernel::build_kernel(common.arch, common.release, resolved_features)
+                .context("Failed to natively compile kernel")?;
         }
         BuildAction::Initramfs => {
             build_initramfs().context("Failed to pack initramfs")?;
@@ -83,14 +96,23 @@ pub fn execute(action: &BuildAction) -> Result<()> {
             distro::build_distro_iso(distro.clone(), version.clone(), variant.clone(), *arch)
                 .context("Failed to build distro-based ISO")?;
         }
-        BuildAction::UpdateIsoKernel { iso, kernel, out: _, workdir: _ } => {
+        BuildAction::UpdateIsoKernel {
+            iso,
+            kernel,
+            out: _,
+            workdir: _,
+        } => {
             let kernel_path = if let Some(k) = kernel {
                 std::path::PathBuf::from(k)
             } else {
-                let features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
+                let features =
+                    crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
                 let arch = crate::constants::defaults::build::ARCH;
                 kernel::build_kernel(arch, false, features)?;
-                LAYOUT.target.join(arch.to_bare_metal_triple()).join("debug/aethercore")
+                LAYOUT
+                    .target
+                    .join(arch.to_bare_metal_triple())
+                    .join("debug/aethercore")
             };
 
             let ctx = crate::engine::ExecutionContext::from_defaults();
@@ -146,7 +168,11 @@ fn build_initramfs() -> Result<()> {
     Ok(())
 }
 
-fn verify_elf_action(arch: aethercore_common::TargetArch, release: bool, elf_path: Option<&str>) -> Result<()> {
+fn verify_elf_action(
+    arch: aethercore_common::TargetArch,
+    release: bool,
+    elf_path: Option<&str>,
+) -> Result<()> {
     use std::time::Instant;
     let t0 = Instant::now();
 
@@ -158,10 +184,14 @@ fn verify_elf_action(arch: aethercore_common::TargetArch, release: bool, elf_pat
         logging::info("verify-elf", "using pre-built binary", &[("path", path)]);
         p
     } else {
-        logging::info("verify-elf", "rebuilding kernel before verification", &[
-            ("arch", arch.as_str()),
-            ("profile", if release { "release" } else { "debug" }),
-        ]);
+        logging::info(
+            "verify-elf",
+            "rebuilding kernel before verification",
+            &[
+                ("arch", arch.as_str()),
+                ("profile", if release { "release" } else { "debug" }),
+            ],
+        );
         let features = crate::utils::features::kernel_features_from_default(&["vfs", "drivers"])?;
         kernel::build_kernel(arch, release, features)?;
 
@@ -170,7 +200,11 @@ fn verify_elf_action(arch: aethercore_common::TargetArch, release: bool, elf_pat
         LAYOUT.target.join(triple).join(profile).join("aethercore")
     };
 
-    logging::info("verify-elf", "running ELF security audit", &[("file", &elf.to_string_lossy())]);
+    logging::info(
+        "verify-elf",
+        "running ELF security audit",
+        &[("file", &elf.to_string_lossy())],
+    );
 
     match crate::utils::elf::validate_elf(&elf) {
         Ok(()) => {
@@ -182,14 +216,21 @@ fn verify_elf_action(arch: aethercore_common::TargetArch, release: bool, elf_pat
             );
         }
         Err(_e) => {
-            logging::warn("verify-elf", "ELF integrity audit FAILED", &[("reason", &_e.to_string())]);
+            logging::warn(
+                "verify-elf",
+                "ELF integrity audit FAILED",
+                &[("reason", &_e.to_string())],
+            );
             return Err(_e);
         }
     }
     Ok(())
 }
 
-fn resolve_kernel_features(purpose: &str, features: &Option<aethercore_common::KernelFeatures>) -> Result<aethercore_common::KernelFeatures> {
+fn resolve_kernel_features(
+    purpose: &str,
+    features: &Option<aethercore_common::KernelFeatures>,
+) -> Result<aethercore_common::KernelFeatures> {
     match features {
         Some(value) => Ok(*value),
         None => {

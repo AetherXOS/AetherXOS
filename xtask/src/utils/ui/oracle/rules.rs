@@ -10,7 +10,7 @@ pub struct SafetyIssueDescriptor {
 /// A pluggable diagnostic rule for static code audits.
 pub trait DiagnosticRule: Send + Sync {
     fn name(&self) -> &'static str;
-    
+
     /// Returns a descriptor if a line violates this rule.
     fn check_line(&self, line: &str, file_path: &Path) -> Option<SafetyIssueDescriptor>;
 }
@@ -20,17 +20,19 @@ pub trait DiagnosticRule: Send + Sync {
 /// Rule: Enforces no_std namespace usage by banning standard library imports.
 pub struct NoStdNamespaceRule;
 impl DiagnosticRule for NoStdNamespaceRule {
-    fn name(&self) -> &'static str { "NoStdNamespace" }
-    
+    fn name(&self) -> &'static str {
+        "NoStdNamespace"
+    }
+
     fn check_line(&self, line: &str, file_path: &Path) -> Option<SafetyIssueDescriptor> {
         let path_str = file_path.to_string_lossy();
         if path_str.contains("xtask") || path_str.contains("tests") {
             return None;
         }
 
-        if line.contains("use std::") 
-            && !line.contains("use std::env") 
-            && !line.contains("use std::process") 
+        if line.contains("use std::")
+            && !line.contains("use std::env")
+            && !line.contains("use std::process")
         {
             Some(SafetyIssueDescriptor {
                 severity: "CRITICAL",
@@ -46,8 +48,10 @@ impl DiagnosticRule for NoStdNamespaceRule {
 /// Rule: Banned standard blocking mutexes in kernel space.
 pub struct BannedMutexRule;
 impl DiagnosticRule for BannedMutexRule {
-    fn name(&self) -> &'static str { "BannedMutexRule" }
-    
+    fn name(&self) -> &'static str {
+        "BannedMutexRule"
+    }
+
     fn check_line(&self, line: &str, file_path: &Path) -> Option<SafetyIssueDescriptor> {
         let path_str = file_path.to_string_lossy();
         if path_str.contains("xtask") {
@@ -69,8 +73,10 @@ impl DiagnosticRule for BannedMutexRule {
 /// Rule: Unsynchronized mutable static variable scanner.
 pub struct UnsynchronizedStaticRule;
 impl DiagnosticRule for UnsynchronizedStaticRule {
-    fn name(&self) -> &'static str { "UnsynchronizedStatic" }
-    
+    fn name(&self) -> &'static str {
+        "UnsynchronizedStatic"
+    }
+
     fn check_line(&self, line: &str, _file_path: &Path) -> Option<SafetyIssueDescriptor> {
         if line.contains("static mut ") && !line.contains("unsafe") {
             Some(SafetyIssueDescriptor {

@@ -1,9 +1,9 @@
 pub mod cargo;
 pub mod config;
+pub mod discovery;
 pub mod executable;
+pub mod execution;
 pub mod process;
 pub mod sandbox;
-pub mod wsl;
-pub mod discovery;
 pub mod sentinel;
-pub mod execution;
+pub mod wsl;

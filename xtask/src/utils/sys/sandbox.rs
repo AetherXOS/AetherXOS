@@ -1,6 +1,6 @@
-use anyhow::{Result, Context};
-use std::process::Command;
 use crate::utils::logging;
+use anyhow::{Context, Result};
+use std::process::Command;
 
 pub struct Sandbox {
     pub name: String,
@@ -16,18 +16,21 @@ impl Sandbox {
     }
 
     pub fn run_isolated(&self, command: &str, args: &[&str]) -> Result<()> {
-        logging::status("SANDBOX", &format!("Running '{}' in isolated environment...", command));
-        
+        logging::status(
+            "SANDBOX",
+            &format!("Running '{}' in isolated environment...", command),
+        );
+
         if self.use_wsl {
             // Translate command to WSL call
             let mut wsl_args = vec!["--exec", command];
             wsl_args.extend_from_slice(args);
-            
+
             let status = Command::new("wsl")
                 .args(&wsl_args)
                 .status()
                 .context("Failed to spawn WSL sandbox")?;
-                
+
             if !status.success() {
                 anyhow::bail!("Sandbox execution failed in WSL");
             }
@@ -37,12 +40,12 @@ impl Sandbox {
                 .args(args)
                 .status()
                 .context("Failed to run command in local sandbox")?;
-                
+
             if !status.success() {
                 anyhow::bail!("Sandbox execution failed locally");
             }
         }
-        
+
         Ok(())
     }
 }

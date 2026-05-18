@@ -1,14 +1,14 @@
-use anyhow::{Result, Context, bail};
-use std::fs;
-use std::path::Path;
 use crate::cli::{Bootloader, ImageFormat};
 use crate::constants;
-use crate::utils::{logging, process, fs as fs_utils};
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::{fs as fs_utils, logging, process};
 use aethercore_common::TargetArch;
+use anyhow::{Context, Result, bail};
+use std::fs;
+use std::path::Path;
 
-use super::rootfs;
 use super::raw_disk;
+use super::rootfs;
 
 /// Binds requested OS components (Kernel, RAM_FS, Configs) using the specified bootloader.
 /// Delegates the resulting staged directory into the ultimate format defined by ImageFormat.
@@ -55,11 +55,19 @@ pub fn bundle_image(
 
         if rootfs_path.exists() {
             if rootfs_path.is_dir() {
-                logging::info("image", "Copying external rootfs directory into stage", &[("src", &rootfs_path.to_string_lossy())]);
+                logging::info(
+                    "image",
+                    "Copying external rootfs directory into stage",
+                    &[("src", &rootfs_path.to_string_lossy())],
+                );
                 fs_utils::copy_dir_all(rootfs_path, &target_root)
                     .context("Failed copying external rootfs directory into image stage")?;
             } else if rootfs_path.is_file() {
-                logging::info("image", "Extracting external rootfs archive into stage", &[("src", &rootfs_path.to_string_lossy())]);
+                logging::info(
+                    "image",
+                    "Extracting external rootfs archive into stage",
+                    &[("src", &rootfs_path.to_string_lossy())],
+                );
                 rootfs::extract_rootfs_archive(rootfs_path, &target_root)?;
             }
         }
@@ -71,8 +79,17 @@ pub fn bundle_image(
             let src_dir = stage_dir.join("var/lib/hypercore/rootfs");
             let output_img = LAYOUT.artifacts.join("aethercore-rootfs.img");
             match raw_disk::create_partitioned_raw_image_from_dir(&src_dir, &output_img) {
-                Ok(_) => logging::ready("image", "partitioned rootfs disk image created", &output_img.to_string_lossy(), &[]),
-                Err(e) => logging::warn("image", "failed to produce partitioned rootfs image; skipping", &[("error", &e.to_string())]),
+                Ok(_) => logging::ready(
+                    "image",
+                    "partitioned rootfs disk image created",
+                    &output_img.to_string_lossy(),
+                    &[],
+                ),
+                Err(e) => logging::warn(
+                    "image",
+                    "failed to produce partitioned rootfs image; skipping",
+                    &[("error", &e.to_string())],
+                ),
             }
         }
     }
@@ -135,7 +152,13 @@ fn generate_raw_image(iso_src: &Path, img_dest: &Path) -> Result<()> {
     if let Some(qemu_img) = process::find_qemu_img() {
         process::run_checked(
             &qemu_img,
-            &["convert", "-O", "raw", &iso_src.to_string_lossy(), &img_dest.to_string_lossy()],
+            &[
+                "convert",
+                "-O",
+                "raw",
+                &iso_src.to_string_lossy(),
+                &img_dest.to_string_lossy(),
+            ],
         )?;
     } else {
         fs::copy(iso_src, img_dest)?;
@@ -151,7 +174,13 @@ fn generate_vhd_image(iso_src: &Path, vhd_dest: &Path) -> Result<()> {
     if let Some(qemu_img) = process::find_qemu_img() {
         process::run_checked(
             &qemu_img,
-            &["convert", "-O", "vpc", &iso_src.to_string_lossy(), &vhd_dest.to_string_lossy()],
+            &[
+                "convert",
+                "-O",
+                "vpc",
+                &iso_src.to_string_lossy(),
+                &vhd_dest.to_string_lossy(),
+            ],
         )?;
     } else {
         bail!("A verified QEMU environment is strictly required to construct VHD layouts.");

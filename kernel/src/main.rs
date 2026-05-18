@@ -11,11 +11,8 @@
 extern crate aethercore;
 extern crate alloc; // Use the library
 
-
 #[cfg(target_os = "none")]
 use core::panic::PanicInfo;
-
-
 
 // ============================================================================
 // Multiboot2 Header - Required for QEMU x86_64 boot

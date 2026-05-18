@@ -8,8 +8,8 @@ use super::helpers::{
 };
 use crate::commands::release::preflight::models::PerfEngineeringReportDoc;
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 pub(crate) fn execute(strict: bool) -> Result<()> {
     println!("[release::perf-report] Building performance engineering report");

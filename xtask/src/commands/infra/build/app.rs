@@ -1,8 +1,8 @@
-use anyhow::{Result, Context, bail};
-use std::fs;
 use crate::constants::{self, cargo as cargo_consts};
-use crate::utils::{logging, cargo};
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::{cargo, logging};
+use anyhow::{Context, Result, bail};
+use std::fs;
 
 /// Automates generic isolation compilation of peripheral userspace binaries.
 pub fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
@@ -48,7 +48,11 @@ pub fn build_userspace_app(name: &str, is_release: bool) -> Result<()> {
     }
 
     if compiled_elf.exists() {
-        logging::info("app", "verifying application binary integrity", &[("name", name)]);
+        logging::info(
+            "app",
+            "verifying application binary integrity",
+            &[("name", name)],
+        );
         crate::utils::elf::validate_elf(&compiled_elf)?;
 
         fs::copy(&compiled_elf, init_bin_dir.join(name))

@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -19,12 +19,21 @@ impl BuildMetrics {
 
     pub fn report(&self) {
         use crate::utils::logging;
-        logging::info("TELEMETRY", "Build Performance Report", &[
-            ("total", &format!("{:.2}s", self.total_duration_ms as f32 / 1000.0)),
-        ]);
-        
+        logging::info(
+            "TELEMETRY",
+            "Build Performance Report",
+            &[(
+                "total",
+                &format!("{:.2}s", self.total_duration_ms as f32 / 1000.0),
+            )],
+        );
+
         for (task, dur_ms) in &self.task_durations_ms {
-            logging::info("METRIC", task, &[("duration", &format!("{:.2}s", *dur_ms as f32 / 1000.0))]);
+            logging::info(
+                "METRIC",
+                task,
+                &[("duration", &format!("{:.2}s", *dur_ms as f32 / 1000.0))],
+            );
         }
     }
 }

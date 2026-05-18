@@ -1,8 +1,8 @@
 //! Shared configuration and constants for the xtask runner.
 //! Centralizing these avoids magic values and duplication across modules.
 
-use std::path::PathBuf;
 use crate::utils::fs::paths::LAYOUT;
+use std::path::PathBuf;
 
 pub fn kernel_compat_path() -> PathBuf {
     LAYOUT.root.join("modules/linux_compat")

@@ -1,6 +1,6 @@
 use crate::types::{Bootloader, ImageFormat};
 use aethercore_common::TargetArch;
-use clap::{Subcommand, Args};
+use clap::{Args, Subcommand};
 
 #[derive(Args, Debug, Clone)]
 pub struct CommonBuildArgs {

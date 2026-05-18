@@ -1,6 +1,6 @@
+use crate::utils::logging;
 use anyhow::Result;
 use std::path::Path;
-use crate::utils::logging;
 
 pub struct RemoteCacheClient {
     pub base_url: String,
@@ -17,8 +17,12 @@ impl RemoteCacheClient {
 
     pub fn download(&self, key: &str, dest: &Path) -> Result<bool> {
         let url = format!("{}/{}", self.base_url, key);
-        logging::debug("CACHE", &format!("Attempting to download artifact: {}", url), &[]);
-        
+        logging::debug(
+            "CACHE",
+            &format!("Attempting to download artifact: {}", url),
+            &[],
+        );
+
         let mut response = self.client.get(url).send()?;
         if response.status().is_success() {
             let mut file = std::fs::File::create(dest)?;
@@ -33,16 +37,14 @@ impl RemoteCacheClient {
     pub fn upload(&self, key: &str, src: &Path) -> Result<()> {
         let url = format!("{}/{}", self.base_url, key);
         logging::info("CACHE", &format!("Uploading artifact: {}", key), &[]);
-        
+
         let file = std::fs::File::open(src)?;
-        let response = self.client.put(url)
-            .body(file)
-            .send()?;
-            
+        let response = self.client.put(url).body(file).send()?;
+
         if !response.status().is_success() {
             anyhow::bail!("Failed to upload artifact: {}", response.status());
         }
-        
+
         logging::success("CACHE", "Upload complete", &[]);
         Ok(())
     }

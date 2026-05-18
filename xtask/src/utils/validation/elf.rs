@@ -1,15 +1,15 @@
-use anyhow::{Result, anyhow, bail, Context};
+use crate::utils::ui::logging;
+use anyhow::{Context, Result, anyhow, bail};
 use std::fs;
 use std::path::Path;
-use crate::utils::ui::logging;
 
 pub fn validate_elf(path: &Path) -> Result<()> {
     use xmas_elf::ElfFile;
     use xmas_elf::header::{Class, Data, Machine, Type};
     use xmas_elf::program::Type as PhType;
 
-    let data = fs::read(path)
-        .with_context(|| format!("Failed to read ELF binary: {}", path.display()))?;
+    let data =
+        fs::read(path).with_context(|| format!("Failed to read ELF binary: {}", path.display()))?;
     let elf = ElfFile::new(&data).map_err(|e| anyhow!("ELF parse error: {}", e))?;
 
     let hdr = elf.header;
@@ -24,7 +24,10 @@ pub fn validate_elf(path: &Path) -> Result<()> {
 
     let machine = hdr.pt2.machine().as_machine();
     if machine != Machine::X86_64 && machine != Machine::AArch64 {
-        bail!("Validation Fault: Unsupported machine architecture: {:?}", machine);
+        bail!(
+            "Validation Fault: Unsupported machine architecture: {:?}",
+            machine
+        );
     }
 
     let elf_type = hdr.pt2.type_().as_type();
@@ -32,18 +35,26 @@ pub fn validate_elf(path: &Path) -> Result<()> {
         Type::Executable => {} // Ideal: ET_EXEC = static, no PIE
         Type::SharedObject => {
             // ET_DYN = PIE. Warn — suggests relocation-model=static is not applied.
-            logging::warn("elf", "Binary is ET_DYN (PIE) — expected ET_EXEC for a static bare-metal kernel", &[
-                ("hint", "add '-C relocation-model=static' to kernel/.cargo/config.toml"),
-            ]);
+            logging::warn(
+                "elf",
+                "Binary is ET_DYN (PIE) — expected ET_EXEC for a static bare-metal kernel",
+                &[(
+                    "hint",
+                    "add '-C relocation-model=static' to kernel/.cargo/config.toml",
+                )],
+            );
         }
-        other => bail!("Validation Fault: Unexpected ELF type {:?}. Expected ET_EXEC.", other),
+        other => bail!(
+            "Validation Fault: Unexpected ELF type {:?}. Expected ET_EXEC.",
+            other
+        ),
     }
 
     // ── 2. Program Header Analysis ──────────────────────────────────────────
-    let mut has_load    = false;
-    let mut has_interp  = false;
+    let mut has_load = false;
+    let mut has_interp = false;
     let mut has_dynamic = false;
-    let mut nx_stack    = false;
+    let mut nx_stack = false;
 
     for ph in elf.program_iter() {
         match ph.get_type() {
@@ -52,15 +63,23 @@ pub fn validate_elf(path: &Path) -> Result<()> {
                 if !cfg!(debug_assertions) {
                     let align = ph.align();
                     if align > 0 && ph.virtual_addr() % align != 0 {
-                        logging::warn("elf", "PRODUCTION: improperly aligned segment", &[
-                            ("vaddr", &format!("{:#x}", ph.virtual_addr())),
-                            ("align", &format!("{:#x}", align)),
-                        ]);
+                        logging::warn(
+                            "elf",
+                            "PRODUCTION: improperly aligned segment",
+                            &[
+                                ("vaddr", &format!("{:#x}", ph.virtual_addr())),
+                                ("align", &format!("{:#x}", align)),
+                            ],
+                        );
                     }
                 }
             }
-            Ok(PhType::Interp)  => { has_interp  = true; }
-            Ok(PhType::Dynamic) => { has_dynamic  = true; }
+            Ok(PhType::Interp) => {
+                has_interp = true;
+            }
+            Ok(PhType::Dynamic) => {
+                has_dynamic = true;
+            }
             _ => {
                 // PT_GNU_STACK (0x6474e551) is not a named variant in xmas_elf 0.9.
                 // Approximate: unknown type with no PF_X flag → NX stack marker.
@@ -94,9 +113,14 @@ pub fn validate_elf(path: &Path) -> Result<()> {
         } else {
             // Benign: PIE overhead with no real deps. Warn but don't fail.
             // This disappears once relocation-model=static is properly picked up.
-            logging::warn("elf", "PT_DYNAMIC present but empty (no DT_NEEDED) — benign in PIE, harmless in ET_EXEC", &[
-                ("hint", "verify '-C relocation-model=static' is active; run with --release to confirm"),
-            ]);
+            logging::warn(
+                "elf",
+                "PT_DYNAMIC present but empty (no DT_NEEDED) — benign in PIE, harmless in ET_EXEC",
+                &[(
+                    "hint",
+                    "verify '-C relocation-model=static' is active; run with --release to confirm",
+                )],
+            );
         }
     }
 
@@ -105,9 +129,14 @@ pub fn validate_elf(path: &Path) -> Result<()> {
     }
 
     if !nx_stack {
-        logging::warn("elf", "stack not explicitly marked NX (PT_GNU_STACK missing)", &[
-            ("hint", "linker.ld PHDRS block should include: stack PT_GNU_STACK FLAGS(6);"),
-        ]);
+        logging::warn(
+            "elf",
+            "stack not explicitly marked NX (PT_GNU_STACK missing)",
+            &[(
+                "hint",
+                "linker.ld PHDRS block should include: stack PT_GNU_STACK FLAGS(6);",
+            )],
+        );
     }
 
     // ── 4. Entry Point ──────────────────────────────────────────────────────
@@ -118,7 +147,7 @@ pub fn validate_elf(path: &Path) -> Result<()> {
 
     // ── 5. Success Report ───────────────────────────────────────────────────
     let machine_str = match machine {
-        Machine::X86_64  => "x86_64",
+        Machine::X86_64 => "x86_64",
         Machine::AArch64 => "aarch64",
         _ => "unknown",
     };
@@ -135,12 +164,12 @@ pub fn validate_elf(path: &Path) -> Result<()> {
         "elf",
         "Binary integrity verified",
         &[
-            ("path",     path_str.as_ref()),
-            ("machine",  machine_str),
-            ("type",     elf_type_str),
-            ("entry",    entry_str.as_str()),
-            ("nx_stack", if nx_stack  { "YES ✓" } else { "NO ⚠" }),
-            ("static",   if !has_dynamic { "YES ✓" } else { "WARN" }),
+            ("path", path_str.as_ref()),
+            ("machine", machine_str),
+            ("type", elf_type_str),
+            ("entry", entry_str.as_str()),
+            ("nx_stack", if nx_stack { "YES ✓" } else { "NO ⚠" }),
+            ("static", if !has_dynamic { "YES ✓" } else { "WARN" }),
         ],
     );
 

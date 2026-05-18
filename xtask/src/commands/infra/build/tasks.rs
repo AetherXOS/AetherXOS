@@ -1,8 +1,8 @@
-use anyhow::{Result, Context};
-use std::path::Path;
-use crate::engine::{Task, ExecutionContext, TaskStatus};
 use crate::constants::cargo as cargo_consts;
-use aethercore_common::{TargetArch, KernelFeatures};
+use crate::engine::{ExecutionContext, Task, TaskStatus};
+use aethercore_common::{KernelFeatures, TargetArch};
+use anyhow::{Context, Result};
+use std::path::Path;
 
 pub struct KernelCompileTask {
     pub arch: TargetArch,
@@ -11,18 +11,28 @@ pub struct KernelCompileTask {
 }
 
 impl Task for KernelCompileTask {
-    fn name(&self) -> String { "Kernel Compilation".to_string() }
-    fn description(&self) -> String { "Compiles the AetherX core kernel binary".to_string() }
-    
+    fn name(&self) -> String {
+        "Kernel Compilation".to_string()
+    }
+    fn description(&self) -> String {
+        "Compiles the AetherX core kernel binary".to_string()
+    }
+
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
         let target_triple = self.arch.to_bare_metal_triple();
         let mut args = vec![
             cargo_consts::CMD_BUILD,
-            "-p", "aether-x-os",
-            "--lib", "--bin", "aethercore",
-            cargo_consts::ARG_TARGET, target_triple,
+            "-p",
+            "aether-x-os",
+            "--lib",
+            "--bin",
+            "aethercore",
+            cargo_consts::ARG_TARGET,
+            target_triple,
         ];
-        if self.release { args.push(cargo_consts::ARG_RELEASE); }
+        if self.release {
+            args.push(cargo_consts::ARG_RELEASE);
+        }
 
         let cargo_features = self.features.to_cargo_features();
         let features_str = cargo_features.join(",");
@@ -38,18 +48,20 @@ impl Task for KernelCompileTask {
             .with_progress()
             .run()
             .context("Failed to compile kernel")?;
-        
+
         Ok(TaskStatus::Success)
     }
 
     fn fingerprint(&self, ctx: &ExecutionContext) -> Result<Option<String>> {
-        use crate::utils::fs::hash::{hash_dir, HashAlgo};
+        use crate::utils::fs::hash::{HashAlgo, hash_dir};
         let kernel_src = ctx.repo_root.join("kernel");
-        if !kernel_src.exists() { return Ok(None); }
-        
+        if !kernel_src.exists() {
+            return Ok(None);
+        }
+
         let dir_hash = hash_dir(&kernel_src, HashAlgo::Sha256)?;
         let context_data = format!("{}-{}-{:?}", self.arch, self.release, self.features);
-        
+
         Ok(Some(format!("{}-{}", dir_hash, context_data)))
     }
 }
@@ -57,9 +69,13 @@ impl Task for KernelCompileTask {
 pub struct InitramfsTask;
 
 impl Task for InitramfsTask {
-    fn name(&self) -> String { "Initramfs Generation".to_string() }
-    fn description(&self) -> String { "Packs the early userspace into a CPIO archive".to_string() }
-    
+    fn name(&self) -> String {
+        "Initramfs Generation".to_string()
+    }
+    fn description(&self) -> String {
+        "Packs the early userspace into a CPIO archive".to_string()
+    }
+
     fn run(&self, _ctx: &ExecutionContext) -> Result<TaskStatus> {
         use crate::constants::paths;
         let src = paths::boot_initramfs_src();

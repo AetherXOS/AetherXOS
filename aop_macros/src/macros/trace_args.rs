@@ -1,12 +1,12 @@
+use crate::config::parse_aop_config;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn, FnArg, Pat};
-use crate::config::parse_aop_config;
+use syn::{FnArg, ItemFn, Pat, parse_macro_input};
 
 pub fn expand(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
     let config = parse_aop_config(attr);
-    
+
     let vis = &input.vis;
     let sig = &input.sig;
     let block = &input.block;
@@ -22,7 +22,15 @@ pub fn expand(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
-    let format_string = format!("[ARGS] {}({})", name, arg_names.iter().map(|n| format!("{}={{:?}}, ", n)).collect::<Vec<_>>().join(""));
+    let format_string = format!(
+        "[ARGS] {}({})",
+        name,
+        arg_names
+            .iter()
+            .map(|n| format!("{}={{:?}}, ", n))
+            .collect::<Vec<_>>()
+            .join("")
+    );
 
     let log_args = quote! {
         crate::core::log::log_event(#level, &format!(#format_string, #( &#arg_names ),* ));

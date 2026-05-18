@@ -5,8 +5,8 @@ use std::fs;
 
 use crate::commands::release::preflight;
 use crate::config;
-use crate::utils::report;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::report;
 
 #[derive(Serialize)]
 pub(crate) struct ExplainFailureDoc {

@@ -1,7 +1,7 @@
-use anyhow::{Result, Context};
-use std::path::{Path, PathBuf};
 use crate::utils::logging;
+use anyhow::{Context, Result};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 pub struct StagingArea {
@@ -16,15 +16,22 @@ impl StagingArea {
 
     pub fn clear(&self) -> Result<()> {
         if self.root.exists() {
-            logging::info("STAGING", "Clearing staging area", &[("path", &self.root.to_string_lossy())]);
-            
+            logging::info(
+                "STAGING",
+                "Clearing staging area",
+                &[("path", &self.root.to_string_lossy())],
+            );
+
             // On Windows, directories can be locked by indexed searches or antivirus.
             // We'll try a few times before giving up.
             let mut retries = 3;
             while retries > 0 {
                 if let Err(e) = fs::remove_dir_all(&self.root) {
                     if retries == 1 {
-                        return Err(e).context(format!("Failed to clear staging area at {}", self.root.display()));
+                        return Err(e).context(format!(
+                            "Failed to clear staging area at {}",
+                            self.root.display()
+                        ));
                     }
                     std::thread::sleep(std::time::Duration::from_millis(100));
                     retries -= 1;
