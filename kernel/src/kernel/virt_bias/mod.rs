@@ -1,3 +1,5 @@
+//! virt_bias module.
+
 use crate::hal::common::virt::{
     current_virtualization_runtime_governor, GOVERNOR_BIAS_AGGRESSIVE, GOVERNOR_BIAS_RELAXED,
 };
@@ -68,3 +70,5 @@ pub fn adjust_pct_u8(pct: u8, latency_bias: &'static str, adjustment: u8) -> u8 
         _ => pct,
     }
 }
+
+

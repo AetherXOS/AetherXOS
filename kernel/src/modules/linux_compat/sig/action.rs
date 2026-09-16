@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 const SS_AUTODISARM: i32 = 0x8000_0000u32 as i32;
 const LINUX_MINSIGSTKSZ: u64 = 2048;
@@ -171,3 +176,4 @@ pub fn sys_linux_sigaltstack(ss: UserPtr<LinuxStackT>, old_ss: UserPtr<LinuxStac
         0
     })
 }
+

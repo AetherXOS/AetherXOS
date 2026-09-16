@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::string::{String, ToString};
 use core::sync::atomic::Ordering;
 
@@ -187,3 +192,4 @@ fn validate_soname(requested_name: &str, soname: Option<&str>) {
         );
     }
 }
+

@@ -1,0 +1,259 @@
+    if (!fn || g_aethercore_atexit_count >= AETHERCORE_ATEXIT_SLOTS) {
+        g_aethercore_errno = 12;
+        return -1;
+    }
+    g_aethercore_atexit_slots[g_aethercore_atexit_count++] = fn;
+    return 0;
+}
+
+int at_quick_exit(aethercore_atexit_fn_t fn) {
+    if (!fn || g_aethercore_quick_exit_count >= AETHERCORE_ATEXIT_SLOTS) {
+        g_aethercore_errno = 12;
+        return -1;
+    }
+    g_aethercore_quick_exit_slots[g_aethercore_quick_exit_count++] = fn;
+    return 0;
+}
+
+int on_exit(aethercore_on_exit_fn_t fn, void *arg) {
+    if (!fn || g_aethercore_on_exit_count >= AETHERCORE_ATEXIT_SLOTS) {
+        g_aethercore_errno = 12;
+        return -1;
+    }
+    g_aethercore_on_exit_slots[g_aethercore_on_exit_count].fn = fn;
+    g_aethercore_on_exit_slots[g_aethercore_on_exit_count].arg = arg;
+    g_aethercore_on_exit_slots[g_aethercore_on_exit_count].active = 1;
+    ++g_aethercore_on_exit_count;
+    return 0;
+}
+
+int __cxa_atexit(aethercore_cxa_fn_t fn, void *arg, void *dso_handle) {
+    if (!fn || g_aethercore_cxa_count >= AETHERCORE_ATEXIT_SLOTS) {
+        g_aethercore_errno = 12;
+        return -1;
+    }
+    g_aethercore_cxa_slots[g_aethercore_cxa_count].fn = fn;
+    g_aethercore_cxa_slots[g_aethercore_cxa_count].arg = arg;
+    g_aethercore_cxa_slots[g_aethercore_cxa_count].dso_handle = dso_handle;
+    g_aethercore_cxa_slots[g_aethercore_cxa_count].active = 1;
+    ++g_aethercore_cxa_count;
+    return 0;
+}
+
+int __cxa_thread_atexit_impl(aethercore_cxa_fn_t fn, void *arg, void *dso_handle) {
+    return __cxa_atexit(fn, arg, dso_handle);
+}
+
+int pthread_atfork(aethercore_atfork_fn_t prepare, aethercore_atfork_fn_t parent, aethercore_atfork_fn_t child) {
+    return __register_atfork(prepare, parent, child, __dso_handle);
+}
+
+int __register_atfork(aethercore_atfork_fn_t prepare, aethercore_atfork_fn_t parent, aethercore_atfork_fn_t child, void *dso_handle) {
+    if (g_aethercore_atfork_count >= AETHERCORE_ATEXIT_SLOTS) {
+        g_aethercore_errno = 12;
+        return -1;
+    }
+    g_aethercore_atfork_slots[g_aethercore_atfork_count].prepare = prepare;
+    g_aethercore_atfork_slots[g_aethercore_atfork_count].parent = parent;
+    g_aethercore_atfork_slots[g_aethercore_atfork_count].child = child;
+    g_aethercore_atfork_slots[g_aethercore_atfork_count].dso_handle = dso_handle;
+    g_aethercore_atfork_slots[g_aethercore_atfork_count].active = 1;
+    ++g_aethercore_atfork_count;
+    return 0;
+}
+
+void aethercore_run_atfork_prepare(void) {
+    unsigned long i = g_aethercore_atfork_count;
+    while (i != 0) {
+        struct aethercore_atfork_slot *slot = &g_aethercore_atfork_slots[--i];
+        if (slot->active && slot->prepare) {
+            slot->prepare();
+        }
+    }
+}
+
+void aethercore_run_atfork_parent(void) {
+    unsigned long i = 0;
+    while (i < g_aethercore_atfork_count) {
+        struct aethercore_atfork_slot *slot = &g_aethercore_atfork_slots[i++];
+        if (slot->active && slot->parent) {
+            slot->parent();
+        }
+    }
+}
+
+void aethercore_run_atfork_child(void) {
+    unsigned long i = 0;
+    while (i < g_aethercore_atfork_count) {
+        struct aethercore_atfork_slot *slot = &g_aethercore_atfork_slots[i++];
+        if (slot->active && slot->child) {
+            slot->child();
+        }
+    }
+}
+
+void __cxa_finalize(void *dso_handle) {
+    unsigned long i = g_aethercore_cxa_count;
+    while (i != 0) {
+        struct aethercore_cxa_slot *slot = &g_aethercore_cxa_slots[--i];
+        if (!slot->active || !slot->fn) {
+            continue;
+        }
+        if (dso_handle && slot->dso_handle != dso_handle) {
+            continue;
+        }
+        slot->active = 0;
+        slot->fn(slot->arg);
+    }
+    if (!dso_handle) {
+        i = g_aethercore_on_exit_count;
+        while (i != 0) {
+            struct aethercore_on_exit_slot *slot = &g_aethercore_on_exit_slots[--i];
+            if (!slot->active || !slot->fn) {
+                continue;
+            }
+            slot->active = 0;
+            slot->fn(0, slot->arg);
+        }
+        g_aethercore_on_exit_count = 0;
+        i = g_aethercore_atexit_count;
+        while (i != 0) {
+            aethercore_atexit_fn_t fn = g_aethercore_atexit_slots[--i];
+            g_aethercore_atexit_slots[i] = (aethercore_atexit_fn_t)0;
+            if (fn) {
+                fn();
+            }
+        }
+        g_aethercore_atexit_count = 0;
+    }
+}
+
+void aethercore_run_on_exit_handlers(int status) {
+    unsigned long i = g_aethercore_on_exit_count;
+    while (i != 0) {
+        struct aethercore_on_exit_slot *slot = &g_aethercore_on_exit_slots[--i];
+        if (!slot->active || !slot->fn) {
+            continue;
+        }
+        slot->active = 0;
+        slot->fn(status, slot->arg);
+    }
+    g_aethercore_on_exit_count = 0;
+}
+
+void aethercore_run_quick_exit_handlers(void) {
+    unsigned long i = g_aethercore_quick_exit_count;
+    while (i != 0) {
+        aethercore_atexit_fn_t fn = g_aethercore_quick_exit_slots[--i];
+        g_aethercore_quick_exit_slots[i] = (aethercore_atexit_fn_t)0;
+        if (fn) {
+            fn();
+        }
+    }
+    g_aethercore_quick_exit_count = 0;
+}
+
+static unsigned long aethercore_parse_u64(const char *value) {
+    return strtoull(value, (char **)0, 0);
+}
+
+int aethercore_runtime_fini_present(void) {
+    char *value = aethercore_getenv("AETHERCORE_RUNTIME_FINI_TRAMPOLINE");
+    if (value && value[0] != 0 && strcmp(value, "0") != 0) {
+        return 1;
+    }
+    value = aethercore_getenv("AETHERCORE_RUNTIME_FINI_ENTRY");
+    if (value && value[0] != 0 && strcmp(value, "0") != 0) {
+        return 1;
+    }
+    value = aethercore_getenv("AETHERCORE_RUNTIME_FINI_HOOKS");
+    return value && value[0] != 0 && strcmp(value, "0") != 0;
+}
+
+int aethercore_runtime_fini_hook_count(void) {
+    char *value = aethercore_getenv("AETHERCORE_FINI_HOOKS");
+    if (!value || value[0] == 0) {
+        value = aethercore_getenv("AETHERCORE_RUNTIME_FINI_HOOKS");
+        if (!value || value[0] == 0) {
+            return 0;
+        }
+    }
+    return (int)aethercore_parse_u64(value);
+}
+
+unsigned long aethercore_runtime_fini_attempt_count(void) {
+    return g_aethercore_runtime_fini_attempts;
+}
+
+unsigned long aethercore_runtime_fini_completed_count(void) {
+    return g_aethercore_runtime_fini_completed;
+}
+
+unsigned long aethercore_runtime_fini_deferred_count(void) {
+    return g_aethercore_runtime_fini_deferred;
+}
+
+void aethercore_run_runtime_fini(void) {
+    int hook_count = aethercore_runtime_fini_hook_count();
+    g_aethercore_runtime_fini_attempts += 1ul;
+    printf(
+        "[aethercore-libc] runtime fini counts: attempts=%lu completed=%lu deferred=%lu hooks=%d\n",
+        g_aethercore_runtime_fini_attempts,
+        g_aethercore_runtime_fini_completed,
+        g_aethercore_runtime_fini_deferred,
+        hook_count
+    );
+    char *value = aethercore_getenv("AETHERCORE_RUNTIME_FINI_TRAMPOLINE");
+    if (!value || value[0] == 0 || strcmp(value, "0") == 0) {
+        value = aethercore_getenv("AETHERCORE_RUNTIME_FINI_ENTRY");
+    }
+    if (value && value[0] != 0 && strcmp(value, "0") != 0) {
+        unsigned long long addr = aethercore_parse_u64(value);
+        if (addr != 0ull) {
+            if (hook_count > 0) {
+                aethercore_kernel_print("[aethercore-libc] runtime fini trampoline execute\n");
+            }
+            ((aethercore_atexit_fn_t)(unsigned long)addr)();
+            g_aethercore_runtime_fini_completed += 1ul;
+            if (hook_count > 0) {
+                aethercore_kernel_print("[aethercore-libc] runtime fini trampoline completed\n");
+            }
+            printf(
+                "[aethercore-libc] runtime fini counts: attempts=%lu completed=%lu deferred=%lu hooks=%d\n",
+                g_aethercore_runtime_fini_attempts,
+                g_aethercore_runtime_fini_completed,
+                g_aethercore_runtime_fini_deferred,
+                hook_count
+            );
+            return;
+        }
+    }
+    if (hook_count > 0 || aethercore_runtime_fini_present()) {
+        g_aethercore_runtime_fini_deferred += 1ul;
+        aethercore_kernel_print("[aethercore-libc] runtime fini hooks present but deferred\n");
+        printf(
+            "[aethercore-libc] runtime fini counts: attempts=%lu completed=%lu deferred=%lu hooks=%d\n",
+            g_aethercore_runtime_fini_attempts,
+            g_aethercore_runtime_fini_completed,
+            g_aethercore_runtime_fini_deferred,
+            hook_count
+        );
+    }
+}
+
+void __assert_fail(const char *assertion, const char *file, unsigned int line, const char *function) {
+    printf("assertion failed: %s at %s:%u (%s)\n", assertion ? assertion : "?", file ? file : "?", line, function ? function : "?");
+    abort();
+}
+
+void __stack_chk_fail(void) {
+    __assert_fail("stack check failed", "<runtime>", 0u, "__stack_chk_fail");
+}
+
+int __libc_current_sigrtmin(void) {
+    return 32;
+}
+
+int __libc_current_sigrtmax(void) {
+    return 64;
+}

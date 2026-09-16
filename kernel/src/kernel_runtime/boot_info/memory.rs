@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::{BootInfo, MAX_USABLE_REGIONS, MemRegion};
 
 pub(super) fn collect_hhdm_offset(info: &mut BootInfo) {
@@ -61,3 +66,4 @@ fn sort_usable_regions(info: &mut BootInfo) {
         }
     }
 }
+

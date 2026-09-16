@@ -1,3 +1,5 @@
+//! common module.
+
 pub mod boot;
 pub mod cpu_features;
 pub mod exception;
@@ -10,3 +12,5 @@ pub mod mmio;
 pub mod smp;
 pub mod timer;
 pub mod virt;
+
+

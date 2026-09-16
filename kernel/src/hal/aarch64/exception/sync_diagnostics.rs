@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 use crate::hal::common::exception::{
     record_exception_snapshot, ExceptionSnapshot,
@@ -53,3 +58,4 @@ pub(super) fn record_sync_diagnostics(frame: &ExceptionFrame, far: u64, esr: u64
         status_or_flags: esr,
     });
 }
+

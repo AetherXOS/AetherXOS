@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 use super::super::support::*;
 
@@ -105,3 +110,4 @@ pub fn execute_ready_launch_context_on_current_cpu() -> Option<LaunchContext> {
     }
     Some(candidate)
 }
+

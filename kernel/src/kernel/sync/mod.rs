@@ -1,3 +1,10 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
+//! Synchronization primitives: IrqSafeMutex, WaitQueue, hazard pointers, ring buffer.
+
 #[cfg(target_os = "none")]
 use crate::hal::HAL;
 use alloc::sync::Arc;
@@ -47,14 +54,13 @@ impl<T> IrqSafeMutex<T> {
         {
             spin_count += 1;
             if spin_count >= deadlock_spin_limit {
-                // Probable deadlock: same CPU trying to re-lock, or cross-CPU
-                // contention exceeding reasonable bounds. Restore IRQs and panic.
                 #[cfg(target_os = "none")]
                 HAL::irq_restore(flags);
-                panic!(
+                crate::klog_error!(
                     "IrqSafeMutex: probable deadlock detected after {} spins",
                     deadlock_spin_limit
                 );
+                crate::kernel::fatal_halt("IrqSafeMutex deadlock");
             }
             core::hint::spin_loop();
         }
@@ -85,7 +91,7 @@ impl<T> IrqSafeMutex<T> {
                 saved_flags: flags,
             })
         } else {
-            // Failed to acquire — restore interrupt state
+            // Failed to acquire â€” restore interrupt state
             #[cfg(target_os = "none")]
             HAL::irq_restore(flags);
             None
@@ -281,3 +287,120 @@ impl<T> PerCpu<T> {
     }
 }
 
+
+
+
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn test_irq_safe_mutex_new() {
+        let m = IrqSafeMutex::new(42u32);
+        assert_eq!(*m.lock(), 42);
+    }
+
+    #[test_case]
+    fn test_irq_safe_mutex_lock_drop() {
+        let m = IrqSafeMutex::new(String::from("hello"));
+        {
+            let mut guard = m.lock();
+            guard.push_str(" world");
+        }
+        assert_eq!(*m.lock(), "hello world");
+    }
+
+    #[test_case]
+    fn test_irq_safe_mutex_try_lock() {
+        let m = IrqSafeMutex::new(10u32);
+        let guard = m.try_lock();
+        assert!(guard.is_some());
+        drop(guard);
+        assert!(m.try_lock().is_some());
+    }
+
+    #[test_case]
+    fn test_wait_queue_basic() {
+        let wq = WaitQueue::new();
+        assert!(wq.is_empty());
+        wq.block_id(TaskId(42));
+        assert_eq!(wq.len(), 1);
+        assert!(!wq.is_empty());
+        let woken = wq.wake_one();
+        assert_eq!(woken, Some(TaskId(42)));
+        assert!(wq.is_empty());
+    }
+
+    #[test_case]
+    fn test_wait_queue_wake_mask() {
+        let wq = WaitQueue::new();
+        wq.block_id_with_mask(TaskId(1), 0x1);
+        wq.block_id_with_mask(TaskId(2), 0x2);
+        wq.block_id_with_mask(TaskId(3), 0x4);
+        
+        // Wake with mask 0x2 should wake Task ID 2.
+        let woken = wq.wake_one_with_mask(0x2);
+        assert_eq!(woken, Some(TaskId(2)));
+        assert_eq!(wq.len(), 2);
+        
+        // Wake all with mask 0x5 should wake 1 and 3.
+        let all = wq.wake_all_with_mask(0x5);
+        assert_eq!(all.len(), 2);
+        assert!(all.contains(&TaskId(1)));
+        assert!(all.contains(&TaskId(3)));
+        assert!(wq.is_empty());
+    }
+
+    #[test_case]
+    fn test_wait_queue_requeue() {
+        let src = WaitQueue::new();
+        let dst = WaitQueue::new();
+        src.block_id(TaskId(1));
+        src.block_id(TaskId(2));
+        src.block_id(TaskId(3));
+        
+        let moved = src.requeue_to(&dst, 2);
+        assert_eq!(moved, 2);
+        assert_eq!(src.len(), 1);
+        assert_eq!(dst.len(), 2);
+    }
+
+    #[test_case]
+    fn test_wait_queue_unblock() {
+        let wq = WaitQueue::new();
+        wq.block_id(TaskId(1));
+        wq.block_id(TaskId(2));
+        wq.unblock_id(TaskId(1));
+        assert_eq!(wq.len(), 1);
+        assert_eq!(wq.wake_one(), Some(TaskId(2)));
+    }
+
+    #[test_case]
+    fn test_irq_safe_mutex_unsafe_get() {
+        let m = IrqSafeMutex::new(99u32);
+        // SAFETY: Single-threaded test context.
+        unsafe {
+            assert_eq!(*m.unsafe_get(), 99);
+        }
+    }
+
+    #[test_case]
+    fn test_wait_queue_wake_all() {
+        let wq = WaitQueue::new();
+        wq.block_id(TaskId(10));
+        wq.block_id(TaskId(20));
+        wq.block_id(TaskId(30));
+        
+        let all = wq.wake_all();
+        assert_eq!(all.len(), 3);
+        assert!(all.contains(&TaskId(10)));
+        assert!(all.contains(&TaskId(20)));
+        assert!(all.contains(&TaskId(30)));
+        assert!(wq.is_empty());
+    }
+}

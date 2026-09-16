@@ -1,0 +1,8 @@
+/* aethercore userspace program skeleton: init.elf */
+/* role: bootstrap_init */
+/* probe_features: startup_stack_scan,auxv_scan,vdso_probe,abi_surface_dump,exec_chain */
+#include "aethercore_runtime.h"
+
+const char *aethercore_init_chain_status(void) {
+    return aethercore_runtime_status_word();
+}

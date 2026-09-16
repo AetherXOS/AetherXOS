@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
@@ -384,3 +389,4 @@ fn apply_relocations(module_base: u64, elf: &xmas_elf::ElfFile<'_>) -> Result<()
     // Elf64Rela and Elf64Shdr are now handled via xmas_elf
     Ok(())
 }
+

@@ -161,7 +161,7 @@ fn tail_lines(text: &str, n: usize) -> String {
 }
 
 fn discover_deep_tests() -> Result<usize> {
-    let deep_dir = LAYOUT.root.join("modules/posix/tests_deep");
+    let deep_dir = LAYOUT.root.join("kernel/src/modules/posix/tests_deep");
     if !deep_dir.exists() {
         return Ok(0);
     }

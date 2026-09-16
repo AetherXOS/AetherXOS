@@ -1,3 +1,5 @@
+//! support module.
+
 mod backend;
 mod compose;
 mod lifecycle;
@@ -288,3 +290,5 @@ pub(super) fn compose_platform_status(
 
 #[cfg(test)]
 mod tests;
+
+

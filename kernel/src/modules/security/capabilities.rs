@@ -616,7 +616,7 @@ mod tests {
         let delegated = cap.delegate_token(token_id, delegate, Some(PERM_READ));
         assert!(delegated.is_some());
 
-        let del_id = delegated.unwrap();
+        let del_id = delegated.expect("unwrap failed - see module SAFETY docs");
 
         // Use check_access to verify instead of direct field access
         assert!(cap.check_access(del_id));
@@ -648,3 +648,4 @@ mod tests {
         assert!(!verdict.is_allowed());
     }
 }
+

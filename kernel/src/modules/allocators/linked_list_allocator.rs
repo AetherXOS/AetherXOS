@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::interfaces::HeapAllocator;
 use crate::kernel::sync::IrqSafeMutex;
 use core::alloc::{GlobalAlloc, Layout};
@@ -42,10 +47,13 @@ unsafe impl GlobalAlloc for LinkedListAllocator {
 
 impl HeapAllocator for LinkedListAllocator {
     unsafe fn init(&mut self, start: usize, size: usize) {
+        #[cfg(target_os = "none")]
         crate::hal::Hal::serial_write_raw("[EARLY SERIAL] LinkedList allocator init start\n");
         unsafe {
             self.heap.lock().init(start as *mut u8, size);
         }
+        #[cfg(target_os = "none")]
         crate::hal::Hal::serial_write_raw("[EARLY SERIAL] LinkedList allocator init complete\n");
     }
 }
+

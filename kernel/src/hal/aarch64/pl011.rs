@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::interfaces::SerialDevice;
 use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{AtomicU64, Ordering};
@@ -197,3 +202,4 @@ impl core::fmt::Write for Pl011Uart {
         Ok(())
     }
 }
+

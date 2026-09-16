@@ -52,9 +52,9 @@ mod tests {
 
     #[test_case]
     fn normalize_path_accepts_absolute_and_trims_trailing_slash() {
-        assert_eq!(normalize_path("/").unwrap(), "/");
-        assert_eq!(normalize_path("/tmp").unwrap(), "/tmp");
-        assert_eq!(normalize_path("/tmp/").unwrap(), "/tmp");
+        assert_eq!(normalize_path("/").expect("unwrap failed - see module SAFETY docs"), "/");
+        assert_eq!(normalize_path("/tmp").expect("unwrap failed - see module SAFETY docs"), "/tmp");
+        assert_eq!(normalize_path("/tmp/").expect("unwrap failed - see module SAFETY docs"), "/tmp");
         assert_eq!(normalize_path("tmp"), Err(PosixErrno::Invalid));
         assert_eq!(normalize_path(""), Err(PosixErrno::Invalid));
     }
@@ -85,3 +85,4 @@ mod tests {
         assert!((0o640..=0o777).contains(&clamped));
     }
 }
+

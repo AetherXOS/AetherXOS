@@ -48,7 +48,7 @@ pub(super) fn ack_set_stage_and_log(entry: &mut LaunchRegistryEntry, success: bo
 }
 
 #[cfg(feature = "process_abstraction")]
-pub(super) fn consume_entry_and_build(entry: LaunchRegistryEntry, now_epoch: u64) -> LaunchContext {
+pub(super) fn consume_entry_and_build(entry: LaunchRegistryEntry, _now_epoch: u64) -> LaunchContext {
     HANDOFF_CONSUME_SUCCESS.fetch_add(1, Ordering::Relaxed);
     observability_launch! {
         crate::klog_info!(

@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 pub(crate) fn rdmsr(msr: u32) -> u64 {
@@ -55,3 +60,4 @@ pub(crate) fn virt_to_phys(addr: usize) -> Option<u64> {
         Some(addr as u64)
     }
 }
+

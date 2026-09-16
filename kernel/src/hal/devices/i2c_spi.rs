@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 /// SPI (Serial Peripheral Interface) device abstraction.
 ///
 /// Provides a type-safe interface for SPI bus communication with
@@ -264,4 +269,5 @@ mod tests {
         assert_ne!(low, high);
     }
 }
+
 

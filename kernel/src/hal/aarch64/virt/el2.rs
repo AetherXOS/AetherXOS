@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #[cfg(target_arch = "aarch64")]
 fn read_current_el() -> u64 {
     let current_el: u64;
@@ -56,4 +61,5 @@ mod tests {
         assert!(((present >> 8) & 0xF) != 0xF);
     }
 }
+
 

@@ -1,3 +1,5 @@
+//! network module.
+
 use crate::kernel_runtime::KernelRuntime;
 
 mod irq;
@@ -31,3 +33,5 @@ pub(super) fn init_network_drivers(
         telemetry::log_network_runtime_dashboard();
     }
 }
+
+

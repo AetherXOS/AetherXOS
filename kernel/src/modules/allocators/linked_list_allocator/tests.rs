@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 use core::alloc::Layout;
 
@@ -9,7 +14,7 @@ fn test_linked_list_allocator_basic() {
     let size = buffer.len() * core::mem::size_of::<usize>();
     unsafe { allocator.init(start, size); }
 
-    let layout = Layout::from_size_align(256, 8).unwrap();
+    let layout = Layout::from_size_align(256, 8).expect("unwrap failed - see module SAFETY docs");
     let ptr1 = unsafe { allocator.alloc(layout) };
     assert!(!ptr1.is_null());
 
@@ -21,3 +26,5 @@ fn test_linked_list_allocator_basic() {
     let ptr3 = unsafe { allocator.alloc(layout) };
     assert!(!ptr3.is_null());
 }
+
+

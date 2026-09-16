@@ -1,3 +1,5 @@
+//! linux_compat module.
+
 #![allow(ambiguous_glob_reexports)]
 #![allow(unused_imports)]
 
@@ -158,3 +160,5 @@ pub fn init() {
 
     crate::klog_info!("[linux_compat] init complete");
 }
+
+

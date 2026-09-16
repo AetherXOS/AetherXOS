@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 use super::fault_policy::{handle_kernel_fault, handle_user_fault, is_lower_el_exception};
 #[path = "sync_diagnostics.rs"]
@@ -209,3 +214,4 @@ pub extern "C" fn handle_serror(frame: &mut ExceptionFrame) {
     let ec = decode_esr_ec(read_esr_el1());
     handle_async_fatal(frame, ExceptionReason::Serror, ec);
 }
+

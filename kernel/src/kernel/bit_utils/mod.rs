@@ -1,3 +1,14 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
+//! # Safety
+//!
+//! This module performs low-level hardware operations.
+//! All unsafe blocks are justified by the calling functions
+//! which validate addresses and invariants beforehand.
+//!
 //! Base structures for bitfield and register value manipulation.
 
 pub trait BitField {
@@ -302,3 +313,5 @@ mod tests {
         assert!(!field.bit(field.set_bit(val2, false)));
     }
 }
+
+

@@ -1,6 +1,13 @@
+﻿//! Kernel interface traits and abstractions.
+//!
+//! Defines the core trait contracts that decouple kernel subsystems from their
+//! implementations. Includes hardware abstraction interfaces (CPU, HAL),
+//! scheduling, memory management, IPC, security, VFS, and boot protocols.
+//!
+//! New unified traits (`scheduler_unified`, `security_manager`, etc.) provide consolidated interfaces for new code.
+
 pub mod kobject;
 pub mod cpu;
-// Core trait modules
 pub mod boot;
 pub mod device;
 pub mod platform;
@@ -20,6 +27,7 @@ pub mod memory_ext;
 pub mod scheduler_ext;
 pub mod security_ext;
 pub mod vfs_ext;
+
 
 // Re-exports - Core
 pub use boot::{BootManager, BootStage, BootSubsystem};
@@ -41,3 +49,5 @@ pub use security::{
 };
 pub use task::{Context, KernelTask, ProcessId, TaskId, TaskState};
 pub use kobject::{KObject, ObjectKind, ObjectRef};
+
+

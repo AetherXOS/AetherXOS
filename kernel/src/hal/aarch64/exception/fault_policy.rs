@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 
 const SPSR_MODE_MASK: u64 = 0b1111;
@@ -57,13 +62,11 @@ fn terminate_current_task_and_halt(reason: &str, ec: u64, far: u64, elr: u64) ->
 
     #[cfg(not(feature = "process_abstraction"))]
     {
-        panic!(
+        crate::klog_error!(
             "AArch64 user exception without process_abstraction: reason={} ec={:#x} far={:#x} elr={:#x}",
-            reason,
-            ec,
-            far,
-            elr
+            reason, ec, far, elr
         );
+        halt_current_core()
     }
 }
 
@@ -87,10 +90,11 @@ pub(super) fn handle_user_fault(reason: &str, ec: u64, far: u64, elr: u64, is_as
     if user_fault_policy_allows_terminate(is_async) {
         terminate_current_task_and_halt(reason, ec, far, elr);
     }
-    panic!(
+    crate::klog_error!(
         "AArch64 user fault policy denied terminate: reason={} ec={:#x} far={:#x} elr={:#x} async={}",
         reason, ec, far, elr, is_async
     );
+    halt_current_core()
 }
 
 pub(super) fn handle_kernel_fault(
@@ -118,5 +122,7 @@ pub(super) fn handle_kernel_fault(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn unhandled_exception() {
-    panic!("Unhandled AArch64 Exception!");
+    crate::klog_error!("Unhandled AArch64 Exception!");
+    halt_current_core()
 }
+

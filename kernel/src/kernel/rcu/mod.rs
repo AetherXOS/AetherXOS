@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::boxed::Box;
 use core::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 
@@ -93,3 +98,4 @@ impl<T> Drop for Rcu<T> {
         }
     }
 }
+

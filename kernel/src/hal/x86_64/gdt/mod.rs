@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use core::cell::UnsafeCell;
 use core::mem::MaybeUninit;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -141,3 +146,4 @@ pub unsafe fn ap_gdt_tss(cpu_id: crate::interfaces::task::CpuId) -> &'static mut
     }
     unsafe { &mut *AP_GDT_TSS.slot_mut_ptr(slot) }
 }
+

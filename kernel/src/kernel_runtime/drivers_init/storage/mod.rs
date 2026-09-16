@@ -1,3 +1,5 @@
+//! storage module.
+
 mod inventory;
 mod logging;
 mod plan;
@@ -34,3 +36,5 @@ pub(super) fn init_storage_drivers(
 
     let _ = storage.first_by_kind(aethercore::modules::drivers::BlockDriverKind::Nvme);
 }
+
+

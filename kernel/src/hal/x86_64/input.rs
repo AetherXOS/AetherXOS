@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::collections::VecDeque;
 use spin::Mutex;
 
@@ -127,7 +132,7 @@ pub fn handle_mouse_irq(_irq: u8) {
         let p = state.packet;
 
         // Byte 0: Y_OVF | X_OVF | Y_SIGN | X_SIGN | 1 | M_BTN | R_BTN | L_BTN
-        // If overflow bits are set, the movement data is unreliable — discard this packet.
+        // If overflow bits are set, the movement data is unreliable â€” discard this packet.
         let x_overflow = (p[0] & 0b0100_0000) != 0;
         let y_overflow = (p[0] & 0b1000_0000) != 0;
         if x_overflow || y_overflow {
@@ -169,3 +174,4 @@ pub fn handle_mouse_irq(_irq: u8) {
         push_event(0, 0, 0);
     }
 }
+

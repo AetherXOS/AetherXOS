@@ -1,0 +1,169 @@
+int open(const char *path, int flags, unsigned long mode) {
+    return openat(AETHERCORE_AT_FDCWD, path, flags, mode);
+}
+
+int open64(const char *path, int flags, unsigned long mode) {
+    return open(path, flags, mode);
+}
+
+int creat(const char *path, unsigned long mode) {
+    return open(path, 0x41, mode);
+}
+
+int creat64(const char *path, unsigned long mode) {
+    return creat(path, mode);
+}
+
+int openat(int dirfd, const char *path, int flags, unsigned long mode) {
+    return (int)syscall(AETHERCORE_NR_OPENAT, (unsigned long)dirfd, (unsigned long)path, (unsigned long)flags, mode, 0ul, 0ul);
+}
+
+int chdir(const char *path) {
+    return (int)syscall(AETHERCORE_NR_CHDIR, (unsigned long)path, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+char *getcwd(char *buf, unsigned long size) {
+    long ret = syscall(AETHERCORE_NR_GETCWD, (unsigned long)buf, size, 0ul, 0ul, 0ul, 0ul);
+    return ret < 0 ? (char *)0 : buf;
+}
+
+unsigned int umask(unsigned int mask) {
+    return (unsigned int)syscall(AETHERCORE_NR_UMASK, (unsigned long)mask, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int chmod(const char *path, unsigned int mode) {
+    return (int)syscall(AETHERCORE_NR_CHMOD, (unsigned long)path, (unsigned long)mode, 0ul, 0ul, 0ul, 0ul);
+}
+
+int fchmod(int fd, unsigned int mode) {
+    return (int)syscall(AETHERCORE_NR_FCHMOD, (unsigned long)fd, (unsigned long)mode, 0ul, 0ul, 0ul, 0ul);
+}
+
+int fchmodat(int dirfd, const char *path, unsigned int mode, int flags) {
+    return (int)syscall(AETHERCORE_NR_FCHMODAT, (unsigned long)dirfd, (unsigned long)path, (unsigned long)mode, (unsigned long)flags, 0ul, 0ul);
+}
+
+int chown(const char *path, unsigned int owner, unsigned int group) {
+    return (int)syscall(AETHERCORE_NR_CHOWN, (unsigned long)path, (unsigned long)owner, (unsigned long)group, 0ul, 0ul, 0ul);
+}
+
+int lchown(const char *path, unsigned int owner, unsigned int group) {
+    return (int)syscall(AETHERCORE_NR_LCHOWN, (unsigned long)path, (unsigned long)owner, (unsigned long)group, 0ul, 0ul, 0ul);
+}
+
+int fchown(int fd, unsigned int owner, unsigned int group) {
+    return (int)syscall(AETHERCORE_NR_FCHOWN, (unsigned long)fd, (unsigned long)owner, (unsigned long)group, 0ul, 0ul, 0ul);
+}
+
+int fchownat(int dirfd, const char *path, unsigned int owner, unsigned int group, int flags) {
+    return (int)syscall(AETHERCORE_NR_FCHOWNAT, (unsigned long)dirfd, (unsigned long)path, (unsigned long)owner, (unsigned long)group, (unsigned long)flags, 0ul);
+}
+
+int mkdir(const char *path, unsigned long mode) {
+    return mkdirat(AETHERCORE_AT_FDCWD, path, mode);
+}
+
+int mkdirat(int dirfd, const char *path, unsigned long mode) {
+    return (int)syscall(AETHERCORE_NR_MKDIRAT, (unsigned long)dirfd, (unsigned long)path, mode, 0ul, 0ul, 0ul);
+}
+
+int link(const char *oldpath, const char *newpath) {
+    return linkat(AETHERCORE_AT_FDCWD, oldpath, AETHERCORE_AT_FDCWD, newpath, 0);
+}
+
+int linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags) {
+    return (int)syscall(AETHERCORE_NR_LINKAT, (unsigned long)olddirfd, (unsigned long)oldpath, (unsigned long)newdirfd, (unsigned long)newpath, (unsigned long)flags, 0ul);
+}
+
+int faccessat(int dirfd, const char *path, int mode, int flags) {
+    return (int)syscall(AETHERCORE_NR_FACCESSAT, (unsigned long)dirfd, (unsigned long)path, (unsigned long)mode, (unsigned long)flags, 0ul, 0ul);
+}
+
+int stat(const char *path, struct aethercore_stat *st) {
+    return newfstatat(AETHERCORE_AT_FDCWD, path, st, 0);
+}
+
+int stat64(const char *path, struct aethercore_stat *st) {
+    return stat(path, st);
+}
+
+int lstat(const char *path, struct aethercore_stat *st) {
+    return newfstatat(AETHERCORE_AT_FDCWD, path, st, AETHERCORE_AT_SYMLINK_NOFOLLOW);
+}
+
+int lstat64(const char *path, struct aethercore_stat *st) {
+    return lstat(path, st);
+}
+
+int fstatat(int dirfd, const char *path, struct aethercore_stat *st, int flags) {
+    return newfstatat(dirfd, path, st, flags);
+}
+
+int fstatat64(int dirfd, const char *path, struct aethercore_stat *st, int flags) {
+    return fstatat(dirfd, path, st, flags);
+}
+
+int newfstatat(int dirfd, const char *path, struct aethercore_stat *st, int flags) {
+    return (int)syscall(AETHERCORE_NR_NEWFSTATAT, (unsigned long)dirfd, (unsigned long)path, (unsigned long)st, (unsigned long)flags, 0ul, 0ul);
+}
+
+int symlink(const char *target, const char *linkpath) {
+    return symlinkat(target, AETHERCORE_AT_FDCWD, linkpath);
+}
+
+int symlinkat(const char *target, int newdirfd, const char *linkpath) {
+    return (int)syscall(AETHERCORE_NR_SYMLINKAT, (unsigned long)target, (unsigned long)newdirfd, (unsigned long)linkpath, 0ul, 0ul, 0ul);
+}
+
+int unlink(const char *path) {
+    return unlinkat(AETHERCORE_AT_FDCWD, path, 0);
+}
+
+int rmdir(const char *path) {
+    return unlinkat(AETHERCORE_AT_FDCWD, path, AETHERCORE_AT_REMOVEDIR);
+}
+
+int unlinkat(int dirfd, const char *path, int flags) {
+    return (int)syscall(AETHERCORE_NR_UNLINKAT, (unsigned long)dirfd, (unsigned long)path, (unsigned long)flags, 0ul, 0ul, 0ul);
+}
+
+int rename(const char *oldpath, const char *newpath) {
+    return renameat(AETHERCORE_AT_FDCWD, oldpath, AETHERCORE_AT_FDCWD, newpath);
+}
+
+int renameat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath) {
+    return (int)syscall(AETHERCORE_NR_RENAMEAT, (unsigned long)olddirfd, (unsigned long)oldpath, (unsigned long)newdirfd, (unsigned long)newpath, 0ul, 0ul);
+}
+
+long readlink(const char *path, char *buf, unsigned long bufsz) {
+    return readlinkat(AETHERCORE_AT_FDCWD, path, buf, bufsz);
+}
+
+long readlinkat(int dirfd, const char *path, char *buf, unsigned long bufsz) {
+    return syscall(AETHERCORE_NR_READLINKAT, (unsigned long)dirfd, (unsigned long)path, (unsigned long)buf, bufsz, 0ul, 0ul);
+}
+
+int utimensat(int dirfd, const char *path, const struct aethercore_timespec times[2], int flags) {
+    return (int)syscall(AETHERCORE_NR_UTIMENSAT, (unsigned long)dirfd, (unsigned long)path, (unsigned long)times, (unsigned long)flags, 0ul, 0ul);
+}
+
+int syncfs(int fd) {
+    return (int)syscall(AETHERCORE_NR_SYNCFS, (unsigned long)fd, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+long getdents64(int fd, void *dirp, unsigned long count) {
+    return syscall(AETHERCORE_NR_GETDENTS64, (unsigned long)fd, (unsigned long)dirp, count, 0ul, 0ul, 0ul);
+}
+
+long getrandom(void *buf, unsigned long buflen, unsigned int flags) {
+    return syscall(AETHERCORE_NR_GETRANDOM, (unsigned long)buf, buflen, (unsigned long)flags, 0ul, 0ul, 0ul);
+}
+
+int statx(int dirfd, const char *path, int flags, unsigned int mask, struct aethercore_statx *stx) {
+    return (int)syscall(AETHERCORE_NR_STATX, (unsigned long)dirfd, (unsigned long)path, (unsigned long)flags, (unsigned long)mask, (unsigned long)stx, 0ul);
+}
+
+int fstat64(int fd, struct aethercore_stat *st) {
+    return fstat(fd, st);
+}
+

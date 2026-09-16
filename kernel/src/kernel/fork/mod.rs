@@ -1,3 +1,5 @@
+//! fork module.
+
 use crate::interfaces::task::{KernelTask, ProcessId, TaskId, TaskState};
 use crate::kernel::process_registry::get_process;
 use crate::kernel::task::{get_task, register_task, unregister_task};
@@ -463,3 +465,5 @@ pub fn do_clone(
     );
     Ok(new_tid)
 }
+
+

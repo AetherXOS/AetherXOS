@@ -24,35 +24,33 @@ pub struct X86_64Features {
 impl X86_64Features {
     /// Detect CPU features at boot
     pub fn detect() -> Self {
-        unsafe {
-            // CPUID leaf 1: basic features
-            let leaf1 = __cpuid(1);
-            let has_apic = (leaf1.edx & (1 << 9)) != 0;
-            let has_tsc = (leaf1.edx & (1 << 4)) != 0;
-            let has_msr = (leaf1.edx & (1 << 5)) != 0;
-            let has_pse = (leaf1.edx & (1 << 3)) != 0;
-            let has_pge = (leaf1.edx & (1 << 13)) != 0;
-            let has_pat = (leaf1.edx & (1 << 16)) != 0;
-            let has_mtrr = (leaf1.edx & (1 << 12)) != 0;
+        // SAFETY: CPUID is safe to call on all x86_64 CPUs; leaves 1 and
+        // 0x80000001 are universally supported and return architecturally
+        // defined feature bits.
+        let leaf1 = __cpuid(1);
+        let has_apic = (leaf1.edx & (1 << 9)) != 0;
+        let has_tsc = (leaf1.edx & (1 << 4)) != 0;
+        let has_msr = (leaf1.edx & (1 << 5)) != 0;
+        let has_pse = (leaf1.edx & (1 << 3)) != 0;
+        let has_pge = (leaf1.edx & (1 << 13)) != 0;
+        let has_pat = (leaf1.edx & (1 << 16)) != 0;
+        let has_mtrr = (leaf1.edx & (1 << 12)) != 0;
 
-            // CPUID leaf 0x80000001: extended features
-            let leaf_ext = __cpuid(0x80000001);
-            let supports_smp = (leaf_ext.edx & (1 << 27)) != 0; // RDTSCP support indicates SMP
+        let leaf_ext = __cpuid(0x80000001);
+        let supports_smp = (leaf_ext.edx & (1 << 27)) != 0;
 
-            // CPUID leaf 0x00000001 ecx: extended features
-            let has_tsc_deadline = (leaf1.ecx & (1 << 24)) != 0; // TSC-Deadline Timer
+        let has_tsc_deadline = (leaf1.ecx & (1 << 24)) != 0;
 
-            Self {
-                has_apic,
-                has_tsc,
-                has_tsc_deadline,
-                has_msr,
-                has_pse,
-                has_pge,
-                has_pat,
-                has_mtrr,
-                supports_smp,
-            }
+        Self {
+            has_apic,
+            has_tsc,
+            has_tsc_deadline,
+            has_msr,
+            has_pse,
+            has_pge,
+            has_pat,
+            has_mtrr,
+            supports_smp,
         }
     }
 }

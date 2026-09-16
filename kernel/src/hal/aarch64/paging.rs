@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! AArch64 4-level page table management (4KB granule, 48-bit VA).
 //! Standardizes Paging behavior into the HAL.
 
@@ -186,3 +191,4 @@ fn tlbi_va(va: u64) {
         core::arch::asm!("tlbi vale1is, {va}", "dsb ish", "isb", va = in(reg) va_shifted);
     }
 }
+

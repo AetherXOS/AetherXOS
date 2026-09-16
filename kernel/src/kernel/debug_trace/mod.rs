@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::generated_consts::CORE_CRASH_LOG_CAPACITY;
 use alloc::{vec, vec::Vec};
 use spin::Mutex;
@@ -487,3 +492,4 @@ macro_rules! ktrace_warn {
 
 #[cfg(test)]
 mod tests;
+

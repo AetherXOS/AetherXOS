@@ -1,3 +1,5 @@
+//! syscall_contract module.
+
 #[cfg(all(feature = "linux_compat", feature = "ring_protection"))]
 use crate::kernel::syscalls::syscalls_consts::linux_nr;
 use crate::kernel::syscalls::syscalls_consts::{
@@ -249,3 +251,5 @@ pub fn run_syscall_contract_self_test() -> SyscallContractReport {
         last_error_code,
     }
 }
+
+

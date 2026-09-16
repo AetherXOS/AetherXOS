@@ -1,3 +1,5 @@
+//! drivers module.
+
 pub mod ahci;
 pub mod batched_driver;
 pub mod block;
@@ -141,3 +143,5 @@ pub use wait::{
     snapshot as wait_policy_snapshot, DriverWaitDescriptor, DriverWaitFallbackKind,
     DriverWaitPolicySnapshot,
 };
+
+

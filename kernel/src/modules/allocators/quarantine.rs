@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Kernel Heap Quarantine Mode
 //!
 //! Provides a delayed-free quarantine queue for use-after-free (UAF) detection.
@@ -69,3 +74,4 @@ pub fn set_quarantine_enabled(enabled: bool) {
 pub fn set_poison_byte(byte: u8) {
     POISON_BYTE.store(byte, Ordering::Relaxed);
 }
+

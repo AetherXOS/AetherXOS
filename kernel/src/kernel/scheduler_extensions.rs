@@ -356,7 +356,7 @@ mod tests {
         let tid = TaskId(1);
         assert!(sched.set_task_priority(tid, PriorityLevel::Interactive).is_ok());
         assert_eq!(
-            sched.get_task_priority(tid).unwrap(),
+            sched.get_task_priority(tid).expect("unwrap failed - see module SAFETY docs"),
             PriorityLevel::Interactive
         );
     }
@@ -402,7 +402,7 @@ mod tests {
     #[test_case]
     fn test_add_task_to_group() {
         let sched = GroupScheduler::new();
-        let group = sched.create_group(5_000_000, 10_000_000).unwrap();
+        let group = sched.create_group(5_000_000, 10_000_000).expect("unwrap failed - see module SAFETY docs");
         assert!(sched.add_task_to_group(TaskId(1), group).is_ok());
     }
 
@@ -411,7 +411,7 @@ mod tests {
         let sched = GroupScheduler::new();
         let tid = TaskId(1);
         assert!(sched.set_cpu_affinity(tid, 0x0F).is_ok());
-        assert_eq!(sched.get_cpu_affinity(tid).unwrap(), 0x0F);
+        assert_eq!(sched.get_cpu_affinity(tid).expect("unwrap failed - see module SAFETY docs"), 0x0F);
     }
 
     #[test_case]
@@ -475,4 +475,5 @@ mod tests {
             .is_err());
     }
 }
+
 

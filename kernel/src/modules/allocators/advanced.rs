@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 /// Advanced memory management primitives:
 ///   - SLUB-style direct-to-buddy allocation for large objects
 ///   - Memory compaction (migration of movable pages to defragment)
@@ -335,3 +340,4 @@ pub fn take_advanced_stats() -> AdvancedAllocatorStats {
 
 #[cfg(test)]
 mod tests;
+

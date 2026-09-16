@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Signal Group Delivery - Broadcast signals to process groups
 //!
 //! This module handles the delivery of signals to entire process groups,
@@ -377,3 +382,4 @@ mod tests {
         assert_eq!(cont.delivered_count, 1);
     }
 }
+

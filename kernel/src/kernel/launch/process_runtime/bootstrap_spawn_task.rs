@@ -12,7 +12,7 @@ pub fn build_bootstrap_task(
     deadline: u64,
     burst_time: u64,
     kernel_stack_top: u64,
-    interpreter_image: Option<alloc::vec::Vec<u8>>,
+    _interpreter_image: Option<alloc::vec::Vec<u8>>,
 ) -> Result<Arc<crate::kernel::sync::IrqSafeMutex<crate::interfaces::KernelTask>>, LaunchError> {
     #[cfg(feature = "paging_enable")]
     {

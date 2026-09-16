@@ -1,3 +1,5 @@
+//! reports module.
+
 pub mod coverage;
 pub mod feature;
 pub mod maturity;
@@ -11,3 +13,5 @@ pub use maturity::*;
 pub use readiness::*;
 pub use userspace_abi::*;
 pub use virtualization::*;
+
+

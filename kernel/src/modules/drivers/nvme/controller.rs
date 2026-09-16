@@ -3,6 +3,30 @@ use crate::config::KernelConfig;
 use super::queues::{build_create_io_cq_sqe, build_create_io_sq_sqe, cq_doorbell_offset, sq_doorbell_offset, CQE_DW3_CID_MASK, CQE_DW3_PHASE_BIT, CQE_DW3_SF_MASK, CQE_DW3_SF_SHIFT};
 use super::*;
 
+/// Pre-allocated DMA-safe queue buffers for NVMe.
+/// Wrapped in a struct to avoid raw `static mut`.
+struct NvmeQueueBuf {
+    data: [u8; 4096],
+}
+
+impl NvmeQueueBuf {
+    const fn new() -> Self {
+        Self { data: [0u8; 4096] }
+    }
+
+    fn virt_addr(&self) -> usize {
+        core::ptr::from_ref(&self.data) as usize
+    }
+}
+
+/// Statically allocated NVMe queue buffers (one per possible queue).
+/// These are deliberately global to support DMA (fixed physical addresses).
+/// SAFETY: only accessed through `&mut self` methods on `Nvme`, never concurrently.
+static ADMIN_SQ_BUF: NvmeQueueBuf = NvmeQueueBuf::new();
+static ADMIN_CQ_BUF: NvmeQueueBuf = NvmeQueueBuf::new();
+static IO_SQ_BUF: NvmeQueueBuf = NvmeQueueBuf::new();
+static IO_CQ_BUF: NvmeQueueBuf = NvmeQueueBuf::new();
+
 impl Nvme {
     // ── MMIO helpers ──────────────────────────────────────────────────────────
 
@@ -50,14 +74,11 @@ impl Nvme {
                 return Err("nvme: controller disable timeout");
             }
 
-            // 3. Allocate admin queues.
-            static mut ADMIN_SQ: [u8; 4096] = [0u8; 4096];
-            static mut ADMIN_CQ: [u8; 4096] = [0u8; 4096];
-
-            let asq_virt = (&raw mut ADMIN_SQ) as usize;
-            let acq_virt = (&raw mut ADMIN_CQ) as usize;
-
+            // 3. Use statically-allocated DMA-safe queue buffers.
             let hhdm = crate::hal::hhdm_offset().unwrap_or(0);
+
+            let asq_virt = ADMIN_SQ_BUF.virt_addr();
+            let acq_virt = ADMIN_CQ_BUF.virt_addr();
             let asq_phys = if asq_virt as u64 >= hhdm {
                 asq_virt as u64 - hhdm
             } else {
@@ -101,10 +122,8 @@ impl Nvme {
             }
 
             // 5. Create I/O Queues (Queue ID 1)
-            static mut IO_SQ: [u8; 4096] = [0u8; 4096];
-            static mut IO_CQ: [u8; 4096] = [0u8; 4096];
-            let iosq_virt = (&raw mut IO_SQ) as usize;
-            let iocq_virt = (&raw mut IO_CQ) as usize;
+            let iosq_virt = IO_SQ_BUF.virt_addr();
+            let iocq_virt = IO_CQ_BUF.virt_addr();
             let iosq_phys = if iosq_virt as u64 >= hhdm {
                 iosq_virt as u64 - hhdm
             } else {

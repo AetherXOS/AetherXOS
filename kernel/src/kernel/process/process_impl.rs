@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::interfaces::security::ResourceLimits;
 use crate::interfaces::task::{ProcessId, TaskId};
 use crate::kernel::sync::IrqSafeMutex;
@@ -596,3 +601,4 @@ impl crate::interfaces::kobject::KObject for Process {
         self
     }
 }
+

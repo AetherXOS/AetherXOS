@@ -1,3 +1,5 @@
+//! vulkan module.
+
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 static VULKAN_SWAPCHAIN_PATH_READY: AtomicBool = AtomicBool::new(false);
@@ -86,3 +88,5 @@ mod tests {
         assert!(vulkan_runtime_contract_supported());
     }
 }
+
+

@@ -19,7 +19,7 @@ pub fn validate_spawn_request(process_name: &[u8], boot_image: &BootImageRecord)
 }
 
 #[cfg(feature = "process_abstraction")]
-pub fn log_spawn_record(name_str: &alloc::string::String, boot_len: usize, priority: u8, deadline: u64, burst_time: u64, kernel_stack_top: u64) {
+pub fn log_spawn_record(_name_str: &str, _boot_len: usize, _priority: u8, _deadline: u64, _burst_time: u64, _kernel_stack_top: u64) {
     observability_launch! {
         crate::klog_info!(
             "bootstrap spawn record: name='{}' image_bytes={} priority={} deadline={} burst={} kstack={:#x}",

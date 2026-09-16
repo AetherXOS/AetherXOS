@@ -1,3 +1,5 @@
+//! plan module.
+
 pub mod elf;
 pub mod load;
 pub mod mapping;
@@ -6,3 +8,5 @@ pub mod snapshot;
 
 pub use load::*;
 pub use snapshot::*;
+
+

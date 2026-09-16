@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 /// AArch64 CPU register access and utilities.
 ///
 /// Provides:
@@ -20,7 +25,7 @@ const ID_FIELD_MASK: u64 = 0xF;
 const ID_FEATURE_ABSENT: u64 = 0xF;
 static COUNTER_FREQ_HZ: AtomicU64 = AtomicU64::new(0);
 
-// ── CPU-local ID ──────────────────────────────────────────────────────────────
+// â”€â”€ CPU-local ID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Returns the logical CPU index stored in TPIDR_EL1 by the CpuLocal init path.
 /// Returns 0 (BSP) if TPIDR_EL1 is not yet set.
@@ -47,7 +52,7 @@ pub unsafe fn get_per_cpu_ptr() -> *const () {
     ptr as *const ()
 }
 
-// ── High-resolution timer ─────────────────────────────────────────────────────
+// â”€â”€ High-resolution timer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Read the AArch64 virtual counter (CNTVCT_EL0).
 /// On most SoCs this runs at a fixed frequency readable via CNTFRQ_EL0.
@@ -95,18 +100,18 @@ pub fn ticks_to_ns(ticks: u64) -> u64 {
     ns.min(u64::MAX as u128) as u64
 }
 
-// ── MPIDR topology ────────────────────────────────────────────────────────────
+// â”€â”€ MPIDR topology â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Decoded MPIDR_EL1 topology fields.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MpidrTopology {
-    /// Affinity level 0 — logical core within cluster.
+    /// Affinity level 0 â€” logical core within cluster.
     pub aff0: u8,
-    /// Affinity level 1 — cluster.
+    /// Affinity level 1 â€” cluster.
     pub aff1: u8,
-    /// Affinity level 2 — socket / die.
+    /// Affinity level 2 â€” socket / die.
     pub aff2: u8,
-    /// Affinity level 3 — system / package (ARMv8.3+).
+    /// Affinity level 3 â€” system / package (ARMv8.3+).
     pub aff3: u8,
     /// Multi-threading indicator (MT bit, MPIDR[24]).
     pub multi_thread: bool,
@@ -137,9 +142,9 @@ pub fn raw_mpidr() -> u64 {
     v
 }
 
-// ── Memory barriers ───────────────────────────────────────────────────────────
+// â”€â”€ Memory barriers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Data Synchronization Barrier — Inner Shareable.
+/// Data Synchronization Barrier â€” Inner Shareable.
 #[inline(always)]
 pub fn dsb_ish() {
     unsafe {
@@ -147,7 +152,7 @@ pub fn dsb_ish() {
     }
 }
 
-/// Data Synchronization Barrier — System.
+/// Data Synchronization Barrier â€” System.
 #[inline(always)]
 pub fn dsb_sy() {
     unsafe {
@@ -155,7 +160,7 @@ pub fn dsb_sy() {
     }
 }
 
-/// Data Memory Barrier — Inner Shareable.
+/// Data Memory Barrier â€” Inner Shareable.
 #[inline(always)]
 pub fn dmb_ish() {
     unsafe {
@@ -171,7 +176,7 @@ pub fn isb() {
     }
 }
 
-// ── Cache maintenance ─────────────────────────────────────────────────────────
+// â”€â”€ Cache maintenance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Invalidate the ICache from PoU (Point of Unification) for the entire IS.
 pub fn icache_invalidate_all_inner_shareable() {
@@ -231,7 +236,7 @@ pub fn dcache_invalidate_range(start: usize, len: usize) {
     dsb_sy();
 }
 
-// ── CPU feature detection ─────────────────────────────────────────────────────
+// â”€â”€ CPU feature detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// ARM CPU feature flags detected from ID_AA64ISAR0_EL1 / ID_AA64PFR0_EL1.
 #[derive(Debug, Clone, Copy, Default)]
@@ -276,7 +281,7 @@ pub fn detect_features() -> CpuFeatures {
     }
 }
 
-// ── CpuRegisters trait ────────────────────────────────────────────────────────
+// â”€â”€ CpuRegisters trait â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub struct AArch64CpuRegisters;
 
@@ -332,3 +337,4 @@ impl CpuRegisters for AArch64CpuRegisters {
         }
     }
 }
+

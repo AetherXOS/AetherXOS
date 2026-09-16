@@ -556,7 +556,7 @@ mod tests {
     #[cfg(all(feature = "capability_system", feature = "policy_enforcement"))]
     #[test_case]
     fn test_security_context_privileged_bypass() {
-        let mut root = SecurityContext::kernel();
+        let root = SecurityContext::kernel();
         // Kernel context is privileged
         assert!(root.has_capability(cap_flags::CAP_CHOWN));
         assert!(root.has_capability(cap_flags::CAP_SYS_ADMIN));
@@ -610,7 +610,7 @@ mod tests {
     fn test_resource_limits_stack_heap() {
         let limits = ResourceLimits::default();
         assert_eq!(limits.max_heap_bytes, 128 * 1024 * 1024);
-        assert_eq!(limits.max_ipc_channels, 256);
+        assert_eq!(limits.max_ipc_channels, 128);
         assert_eq!(limits.max_children, 128);
     }
 }

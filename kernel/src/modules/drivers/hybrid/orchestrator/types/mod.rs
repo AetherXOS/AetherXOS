@@ -1,3 +1,5 @@
+//! types module.
+
 pub mod requests;
 pub mod plans;
 pub mod reports;
@@ -23,3 +25,5 @@ pub enum BackendPreference {
     ReactOsFirst,
     DriverKitFirst,
 }
+
+

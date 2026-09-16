@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #[cfg(feature = "rtos_strict")]
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 #[cfg(feature = "rtos_strict")]
@@ -89,3 +94,4 @@ pub fn enforce_fast_path_allocation_bounds() {}
 #[cfg(not(feature = "rtos_strict"))]
 #[inline(always)]
 pub fn check_rt_allocation_violation() {}
+

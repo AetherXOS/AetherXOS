@@ -1,3 +1,5 @@
+//! virtualization_contract module.
+
 mod predicates;
 mod self_test;
 
@@ -11,3 +13,5 @@ pub use self::self_test::{run_virtualization_contract_self_test, VirtualizationC
 
 #[cfg(test)]
 mod tests;
+
+

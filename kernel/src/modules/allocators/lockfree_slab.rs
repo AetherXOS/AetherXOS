@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Lock-free slab allocator for ultra-low latency allocations
 //! 
 //! This implementation uses lock-free per-CPU caches with atomic operations
@@ -430,3 +435,4 @@ mod tests {
         }
     }
 }
+

@@ -1,0 +1,382 @@
+
+> dashboard@0.0.1 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: c:\Users\oyunm\Desktop\OS\dashboard
+Getting Svelte diagnostics...
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\hooks.server.ts[39m:3:22
+[31mError[39m: Cannot find module '$lib/server/auth' or its corresponding type declarations. 
+[36mimport { building } from '$app/environment';
+import { auth } from [35m'$lib/server/auth'[36m;
+import { svelteKitHandler } from 'better-auth/svelte-kit';[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\lib\api\index.ts[39m:1:43
+[31mError[39m: Cannot find module 'axios' or its corresponding type declarations. 
+[36mimport axios, { type AxiosInstance } from [35m'axios'[36m;
+import { state } from '$lib/state.svelte';[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\lib\api\index.ts[39m:15:47
+[31mError[39m: Parameter 'config' implicitly has an 'any' type. 
+[36m        // Synchronized Interceptor
+        this.client.interceptors.request.use(([35mconfig[36m) => {
+            // Apply dynamic base for Agent-specific calls[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\lib\api\index.ts[39m:25:14
+[31mError[39m: Parameter 'res' implicitly has an 'any' type. 
+[36m        this.client.interceptors.response.use(
+            ([35mres[36m) => res,
+            (err) => {[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\lib\api\index.ts[39m:26:14
+[31mError[39m: Parameter 'err' implicitly has an 'any' type. 
+[36m            (res) => res,
+            ([35merr[36m) => {
+                state.isConnected = false;[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\demo\better-auth\+page.server.ts[39m:4:22
+[31mError[39m: Cannot find module '$lib/server/auth' or its corresponding type declarations. 
+[36mimport type { PageServerLoad } from './$types';
+import { auth } from [35m'$lib/server/auth'[36m;[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\demo\better-auth\login\+page.server.ts[39m:4:22
+[31mError[39m: Cannot find module '$lib/server/auth' or its corresponding type declarations. 
+[36mimport type { PageServerLoad } from './$types';
+import { auth } from [35m'$lib/server/auth'[36m;
+import { APIError } from 'better-auth/api';[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\lib\components\MetricBox.svelte[39m:2:53
+[31mError[39m: Cannot find module 'lucide-svelte' or its corresponding type declarations. (ts)
+[36m<script lang="ts">
+    import { TrendingUp, TrendingDown, Minus } from [35m'lucide-svelte'[36m;
+    import type { SyncStatus } from '$lib/types';[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\lib\components\OmniCommand.svelte[39m:53:21
+[33mWarn[39m: Avoid using autofocus
+https://svelte.dev/e/a11y_autofocus (svelte)
+[36m                    class="w-full bg-transparent border-none outline-none text-xl font-black uppercase tracking-widest placeholder:opacity-10"
+                    [35mautofocus[36m
+                />[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\lib\components\OmniCommand.svelte[39m:3:67
+[31mError[39m: Cannot find module 'lucide-svelte' or its corresponding type declarations. (ts)
+[36m  import { onMount } from 'svelte';
+  import { Search, Zap, Command, LayoutGrid, Terminal, Cpu } from [35m'lucide-svelte'[36m;
+  import { goto } from '$app/navigation';[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\+layout.svelte[39m:5:32
+[31mError[39m: Cannot find module '$lib/services/orchestrator' or its corresponding type declarations. (ts)
+[36m  import { page } from "$app/stores";
+  import { orchestrator } from [35m"$lib/services/orchestrator"[36m;
+  import { state } from "$lib/state.svelte";[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\+layout.svelte[39m:17:10
+[31mError[39m: Cannot find module 'lucide-svelte' or its corresponding type declarations. (ts)
+[36m    SearchCode
+  } from [35m"lucide-svelte"[36m;[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\+page.svelte[39m:4:40
+[31mError[39m: Cannot find module 'lucide-svelte' or its corresponding type declarations. (ts)
+[36m  import { goto } from '$app/navigation';
+  import { Zap, Globe, Activity } from [35m'lucide-svelte'[36m;[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\control-center\+page.svelte[39m:11:19
+[33mWarn[39m: It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+https://svelte.dev/e/store_rune_conflict (svelte)
+[36m
+  let activeTab = [35m$state[36m('blueprints');
+  let isExecuting = $state(false);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\control-center\+page.svelte[39m:12:21
+[33mWarn[39m: It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+https://svelte.dev/e/store_rune_conflict (svelte)
+[36m  let activeTab = $state('blueprints');
+  let isExecuting = [35m$state[36m(false);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\control-center\+page.svelte[39m:4:88
+[31mError[39m: Cannot find module 'lucide-svelte' or its corresponding type declarations. (ts)
+[36m  import { AgentRepo, LauncherRepo } from '$lib/api';
+  import { Activity, Shield, Terminal, Zap, Power, RotateCcw, Play, ShieldAlert } from [35m'lucide-svelte'[36m;[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\control-center\+page.svelte[39m:24:11
+[31mError[39m: Property 'addAudit' does not exist on type 'VelOSState'. (ts)
+[36m    isExecuting = true;
+    state.[35maddAudit[36m(`EXEC_BLUEPRINT_INIT: ${id}`);
+    try {[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\control-center\+page.svelte[39m:27:15
+[31mError[39m: Property 'addAudit' does not exist on type 'VelOSState'. (ts)
+[36m        await AgentRepo.executeBlueprint(id);
+        state.[35maddAudit[36m(`EXEC_SUCCESS: ${id}`, 'success');
+    } catch {[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\control-center\+page.svelte[39m:29:15
+[31mError[39m: Property 'addAudit' does not exist on type 'VelOSState'. (ts)
+[36m    } catch {
+        state.[35maddAudit[36m(`EXEC_FAILURE: ${id}`, 'failure');
+    } finally {[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\control-center\+page.svelte[39m:11:19
+[31mError[39m: Cannot use 'state' as a store. 'state' needs to be an object with a subscribe method on it.
+
+No overload matches this call.
+  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'.
+  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'. (ts)
+[36m
+  let activeTab = [35m$state[36m('blueprints');
+  let isExecuting = $state(false);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\control-center\+page.svelte[39m:12:21
+[31mError[39m: Cannot use 'state' as a store. 'state' needs to be an object with a subscribe method on it.
+
+No overload matches this call.
+  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'.
+  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'. (ts)
+[36m  let activeTab = $state('blueprints');
+  let isExecuting = [35m$state[36m(false);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\deep-debug\+page.svelte[39m:13:20
+[33mWarn[39m: It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+https://svelte.dev/e/store_rune_conflict (svelte)
+[36m  // Telemetry Grid Generation
+  let heatPoints = [35m$state[36m(Array.from({ length: 96 * 4 }).map(() => Math.random()));
+  let bufferLogs = $state<{id: string, time: string, level: string, msg: string}[]>([]);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\deep-debug\+page.svelte[39m:14:20
+[33mWarn[39m: It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+https://svelte.dev/e/store_rune_conflict (svelte)
+[36m  let heatPoints = $state(Array.from({ length: 96 * 4 }).map(() => Math.random()));
+  let bufferLogs = [35m$state[36m<{id: string, time: string, level: string, msg: string}[]>([]);
+  let autoScroll = $state(true);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\deep-debug\+page.svelte[39m:15:20
+[33mWarn[39m: It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+https://svelte.dev/e/store_rune_conflict (svelte)
+[36m  let bufferLogs = $state<{id: string, time: string, level: string, msg: string}[]>([]);
+  let autoScroll = [35m$state[36m(true);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\deep-debug\+page.svelte[39m:14:7
+[33mWarn[39m: `bufferLogs` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+https://svelte.dev/e/non_reactive_update (svelte)
+[36m  let heatPoints = $state(Array.from({ length: 96 * 4 }).map(() => Math.random()));
+  let [35mbufferLogs[36m = $state<{id: string, time: string, level: string, msg: string}[]>([]);
+  let autoScroll = $state(true);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\deep-debug\+page.svelte[39m:15:7
+[33mWarn[39m: `autoScroll` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+https://svelte.dev/e/non_reactive_update (svelte)
+[36m  let bufferLogs = $state<{id: string, time: string, level: string, msg: string}[]>([]);
+  let [35mautoScroll[36m = $state(true);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\deep-debug\+page.svelte[39m:4:85
+[31mError[39m: Cannot find module 'lucide-svelte' or its corresponding type declarations. (ts)
+[36m  import { onMount, tick } from 'svelte';
+  import { SearchCode, Terminal, Activity, Download, Trash2, Cpu, Zap, Radio } from [35m'lucide-svelte'[36m;
+  import { formatLogTimestamp } from '$lib/utils/format';[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\deep-debug\+page.svelte[39m:14:20
+[31mError[39m: Untyped function calls may not accept type arguments. (ts)
+[36m  let heatPoints = $state(Array.from({ length: 96 * 4 }).map(() => Math.random()));
+  let bufferLogs = [35m$state<{id: string, time: string, level: string, msg: string}[]>([])[36m;
+  let autoScroll = $state(true);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\deep-debug\+page.svelte[39m:13:20
+[31mError[39m: Cannot use 'state' as a store. 'state' needs to be an object with a subscribe method on it.
+
+No overload matches this call.
+  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'.
+  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'. (ts)
+[36m  // Telemetry Grid Generation
+  let heatPoints = [35m$state[36m(Array.from({ length: 96 * 4 }).map(() => Math.random()));
+  let bufferLogs = $state<{id: string, time: string, level: string, msg: string}[]>([]);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\deep-debug\+page.svelte[39m:14:20
+[31mError[39m: Cannot use 'state' as a store. 'state' needs to be an object with a subscribe method on it.
+
+No overload matches this call.
+  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'.
+  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'. (ts)
+[36m  let heatPoints = $state(Array.from({ length: 96 * 4 }).map(() => Math.random()));
+  let bufferLogs = [35m$state[36m<{id: string, time: string, level: string, msg: string}[]>([]);
+  let autoScroll = $state(true);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\deep-debug\+page.svelte[39m:15:20
+[31mError[39m: Cannot use 'state' as a store. 'state' needs to be an object with a subscribe method on it.
+
+No overload matches this call.
+  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'.
+  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'. (ts)
+[36m  let bufferLogs = $state<{id: string, time: string, level: string, msg: string}[]>([]);
+  let autoScroll = [35m$state[36m(true);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\executive\+page.svelte[39m:4:63
+[31mError[39m: Cannot find module 'lucide-svelte' or its corresponding type declarations. (ts)
+[36m  import MetricBox from '$lib/components/MetricBox.svelte';
+  import { Activity, ShieldCheck, Box, Zap, Cpu, Globe } from [35m'lucide-svelte'[36m;[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\operations\+page.svelte[39m:13:18
+[33mWarn[39m: It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+https://svelte.dev/e/store_rune_conflict (svelte)
+[36m
+  let viewMode = [35m$state[36m('grid');
+  let isRefreshing = $state(false);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\operations\+page.svelte[39m:14:22
+[33mWarn[39m: It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+https://svelte.dev/e/store_rune_conflict (svelte)
+[36m  let viewMode = $state('grid');
+  let isRefreshing = [35m$state[36m(false);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\operations\+page.svelte[39m:5:109
+[31mError[39m: Cannot find module 'lucide-svelte' or its corresponding type declarations. (ts)
+[36m  import { onMount } from 'svelte';
+  import { ShieldAlert, Activity, RefreshCw, BarChart, HardDrive, Cpu, MemoryStick, LayoutGrid, List } from [35m'lucide-svelte'[36m;
+  import { fade, slide } from 'svelte/transition';[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\operations\+page.svelte[39m:13:18
+[31mError[39m: Cannot use 'state' as a store. 'state' needs to be an object with a subscribe method on it.
+
+No overload matches this call.
+  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'.
+  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'. (ts)
+[36m
+  let viewMode = [35m$state[36m('grid');
+  let isRefreshing = $state(false);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\operations\+page.svelte[39m:14:22
+[31mError[39m: Cannot use 'state' as a store. 'state' needs to be an object with a subscribe method on it.
+
+No overload matches this call.
+  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'.
+  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'. (ts)
+[36m  let viewMode = $state('grid');
+  let isRefreshing = [35m$state[36m(false);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:11:18
+[33mWarn[39m: It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+https://svelte.dev/e/store_rune_conflict (svelte)
+[36m
+  let localUrl = [35m$state[36m(state.agentUrl);
+  let localToken = $state(state.agentToken);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:12:20
+[33mWarn[39m: It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+https://svelte.dev/e/store_rune_conflict (svelte)
+[36m  let localUrl = $state(state.agentUrl);
+  let localToken = [35m$state[36m(state.agentToken);
+  let isSaving = $state(false);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:13:18
+[33mWarn[39m: It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+https://svelte.dev/e/store_rune_conflict (svelte)
+[36m  let localToken = $state(state.agentToken);
+  let isSaving = [35m$state[36m(false);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:131:21
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                <div class="form-control space-y-4">
+                    [35m<label class="px-3 text-[10px] font-black uppercase opacity-30 tracking-widest italic">Visual Profile Profile</label>[36m
+                    <div class="flex gap-4 p-2 bg-base-200 rounded-[2rem] border border-white/5">[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:3:32
+[31mError[39m: Cannot find module '$lib/services/orchestrator' or its corresponding type declarations. (ts)
+[36m  import { state } from '$lib/state.svelte';
+  import { orchestrator } from [35m'$lib/services/orchestrator'[36m;
+  import { Settings, Shield, Globe, Monitor, Zap, Save, RefreshCcw, Bell, Lock } from 'lucide-svelte';[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:4:87
+[31mError[39m: Cannot find module 'lucide-svelte' or its corresponding type declarations. (ts)
+[36m  import { orchestrator } from '$lib/services/orchestrator';
+  import { Settings, Shield, Globe, Monitor, Zap, Save, RefreshCcw, Bell, Lock } from [35m'lucide-svelte'[36m;[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:125:194
+[31mError[39m: Property 'lang' does not exist on type 'VelOSState'. (ts)
+[36m                    <label class="px-3 text-[10px] font-black uppercase opacity-30 tracking-widest italic" for="reg-lang">Communication Protocol</label>
+                    <select id="reg-lang" class="select bg-base-200 border-white/10 rounded-[2rem] h-16 w-full px-8 font-black text-xs uppercase tracking-widest shadow-inner" bind:value={state.[35mlang[36m}>
+                        <option value="en">English (Alpha-1)</option>[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:135:36
+[31mError[39m: Property 'theme' does not exist on type 'VelOSState'. (ts)
+[36m                            class="flex-1 h-12 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest transition-all
+                            {state.[35mtheme[36m === 'dark' ? 'bg-primary text-primary-content shadow-lg' : 'opacity-20 hover:opacity-100'}"
+                            onclick={() => state.theme = 'dark'}[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:136:50
+[31mError[39m: Property 'theme' does not exist on type 'VelOSState'. (ts)
+[36m                            {state.theme === 'dark' ? 'bg-primary text-primary-content shadow-lg' : 'opacity-20 hover:opacity-100'}"
+                            onclick={() => state.[35mtheme[36m = 'dark'}
+                        >[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:11:18
+[31mError[39m: Cannot use 'state' as a store. 'state' needs to be an object with a subscribe method on it.
+
+No overload matches this call.
+  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'.
+  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'. (ts)
+[36m
+  let localUrl = [35m$state[36m(state.agentUrl);
+  let localToken = $state(state.agentToken);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:12:20
+[31mError[39m: Cannot use 'state' as a store. 'state' needs to be an object with a subscribe method on it.
+
+No overload matches this call.
+  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'.
+  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'. (ts)
+[36m  let localUrl = $state(state.agentUrl);
+  let localToken = [35m$state[36m(state.agentToken);
+  let isSaving = $state(false);[39m
+
+c:\Users\oyunm\Desktop\OS\dashboard\[32msrc\routes\settings\+page.svelte[39m:13:18
+[31mError[39m: Cannot use 'state' as a store. 'state' needs to be an object with a subscribe method on it.
+
+No overload matches this call.
+  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'.
+  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.
+    Argument of type 'VelOSState' is not assignable to parameter of type 'SvelteStore<any>'.
+      Property 'subscribe' is missing in type 'VelOSState' but required in type 'SvelteStore<any>'. (ts)
+[36m  let localToken = $state(state.agentToken);
+  let isSaving = [35m$state[36m(false);[39m
+
+====================================
+[31msvelte-check found 35 errors and 14 warnings in 13 files
+[39m

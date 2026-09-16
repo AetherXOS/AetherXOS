@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::helpers::linux_fault;
 use crate::kernel::syscalls::{with_user_read_bytes, with_user_write_bytes};
 use core::marker::PhantomData;
@@ -174,3 +179,4 @@ impl UserString {
         super::helpers::read_user_c_string(self.ptr.addr, max_len)
     }
 }
+

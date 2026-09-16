@@ -1,3 +1,5 @@
+//! error module.
+
 use crate::modules::posix::PosixErrno;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,3 +24,5 @@ impl From<&'static str> for AetherError {
         Self::Internal(e)
     }
 }
+
+

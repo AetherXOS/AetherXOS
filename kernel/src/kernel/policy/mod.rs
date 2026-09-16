@@ -1,3 +1,5 @@
+//! policy module.
+
 use crate::hal::common::virt::{
     current_virtualization_runtime_governor, GOVERNOR_BIAS_AGGRESSIVE, GOVERNOR_BIAS_RELAXED,
 };
@@ -45,3 +47,5 @@ pub fn drift_reason_name(reason: u8) -> &'static str {
 
 #[cfg(test)]
 mod tests;
+
+

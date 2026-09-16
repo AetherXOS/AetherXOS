@@ -1,3 +1,5 @@
+//! task module.
+
 pub mod context;
 pub mod ids;
 pub mod state;
@@ -10,3 +12,5 @@ pub use task::*;
 
 #[cfg(test)]
 mod tests;
+
+

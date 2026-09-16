@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use core::cell::UnsafeCell;
 
 #[repr(C, align(4096))]
@@ -74,3 +79,4 @@ pub(super) fn vmxon_region_ptr() -> *const VmxonRegion {
 pub(super) fn vmcb_region_ptr() -> *const VmcbRegion {
     VMCB_REGION.ptr()
 }
+

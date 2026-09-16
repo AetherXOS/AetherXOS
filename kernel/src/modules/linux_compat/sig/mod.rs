@@ -1,3 +1,5 @@
+//! sig module.
+
 pub mod action;
 pub use self::action::*;
 pub mod mask;
@@ -9,3 +11,5 @@ pub use self::signalfd::*;
 pub mod delivery;
 pub use self::delivery::*;
 pub use crate::modules::linux_compat::types::LinuxUContext;
+
+

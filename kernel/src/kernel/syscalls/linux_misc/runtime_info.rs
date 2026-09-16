@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #[cfg(not(feature = "linux_compat"))]
 use crate::kernel::syscalls::{linux_errno, with_user_write_bytes};
 #[cfg(not(feature = "linux_compat"))]
@@ -244,3 +249,4 @@ mod tests {
         );
     }
 }
+

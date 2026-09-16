@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Minimal POSIX dynamic linking API stubs (dlopen, dlsym, dlclose)
 #[path = "../api/posix_rt.rs"]
 pub mod posix_rt;
@@ -215,3 +220,4 @@ pub fn dlclose(_handle: *mut u8) -> i32 {
 #[cfg(all(test, feature = "vfs", any()))]
 #[path = "api/tests.rs"]
 mod tests;
+

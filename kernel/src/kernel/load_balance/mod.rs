@@ -1,3 +1,5 @@
+//! load_balance module.
+
 pub mod adaptive;
 pub mod decision;
 pub mod operations;
@@ -45,3 +47,5 @@ pub(crate) fn reset_rebalance_adaptive_state() {
     REBALANCE_LAST_BATCH.store(0, Ordering::Relaxed);
     REBALANCE_LAST_MOVED.store(0, Ordering::Relaxed);
 }
+
+

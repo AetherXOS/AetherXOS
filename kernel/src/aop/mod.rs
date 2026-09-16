@@ -1,3 +1,6 @@
+//! Aspect-Oriented Programming framework: cross-cutting concerns such as
+//! performance tracing, lock monitoring, retry logic, and logging.
+
 pub mod log_entry;
 pub mod irq_handler;
 pub mod retry;
@@ -14,3 +17,4 @@ pub fn dump_all_aop_stats() {
     lock_monitor::dump_lock_stats();
     crate::klog_info!("======================================================");
 }
+

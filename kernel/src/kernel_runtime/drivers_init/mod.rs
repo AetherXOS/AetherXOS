@@ -1,3 +1,5 @@
+//! drivers_init module.
+
 use crate::kernel_runtime::KernelRuntime;
 #[cfg(feature = "drivers")]
 use aethercore::generated_consts::CORE_ENABLE_DRIVER_INIT;
@@ -29,3 +31,5 @@ impl KernelRuntime {
         }
     }
 }
+
+

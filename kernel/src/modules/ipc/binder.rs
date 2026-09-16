@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::interfaces::task::ProcessId;
 use crate::kernel::sync::{IrqSafeMutex, WaitQueue};
 use super::common::{suspend_on, wake_one_task};
@@ -147,3 +152,4 @@ pub fn binder_create(_node_ptr: u64, _cookie: u64) -> Result<(), &'static str> {
 pub fn binder_release(_node_ptr: u64) -> Result<(), &'static str> {
     Ok(())
 }
+

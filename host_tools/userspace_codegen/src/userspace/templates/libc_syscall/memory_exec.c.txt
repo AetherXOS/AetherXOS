@@ -1,0 +1,54 @@
+long clone(unsigned long flags, void *child_stack, int *ptid, int *ctid, unsigned long tls) {
+    return syscall(AETHERCORE_NR_CLONE, flags, (unsigned long)child_stack, (unsigned long)ptid, (unsigned long)ctid, tls, 0ul);
+}
+
+long fork(void) {
+    long ret;
+    aethercore_run_atfork_prepare();
+    ret = syscall(AETHERCORE_NR_FORK, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+    if (ret == 0) {
+        aethercore_run_atfork_child();
+    } else if (ret > 0) {
+        aethercore_run_atfork_parent();
+    }
+    return ret;
+}
+
+int execve(const char *path, const char *const *argv, const char *const *envp) {
+    return (int)syscall(AETHERCORE_NR_EXECVE, (unsigned long)path, (unsigned long)argv, (unsigned long)envp, 0ul, 0ul, 0ul);
+}
+
+int execveat(int dirfd, const char *path, const char *const *argv, const char *const *envp, int flags) {
+    return (int)syscall(AETHERCORE_NR_EXECVEAT, (unsigned long)dirfd, (unsigned long)path, (unsigned long)argv, (unsigned long)envp, (unsigned long)flags, 0ul);
+}
+
+void abort(void) {
+    _exit(134);
+}
+
+void exit(int status) {
+    aethercore_run_on_exit_handlers(status);
+    __cxa_finalize((void *)0);
+    aethercore_run_runtime_fini();
+    exit_group(status);
+}
+
+void quick_exit(int status) {
+    aethercore_run_quick_exit_handlers();
+    aethercore_run_runtime_fini();
+    exit_group(status);
+}
+
+void exit_group(int status) {
+    (void)syscall(AETHERCORE_NR_EXIT_GROUP, (unsigned long)status, 0ul, 0ul, 0ul, 0ul, 0ul);
+    for (;;) { }
+}
+
+void _Exit(int status) {
+    _exit(status);
+}
+
+void _exit(int status) {
+    (void)syscall(AETHERCORE_NR_EXIT, (unsigned long)status, 0ul, 0ul, 0ul, 0ul, 0ul);
+    for (;;) { }
+}

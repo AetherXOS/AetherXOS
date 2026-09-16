@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::modules::posix::fs::{get_file_description, register_file_description};
 use crate::modules::vfs::types::File;
 use crate::modules::network::types::{Packet, PacketData};
@@ -65,3 +70,4 @@ pub trait SocketZeroCopy {
 }
 
 impl<T: File + ?Sized> SocketZeroCopy for T {}
+

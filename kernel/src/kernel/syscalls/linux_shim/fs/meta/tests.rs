@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
     use super::*;
     use crate::kernel::syscalls::linux_errno;
     use crate::kernel::syscalls::linux_shim::LINUX_AT_FDCWD;
@@ -206,3 +211,4 @@
             linux_errno(crate::modules::posix_consts::errno::EFAULT)
         );
     }
+

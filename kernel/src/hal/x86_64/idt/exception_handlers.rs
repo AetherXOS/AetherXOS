@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #[cfg(target_os = "none")]
 use crate::kernel::syscalls::syscalls_consts::x86;
 #[cfg(target_os = "none")]
@@ -109,3 +114,4 @@ pub(super) extern "x86-interrupt" fn gpf_handler(
 pub(super) extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
     super::dispatch::dispatch_irq_vector(x86::IRQ_TIMER);
 }
+

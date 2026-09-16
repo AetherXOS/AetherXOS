@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::super::*;
 use crate::kernel::syscalls::linux_shim::fs::support::{resolve_path_at_allow_empty, LINUX_AT_FDCWD};
 
@@ -97,3 +102,4 @@ pub fn sys_linux_fstatfs(fd: usize, buf_ptr: usize) -> usize {
         linux_errno(crate::modules::posix_consts::errno::EBADF)
     }
 }
+

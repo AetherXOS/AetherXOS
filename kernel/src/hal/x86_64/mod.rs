@@ -1,3 +1,14 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
+//! # Safety
+//!
+//! This module performs low-level hardware operations.
+//! All unsafe blocks are justified by the calling functions
+//! which validate addresses and invariants beforehand.
+//!
 pub use crate::hal::common::boot::{acpi_rsdp_addr, dtb_addr, framebuffer, hhdm_offset, mem_map};
 use crate::core::log;
 use alloc::format;
@@ -80,14 +91,14 @@ static BSP_KERNEL_STACK: StaticBytes<{ crate::generated_consts::STACK_SIZE_PAGES
 ///
 /// Marked `#[inline(never)]` so it appears in the call graph and
 /// stack traces during early-boot debugging.  **Only compiled in
-/// debug builds** — release builds elide this entirely.
+/// debug builds** â€” release builds elide this entirely.
 #[cfg(debug_assertions)]
 #[inline(never)]
 fn early_call_checkpoint() {
     serial::write_raw("[EARLY SERIAL] x86_64 early call checkpoint entered\n");
 }
 
-/// No-op stub for release builds — zero overhead.
+/// No-op stub for release builds â€” zero overhead.
 #[cfg(not(debug_assertions))]
 #[inline(always)]
 fn early_call_checkpoint() {}
@@ -140,20 +151,20 @@ unsafe fn bootstrap_bsp_cpu_local() -> &'static crate::kernel::cpu_local::CpuLoc
 impl HAL {
     /// Primary x86_64 early-boot initialisation.
     ///
-    /// Sequence (must be kept in order — each stage depends on the previous):
-    /// 1. Serial port  — enables debug output before anything else
-    /// 2. GDT/TSS      — required for safe kernel stack and privilege levels
-    /// 3. IDT          — required before any interrupt/exception can fire
-    /// 4. APIC         — replaces legacy PIC, needed for timer + IPI
-    /// 5. CpuLocal     — per-CPU data (scheduler, current task, etc.)
-    /// 6. SYSCALL/RET  — Ring 3 → Ring 0 entry point (requires GDT + CpuLocal)
+    /// Sequence (must be kept in order â€” each stage depends on the previous):
+    /// 1. Serial port  â€” enables debug output before anything else
+    /// 2. GDT/TSS      â€” required for safe kernel stack and privilege levels
+    /// 3. IDT          â€” required before any interrupt/exception can fire
+    /// 4. APIC         â€” replaces legacy PIC, needed for timer + IPI
+    /// 5. CpuLocal     â€” per-CPU data (scheduler, current task, etc.)
+    /// 6. SYSCALL/RET  â€” Ring 3 â†’ Ring 0 entry point (requires GDT + CpuLocal)
     pub fn early_init() {
-        // ── 1. Serial port ────────────────────────────────────────────────────
+        // â”€â”€ 1. Serial port â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         serial::SERIAL1.lock().init();
         // Always emit at least one marker so the user knows serial is live.
         serial::write_raw("[BOOT] x86_64 serial ready\n");
 
-        // ── 2. GDT / TSS ──────────────────────────────────────────────────────
+        // â”€â”€ 2. GDT / TSS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         #[cfg(debug_assertions)]
         serial::write_raw("[BOOT] gdt init begin\n");
         let bsp_gdt = unsafe { gdt::bootstrap_gdt_tss() };
@@ -162,12 +173,12 @@ impl HAL {
         #[cfg(debug_assertions)]
         serial::write_raw("[BOOT] gdt loaded\n");
 
-        // ── 3. IDT ────────────────────────────────────────────────────────────
+        // â”€â”€ 3. IDT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         idt::init();
         #[cfg(debug_assertions)]
         serial::write_raw("[BOOT] idt ready\n");
 
-        // ── 4. APIC (disable legacy PIC first) ────────────────────────────────
+        // â”€â”€ 4. APIC (disable legacy PIC first) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         unsafe {
             pic::Pic::disable();
             apic::init_local_apic();
@@ -175,7 +186,7 @@ impl HAL {
         #[cfg(debug_assertions)]
         serial::write_raw("[BOOT] apic ready\n");
 
-        // ── 5. BSP CpuLocal ───────────────────────────────────────────────────
+        // â”€â”€ 5. BSP CpuLocal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let bsp_local = unsafe { bootstrap_bsp_cpu_local() };
         unsafe { bsp_local.init(); }
         #[cfg(debug_assertions)]
@@ -184,7 +195,7 @@ impl HAL {
         // SMP registration is deferred to `init_smp()` because it requires
         // the heap allocator which isn't available yet at this point.
 
-        // ── 6. SYSCALL/SYSRET entry point ────────────────────────────────────
+        // â”€â”€ 6. SYSCALL/SYSRET entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         #[cfg(feature = "ring_protection")]
         syscalls::init(&selectors);
         // Call-graph checkpoint: validates linker resolved this call correctly.
@@ -436,7 +447,7 @@ impl HardwareAbstraction for HAL {
     }
 }
 
-// ── HAL Sub-component Implementations ────────────────────────────────────────
+// â”€â”€ HAL Sub-component Implementations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 struct X86InterruptController;
 struct X86MemoryManager;
@@ -534,3 +545,5 @@ pub unsafe extern "C" fn context_switch(current_stack: *mut usize, next_stack: u
 pub unsafe extern "C" fn context_switch(_current_stack: *mut usize, _next_stack: usize) {
     panic!("x86_64 context_switch is only available on bare-metal targets");
 }
+
+

@@ -23,6 +23,10 @@ pub struct CleanAction {
     /// Dry-run: show what would be deleted without actually removing files.
     #[arg(long)]
     pub dry_run: bool,
+
+    /// Maximum directory depth to search for Cargo.toml files when purging build targets.
+    #[arg(long, default_value_t = 3)]
+    pub depth: usize,
 }
 
 impl Executable for CleanAction {
@@ -33,6 +37,7 @@ impl Executable for CleanAction {
             self.logs,
             self.no_stats,
             self.dry_run,
+            self.depth,
         )
     }
 }

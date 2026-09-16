@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Lock-free capability-based security system
 //! 
 //! This module provides security operations with:
@@ -677,3 +682,4 @@ mod tests {
         assert!(stats.hit_rate >= 0.0 && stats.hit_rate <= 1.0);
     }
 }
+

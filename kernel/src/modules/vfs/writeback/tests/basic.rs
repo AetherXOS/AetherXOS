@@ -9,7 +9,7 @@ fn fsync_inode_flushes_dirty_cached_pages_and_updates_stats() {
     register_writable_mount(7, sink.clone());
     register_inode(101, 7);
 
-    let mut inode = cache::Inode::new(101, 0o100644);
+    let inode = cache::Inode::new(101, 0o100644);
     assert_eq!(inode.write_cached(0, b"hello writeback"), 15);
     let inode = Arc::new(inode);
     cache::GLOBAL_INODE_CACHE.insert(inode);
@@ -70,7 +70,7 @@ fn fsync_inode_propagates_sink_write_failures() {
     register_writable_mount(51, Arc::new(FailingSink));
     register_inode(888, 51);
 
-    let mut inode = cache::Inode::new(888, 0o100644);
+    let inode = cache::Inode::new(888, 0o100644);
     assert_eq!(inode.write_cached(0, b"boom"), 4);
     cache::GLOBAL_INODE_CACHE.insert(Arc::new(inode));
 

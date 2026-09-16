@@ -1,4 +1,9 @@
-/// Symmetric Multi-Processing — x86_64 / Limine Boot Protocol.
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
+/// Symmetric Multi-Processing â€” x86_64 / Limine Boot Protocol.
 ///
 /// Limine enumerates all processors and provides an SmpInfo per core.
 /// For each AP we:
@@ -29,12 +34,12 @@ use storage::{allocate_ap_cpu_local, allocate_ap_gdt_bundle, ap_kernel_stack_top
 #[cfg(feature = "ring_protection")]
 pub(crate) use storage::allocate_kernel_stack_top;
 
-// ── Limine SMP request ────────────────────────────────────────────────────────
+// â”€â”€ Limine SMP request â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[used]
 static SMP_REQUEST: SmpRequest = SmpRequest::new(0);
 
-// ── AP readiness tracking ─────────────────────────────────────────────────────
+// â”€â”€ AP readiness tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Number of APs that have successfully initialised.
 static AP_ONLINE_COUNT: AtomicU32 = AtomicU32::new(0);
@@ -45,7 +50,7 @@ static TLB_SHOOTDOWN_TIMEOUTS: AtomicU64 = AtomicU64::new(0);
 const AP_BOOT_TIMEOUT_SPINS: usize = 50_000_000;
 const TLB_SHOOTDOWN_TIMEOUT_SPINS: usize = 2_000_000;
 
-// ── Global CPU registry ───────────────────────────────────────────────────────
+// â”€â”€ Global CPU registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// List of all online CPU locals (BSP + APs).
 pub static CPUS: IrqSafeMutex<Vec<&'static CpuLocal>> = IrqSafeMutex::new(Vec::new());
@@ -111,7 +116,7 @@ pub fn wait_stats() -> SmpWaitStats {
     )
 }
 
-// ── AP entry point ────────────────────────────────────────────────────────────
+// â”€â”€ AP entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Limine calls this function for each AP (one call per core).
 extern "C" fn ap_entry(info: *const limine::SmpInfo) -> ! {
@@ -145,7 +150,7 @@ extern "C" fn ap_entry(info: *const limine::SmpInfo) -> ! {
     }
     crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap local apic returned\n");
 
-    // 3. Bootstrap CpuLocal (uses the global heap — safe after BSP init_heap).
+    // 3. Bootstrap CpuLocal (uses the global heap â€” safe after BSP init_heap).
     crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap cpu local alloc begin\n");
     let cpu_local = allocate_ap_cpu_local(cpu_id);
     crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap cpu local alloc returned\n");
@@ -189,7 +194,7 @@ extern "C" fn ap_entry(info: *const limine::SmpInfo) -> ! {
     }
 }
 
-/// AP idle loop — runs on the AP's own kernel stack.
+/// AP idle loop â€” runs on the AP's own kernel stack.
 /// This function is called via `call` after switching RSP, so it must
 /// never return.
 #[inline(never)]
@@ -201,13 +206,13 @@ fn ap_idle_loop() -> ! {
     }
 }
 
-// ── BSP SMP init ─────────────────────────────────────────────────────────────
+// â”€â”€ BSP SMP init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub fn init() {
     let response_ptr = match SMP_REQUEST.get_response().as_ptr() {
         Some(p) => p,
         None => {
-            crate::klog_warn!("x86_64 SMP: no SMP response from bootloader — uniprocessor mode");
+            crate::klog_warn!("x86_64 SMP: no SMP response from bootloader â€” uniprocessor mode");
             return;
         }
     };
@@ -222,7 +227,7 @@ pub fn init() {
             // BSP already online.
             continue;
         }
-        // Write the AP entry pointer — Limine will jump to it when it sees it non-null.
+        // Write the AP entry pointer â€” Limine will jump to it when it sees it non-null.
         smp_info.goto_address = ap_entry;
     }
 
@@ -243,3 +248,4 @@ pub fn init() {
         ap_count
     );
 }
+

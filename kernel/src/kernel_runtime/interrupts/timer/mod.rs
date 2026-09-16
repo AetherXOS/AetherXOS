@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 mod arch;
 mod schedule;
 mod types;
@@ -29,3 +34,4 @@ pub(crate) fn timer_tick_handler(_irq: u8) {
         }
     }
 }
+

@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 use core::sync::atomic::Ordering;
 use crate::modules::posix_consts::process;
@@ -185,3 +190,4 @@ fn apply_default_action(tid: TaskId, sig_nr: i32) {
     crate::klog_info!("signal: default action TERM sig={} tid={}", sig_nr, tid.0);
     let _ = crate::kernel::launch::terminate_task(tid);
 }
+

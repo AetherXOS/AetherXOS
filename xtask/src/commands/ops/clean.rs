@@ -1,16 +1,25 @@
 use crate::engine::operations::Op;
 use crate::utils::fs::paths::LAYOUT;
+use crate::utils::fs::core as fs_utils;
 use crate::utils::fs::stats::{self, DirStats, ScanOrchestrator};
 use crate::utils::logging;
-use crate::utils::sys::process::Executor;
 use anyhow::Result;
 use std::fs;
+use std::path::{Path, PathBuf};
+use std::collections::HashSet;
 
 /// Purge build artifacts, staging areas, and logs.
 ///
 /// If `all` is true, also runs `cargo clean`.
 /// If `distros` is true, also removes downloaded distro images.
-pub fn execute(all: bool, distros: bool, logs: bool, no_stats: bool, dry_run: bool) -> Result<()> {
+pub fn execute(
+    all: bool,
+    distros: bool,
+    logs: bool,
+    no_stats: bool,
+    dry_run: bool,
+    depth: usize,
+) -> Result<()> {
     logging::info("clean", "Initiating system-wide purge sequence...", &[]);
 
     let mut total_stats = DirStats::new();
@@ -90,10 +99,23 @@ pub fn execute(all: bool, distros: bool, logs: bool, no_stats: bool, dry_run: bo
     // Deep Clean: Cargo
     if all {
         if dry_run {
-            logging::info("clean", "[DRY-RUN] Would run 'cargo clean'", &[]);
+            let targets = discover_cargo_targets(&LAYOUT.root, depth);
+            logging::info(
+                "clean",
+                &format!(
+                    "[DRY-RUN] Would purge {} Cargo target directories",
+                    targets.len()
+                ),
+                &[],
+            );
         } else {
-            logging::info("clean", "Running deep cargo clean...", &[]);
-            let _ = Executor::new("cargo").arg("clean").run();
+            let targets = discover_cargo_targets(&LAYOUT.root, depth);
+            logging::info(
+                "clean",
+                &format!("Purging {} Cargo target directories...", targets.len()),
+                &[],
+            );
+            best_effort_purge_cargo_targets(&targets)?;
         }
     }
 
@@ -117,6 +139,73 @@ pub fn execute(all: bool, distros: bool, logs: bool, no_stats: bool, dry_run: bo
             &fields_refs,
         );
     }
+
+    Ok(())
+}
+
+fn discover_cargo_targets(root: &Path, max_depth: usize) -> Vec<PathBuf> {
+    let mut targets = HashSet::new();
+
+    if root.join("Cargo.toml").exists() {
+        let _ = targets.insert(root.join("target"));
+    }
+
+    for entry in walkdir::WalkDir::new(root)
+        .max_depth(max_depth.saturating_add(1))
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+    {
+        if !entry.file_type().is_file() || entry.file_name() != "Cargo.toml" {
+            continue;
+        }
+
+        let Some(parent) = entry.path().parent() else {
+            continue;
+        };
+
+        let _ = targets.insert(parent.join("target"));
+    }
+
+    let mut targets: Vec<PathBuf> = targets.into_iter().collect();
+    targets.sort();
+    targets
+}
+
+fn best_effort_purge_cargo_targets(targets: &[PathBuf]) -> Result<()> {
+    let current_exe = std::env::current_exe().ok();
+
+    for target in targets {
+        if target.exists() {
+            purge_tree_best_effort(target, current_exe.as_deref())?;
+        }
+    }
+
+    Ok(())
+}
+
+fn purge_tree_best_effort(path: &Path, skip: Option<&Path>) -> Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let entry_path = entry.path();
+
+        if skip.is_some_and(|skip_path| entry_path == skip_path) {
+            continue;
+        }
+
+        if entry.file_type()?.is_dir() {
+            let _ = purge_tree_best_effort(&entry_path, skip);
+            let _ = fs::remove_dir(&entry_path);
+        } else {
+            let _ = fs_utils::try_remove_file_with_retries(&entry_path, 3);
+        }
+    }
+
+    let _ = fs::remove_dir(path);
 
     Ok(())
 }

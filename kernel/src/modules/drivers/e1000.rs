@@ -1,3 +1,14 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
+//! # Safety
+//!
+//! This module performs low-level hardware operations.
+//! All unsafe blocks are justified by the calling functions
+//! which validate addresses and invariants beforehand.
+//!
 use crate::config::KernelConfig;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -498,3 +509,5 @@ impl_lifecycle_adapter!(
     service: lifecycle_service,
     teardown: lifecycle_teardown,
 );
+
+

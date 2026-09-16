@@ -2,8 +2,6 @@
 **/*.rs.bk
 src/generated_consts.rs
 hyper_config.toml
-*.log
-*.txt
 .VSCodeCounter/
 .vscode/
 .vs/
@@ -17,8 +15,6 @@ dashboard-ui/node_modules/
 dashboard-ui/.svelte-kit/
 node_modules/
 target/
-*.md
-*.md.resolved
 *.toml.example
 *.clippy
 npm-debug.log*
@@ -57,4 +53,3 @@ coverage/
 .cache/
 tmp/
 kernel.elf
-!/README.md

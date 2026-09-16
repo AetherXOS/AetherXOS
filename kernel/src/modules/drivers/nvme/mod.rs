@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::hal::pci::{PciDevice, CLASS_MASS_STORAGE};
 use core::sync::atomic::{AtomicU64};
 
@@ -167,3 +172,4 @@ impl_lifecycle_adapter!(
     service: lifecycle_service,
     teardown: lifecycle_teardown,
 );
+

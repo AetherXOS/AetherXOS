@@ -1,3 +1,5 @@
+//! bootstrap module.
+
 pub mod init;
 #[cfg(feature = "process_abstraction")]
 pub mod probe;
@@ -8,3 +10,5 @@ pub use probe::*;
 
 #[cfg(test)]
 pub mod tests;
+
+

@@ -1,3 +1,5 @@
+//! tests module.
+
 /// Kernel Core ABI and IPC Parity Tests
 ///
 /// Comprehensive test suites validating Linux application compatibility:
@@ -116,4 +118,6 @@ mod proc_sysctl_integration;
 
 #[cfg(all(test, target_os = "none"))]
 mod ubuntu_readiness;
+
+
 

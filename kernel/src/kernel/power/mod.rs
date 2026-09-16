@@ -1,3 +1,5 @@
+//! power module.
+
 use crate::hal::common::virt::current_virtualization_power_tuning;
 #[cfg(test)]
 use crate::hal::common::virt::{virtualization_power_tuning, VirtualizationPowerTuning};
@@ -273,3 +275,5 @@ pub fn stats() -> PowerStats {
 
 #[cfg(test)]
 mod tests;
+
+

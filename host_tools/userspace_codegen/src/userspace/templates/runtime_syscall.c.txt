@@ -1,0 +1,69 @@
+#include "aethercore_runtime.h"
+#include "aethercore_libc.h"
+
+#include <stdarg.h>
+
+#include "aethercore_runtime_state.h"
+
+enum { AETHERCORE_SYS_PRINT = 2 };
+
+void __aethercore_syscall_init(void) {
+    g_aethercore_last_syscall_nr = -1;
+}
+
+long syscall(long nr, ...) {
+    va_list ap;
+    unsigned long a1 = 0;
+    unsigned long a2 = 0;
+    unsigned long a3 = 0;
+    unsigned long a4 = 0;
+    unsigned long a5 = 0;
+    unsigned long a6 = 0;
+    long ret;
+    g_aethercore_last_syscall_nr = nr;
+    va_start(ap, nr);
+    a1 = va_arg(ap, unsigned long);
+    a2 = va_arg(ap, unsigned long);
+    a3 = va_arg(ap, unsigned long);
+    a4 = va_arg(ap, unsigned long);
+    a5 = va_arg(ap, unsigned long);
+    a6 = va_arg(ap, unsigned long);
+    va_end(ap);
+#if defined(__x86_64__)
+    __asm__ volatile (
+        "mov %[a4], %%r10\n\t"
+        "mov %[a5], %%r8\n\t"
+        "mov %[a6], %%r9\n\t"
+        "syscall"
+        : "=a"(ret)
+        : "a"(nr), "D"(a1), "S"(a2), "d"(a3),
+          [a4]"r"(a4), [a5]"r"(a5), [a6]"r"(a6)
+        : "rcx", "r11", "r10", "r8", "r9", "memory"
+    );
+    if (ret < 0) {
+        *__errno_location() = (int)(-ret);
+        return -1;
+    }
+    return ret;
+#else
+    *__errno_location() = 38;
+    return -1;
+#endif
+}
+
+void aethercore_kernel_print(const char *message) {
+    if (!message) {
+        return;
+    }
+    (void)syscall(AETHERCORE_SYS_PRINT,
+        (unsigned long)message,
+        (unsigned long)strlen(message),
+        0ul,
+        0ul,
+        0ul,
+        0ul);
+}
+
+long aethercore_last_syscall_nr(void) {
+    return g_aethercore_last_syscall_nr;
+}

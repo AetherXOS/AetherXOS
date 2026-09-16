@@ -1,3 +1,5 @@
+//! process module.
+
 #[cfg(not(feature = "linux_compat"))]
 mod clone_ns;
 #[cfg(not(feature = "linux_compat"))]
@@ -54,3 +56,5 @@ pub(super) fn sys_linux_unshare(flags: usize) -> usize {
 pub(super) fn sys_linux_setns(fd: usize, nstype: usize) -> usize {
     clone_ns::sys_linux_setns(fd, nstype)
 }
+
+

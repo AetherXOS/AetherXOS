@@ -1,3 +1,5 @@
+//! namespaces module.
+
 pub mod cgroup_ns;
 pub mod ipc_ns;
 pub mod mount_ns;
@@ -26,3 +28,5 @@ pub use types::*;
 
 #[cfg(test)]
 mod tests;
+
+

@@ -1,0 +1,39 @@
+#include "aethercore_runtime.h"
+#include "aethercore_runtime_state.h"
+
+const char *aethercore_runtime_status_word(void) {
+    if (!aethercore_runtime_ready()) {
+        return "initializing";
+    }
+    if (!aethercore_auxv_ready()) {
+        return "partial";
+    }
+    return "ready";
+}
+
+unsigned long aethercore_runtime_probe_mask(void) {
+    unsigned long mask = aethercore_runtime_init_flags();
+    if (aethercore_runtime_ready()) mask |= AETHERCORE_RUNTIME_PROBE_READY;
+    if (aethercore_auxv_ready()) mask |= AETHERCORE_RUNTIME_PROBE_AUXV;
+    if (aethercore_last_env_name() != 0 || aethercore_last_env_value() != 0) {
+        mask |= AETHERCORE_RUNTIME_PROBE_ENV;
+    }
+    if (aethercore_runtime_status_word()[0] == 'r') {
+        mask |= AETHERCORE_RUNTIME_PROBE_STATUS_READY;
+    }
+    return mask;
+}
+
+const char *aethercore_runtime_probe_status_word(void) {
+    unsigned long mask = aethercore_runtime_probe_mask();
+    if ((mask & AETHERCORE_RUNTIME_PROBE_STATUS_READY) != 0) {
+        return "ready";
+    }
+    if ((mask & AETHERCORE_RUNTIME_PROBE_AUXV) != 0) {
+        return "probed";
+    }
+    if ((mask & AETHERCORE_RUNTIME_PROBE_READY) != 0) {
+        return "staged";
+    }
+    return "cold";
+}

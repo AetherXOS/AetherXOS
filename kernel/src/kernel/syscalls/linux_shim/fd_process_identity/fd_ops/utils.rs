@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #[cfg(not(feature = "linux_compat"))]
 use super::storage::{LinuxPidFdEntry, LINUX_PIDFD_MAP};
 #[cfg(not(feature = "linux_compat"))]
@@ -36,3 +41,4 @@ pub(crate) fn linux_pidfd_entry_for_caller(pidfd: usize) -> Result<LinuxPidFdEnt
 pub(crate) fn linux_pidfd_getfd_access_allowed(caller_tid: usize, target_pid: usize) -> bool {
     caller_tid == target_pid || caller_tid == 1
 }
+

@@ -1,0 +1,170 @@
+long getpid(void) {
+    return syscall(AETHERCORE_NR_GETPID, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+long gettid(void) {
+    return syscall(AETHERCORE_NR_GETTID, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+long getppid(void) {
+    return syscall(AETHERCORE_NR_GETPPID, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+long getuid(void) {
+    return syscall(AETHERCORE_NR_GETUID, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int getrusage(int who, struct aethercore_rusage *ru) {
+    return (int)syscall(AETHERCORE_NR_GETRUSAGE, (unsigned long)who, (unsigned long)ru, 0ul, 0ul, 0ul, 0ul);
+}
+
+long geteuid(void) {
+    return syscall(AETHERCORE_NR_GETEUID, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+long getgid(void) {
+    return syscall(AETHERCORE_NR_GETGID, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+long getegid(void) {
+    return syscall(AETHERCORE_NR_GETEGID, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int getgroups(int size, unsigned int *list) {
+    return (int)syscall(AETHERCORE_NR_GETGROUPS, (unsigned long)size, (unsigned long)list, 0ul, 0ul, 0ul, 0ul);
+}
+
+int setgroups(int size, const unsigned int *list) {
+    return (int)syscall(AETHERCORE_NR_SETGROUPS, (unsigned long)size, (unsigned long)list, 0ul, 0ul, 0ul, 0ul);
+}
+
+int setresuid(unsigned int ruid, unsigned int euid, unsigned int suid) {
+    return (int)syscall(AETHERCORE_NR_SETRESUID, (unsigned long)ruid, (unsigned long)euid, (unsigned long)suid, 0ul, 0ul, 0ul);
+}
+
+int getresuid(unsigned int *ruid, unsigned int *euid, unsigned int *suid) {
+    return (int)syscall(AETHERCORE_NR_GETRESUID, (unsigned long)ruid, (unsigned long)euid, (unsigned long)suid, 0ul, 0ul, 0ul);
+}
+
+int setresgid(unsigned int rgid, unsigned int egid, unsigned int sgid) {
+    return (int)syscall(AETHERCORE_NR_SETRESGID, (unsigned long)rgid, (unsigned long)egid, (unsigned long)sgid, 0ul, 0ul, 0ul);
+}
+
+int getresgid(unsigned int *rgid, unsigned int *egid, unsigned int *sgid) {
+    return (int)syscall(AETHERCORE_NR_GETRESGID, (unsigned long)rgid, (unsigned long)egid, (unsigned long)sgid, 0ul, 0ul, 0ul);
+}
+
+int setpgid(int pid, int pgid) {
+    return (int)syscall(AETHERCORE_NR_SETPGID, (unsigned long)pid, (unsigned long)pgid, 0ul, 0ul, 0ul, 0ul);
+}
+
+int getpgrp(void) {
+    return (int)syscall(AETHERCORE_NR_GETPGRP, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int setsid(void) {
+    return (int)syscall(AETHERCORE_NR_SETSID, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int getpgid(int pid) {
+    return (int)syscall(AETHERCORE_NR_GETPGID, (unsigned long)pid, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int getsid(int pid) {
+    return (int)syscall(AETHERCORE_NR_GETSID, (unsigned long)pid, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int getpriority(int which, int who) {
+    return (int)syscall(AETHERCORE_NR_GETPRIORITY, (unsigned long)which, (unsigned long)who, 0ul, 0ul, 0ul, 0ul);
+}
+
+int setpriority(int which, int who, int prio) {
+    return (int)syscall(AETHERCORE_NR_SETPRIORITY, (unsigned long)which, (unsigned long)who, (unsigned long)prio, 0ul, 0ul, 0ul);
+}
+
+long time(long *out) {
+    return syscall(AETHERCORE_NR_TIME, (unsigned long)out, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int clock_gettime(int clock_id, struct aethercore_timespec *ts) {
+    return (int)syscall(AETHERCORE_NR_CLOCK_GETTIME, (unsigned long)clock_id, (unsigned long)ts, 0ul, 0ul, 0ul, 0ul);
+}
+
+int clock_getres(int clock_id, struct aethercore_timespec *ts) {
+    return (int)syscall(AETHERCORE_NR_CLOCK_GETRES, (unsigned long)clock_id, (unsigned long)ts, 0ul, 0ul, 0ul, 0ul);
+}
+
+int gettimeofday(struct aethercore_timeval *tv, void *tz) {
+    return (int)syscall(AETHERCORE_NR_GETTIMEOFDAY, (unsigned long)tv, (unsigned long)tz, 0ul, 0ul, 0ul, 0ul);
+}
+
+int getitimer(int which, struct aethercore_itimerval *curr_value) {
+    return (int)syscall(AETHERCORE_NR_GETITIMER, (unsigned long)which, (unsigned long)curr_value, 0ul, 0ul, 0ul, 0ul);
+}
+
+int setitimer(int which, const struct aethercore_itimerval *new_value, struct aethercore_itimerval *old_value) {
+    return (int)syscall(AETHERCORE_NR_SETITIMER, (unsigned long)which, (unsigned long)new_value, (unsigned long)old_value, 0ul, 0ul, 0ul);
+}
+
+int nanosleep(const struct aethercore_timespec *req, struct aethercore_timespec *rem) {
+    return (int)syscall(AETHERCORE_NR_NANOSLEEP, (unsigned long)req, (unsigned long)rem, 0ul, 0ul, 0ul, 0ul);
+}
+
+unsigned int sleep(unsigned int seconds) {
+    struct aethercore_timespec req;
+    struct aethercore_timespec rem;
+    req.tv_sec = (long)seconds;
+    req.tv_nsec = 0;
+    if (nanosleep(&req, &rem) == 0) {
+        return 0;
+    }
+    return rem.tv_sec > 0 ? (unsigned int)rem.tv_sec : 0u;
+}
+
+int usleep(unsigned long usec) {
+    struct aethercore_timespec req;
+    req.tv_sec = (long)(usec / 1000000ul);
+    req.tv_nsec = (long)((usec % 1000000ul) * 1000ul);
+    return nanosleep(&req, (struct aethercore_timespec *)0);
+}
+
+int pause(void) {
+    return (int)syscall(AETHERCORE_NR_PAUSE, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int sched_yield(void) {
+    return (int)syscall(AETHERCORE_NR_SCHED_YIELD, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int sched_setaffinity(int pid, unsigned long cpusetsize, const void *mask) {
+    return (int)syscall(AETHERCORE_NR_SCHED_SETAFFINITY, (unsigned long)pid, cpusetsize, (unsigned long)mask, 0ul, 0ul, 0ul);
+}
+
+int sched_getaffinity(int pid, unsigned long cpusetsize, void *mask) {
+    return (int)syscall(AETHERCORE_NR_SCHED_GETAFFINITY, (unsigned long)pid, cpusetsize, (unsigned long)mask, 0ul, 0ul, 0ul);
+}
+
+int ppoll(struct aethercore_pollfd *fds, unsigned long nfds, const struct aethercore_timespec *timeout, const void *sigmask) {
+    return (int)syscall(AETHERCORE_NR_PPOLL, (unsigned long)fds, nfds, (unsigned long)timeout, (unsigned long)sigmask, 0ul, 0ul);
+}
+
+int pselect6(int nfds, struct aethercore_fd_set *readfds, struct aethercore_fd_set *writefds, struct aethercore_fd_set *exceptfds, const struct aethercore_timespec *timeout, const void *sigmask) {
+    return (int)syscall(AETHERCORE_NR_PSELECT6, (unsigned long)nfds, (unsigned long)readfds, (unsigned long)writefds, (unsigned long)exceptfds, (unsigned long)timeout, (unsigned long)sigmask);
+}
+
+int epoll_create1(int flags) {
+    return (int)syscall(AETHERCORE_NR_EPOLL_CREATE1, (unsigned long)flags, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int epoll_ctl(int epfd, int op, int fd, struct aethercore_epoll_event *event) {
+    return (int)syscall(AETHERCORE_NR_EPOLL_CTL, (unsigned long)epfd, (unsigned long)op, (unsigned long)fd, (unsigned long)event, 0ul, 0ul);
+}
+
+int epoll_wait(int epfd, struct aethercore_epoll_event *events, int maxevents, int timeout) {
+    return (int)syscall(AETHERCORE_NR_EPOLL_WAIT, (unsigned long)epfd, (unsigned long)events, (unsigned long)maxevents, (unsigned long)timeout, 0ul, 0ul);
+}
+
+int epoll_pwait(int epfd, struct aethercore_epoll_event *events, int maxevents, int timeout, const void *sigmask) {
+    return (int)syscall(AETHERCORE_NR_EPOLL_PWAIT, (unsigned long)epfd, (unsigned long)events, (unsigned long)maxevents, (unsigned long)timeout, (unsigned long)sigmask, 0ul);
+}
+

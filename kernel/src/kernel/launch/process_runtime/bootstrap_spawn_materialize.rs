@@ -1,9 +1,11 @@
-use super::*;
+#[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
 use alloc::sync::Arc;
+#[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
 use crate::interfaces::task::TaskId;
+#[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
 use crate::kernel::process::Process;
 
-#[cfg(feature = "process_abstraction")]
+#[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
 pub fn materialize_and_prepare_task_paging(
     process: &Arc<Process>,
     image_bytes: &[u8],
@@ -14,13 +16,7 @@ pub fn materialize_and_prepare_task_paging(
     kernel_stack_top: u64,
     interpreter_image: Option<alloc::vec::Vec<u8>>,
 ) -> Result<alloc::sync::Arc<crate::kernel::sync::IrqSafeMutex<crate::interfaces::KernelTask>>, LaunchError> {
-    let hhdm = crate::hal::hhdm_offset().unwrap_or(0);
-    let offset = x86_64::VirtAddr::new(hhdm);
-    let lvl4 = unsafe { &mut *(((process.cr3.as_u64() as u64) + hhdm) as *mut x86_64::structures::paging::PageTable) };
-    let mut page_manager = crate::kernel::memory::paging::PageManager {
-        mapper: unsafe { x86_64::structures::paging::OffsetPageTable::new(lvl4, offset) },
-        physical_memory_offset: offset,
-    };
+    let (_offset, mut page_manager) = bootstrap_spawn_paging::build_page_manager(process);
     let mut frame_allocator = crate::hal::HAL::create_frame_allocator();
 
     let prepared = crate::kernel::module_loader::materialize_and_build_process_bootstrap_task(
@@ -35,17 +31,12 @@ pub fn materialize_and_prepare_task_paging(
         &mut frame_allocator,
     ).map_err(|_| LaunchError::LoaderFailed)?;
 
-    if let Some(interp) = interpreter_image {
-        let interp_prepared = crate::kernel::module_loader::materialize_process_image(
-            process,
-            &interp,
-            &mut page_manager,
-            &mut frame_allocator,
-        ).map_err(|_| LaunchError::LoaderFailed)?;
-
-        process.set_interpreter_base(interp_prepared.load_plan.aslr_base);
-        process.set_runtime_entry(Some(interp_prepared.load_plan.entry + interp_prepared.load_plan.aslr_base));
-    }
+    bootstrap_spawn_paging::materialize_interpreter_image(
+        process,
+        interpreter_image,
+        &mut page_manager,
+        &mut frame_allocator,
+    )?;
 
     Ok(prepared)
 }

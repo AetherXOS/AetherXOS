@@ -1,3 +1,5 @@
+//! platform_support module.
+
 mod bootstrap;
 mod config;
 mod io;
@@ -26,3 +28,5 @@ pub(super) use security_ipc::*;
 pub(super) use smp::*;
 pub(super) use system::*;
 pub(super) use virtualization::*;
+
+

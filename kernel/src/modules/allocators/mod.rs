@@ -1,3 +1,5 @@
+//! allocators module.
+
 pub mod advanced;
 pub mod bitmap_pmm;
 pub mod buddy;
@@ -108,3 +110,5 @@ impl JemallocLite {
         Self
     }
 }
+
+

@@ -22,7 +22,7 @@ pub fn assert_recovery_survives_abort_until_checkpoint(expected: usize) {
 
 pub fn install_dirty_inode(ino: u64, mount_id: usize, payloads: &[&[u8]]) {
     register_inode(ino, mount_id);
-    let mut inode = cache::Inode::new(ino, 0o100644);
+    let inode = cache::Inode::new(ino, 0o100644);
     for (idx, payload) in payloads.iter().enumerate() {
         let offset = (idx * PAGE_SIZE) as u64;
         assert_eq!(inode.write_cached(offset, payload), payload.len());

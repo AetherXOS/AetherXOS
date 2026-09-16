@@ -1,3 +1,5 @@
+//! networking module.
+
 #[cfg(all(feature = "drivers", feature = "networking"))]
 mod config;
 #[cfg(all(feature = "drivers", feature = "networking"))]
@@ -21,3 +23,5 @@ pub(crate) use counters::{
     NETWORK_SLO_LAST_LOG_SAMPLE, NETWORK_SLO_REMEDIATION_ACTIONS, NETWORK_SLO_REMEDIATION_STAGE,
     NETWORK_SLO_SAMPLE_COUNTER, VIRTIO_IO_ERROR_STREAK, VIRTIO_REBIND_FAILURE_STREAK,
 };
+
+

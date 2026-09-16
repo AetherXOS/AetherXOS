@@ -1,0 +1,40 @@
+#include "aethercore_libc_state.h"
+
+int g_aethercore_errno;
+const char *g_aethercore_last_getenv_name;
+const char *g_aethercore_last_getenv_value;
+void *__dso_handle;
+char *program_invocation_name;
+char *program_invocation_short_name;
+char *__progname;
+char *__progname_full;
+int __libc_enable_secure;
+unsigned long __stack_chk_guard = 0x484350544543484bul;
+char *g_aethercore_environ_store[64];
+static FILE g_aethercore_stdin_stream = {0, 0, 0, 0};
+static FILE g_aethercore_stdout_stream = {1, 0, 0, 0};
+static FILE g_aethercore_stderr_stream = {2, 0, 0, 0};
+FILE *stdin = &g_aethercore_stdin_stream;
+FILE *stdout = &g_aethercore_stdout_stream;
+FILE *stderr = &g_aethercore_stderr_stream;
+aethercore_atexit_fn_t g_aethercore_atexit_slots[AETHERCORE_ATEXIT_SLOTS];
+unsigned long g_aethercore_atexit_count;
+aethercore_atexit_fn_t g_aethercore_quick_exit_slots[AETHERCORE_ATEXIT_SLOTS];
+unsigned long g_aethercore_quick_exit_count;
+struct aethercore_on_exit_slot g_aethercore_on_exit_slots[AETHERCORE_ATEXIT_SLOTS];
+unsigned long g_aethercore_on_exit_count;
+struct aethercore_atfork_slot g_aethercore_atfork_slots[AETHERCORE_ATEXIT_SLOTS];
+unsigned long g_aethercore_atfork_count;
+struct aethercore_cxa_slot g_aethercore_cxa_slots[AETHERCORE_ATEXIT_SLOTS];
+unsigned long g_aethercore_cxa_count;
+unsigned long g_aethercore_runtime_fini_attempts;
+unsigned long g_aethercore_runtime_fini_completed;
+unsigned long g_aethercore_runtime_fini_deferred;
+const char *g_aethercore_builtin_env[] = {
+    "AETHERCORE_RUNTIME_ENTRY=0",
+    "AETHERCORE_RUNTIME_FINI_ENTRY=0",
+    "AETHERCORE_IMAGE_ENTRY=0",
+    "AETHERCORE_IMAGE_BASE=0",
+    "AETHERCORE_RUNTIME_FINI_TRAMPOLINE=0",
+    0,
+};

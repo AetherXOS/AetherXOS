@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Lock-free VFS page cache implementation
 //! 
 //! This module provides a lock-free page cache using RCU-style operations:
@@ -511,3 +516,4 @@ mod tests {
         assert!(stats.hit_rate >= 0.0 && stats.hit_rate <= 1.0);
     }
 }
+

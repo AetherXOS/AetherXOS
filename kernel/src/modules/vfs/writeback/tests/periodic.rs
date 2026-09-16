@@ -67,7 +67,7 @@ fn periodic_writeback_advances_tick_and_updates_stats() {
     register_writable_mount(41, sink.clone());
     register_inode(601, 41);
 
-    let mut inode = cache::Inode::new(601, 0o100644);
+    let inode = cache::Inode::new(601, 0o100644);
     assert_eq!(inode.write_cached(0, b"tick"), 4);
     cache::GLOBAL_INODE_CACHE.insert(Arc::new(inode));
 
@@ -112,7 +112,7 @@ fn repeated_periodic_writeback_cycles_drain_multiple_inodes_like_soak_smoke() {
 
     for ino in 900..904u64 {
         register_inode(ino, 61);
-        let mut inode = cache::Inode::new(ino, 0o100644);
+        let inode = cache::Inode::new(ino, 0o100644);
         assert_eq!(inode.write_cached(0, b"page-0"), 6);
         assert_eq!(inode.write_cached(4096, b"page-1"), 6);
         cache::GLOBAL_INODE_CACHE.insert(Arc::new(inode));

@@ -1,0 +1,6 @@
+#include "aethercore_runtime_state.h"
+
+struct aethercore_auxv_view g_aethercore_auxv_view;
+struct aethercore_env_view g_aethercore_env_view;
+long g_aethercore_last_syscall_nr;
+unsigned long g_aethercore_runtime_init_flags;

@@ -1,3 +1,5 @@
+//! sys_dispatcher module.
+
 use super::*;
 
 mod advanced;
@@ -198,3 +200,5 @@ pub fn init_dispatch_index() {
     crate::klog_info!("[SYSCALL] O(1) dispatch table ready.");
 }
 const LINUX_LEGACY_IPC_NR: usize = 117;
+
+

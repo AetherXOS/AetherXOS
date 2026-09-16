@@ -1,3 +1,5 @@
+//! integration module.
+
 /// Integration Test Framework Documentation
 ///
 /// Framework for linking core/extended specifications to executable kernel tests.
@@ -168,3 +170,5 @@ impl IntegrationHarness {
         Ok(value)
     }
 }
+
+

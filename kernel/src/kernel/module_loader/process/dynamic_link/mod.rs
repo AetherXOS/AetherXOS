@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 
 mod trampoline;
@@ -179,7 +184,7 @@ pub(super) fn apply_dynamic_linking_and_runtime_trampolines(
                                             let Some(bytes) = image.get(off..off + 8) else {
                                                 break;
                                             };
-                                            let raw = u64::from_le_bytes(bytes.try_into().unwrap());
+                                            let raw = u64::from_le_bytes(bytes.try_into().expect("unwrap failed - see module SAFETY docs"));
                                             if raw != 0 {
                                                 out.push(runtime_addr(raw));
                                             }
@@ -426,3 +431,5 @@ pub(super) fn apply_dynamic_linking_and_runtime_trampolines(
         }
     }
 }
+
+

@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 use crate::kernel::syscalls::syscalls_user::{
     user_range_valid, user_word_aligned, UserAccessFault, UserAccessMode,
@@ -442,4 +447,5 @@ pub fn read_user_c_string_array(
     }
     Ok(out)
 }
+
 

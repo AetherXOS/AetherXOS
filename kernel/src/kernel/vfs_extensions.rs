@@ -435,7 +435,7 @@ mod tests {
             sticky: false,
         };
         assert!(mgr.set_permissions(1, perms).is_ok());
-        assert_eq!(mgr.get_permissions(1).unwrap(), perms);
+        assert_eq!(mgr.get_permissions(1).expect("unwrap failed - see module SAFETY docs"), perms);
     }
 
     #[test_case]
@@ -443,7 +443,7 @@ mod tests {
         let mgr = ConcreteFilePermissionManager::new();
         let owner = FileOwner { uid: 1000, gid: 1000 };
         assert!(mgr.set_owner(1, owner).is_ok());
-        assert_eq!(mgr.get_owner(1).unwrap(), owner);
+        assert_eq!(mgr.get_owner(1).expect("unwrap failed - see module SAFETY docs"), owner);
     }
 
     #[test_case]
@@ -469,7 +469,7 @@ mod tests {
         assert!(mgr.set_block_quota(1000, 1_000_000).is_ok());
         assert!(mgr.set_inode_quota(1000, 100_000).is_ok());
 
-        let quota = mgr.get_quota(1000).unwrap();
+        let quota = mgr.get_quota(1000).expect("unwrap failed - see module SAFETY docs");
         assert_eq!(quota.block_limit, 1_000_000);
     }
 
@@ -478,8 +478,9 @@ mod tests {
         let mgr = ConcreteQuotaManager::new();
         mgr.set_block_quota(1000, 1000).ok();
 
-        assert!(mgr.can_allocate(1000, 500).unwrap());
-        assert!(!mgr.can_allocate(1000, 1500).unwrap());
+        assert!(mgr.can_allocate(1000, 500).expect("unwrap failed - see module SAFETY docs"));
+        assert!(!mgr.can_allocate(1000, 1500).expect("unwrap failed - see module SAFETY docs"));
     }
 }
+
 

@@ -23,7 +23,11 @@ pub(super) fn log_process_exit_accepted(process_id: ProcessId, task_id: TaskId, 
 }
 
 #[cfg(feature = "process_abstraction")]
-pub(super) fn log_deferred_fini_reports(process_id: ProcessId, process_arc: &alloc::sync::Arc<crate::kernel::process::Process>, shared_object_fini: &[crate::kernel::dynamic_linker::api::DeferredSharedObjectFiniReport]) {
+pub(super) fn log_deferred_fini_reports(
+    process_id: ProcessId,
+    process_arc: &alloc::sync::Arc<crate::kernel::process::Process>,
+    shared_object_fini: &[crate::kernel::dynamic_linker::so_loader::SharedObjectUnloadReport],
+) {
     if shared_object_fini.is_empty() {
         return;
     }
@@ -44,7 +48,11 @@ pub(super) fn log_deferred_fini_reports(process_id: ProcessId, process_arc: &all
 }
 
 #[cfg(feature = "process_abstraction")]
-pub(super) fn log_runtime_contract_exit(process_id: ProcessId, runtime_contract: &crate::kernel::process::RuntimeContract, status: i32) {
+pub(super) fn log_runtime_contract_exit(
+    process_id: ProcessId,
+    runtime_contract: &crate::kernel::process::ProcessRuntimeContractSnapshot,
+    status: i32,
+) {
     if !runtime_contract.fini_calls.is_empty() {
         let mut fini_preview = String::new();
         for (idx, addr) in runtime_contract.fini_calls.iter().take(4).enumerate() {

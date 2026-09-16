@@ -61,27 +61,27 @@ pub fn materialize_load_segments(
                 SEGMENT_MATERIALIZATION_FAILURES.fetch_add(1, Ordering::Relaxed);
             })?;
 
-        unsafe {
-            #[cfg(target_os = "none")]
-            {
-                core::ptr::copy_nonoverlapping(
-                    image.as_ptr().add(src_start),
-                    dst as *mut u8,
-                    file_size,
-                );
-                if zero_fill != 0 {
-                    let zero_len = usize::try_from(zero_fill)
-                        .map_err(|_| SegmentMaterializationError::SegmentAddressOverflow)
-                        .inspect_err(|_| {
-                            SEGMENT_MATERIALIZATION_FAILURES.fetch_add(1, Ordering::Relaxed);
-                        })?;
-                    core::ptr::write_bytes((dst as *mut u8).add(file_size), 0, zero_len);
-                }
+        #[cfg(target_os = "none")]
+        {
+            // SAFETY: `dst` is a valid writable address derived from the load
+            // plan segments and `image` is a valid byte slice of sufficient length.
+            core::ptr::copy_nonoverlapping(
+                image.as_ptr().add(src_start),
+                dst as *mut u8,
+                file_size,
+            );
+            if zero_fill != 0 {
+                let zero_len = usize::try_from(zero_fill)
+                    .map_err(|_| SegmentMaterializationError::SegmentAddressOverflow)
+                    .inspect_err(|_| {
+                        SEGMENT_MATERIALIZATION_FAILURES.fetch_add(1, Ordering::Relaxed);
+                    })?;
+                core::ptr::write_bytes((dst as *mut u8).add(file_size), 0, zero_len);
             }
-            #[cfg(not(target_os = "none"))]
-            {
-                let _ = (src_start, dst, file_size, zero_fill);
-            }
+        }
+        #[cfg(not(target_os = "none"))]
+        {
+            let _ = (src_start, dst, file_size, zero_fill);
         }
 
         total_bytes = total_bytes

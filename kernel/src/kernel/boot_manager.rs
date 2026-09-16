@@ -254,7 +254,7 @@ mod tests {
 
     #[test_case]
     fn test_subsystem_registration() {
-        let mgr = ConcreteBootManager::new();
+        let _mgr = ConcreteBootManager::new();
         // Just verify registration doesn't panic
         // Since it uses interior mutability, we'd need a way to inspect it
     }

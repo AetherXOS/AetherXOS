@@ -1,0 +1,9 @@
+/* aethercore userspace program skeleton: console.elf */
+/* role: console_fallback */
+/* probe_features: exec_chain,shell_handoff */
+#include "aethercore_runtime.h"
+
+int main(void) {
+    aethercore_kernel_print("[console-linked] console fallback main\n");
+    return aethercore_runtime_ready() ? 0 : 0;
+}

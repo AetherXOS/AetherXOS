@@ -1,0 +1,27 @@
+#include "aethercore_runtime.h"
+#include "aethercore_runtime_state.h"
+
+const char *aethercore_runtime_probe_summary(void) {
+    static char summary[80];
+    const char *status = aethercore_runtime_probe_status_word();
+    unsigned long mask = aethercore_runtime_probe_mask();
+    unsigned long flags = aethercore_runtime_init_flags();
+    int pos = 0;
+    const char prefix[] = "status=";
+    const char middle[] = " mask=0x";
+    const char suffix[] = " flags=0x";
+    const char hex[] = "0123456789abcdef";
+    unsigned shift;
+    for (unsigned i = 0; i < sizeof(prefix) - 1; ++i) summary[pos++] = prefix[i];
+    for (unsigned i = 0; status[i] != 0; ++i) summary[pos++] = status[i];
+    for (unsigned i = 0; i < sizeof(middle) - 1; ++i) summary[pos++] = middle[i];
+    for (shift = (unsigned)(sizeof(unsigned long) * 8); shift != 0; shift -= 4) {
+        summary[pos++] = hex[(mask >> (shift - 4)) & 0xfu];
+    }
+    for (unsigned i = 0; i < sizeof(suffix) - 1; ++i) summary[pos++] = suffix[i];
+    for (shift = (unsigned)(sizeof(unsigned long) * 8); shift != 0; shift -= 4) {
+        summary[pos++] = hex[(flags >> (shift - 4)) & 0xfu];
+    }
+    summary[pos] = 0;
+    return summary;
+}

@@ -1,4 +1,3 @@
-use core::sync::atomic::Ordering;
 
 #[cfg(test)]
 mod tests 

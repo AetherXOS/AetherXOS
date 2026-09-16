@@ -1,3 +1,5 @@
+//! orchestrator module.
+
 use alloc::vec::Vec;
 
 use super::driverkit::DriverKitHealthSnapshot;
@@ -587,3 +589,5 @@ impl HybridOrchestrator {
 
 #[cfg(test)]
 mod tests;
+
+

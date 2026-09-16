@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 use crate::interfaces::task::{CpuId, TaskId};
 
@@ -321,3 +326,4 @@ mod tests {
         assert!(internal_to_linux_rt_priority(mid) >= internal_to_linux_rt_priority(low));
     }
 }
+

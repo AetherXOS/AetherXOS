@@ -1,0 +1,497 @@
+#include "aethercore_libc.h"
+#include "aethercore_libc_state.h"
+
+char **environ = g_aethercore_environ_store;
+
+static int aethercore_prefix_match(const char *entry, const char *name) {
+    unsigned long i = 0;
+    while (name[i] && entry[i] && name[i] == entry[i]) ++i;
+    return name[i] == 0 && entry[i] == '=';
+}
+
+static void aethercore_env_bootstrap(void) {
+    unsigned long i = 0;
+    if (g_aethercore_environ_store[0]) return;
+    while (g_aethercore_builtin_env[i] && i + 1 < 64) {
+        g_aethercore_environ_store[i] = (char *)g_aethercore_builtin_env[i];
+        ++i;
+    }
+    g_aethercore_environ_store[i] = 0;
+}
+
+static unsigned long aethercore_env_count(void) {
+    unsigned long i = 0;
+    aethercore_env_bootstrap();
+    while (i < 64 && g_aethercore_environ_store[i]) ++i;
+    return i;
+}
+
+static char *aethercore_find_env_entry(const char *name, unsigned long *index_out) {
+    unsigned long i = 0;
+    aethercore_env_bootstrap();
+    while (i < 64 && g_aethercore_environ_store[i]) {
+        if (aethercore_prefix_match(g_aethercore_environ_store[i], name)) {
+            if (index_out) *index_out = i;
+            return g_aethercore_environ_store[i];
+        }
+        ++i;
+    }
+    if (index_out) *index_out = i;
+    return 0;
+}
+
+unsigned long strlen(const char *s) {
+    unsigned long n = 0;
+    while (s && s[n]) ++n;
+    return n;
+}
+
+unsigned long strnlen(const char *s, unsigned long maxlen) {
+    unsigned long n = 0;
+    while (s && n < maxlen && s[n]) ++n;
+    return n;
+}
+
+int strcmp(const char *lhs, const char *rhs) {
+    unsigned long i = 0;
+    if (!lhs && !rhs) return 0;
+    if (!lhs) return -1;
+    if (!rhs) return 1;
+    while (lhs[i] && rhs[i] && lhs[i] == rhs[i]) ++i;
+    return ((unsigned char)lhs[i]) - ((unsigned char)rhs[i]);
+}
+
+static int aethercore_tolower(int ch) {
+    if (ch >= 'A' && ch <= 'Z') return ch - 'A' + 'a';
+    return ch;
+}
+
+int strcasecmp(const char *lhs, const char *rhs) {
+    unsigned long i = 0;
+    if (!lhs && !rhs) return 0;
+    if (!lhs) return -1;
+    if (!rhs) return 1;
+    while (lhs[i] && rhs[i] && aethercore_tolower((unsigned char)lhs[i]) == aethercore_tolower((unsigned char)rhs[i])) ++i;
+    return aethercore_tolower((unsigned char)lhs[i]) - aethercore_tolower((unsigned char)rhs[i]);
+}
+
+int strncmp(const char *lhs, const char *rhs, unsigned long n) {
+    unsigned long i = 0;
+    if (n == 0) return 0;
+    if (!lhs && !rhs) return 0;
+    if (!lhs) return -1;
+    if (!rhs) return 1;
+    while (i + 1 < n && lhs[i] && rhs[i] && lhs[i] == rhs[i]) ++i;
+    return ((unsigned char)lhs[i]) - ((unsigned char)rhs[i]);
+}
+
+int strncasecmp(const char *lhs, const char *rhs, unsigned long n) {
+    unsigned long i = 0;
+    if (n == 0) return 0;
+    if (!lhs && !rhs) return 0;
+    if (!lhs) return -1;
+    if (!rhs) return 1;
+    while (i + 1 < n && lhs[i] && rhs[i] && aethercore_tolower((unsigned char)lhs[i]) == aethercore_tolower((unsigned char)rhs[i])) ++i;
+    return aethercore_tolower((unsigned char)lhs[i]) - aethercore_tolower((unsigned char)rhs[i]);
+}
+
+char *strcpy(char *dst, const char *src) {
+    unsigned long i = 0;
+    if (!dst || !src) return dst;
+    do {
+        dst[i] = src[i];
+    } while (src[i++] != 0);
+    return dst;
+}
+
+char *stpcpy(char *dst, const char *src) {
+    unsigned long i = 0;
+    if (!dst || !src) return dst;
+    do {
+        dst[i] = src[i];
+    } while (src[i++] != 0);
+    return dst + i - 1;
+}
+
+char *strncpy(char *dst, const char *src, unsigned long n) {
+    unsigned long i = 0;
+    if (!dst || !src) return dst;
+    for (; i < n && src[i] != 0; ++i) {
+        dst[i] = src[i];
+    }
+    for (; i < n; ++i) {
+        dst[i] = 0;
+    }
+    return dst;
+}
+
+char *strchr(const char *src, int ch) {
+    unsigned long i = 0;
+    if (!src) return 0;
+    for (;;) {
+        if ((unsigned char)src[i] == (unsigned char)ch) {
+            return (char *)(src + i);
+        }
+        if (src[i] == 0) {
+            return 0;
+        }
+        ++i;
+    }
+}
+
+char *strrchr(const char *src, int ch) {
+    const char *match = 0;
+    unsigned long i = 0;
+    if (!src) return 0;
+    for (;;) {
+        if ((unsigned char)src[i] == (unsigned char)ch) {
+            match = src + i;
+        }
+        if (src[i] == 0) {
+            return (char *)match;
+        }
+        ++i;
+    }
+}
+
+char *basename(char *path) {
+    char *last;
+    unsigned long len;
+    if (!path || !path[0]) return ".";
+    len = strlen(path);
+    while (len > 1 && (path[len - 1] == '/' || path[len - 1] == '\\')) {
+        path[--len] = 0;
+    }
+    last = strrchr(path, '/');
+    if (!last) last = strrchr(path, '\\');
+    return last ? last + 1 : path;
+}
+
+char *dirname(char *path) {
+    char *last;
+    unsigned long len;
+    if (!path || !path[0]) return ".";
+    len = strlen(path);
+    while (len > 1 && (path[len - 1] == '/' || path[len - 1] == '\\')) {
+        path[--len] = 0;
+    }
+    last = strrchr(path, '/');
+    if (!last) last = strrchr(path, '\\');
+    if (!last) return ".";
+    if (last == path) {
+        path[1] = 0;
+        return path;
+    }
+    *last = 0;
+    return path;
+}
+
+unsigned long strspn(const char *src, const char *accept) {
+    unsigned long i = 0;
+    unsigned long j;
+    int matched;
+    if (!src || !accept) return 0;
+    while (src[i] != 0) {
+        matched = 0;
+        for (j = 0; accept[j] != 0; ++j) {
+            if (src[i] == accept[j]) {
+                matched = 1;
+                break;
+            }
+        }
+        if (!matched) {
+            break;
+        }
+        ++i;
+    }
+    return i;
+}
+
+unsigned long strcspn(const char *src, const char *reject) {
+    unsigned long i = 0;
+    unsigned long j;
+    if (!src) return 0;
+    while (src[i] != 0) {
+        if (reject) {
+            for (j = 0; reject[j] != 0; ++j) {
+                if (src[i] == reject[j]) {
+                    return i;
+                }
+            }
+        }
+        ++i;
+    }
+    return i;
+}
+
+char *strstr(const char *haystack, const char *needle) {
+    unsigned long i;
+    unsigned long nlen;
+    if (!haystack || !needle) return 0;
+    if (needle[0] == 0) return (char *)haystack;
+    nlen = strlen(needle);
+    for (i = 0; haystack[i] != 0; ++i) {
+        if (strncmp(haystack + i, needle, nlen) == 0) {
+            return (char *)(haystack + i);
+        }
+    }
+    return 0;
+}
+
+char *strsignal(int sig) {
+    switch (sig) {
+    case 2: return "Interrupt";
+    case 9: return "Killed";
+    case 11: return "Segmentation fault";
+    case 15: return "Terminated";
+    default: return "Unknown signal";
+    }
+}
+
+static int aethercore_is_space(char ch) {
+    return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f' || ch == '\v';
+}
+
+int isspace(int ch) {
+    return aethercore_is_space((char)ch);
+}
+
+int isdigit(int ch) {
+    return ch >= '0' && ch <= '9';
+}
+
+int isalpha(int ch) {
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+}
+
+int isalnum(int ch) {
+    return isalpha(ch) || isdigit(ch);
+}
+
+int atoi(const char *src) {
+    return (int)strtol(src, 0, 10);
+}
+
+long atol(const char *src) {
+    return strtol(src, 0, 10);
+}
+
+long strtol(const char *src, char **endptr, int base) {
+    const char *p = src;
+    unsigned long value = 0;
+    int sign = 1;
+    int digit;
+    if (!src) {
+        if (endptr) *endptr = 0;
+        return 0;
+    }
+    while (aethercore_is_space(*p)) ++p;
+    if (*p == '+' || *p == '-') {
+        if (*p == '-') sign = -1;
+        ++p;
+    }
+    if (base == 0) {
+        if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
+            base = 16;
+            p += 2;
+        } else if (p[0] == '0') {
+            base = 8;
+        } else {
+            base = 10;
+        }
+    } else if (base == 16 && p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
+        p += 2;
+    }
+    while (*p) {
+        if (*p >= '0' && *p <= '9') digit = *p - '0';
+        else if (*p >= 'a' && *p <= 'z') digit = *p - 'a' + 10;
+        else if (*p >= 'A' && *p <= 'Z') digit = *p - 'A' + 10;
+        else break;
+        if (digit >= base) break;
+        value = value * (unsigned long)base + (unsigned long)digit;
+        ++p;
+    }
+    if (endptr) *endptr = (char *)p;
+    return (long)value * sign;
+}
+
+unsigned long strtoul(const char *src, char **endptr, int base) {
+    const char *p = src;
+    unsigned long value = 0;
+    int digit;
+    if (!src) {
+        if (endptr) *endptr = 0;
+        return 0;
+    }
+    while (aethercore_is_space(*p)) ++p;
+    if (*p == '+') {
+        ++p;
+    }
+    if (base == 0) {
+        if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
+            base = 16;
+            p += 2;
+        } else if (p[0] == '0') {
+            base = 8;
+        } else {
+            base = 10;
+        }
+    } else if (base == 16 && p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
+        p += 2;
+    }
+    while (*p) {
+        if (*p >= '0' && *p <= '9') digit = *p - '0';
+        else if (*p >= 'a' && *p <= 'z') digit = *p - 'a' + 10;
+        else if (*p >= 'A' && *p <= 'Z') digit = *p - 'A' + 10;
+        else break;
+        if (digit >= base) break;
+        value = value * (unsigned long)base + (unsigned long)digit;
+        ++p;
+    }
+    if (endptr) *endptr = (char *)p;
+    return value;
+}
+
+unsigned long long strtoull(const char *src, char **endptr, int base) {
+    return (unsigned long long)strtoul(src, endptr, base);
+}
+
+char *strtok(char *src, const char *delim) {
+    static char *state;
+    char *token;
+    unsigned long span;
+    if (!delim) return 0;
+    if (src) {
+        state = src;
+    } else if (!state) {
+        return 0;
+    }
+    state += strspn(state, delim);
+    if (*state == 0) {
+        state = 0;
+        return 0;
+    }
+    token = state;
+    span = strcspn(state, delim);
+    if (state[span] == 0) {
+        state = 0;
+    } else {
+        state[span] = 0;
+        state = state + span + 1;
+    }
+    return token;
+}
+
+char *getenv(const char *name) {
+    unsigned long i;
+    g_aethercore_last_getenv_name = name;
+    g_aethercore_last_getenv_value = 0;
+    if (!name) return 0;
+    aethercore_env_bootstrap();
+    for (i = 0; i < 64 && g_aethercore_environ_store[i]; ++i) {
+        if (aethercore_prefix_match(g_aethercore_environ_store[i], name)) {
+            const char *value = g_aethercore_environ_store[i] + strlen(name) + 1;
+            g_aethercore_last_getenv_value = value;
+            return (char *)value;
+        }
+    }
+    return 0;
+}
+
+int setenv(const char *name, const char *value, int overwrite) {
+    unsigned long index;
+    unsigned long nlen;
+    unsigned long vlen;
+    char *entry;
+    if (!name || name[0] == 0 || strchr(name, '=')) {
+        *__errno_location() = 22;
+        return -1;
+    }
+    if (!value) value = "";
+    if (aethercore_find_env_entry(name, &index) && !overwrite) {
+        return 0;
+    }
+    if (index >= 63) {
+        *__errno_location() = 12;
+        return -1;
+    }
+    nlen = strlen(name);
+    vlen = strlen(value);
+    entry = (char *)malloc(nlen + vlen + 2);
+    if (!entry) return -1;
+    memcpy(entry, name, nlen);
+    entry[nlen] = '=';
+    memcpy(entry + nlen + 1, value, vlen + 1);
+    g_aethercore_environ_store[index] = entry;
+    if (index == aethercore_env_count()) {
+        g_aethercore_environ_store[index + 1] = 0;
+    }
+    return 0;
+}
+
+int unsetenv(const char *name) {
+    unsigned long index;
+    unsigned long count;
+    if (!name || name[0] == 0 || strchr(name, '=')) {
+        *__errno_location() = 22;
+        return -1;
+    }
+    if (!aethercore_find_env_entry(name, &index)) {
+        return 0;
+    }
+    count = aethercore_env_count();
+    while (index + 1 < count) {
+        g_aethercore_environ_store[index] = g_aethercore_environ_store[index + 1];
+        ++index;
+    }
+    g_aethercore_environ_store[count - 1] = 0;
+    return 0;
+}
+
+int putenv(char *string) {
+    char *eq;
+    unsigned long index;
+    if (!string || !(eq = strchr(string, '=')) || eq == string) {
+        *__errno_location() = 22;
+        return -1;
+    }
+    *eq = 0;
+    (void)aethercore_find_env_entry(string, &index);
+    *eq = '=';
+    if (index >= 63) {
+        *__errno_location() = 12;
+        return -1;
+    }
+    g_aethercore_environ_store[index] = string;
+    if (index == aethercore_env_count()) {
+        g_aethercore_environ_store[index + 1] = 0;
+    }
+    return 0;
+}
+
+int clearenv(void) {
+    unsigned long i = 0;
+    while (i < 64) {
+        g_aethercore_environ_store[i++] = 0;
+    }
+    return 0;
+}
+
+int strerror_r(int err, char *buf, unsigned long buflen) {
+    const char *msg = strerror(err);
+    unsigned long len;
+    if (!buf || buflen == 0) {
+        *__errno_location() = 22;
+        return 22;
+    }
+    if (!msg) msg = "Unknown error";
+    len = strlen(msg);
+    if (len + 1 > buflen) {
+        memcpy(buf, msg, buflen - 1);
+        buf[buflen - 1] = 0;
+        *__errno_location() = 34;
+        return 34;
+    }
+    memcpy(buf, msg, len + 1);
+    return 0;
+}

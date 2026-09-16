@@ -1,3 +1,5 @@
+//! devices module.
+
 pub mod generic;
 pub mod i2c;
 pub mod interrupts;
@@ -11,3 +13,5 @@ pub use interrupts::*;
 pub use i2c_spi::*;
 pub use timer::*;
 pub use uart::*;
+
+

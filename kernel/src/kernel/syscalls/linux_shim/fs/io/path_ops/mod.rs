@@ -1,3 +1,5 @@
+//! path_ops module.
+
 pub mod access;
 pub mod modify;
 pub mod open;
@@ -17,3 +19,5 @@ pub use rename::*;
 
 #[cfg(all(test, not(feature = "linux_compat")))]
 mod tests;
+
+

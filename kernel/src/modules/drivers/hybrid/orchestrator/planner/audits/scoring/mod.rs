@@ -1,3 +1,5 @@
+//! scoring module.
+
 pub mod caps;
 pub mod shapes;
 pub mod logic;
@@ -109,3 +111,4 @@ pub fn family_reason(_backend: BackendPreference, family: HybridRequestFamily) -
     let (_demand, reason) = family_demand(family);
     reason
 }
+

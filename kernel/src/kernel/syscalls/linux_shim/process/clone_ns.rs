@@ -330,7 +330,7 @@ mod tests {
     fn clone_namespace_mask_keeps_supported_bits_only() {
         let flags = cf::CLONE_NEWPID | cf::CLONE_NEWUSER | cf::CLONE_FILES;
         assert_eq!(
-            validate_clone_flags(flags).unwrap(),
+            validate_clone_flags(flags).expect("unwrap failed - see module SAFETY docs"),
             cf::CLONE_NEWPID | cf::CLONE_NEWUSER
         );
     }
@@ -338,7 +338,7 @@ mod tests {
     #[test_case]
     fn clone_namespace_mask_returns_zero_for_non_namespace_flags() {
         assert_eq!(namespace_clone_flags(cf::CLONE_FILES | cf::CLONE_FS), 0);
-        assert_eq!(validate_clone_flags(cf::CLONE_FILES).unwrap(), 0);
+        assert_eq!(validate_clone_flags(cf::CLONE_FILES).expect("unwrap failed - see module SAFETY docs"), 0);
     }
 
     #[test_case]
@@ -371,8 +371,8 @@ mod tests {
 
     #[test_case]
     fn setns_argument_decoders_accept_i32_u32_boundaries() {
-        assert_eq!(decode_setns_fd(i32::MAX as usize).unwrap(), i32::MAX);
-        assert_eq!(decode_setns_type(u32::MAX as usize).unwrap(), u32::MAX);
+        assert_eq!(decode_setns_fd(i32::MAX as usize).expect("unwrap failed - see module SAFETY docs"), i32::MAX);
+        assert_eq!(decode_setns_type(u32::MAX as usize).expect("unwrap failed - see module SAFETY docs"), u32::MAX);
     }
 
     #[test_case]
@@ -386,14 +386,14 @@ mod tests {
 
     #[test_case]
     fn decode_unshare_flags_accepts_valid_u32_boundary() {
-        assert_eq!(decode_unshare_flags(u32::MAX as usize).unwrap(), u32::MAX);
+        assert_eq!(decode_unshare_flags(u32::MAX as usize).expect("unwrap failed - see module SAFETY docs"), u32::MAX);
     }
 
     #[test_case]
     fn validate_clone_flags_accepts_namespace_only_requests() {
         let flags = cf::CLONE_NEWPID | cf::CLONE_NEWNS | cf::CLONE_NEWCGROUP;
         assert_eq!(
-            validate_clone_flags(flags).unwrap(),
+            validate_clone_flags(flags).expect("unwrap failed - see module SAFETY docs"),
             cf::CLONE_NEWPID | cf::CLONE_NEWNS | cf::CLONE_NEWCGROUP
         );
     }
@@ -406,3 +406,4 @@ mod tests {
         );
     }
 }
+

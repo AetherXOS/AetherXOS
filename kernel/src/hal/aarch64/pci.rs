@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::generated_consts::{
     AARCH64_PCI_ECAM_BASES, AARCH64_PCI_MAX_BUS, AARCH64_PCI_MAX_DEVICE, AARCH64_PCI_MAX_FUNCTION,
     AARCH64_PCI_SCAN_STOP_ON_FIRST_HIT,
@@ -167,3 +172,4 @@ fn check_function(addr: PciAddress, devices: &mut Vec<PciDevice>) {
         interrupt_line: addr.read_interrupt_line(),
     });
 }
+

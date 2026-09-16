@@ -144,20 +144,21 @@ fn runtime_init_trampoline_preserves_hook_order_and_final_jump() {
 
     assert!(used >= 40);
     assert_eq!(&buf[0..2], &[0x48, 0xB8]);
-    assert_eq!(u64::from_le_bytes(buf[2..10].try_into().unwrap()), hooks[0]);
+    assert_eq!(u64::from_le_bytes(buf[2..10].try_into().expect("unwrap failed - see module SAFETY docs")), hooks[0]);
     assert_eq!(&buf[15..17], &[0xFF, 0xD0]);
 
     assert_eq!(&buf[17..19], &[0x48, 0xB8]);
     assert_eq!(
-        u64::from_le_bytes(buf[19..27].try_into().unwrap()),
+        u64::from_le_bytes(buf[19..27].try_into().expect("unwrap failed - see module SAFETY docs")),
         hooks[1]
     );
     assert_eq!(&buf[32..34], &[0xFF, 0xD0]);
 
     assert_eq!(&buf[34..36], &[0x48, 0xB8]);
     assert_eq!(
-        u64::from_le_bytes(buf[36..44].try_into().unwrap()),
+        u64::from_le_bytes(buf[36..44].try_into().expect("unwrap failed - see module SAFETY docs")),
         final_entry
     );
     assert_eq!(&buf[44..46], &[0xFF, 0xE0]);
 }
+

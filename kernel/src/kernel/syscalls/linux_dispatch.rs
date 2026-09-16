@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::SyscallFrame;
 
 pub(super) fn dispatch_linux_syscall(
@@ -82,3 +87,4 @@ fn dispatch_linux_syscall_shim(
 ) -> Option<usize> {
     super::linux_shim::sys_linux_shim(syscall_id, arg1, arg2, arg3, arg4, arg5, arg6, frame_ptr)
 }
+

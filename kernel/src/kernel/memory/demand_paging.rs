@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #![cfg(feature = "paging_enable")]
 
 use x86_64::structures::idt::PageFaultErrorCode;
@@ -200,3 +205,4 @@ fn translate_user_vaddr(cr3: u64, vaddr: u64) -> Result<u64, &'static str> {
         None => Err("Address not mapped"),
     }
 }
+

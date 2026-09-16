@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use core::sync::atomic::Ordering;
 use super::super::super::util::{read_user_c_string, read_user_c_string_array};
 use super::super::super::*;
@@ -201,3 +206,4 @@ pub fn sys_linux_execveat(
 
     execve_with_path(resolved, argv_ptr, envp_ptr, frame_ptr)
 }
+

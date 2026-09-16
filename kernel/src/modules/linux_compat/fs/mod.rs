@@ -1,3 +1,5 @@
+//! fs module.
+
 pub mod file;
 pub use self::file::*;
 pub mod dir;
@@ -16,3 +18,5 @@ pub mod openat2;
 pub use self::openat2::*;
 pub mod inotify;
 pub use self::inotify::*;
+
+

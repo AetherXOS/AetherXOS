@@ -1,3 +1,5 @@
+//! profiles module.
+
 use super::*;
 
 mod drivers;
@@ -7,3 +9,5 @@ mod scheduler;
 mod telemetry;
 mod vfs_devfs;
 mod virtualization;
+
+

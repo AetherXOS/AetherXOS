@@ -56,10 +56,8 @@ lazy_static! {
 
 pub fn record_metric(name: &'static str, cycles: u64, threshold: u64) {
     let mut registry = METRICS_REGISTRY.lock();
-    if !registry.contains_key(name) {
-        registry.insert(name, PerfMetrics::new());
-    }
-    registry.get(name).unwrap().record(cycles, threshold);
+    let metrics = registry.entry(name).or_insert_with(PerfMetrics::new);
+    metrics.record(cycles, threshold);
 }
 
 pub fn dump_metrics() {

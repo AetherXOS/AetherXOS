@@ -1,12 +1,15 @@
+//! irq_handler module.
+
 use aop_macros::irq_handler;
 use alloc::format;
 
+#[cfg(feature = "host_examples")]
 #[irq_handler(priority = 5)]
 pub fn example_irq() {
     crate::core::log::info("IRQ handler example running");
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "host_examples"))]
 mod tests {
     use super::*;
 

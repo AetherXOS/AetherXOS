@@ -1,3 +1,5 @@
+//! fs module.
+
 mod io;
 mod meta;
 pub(crate) mod support;
@@ -213,3 +215,5 @@ pub(super) fn sys_linux_futimesat(dirfd: usize, pathname_ptr: usize, times_ptr: 
 
 #[cfg(all(test, not(feature = "linux_compat")))]
 mod integration_tests;
+
+

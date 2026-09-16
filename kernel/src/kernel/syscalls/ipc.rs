@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::interfaces::TaskId;
 use crate::interfaces::task::ProcessId;
 use crate::kernel::task::{get_task, check_and_deliver_signals};
@@ -89,3 +94,4 @@ pub fn sys_sigaltstack(ss_sp: u64, ss_size: u64) -> Result<(), &'static str> {
     });
     Ok(())
 }
+

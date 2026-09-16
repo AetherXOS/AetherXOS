@@ -1,3 +1,5 @@
+//! linux_app_compat module.
+
 mod process;
 mod fs;
 mod apps;
@@ -5,3 +7,5 @@ mod apps;
 pub use process::*;
 pub use fs::*;
 pub use apps::*;
+
+

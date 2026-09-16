@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 pub use crate::hal::common::boot::{acpi_rsdp_addr, dtb_addr, framebuffer, hhdm_offset, mem_map};
 use crate::core::log;
 use crate::interfaces::hardware::InterruptController;
@@ -241,3 +246,4 @@ pub unsafe extern "C" fn context_switch(current_stack: *mut usize, next_stack: u
 pub unsafe extern "C" fn context_switch(_current_stack: *mut usize, _next_stack: usize) {
     panic!("aarch64 context_switch is only available on bare-metal targets");
 }
+

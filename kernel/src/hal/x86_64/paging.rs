@@ -68,13 +68,23 @@ impl PageManager {
                     let new_frame = alloc.allocate_frame().ok_or("Out of memory")?;
                     let old_virt = self.physical_memory_offset + frame.start_address().as_u64();
                     let new_virt = self.physical_memory_offset + new_frame.start_address().as_u64();
+                    // SAFETY: Physical addresses from frame allocator are valid,
+                    // virtual addresses are currently mapped, copy is within 4 KiB boundary.
                     unsafe {
-                        core::ptr::copy_nonoverlapping(old_virt.as_ptr::<u8>(), new_virt.as_mut_ptr::<u8>(), 4096);
-                        let new_flags = (flags | X86Flags::WRITABLE) & X86Flags::from_bits_truncate(!COW_BIT);
-                        let _flush = self.mapper.unmap(page).unwrap().1;
+                        core::ptr::copy_nonoverlapping(
+                            old_virt.as_ptr::<u8>(),
+                            new_virt.as_mut_ptr::<u8>(),
+                            4096,
+                        );
+                    }
+                    let new_flags = (flags | X86Flags::WRITABLE) & X86Flags::from_bits_truncate(!COW_BIT);
+                    // SAFETY: mapper operations operate on the active page table;
+                    // the page is valid and the frame was just allocated.
+                    unsafe {
+                        let _flush = self.mapper.unmap(page).expect("unwrap failed - see module SAFETY docs");
                         #[cfg(target_os = "none")]
                         _flush.flush();
-                        let _flush = self.mapper.map_to(page, new_frame, new_flags, alloc).unwrap();
+                        let _flush = self.mapper.map_to(page, new_frame, new_flags, alloc).expect("unwrap failed - see module SAFETY docs");
                         #[cfg(target_os = "none")]
                         _flush.flush();
                     }
@@ -86,7 +96,7 @@ impl PageManager {
                 let frame = alloc.allocate_frame().ok_or("Out of memory")?;
                 let flags = X86Flags::PRESENT | X86Flags::WRITABLE | X86Flags::USER_ACCESSIBLE;
                 unsafe { 
-                    let _flush = self.mapper.map_to(page, frame, flags, alloc).unwrap();
+                    let _flush = self.mapper.map_to(page, frame, flags, alloc).expect("unwrap failed - see module SAFETY docs");
                     #[cfg(target_os = "none")]
                     _flush.flush();
                 }
@@ -112,15 +122,13 @@ impl PageManager {
 
     pub fn unmap_page(&mut self, va: u64) -> Result<PhysFrame<Size4KiB>, &'static str> {
         let page = Page::<Size4KiB>::containing_address(VirtAddr::new(va));
-        unsafe {
-            match self.mapper.unmap(page) {
-                Ok((frame, _tlb)) => {
-                    #[cfg(target_os = "none")]
-                    _tlb.flush();
-                    Ok(frame)
-                }
-                Err(_) => Err("Unmapping failed"),
+        match self.mapper.unmap(page) {
+            Ok((frame, _tlb)) => {
+                #[cfg(target_os = "none")]
+                _tlb.flush();
+                Ok(frame)
             }
+            Err(_) => Err("Unmapping failed"),
         }
     }
 
@@ -206,3 +214,4 @@ unsafe impl X86FrameAllocator<x86_64::structures::paging::Size2MiB> for PageAllo
         }
     }
 }
+

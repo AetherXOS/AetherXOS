@@ -1,10 +1,6 @@
 use super::*;
-use alloc::sync::Arc;
 use core::sync::atomic::Ordering;
 use crate::interfaces::task::TaskId;
-use crate::kernel::cpu_local::CpuLocal;
-use crate::kernel::process::Process;
-use crate::observability_launch;
 
 #[cfg(feature = "process_abstraction")]
 pub fn publish_bootstrap_process_and_task(

@@ -1,3 +1,5 @@
+//! security_posture module.
+
 use alloc::vec::Vec;
 
 use crate::config::{BoundaryMode, KernelConfig};
@@ -290,3 +292,4 @@ mod tests {
         crate::config::KernelConfig::reset_runtime_overrides();
     }
 }
+

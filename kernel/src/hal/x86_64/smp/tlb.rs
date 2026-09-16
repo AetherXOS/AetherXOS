@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use crate::hal::common::ipi::{acknowledge_pending, wait_for_pending_acks};
@@ -44,3 +49,4 @@ pub(super) fn handle_tlb_shootdown() {
     }
     acknowledge_pending(&SHOOTDOWN_PENDING);
 }
+

@@ -1,0 +1,37 @@
+#include "aethercore_runtime.h"
+#include "aethercore_libc.h"
+
+#include "aethercore_runtime_state.h"
+
+static const char *g_runtime_env_keys[] = {
+    "AETHERCORE_RUNTIME_ENTRY",
+    "AETHERCORE_RUNTIME_FINI_ENTRY",
+    "AETHERCORE_IMAGE_ENTRY",
+    "AETHERCORE_IMAGE_BASE",
+    "AETHERCORE_RUNTIME_FINI_TRAMPOLINE",
+    0,
+};
+
+void __aethercore_env_init(void) {
+    g_aethercore_env_view.runtime_env_keys = g_runtime_env_keys;
+    g_aethercore_env_view.last_env_name = 0;
+    g_aethercore_env_view.last_env_value = 0;
+}
+
+const char **aethercore_runtime_env_keys(void) {
+    return g_aethercore_env_view.runtime_env_keys;
+}
+
+const char *aethercore_last_env_name(void) {
+    return g_aethercore_env_view.last_env_name;
+}
+
+const char *aethercore_last_env_value(void) {
+    return g_aethercore_env_view.last_env_value;
+}
+
+char *aethercore_getenv(const char *name) {
+    g_aethercore_env_view.last_env_name = name;
+    g_aethercore_env_view.last_env_value = getenv(name);
+    return (char *)g_aethercore_env_view.last_env_value;
+}

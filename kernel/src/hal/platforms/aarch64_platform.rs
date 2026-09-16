@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 // --- ARM64 (aarch64) PLATFORM IMPLEMENTATION ---
 // CPU detection, device tree parsing, timing, and platform-specific services
 
@@ -294,3 +299,4 @@ impl PlatformServices for Aarch64Platform {
 }
 
 pub static AARCH64_PLATFORM: Aarch64Platform = Aarch64Platform::new(0);
+

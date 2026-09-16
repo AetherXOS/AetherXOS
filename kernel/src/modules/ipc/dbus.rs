@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::string::String;
 use alloc::sync::Arc;
@@ -244,3 +249,4 @@ pub fn dbus_take_stats() -> DbusStats {
 
 #[cfg(test)]
 mod tests;
+

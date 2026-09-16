@@ -1,3 +1,5 @@
+//! platform module.
+
 mod server;
 mod support;
 mod virt;
@@ -131,3 +133,5 @@ pub fn status() -> PlatformStatus {
         ),
     }
 }
+
+

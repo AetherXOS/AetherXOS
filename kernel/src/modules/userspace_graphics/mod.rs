@@ -1,3 +1,5 @@
+//! userspace_graphics module.
+
 pub mod status;
 pub mod transport;
 pub mod opengl;
@@ -46,3 +48,5 @@ pub use self::x11::{
 	validate_client_setup_request, x11_core_protocol_supported,
 	x11_reply_event_semantics_supported,
 };
+
+

@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 /// AArch64 Generic Timer (ARM Architecture Reference Manual, D13).
 ///
 /// Uses the EL1 virtual timer (cntv_*) which is the preferred timer for
@@ -9,13 +14,13 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use crate::generated_consts::{AARCH64_TIMER_REARM_MAX_TICKS, AARCH64_TIMER_REARM_MIN_TICKS};
 use crate::hal::common::timer::{clamp_ticks, ns_to_ticks, ticks_to_ns};
 
-// ── Named constants for CNTV_CTL_EL0 bits ────────────────────────────────────
+// â”€â”€ Named constants for CNTV_CTL_EL0 bits â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /// CNTV_CTL_EL0 bit definitions
 pub const CNTV_CTL_ENABLE:  u32 = 1 << 0;
 pub const CNTV_CTL_IMASK:   u32 = 1 << 1;
 pub const CNTV_CTL_ISTATUS: u32 = 1 << 2;
 
-// ── Calibration state ─────────────────────────────────────────────────────────
+// â”€â”€ Calibration state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Clock frequency in Hz read from CNTFRQ_EL0 during `init()`.
 static TIMER_FREQ_HZ: AtomicU64 = AtomicU64::new(0);
@@ -26,7 +31,7 @@ static LAST_PROGRAMMED_TICKS: AtomicU64 = AtomicU64::new(0);
 static REARM_CLAMP_MIN_HITS: AtomicU64 = AtomicU64::new(0);
 static REARM_CLAMP_MAX_HITS: AtomicU64 = AtomicU64::new(0);
 
-// ── Low-level register helpers ────────────────────────────────────────────────
+// â”€â”€ Low-level register helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[inline(always)]
 fn read_cntfrq() -> u64 {
@@ -66,7 +71,7 @@ fn write_cntv_ctl(val: u32) {
     }
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub struct GenericTimer;
 
@@ -197,3 +202,4 @@ impl Timer for GenericTimer {
         Self::frequency()
     }
 }
+

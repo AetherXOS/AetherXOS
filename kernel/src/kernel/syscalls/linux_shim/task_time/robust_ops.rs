@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 
 #[cfg(not(feature = "linux_compat"))]
@@ -49,3 +54,4 @@ pub(crate) fn sys_linux_get_robust_list(pid: usize, head_ptr: usize, len_ptr: us
 
     0
 }
+

@@ -1,3 +1,5 @@
+//! net_core module.
+
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicU64, Ordering};
@@ -144,3 +146,5 @@ pub fn stats() -> NetCoreStats {
         queue_limit: CORE_FRAME_QUEUE_LIMIT,
     }
 }
+
+

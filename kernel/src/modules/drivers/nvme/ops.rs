@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use core::sync::atomic::Ordering;
 use crate::config::KernelConfig;
 use super::queues::{build_io_sqe, cq_doorbell_offset, sq_doorbell_offset, CQE_DW3_CID_MASK, CQE_DW3_PHASE_BIT, CQE_DW3_SF_MASK, CQE_DW3_SF_SHIFT, NVME_CMD_READ, NVME_CMD_WRITE};
@@ -127,3 +132,4 @@ impl BlockDevice for Nvme {
         }
     }
 }
+

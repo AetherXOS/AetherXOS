@@ -1,3 +1,5 @@
+//! numeric module.
+
 mod basic;
 mod time;
 mod process;
@@ -36,3 +38,5 @@ use super::time::{
     timespec_getres,
     usleep,
 };
+
+

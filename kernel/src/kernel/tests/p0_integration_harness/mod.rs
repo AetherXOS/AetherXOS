@@ -1,3 +1,5 @@
+//! p0_integration_harness module.
+
 pub mod p0_af_unix_sockets;
 pub mod p0_cross_feature_fallback;
 pub mod p0_fork_cow_semantics;
@@ -15,3 +17,5 @@ pub use p0_process_teardown::*;
 pub use p0_signal_frame_parity::*;
 pub use p0_sysv_ipc::*;
 pub use test_summary::*;
+
+

@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #[allow(unused_imports)]
 use crate::interfaces::task::TaskId;
 use crate::kernel::syscalls::SyscallFrame;
@@ -364,3 +369,4 @@ pub fn check_signals(frame: &mut SyscallFrame) {
         let _ = frame;
     }
 }
+

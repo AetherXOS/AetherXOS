@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
@@ -695,3 +700,4 @@ pub static DENTRY_ACCELERATOR: DentryLookupAccelerator = DentryLookupAccelerator
 mod negative;
 
 pub use negative::{mark_block_journaled, NegativeDentryCache, NEGATIVE_DENTRY_CACHE};
+

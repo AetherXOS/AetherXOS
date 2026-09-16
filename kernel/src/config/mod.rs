@@ -1,4 +1,16 @@
+//! Kernel configuration system.
+//!
+//! Provides runtime-tunable configuration parameters parsed from the kernel's
+//! package metadata (`Cargo.toml`), command-line overrides, and runtime policy
+//! knobs.
+//!
+//! New code should prefer domain-specific configs:
+//!   - `config::domains::scheduler::SchedulerConfig`
+//!   - `config::domains::memory::MemoryConfig`
+
 use core::sync::atomic::Ordering;
+
+pub mod domains;
 
 pub struct KernelConfig;
 

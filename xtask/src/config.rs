@@ -14,7 +14,7 @@ pub fn syscall_consts_path() -> PathBuf {
     LAYOUT.root.join("kernel/syscalls/syscalls_consts.rs")
 }
 pub fn generated_consts_path() -> PathBuf {
-    LAYOUT.root.join("generated_consts.rs")
+    LAYOUT.root.join("kernel/src/generated_consts.rs")
 }
 
 pub mod repo_paths {

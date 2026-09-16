@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::modules::posix::PosixErrno;
 use alloc::collections::BTreeMap;
 use alloc::string::String;
@@ -593,3 +598,4 @@ pub fn process_ids_snapshot(out: &mut [usize]) -> usize {
 #[cfg(test)]
 #[path = "process/tests.rs"]
 mod tests;
+

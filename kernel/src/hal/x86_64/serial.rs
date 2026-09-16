@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::interfaces::SerialDevice;
 use crate::generated_consts::CORE_CRASH_LOG_CAPACITY;
 use crate::kernel::sync::IrqSafeMutex;
@@ -252,82 +257,135 @@ pub const fn tx_timeout_spins() -> usize {
 }
 
 pub fn write_hex(label: &str, value: u64) {
-    use core::fmt::Write;
-    use x86_64::instructions::interrupts;
     record_trace_event(label, "hex", Some(value), false);
     crate::kernel::debug_trace::record(label, "hex", Some(value), false);
-    interrupts::without_interrupts(|| {
-        let mut serial = SERIAL1.lock();
-        let _ = write!(serial, "[EARLY SERIAL] {}={:#x}\n", label, value);
-    });
+    #[cfg(target_os = "none")]
+    {
+        use core::fmt::Write;
+        use x86_64::instructions::interrupts;
+        interrupts::without_interrupts(|| {
+            let mut serial = SERIAL1.lock();
+            let _ = write!(serial, "[EARLY SERIAL] {}={:#x}\n", label, value);
+        });
+    }
+    #[cfg(not(target_os = "none"))]
+    eprintln!("[TRACE] {}={:#x}", label, value);
 }
 
 pub fn write_trace(scope: &str, stage: &str) {
-    use core::fmt::Write;
-    use x86_64::instructions::interrupts;
     record_trace_event(scope, stage, None, false);
     crate::kernel::debug_trace::record(scope, stage, None, false);
-    interrupts::without_interrupts(|| {
-        let mut serial = SERIAL1.lock();
-        let _ = write!(serial, "[EARLY SERIAL] {} {}\n", scope, stage);
-    });
+    #[cfg(target_os = "none")]
+    {
+        use core::fmt::Write;
+        use x86_64::instructions::interrupts;
+        interrupts::without_interrupts(|| {
+            let mut serial = SERIAL1.lock();
+            let _ = write!(serial, "[EARLY SERIAL] {} {}\n", scope, stage);
+        });
+    }
+    #[cfg(not(target_os = "none"))]
+    eprintln!("[TRACE] {} {}", scope, stage);
 }
 
 pub fn write_trace_hex(scope: &str, key: &str, value: u64) {
-    use core::fmt::Write;
-    use x86_64::instructions::interrupts;
     record_trace_event(scope, key, Some(value), false);
     crate::kernel::debug_trace::record(scope, key, Some(value), false);
-    interrupts::without_interrupts(|| {
-        let mut serial = SERIAL1.lock();
-        let _ = write!(serial, "[EARLY SERIAL] {} {}={:#x}\n", scope, key, value);
-    });
+    #[cfg(target_os = "none")]
+    {
+        use core::fmt::Write;
+        use x86_64::instructions::interrupts;
+        interrupts::without_interrupts(|| {
+            let mut serial = SERIAL1.lock();
+            let _ = write!(serial, "[EARLY SERIAL] {} {}={:#x}\n", scope, key, value);
+        });
+    }
+    #[cfg(not(target_os = "none"))]
+    eprintln!("[TRACE] {} {}={:#x}", scope, key, value);
 }
 
 pub fn write_dump_bytes(label: &str, bytes: &[u8]) {
-    use core::fmt::Write;
-    use x86_64::instructions::interrupts;
     let preview_len = core::cmp::min(bytes.len(), TRACE_DUMP_PREVIEW_BYTES);
     let mut folded = 0u64;
     for (idx, byte) in bytes.iter().copied().take(8).enumerate() { folded |= (byte as u64) << (idx * 8); }
     record_trace_event(label, "dump", Some(folded), true);
     crate::kernel::debug_trace::record(label, "dump", Some(folded), true);
-    interrupts::without_interrupts(|| {
-        let mut serial = SERIAL1.lock();
-        let _ = write!(serial, "[EARLY SERIAL] {} dump len={} data=", label, bytes.len());
-        for byte in &bytes[..preview_len] { let _ = write!(serial, "{:02x}", byte); }
-        if bytes.len() > preview_len { let _ = write!(serial, "..."); }
-        let _ = write!(serial, "\n");
-    });
+    #[cfg(target_os = "none")]
+    {
+        use core::fmt::Write;
+        use x86_64::instructions::interrupts;
+        interrupts::without_interrupts(|| {
+            let mut serial = SERIAL1.lock();
+            let _ = write!(serial, "[EARLY SERIAL] {} dump len={} data=", label, bytes.len());
+            for byte in &bytes[..preview_len] { let _ = write!(serial, "{:02x}", byte); }
+            if bytes.len() > preview_len { let _ = write!(serial, "..."); }
+            let _ = write!(serial, "\n");
+        });
+    }
+    #[cfg(not(target_os = "none"))]
+    {
+        use std::io::Write;
+        let mut s = std::io::stderr();
+        let _ = write!(s, "[TRACE] {} dump len={} data=", label, bytes.len());
+        for byte in &bytes[..preview_len] { let _ = write!(s, "{:02x}", byte); }
+        if bytes.len() > preview_len { let _ = write!(s, "..."); }
+        let _ = writeln!(s);
+    }
 }
 
 pub fn dump_recent_traces() {
-    use core::fmt::Write;
-    use x86_64::instructions::interrupts;
     let mut recent = [TraceRecord::EMPTY; CORE_CRASH_LOG_CAPACITY];
     let written = recent_traces_into(&mut recent);
-    interrupts::without_interrupts(|| {
-        let mut serial = SERIAL1.lock();
-        let _ = write!(serial, "[EARLY SERIAL] trace dump begin count={}\n", written);
+    #[cfg(target_os = "none")]
+    {
+        use core::fmt::Write;
+        use x86_64::instructions::interrupts;
+        interrupts::without_interrupts(|| {
+            let mut serial = SERIAL1.lock();
+            let _ = write!(serial, "[EARLY SERIAL] trace dump begin count={}\n", written);
+            for record in recent.iter().take(written) {
+                if record.flags.contains(TraceFlags::HAS_VALUE) {
+                    let _ = write!(serial, "[EARLY SERIAL] trace seq={} {} {} value={:#x}\n", record.seq, record.scope_str(), record.stage_str(), record.value);
+                } else {
+                    let _ = write!(serial, "[EARLY SERIAL] trace seq={} {} {}\n", record.seq, record.scope_str(), record.stage_str());
+                }
+            }
+            let _ = write!(serial, "[EARLY SERIAL] trace dump end\n");
+        });
+    }
+    #[cfg(not(target_os = "none"))]
+    {
+        eprintln!("[TRACE] dump begin count={}", written);
         for record in recent.iter().take(written) {
             if record.flags.contains(TraceFlags::HAS_VALUE) {
-                let _ = write!(serial, "[EARLY SERIAL] trace seq={} {} {} value={:#x}\n", record.seq, record.scope_str(), record.stage_str(), record.value);
+                eprintln!("[TRACE] seq={} {} {} value={:#x}", record.seq, record.scope_str(), record.stage_str(), record.value);
             } else {
-                let _ = write!(serial, "[EARLY SERIAL] trace seq={} {} {}\n", record.seq, record.scope_str(), record.stage_str());
+                eprintln!("[TRACE] seq={} {} {}", record.seq, record.scope_str(), record.stage_str());
             }
         }
-        let _ = write!(serial, "[EARLY SERIAL] trace dump end\n");
-    });
+        eprintln!("[TRACE] dump end");
+    }
 }
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    use core::fmt::Write;
-    use x86_64::instructions::interrupts;
-    interrupts::without_interrupts(|| { let _ = SERIAL1.lock().write_fmt(args); });
+    #[cfg(target_os = "none")]
+    {
+        use core::fmt::Write;
+        use x86_64::instructions::interrupts;
+        interrupts::without_interrupts(|| { let _ = SERIAL1.lock().write_fmt(args); });
+    }
+    #[cfg(not(target_os = "none"))]
+    {
+        use std::io::Write;
+        let _ = std::io::stderr().write_fmt(args);
+    }
 }
 
-pub fn init() { SERIAL1.lock().init(); }
+pub fn init() {
+    #[cfg(target_os = "none")]
+    SERIAL1.lock().init();
+}
 
 #[cfg(test)]
 mod tests {
@@ -348,3 +406,4 @@ mod tests {
         assert_eq!(last.value, 0x44);
     }
 }
+

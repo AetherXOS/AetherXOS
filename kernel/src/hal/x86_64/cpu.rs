@@ -108,9 +108,9 @@ pub fn detect_features() -> CpuFeatures {
 
 /// Check for AES-NI support using CPUID (leaf 1, ECX bit 25)
 pub fn has_aes_ni() -> bool {
-    let max_leaf = unsafe { __cpuid(0).eax };
+    let max_leaf = __cpuid(0).eax;
     if max_leaf >= 1 {
-        let res = unsafe { __cpuid(1) };
+        let res = __cpuid(1);
         return has_bit_u32(res.ecx, 25);
     }
     false
@@ -118,9 +118,9 @@ pub fn has_aes_ni() -> bool {
 
 /// Check for SHA-NI support using CPUID (leaf 7, EBX bit 29)
 pub fn has_sha_ni() -> bool {
-    let max_leaf = unsafe { __cpuid(0).eax };
+    let max_leaf = __cpuid(0).eax;
     if max_leaf >= 7 {
-        let res7 = unsafe { __cpuid_count(7, 0) };
+        let res7 = __cpuid_count(7, 0);
         return has_bit_u32(res7.ebx, 29);
     }
     false

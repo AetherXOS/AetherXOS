@@ -1,3 +1,5 @@
+﻿//! kernel module.
+
 // =============================================================================
 // RING 1: MICROKERNEL CORE (The Engine)
 // =============================================================================
@@ -24,7 +26,7 @@ pub mod boot_subsystems;
 pub mod startup;
 pub mod boot_logger;
 pub mod boot_health;
-pub use crate::kernel_runtime::boot_integration;
+pub mod boot_integration;
 
 // --- Task & Scheduler Infrastructure ---
 pub mod task;
@@ -54,6 +56,7 @@ pub mod virt_bias;
 // =============================================================================
 
 pub mod syscalls;
+pub mod syscall_security;
 pub mod syscall_contract;
 pub mod signal;
 pub mod signals {
@@ -79,6 +82,7 @@ pub mod bit_utils;
 pub mod log;
 pub mod debug_trace;
 pub mod jitter;
+pub mod quality_gate;
 
 
 
@@ -258,3 +262,5 @@ pub fn core_dump() {
     // In a real system, we'd write to a reserved memory area or disk
     crate::klog_info!("Core dump complete (snapshot stored in trace buffer).");
 }
+
+

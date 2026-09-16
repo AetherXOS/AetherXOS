@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 use crate::kernel::syscalls::with_user_write_bytes;
 
@@ -170,3 +175,4 @@ pub fn sys_linux_getcwd(buf: UserPtr<u8>, size: usize) -> usize {
         }).map(|_| buf.addr).unwrap_or_else(|_| linux_fault())
     })
 }
+

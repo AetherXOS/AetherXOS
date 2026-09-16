@@ -1,3 +1,5 @@
+//! metrics module.
+
 pub mod bridge_stats_builder;
 pub mod bridge_stats_type;
 pub mod control;
@@ -9,3 +11,5 @@ pub mod snapshot;
 
 pub use facade::*;
 pub use snapshot::*;
+
+

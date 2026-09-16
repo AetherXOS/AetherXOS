@@ -1,0 +1,813 @@
+#include "aethercore_libc.h"
+#include "aethercore_runtime.h"
+#include "aethercore_libc_state.h"
+
+static const char *aethercore_errno_string(int err) {
+    switch (err) {
+    case 0: return "OK";
+    case 2: return "No such file or directory";
+    case 9: return "Bad file descriptor";
+    case 11: return "Resource temporarily unavailable";
+    case 12: return "Out of memory";
+    case 13: return "Permission denied";
+    case 22: return "Invalid argument";
+    case 38: return "Function not implemented";
+    default: return "Unknown error";
+    }
+}
+
+int *__errno_location(void) {
+    return &g_aethercore_errno;
+}
+
+int aethercore_errno_value(void) {
+    return g_aethercore_errno;
+}
+
+char *strerror(int err) {
+    return (char *)aethercore_errno_string(err);
+}
+
+unsigned long getauxval(unsigned long type) {
+    switch (type) {
+    case AETHERCORE_AT_PAGESZ:
+        return aethercore_auxv_pagesz();
+    case AETHERCORE_AT_RANDOM:
+        return aethercore_auxv_random();
+    case AETHERCORE_AT_EXECFN:
+        return aethercore_auxv_execfn();
+    case AETHERCORE_AT_SYSINFO_EHDR:
+        return aethercore_auxv_sysinfo_ehdr();
+    case AETHERCORE_AT_UID:
+        return (unsigned long)getuid();
+    case AETHERCORE_AT_EUID:
+        return (unsigned long)geteuid();
+    case AETHERCORE_AT_GID:
+        return (unsigned long)getgid();
+    case AETHERCORE_AT_EGID:
+        return (unsigned long)getegid();
+    case AETHERCORE_AT_CLKTCK:
+        return 100ul;
+    case 23:
+        return (unsigned long)__libc_enable_secure;
+    default:
+        g_aethercore_errno = 2;
+        return 0ul;
+    }
+}
+
+unsigned long confstr(int name, char *buf, unsigned long len) {
+    const char *value = 0;
+    unsigned long needed;
+    switch (name) {
+    case 0:
+        value = "/bin:/usr/bin";
+        break;
+    case 1:
+        value = "C";
+        break;
+    default:
+        g_aethercore_errno = 22;
+        return 0;
+    }
+    needed = strlen(value) + 1;
+    if (buf && len != 0) {
+        unsigned long copy = needed < len ? needed : len;
+        memcpy(buf, value, copy);
+        if (copy == len) {
+            buf[len - 1] = 0;
+        }
+    }
+    return needed;
+}
+
+long sysconf(int name) {
+    switch (name) {
+    case AETHERCORE_SC_PAGESIZE:
+    case AETHERCORE_SC_PAGE_SIZE:
+        return (long)aethercore_auxv_pagesz();
+    case AETHERCORE_SC_CLK_TCK:
+        return 100l;
+    case AETHERCORE_SC_NPROCESSORS_ONLN:
+    case AETHERCORE_SC_NPROCESSORS_CONF:
+        return 1l;
+    case AETHERCORE_SC_ARG_MAX:
+        return 4096l;
+    default:
+        g_aethercore_errno = 22;
+        return -1l;
+    }
+}
+
+char *secure_getenv(const char *name) {
+    return getenv(name);
+}
+
+int getentropy(void *buf, unsigned long len) {
+    if (!buf) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    if (len > 256ul) {
+        g_aethercore_errno = 5;
+        return -1;
+    }
+    if (getrandom(buf, len, 0u) < 0) {
+        return -1;
+    }
+    return 0;
+}
+
+int getpagesize(void) {
+    return (int)aethercore_auxv_pagesz();
+}
+
+static int aethercore_parse_stdio_mode(const char *mode, int *flags_out) {
+    int flags = 0;
+    int plus = 0;
+    char kind;
+    if (!mode || !flags_out || mode[0] == 0) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    kind = mode[0];
+    while (*mode) {
+        if (*mode == '+') {
+            plus = 1;
+        }
+        ++mode;
+    }
+    switch (kind) {
+    case 'r':
+        flags = plus ? 2 : 0;
+        break;
+    case 'w':
+        flags = plus ? 2 : 1;
+        flags |= 64 | 512;
+        break;
+    case 'a':
+        flags = plus ? 2 : 1;
+        flags |= 64 | 1024;
+        break;
+    default:
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    *flags_out = flags;
+    return 0;
+}
+
+FILE *fdopen(int fd, const char *mode) {
+    FILE *stream;
+    int flags = 0;
+    if (aethercore_parse_stdio_mode(mode, &flags) != 0) {
+        return (FILE *)0;
+    }
+    if (fd < 0) {
+        g_aethercore_errno = 9;
+        return (FILE *)0;
+    }
+    stream = (FILE *)malloc(sizeof(FILE));
+    if (!stream) {
+        return (FILE *)0;
+    }
+    stream->fd = fd;
+    stream->eof = 0;
+    stream->error = 0;
+    stream->owned = 1;
+    return stream;
+}
+
+FILE *fopen(const char *path, const char *mode) {
+    int flags = 0;
+    int fd;
+    if (aethercore_parse_stdio_mode(mode, &flags) != 0) {
+        return (FILE *)0;
+    }
+    fd = open(path, flags, 0666ul);
+    if (fd < 0) {
+        return (FILE *)0;
+    }
+    return fdopen(fd, mode);
+}
+
+int fclose(FILE *stream) {
+    int rc = 0;
+    if (!stream) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    if (stream->owned) {
+        rc = close(stream->fd);
+    }
+    if (stream != stdin && stream != stdout && stream != stderr) {
+        free(stream);
+    }
+    return rc;
+}
+
+unsigned long fread(void *ptr, unsigned long size, unsigned long nmemb, FILE *stream) {
+    unsigned long total;
+    long rc;
+    if (!ptr || !stream || size == 0ul || nmemb == 0ul) {
+        return 0ul;
+    }
+    total = size * nmemb;
+    rc = read(stream->fd, ptr, total);
+    if (rc < 0) {
+        stream->error = 1;
+        return 0ul;
+    }
+    if (rc == 0) {
+        stream->eof = 1;
+        return 0ul;
+    }
+    return (unsigned long)rc / size;
+}
+
+unsigned long fwrite(const void *ptr, unsigned long size, unsigned long nmemb, FILE *stream) {
+    unsigned long total;
+    long rc;
+    if (!ptr || !stream || size == 0ul || nmemb == 0ul) {
+        return 0ul;
+    }
+    total = size * nmemb;
+    rc = write(stream->fd, ptr, total);
+    if (rc < 0) {
+        stream->error = 1;
+        return 0ul;
+    }
+    return (unsigned long)rc / size;
+}
+
+int fgetc(FILE *stream) {
+    unsigned char ch;
+    long rc;
+    if (!stream) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    rc = read(stream->fd, &ch, 1ul);
+    if (rc < 0) {
+        stream->error = 1;
+        return -1;
+    }
+    if (rc == 0) {
+        stream->eof = 1;
+        return -1;
+    }
+    return (int)ch;
+}
+
+int getc(FILE *stream) {
+    return fgetc(stream);
+}
+
+int getchar(void) {
+    return fgetc(stdin);
+}
+
+int fputc(int ch, FILE *stream) {
+    unsigned char value = (unsigned char)ch;
+    long rc;
+    if (!stream) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    rc = write(stream->fd, &value, 1ul);
+    if (rc < 0) {
+        stream->error = 1;
+        return -1;
+    }
+    return (int)value;
+}
+
+int putc(int ch, FILE *stream) {
+    return fputc(ch, stream);
+}
+
+int putchar(int ch) {
+    return fputc(ch, stdout);
+}
+
+char *fgets(char *s, int size, FILE *stream) {
+    int ch;
+    int i = 0;
+    if (!s || !stream || size <= 0) {
+        g_aethercore_errno = 22;
+        return (char *)0;
+    }
+    while (i + 1 < size) {
+        ch = fgetc(stream);
+        if (ch < 0) {
+            break;
+        }
+        s[i++] = (char)ch;
+        if (ch == '\n') {
+            break;
+        }
+    }
+    if (i == 0) {
+        return (char *)0;
+    }
+    s[i] = 0;
+    return s;
+}
+
+int ungetc(int ch, FILE *stream) {
+    (void)ch;
+    (void)stream;
+    g_aethercore_errno = 38;
+    return -1;
+}
+
+int fputs(const char *s, FILE *stream) {
+    unsigned long len;
+    long rc;
+    if (!s || !stream) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    len = strlen(s);
+    rc = write(stream->fd, s, len);
+    if (rc < 0) {
+        stream->error = 1;
+        return -1;
+    }
+    return (int)rc;
+}
+
+int fflush(FILE *stream) {
+    if (!stream) {
+        return 0;
+    }
+    return 0;
+}
+
+int fileno(FILE *stream) {
+    if (!stream) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    return stream->fd;
+}
+
+int feof(FILE *stream) {
+    return stream ? stream->eof : 0;
+}
+
+int ferror(FILE *stream) {
+    return stream ? stream->error : 0;
+}
+
+void clearerr(FILE *stream) {
+    if (!stream) {
+        return;
+    }
+    stream->eof = 0;
+    stream->error = 0;
+}
+
+struct aethercore_linux_dirent64_view {
+    unsigned long long d_ino;
+    long long d_off;
+    unsigned short d_reclen;
+    unsigned char d_type;
+    char d_name[];
+};
+
+DIR *fdopendir(int fd) {
+    DIR *dirp;
+    if (fd < 0) {
+        g_aethercore_errno = 9;
+        return (DIR *)0;
+    }
+    dirp = (DIR *)malloc(sizeof(DIR));
+    if (!dirp) {
+        return (DIR *)0;
+    }
+    dirp->fd = fd;
+    dirp->pos = 0ul;
+    dirp->size = 0ul;
+    dirp->entry.d_name[0] = 0;
+    return dirp;
+}
+
+DIR *opendir(const char *path) {
+    int fd;
+    if (!path) {
+        g_aethercore_errno = 22;
+        return (DIR *)0;
+    }
+    fd = open(path, 0, 0ul);
+    if (fd < 0) {
+        return (DIR *)0;
+    }
+    return fdopendir(fd);
+}
+
+struct aethercore_dirent *readdir(DIR *dirp) {
+    struct aethercore_linux_dirent64_view *src;
+    unsigned long i;
+    long bytes;
+    if (!dirp) {
+        g_aethercore_errno = 22;
+        return (struct aethercore_dirent *)0;
+    }
+    for (;;) {
+        if (dirp->pos >= dirp->size) {
+            bytes = getdents64(dirp->fd, dirp->buffer, sizeof(dirp->buffer));
+            if (bytes <= 0) {
+                dirp->pos = 0ul;
+                dirp->size = 0ul;
+                return (struct aethercore_dirent *)0;
+            }
+            dirp->pos = 0ul;
+            dirp->size = (unsigned long)bytes;
+        }
+        src = (struct aethercore_linux_dirent64_view *)(dirp->buffer + dirp->pos);
+        if (!src->d_reclen) {
+            dirp->pos = dirp->size;
+            continue;
+        }
+        dirp->pos += (unsigned long)src->d_reclen;
+        dirp->entry.d_ino = src->d_ino;
+        dirp->entry.d_off = src->d_off;
+        dirp->entry.d_reclen = src->d_reclen;
+        dirp->entry.d_type = src->d_type;
+        for (i = 0ul; i + 1ul < sizeof(dirp->entry.d_name) && src->d_name[i] != 0; ++i) {
+            dirp->entry.d_name[i] = src->d_name[i];
+        }
+        dirp->entry.d_name[i] = 0;
+        return &dirp->entry;
+    }
+}
+
+void rewinddir(DIR *dirp) {
+    if (!dirp) {
+        return;
+    }
+    (void)lseek(dirp->fd, 0l, 0);
+    dirp->pos = 0ul;
+    dirp->size = 0ul;
+}
+
+int dirfd(DIR *dirp) {
+    if (!dirp) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    return dirp->fd;
+}
+
+int closedir(DIR *dirp) {
+    int fd;
+    int rc;
+    if (!dirp) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    fd = dirp->fd;
+    free(dirp);
+    rc = close(fd);
+    return rc;
+}
+
+int daemon(int nochdir, int noclose) {
+    if (fork() < 0) {
+        return -1;
+    }
+    if (setsid() < 0) {
+        return -1;
+    }
+    if (!nochdir) {
+        (void)chdir("/");
+    }
+    if (!noclose) {
+        int nullfd = openat(-100, "/dev/null", 2, 0ul);
+        if (nullfd >= 0) {
+            (void)dup2(nullfd, 0);
+            (void)dup2(nullfd, 1);
+            (void)dup2(nullfd, 2);
+            if (nullfd > 2) {
+                (void)close(nullfd);
+            }
+        }
+    }
+    return 0;
+}
+
+static int aethercore_sig_index(int sig, unsigned long *word_index, unsigned long *bit_index) {
+    unsigned long value;
+    if (!word_index || !bit_index || sig <= 0) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    value = (unsigned long)(sig - 1);
+    *word_index = value / (8ul * (unsigned long)sizeof(unsigned long));
+    *bit_index = value % (8ul * (unsigned long)sizeof(unsigned long));
+    if (*word_index >= 16ul) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    return 0;
+}
+
+int sigemptyset(struct aethercore_sigset *set) {
+    unsigned long i;
+    if (!set) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    for (i = 0; i < 16ul; ++i) {
+        set->__bits[i] = 0ul;
+    }
+    return 0;
+}
+
+int sigfillset(struct aethercore_sigset *set) {
+    unsigned long i;
+    if (!set) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    for (i = 0; i < 16ul; ++i) {
+        set->__bits[i] = ~0ul;
+    }
+    return 0;
+}
+
+int sigaddset(struct aethercore_sigset *set, int sig) {
+    unsigned long word_index;
+    unsigned long bit_index;
+    if (!set || aethercore_sig_index(sig, &word_index, &bit_index) != 0) {
+        return -1;
+    }
+    set->__bits[word_index] |= (1ul << bit_index);
+    return 0;
+}
+
+int sigdelset(struct aethercore_sigset *set, int sig) {
+    unsigned long word_index;
+    unsigned long bit_index;
+    if (!set || aethercore_sig_index(sig, &word_index, &bit_index) != 0) {
+        return -1;
+    }
+    set->__bits[word_index] &= ~(1ul << bit_index);
+    return 0;
+}
+
+int sigismember(const struct aethercore_sigset *set, int sig) {
+    unsigned long word_index;
+    unsigned long bit_index;
+    if (!set || aethercore_sig_index(sig, &word_index, &bit_index) != 0) {
+        return -1;
+    }
+    return (set->__bits[word_index] & (1ul << bit_index)) ? 1 : 0;
+}
+
+int sigprocmask(int how, const struct aethercore_sigset *set, struct aethercore_sigset *oldset) {
+    return rt_sigprocmask(how, set, oldset, (unsigned long)sizeof(struct aethercore_sigset));
+}
+
+int sigaction(int sig, const struct aethercore_sigaction *act, struct aethercore_sigaction *oldact) {
+    return rt_sigaction(sig, act, oldact, (unsigned long)sizeof(struct aethercore_sigset));
+}
+
+void (*signal(int sig, void (*handler)(int)))(int) {
+    struct aethercore_sigaction act;
+    struct aethercore_sigaction oldact;
+    if (sigemptyset(&act.sa_mask) != 0) {
+        return AETHERCORE_SIG_ERR;
+    }
+    act.sa_handler = handler;
+    act.sa_flags = 0ul;
+    act.sa_restorer = (void (*)(void))0;
+    if (sigaction(sig, &act, &oldact) != 0) {
+        return AETHERCORE_SIG_ERR;
+    }
+    return oldact.sa_handler;
+}
+
+int raise(int sig) {
+    return kill((int)getpid(), sig);
+}
+
+int atexit(aethercore_atexit_fn_t fn) {
+    if (!fn || g_aethercore_atexit_count >= AETHERCORE_ATEXIT_SLOTS) {
+        g_aethercore_errno = 12;
+        return -1;
+    }
+    g_aethercore_atexit_slots[g_aethercore_atexit_count++] = fn;
+    return 0;
+}
+
+int at_quick_exit(aethercore_atexit_fn_t fn) {
+    if (!fn || g_aethercore_quick_exit_count >= AETHERCORE_ATEXIT_SLOTS) {
+        g_aethercore_errno = 12;
+        return -1;
+    }
+    g_aethercore_quick_exit_slots[g_aethercore_quick_exit_count++] = fn;
+    return 0;
+}
+
+int on_exit(aethercore_on_exit_fn_t fn, void *arg) {
+    if (!fn || g_aethercore_on_exit_count >= AETHERCORE_ATEXIT_SLOTS) {
+        g_aethercore_errno = 12;
+        return -1;
+    }
+    g_aethercore_on_exit_slots[g_aethercore_on_exit_count].fn = fn;
+    g_aethercore_on_exit_slots[g_aethercore_on_exit_count].arg = arg;
+    g_aethercore_on_exit_slots[g_aethercore_on_exit_count].active = 1;
+    ++g_aethercore_on_exit_count;
+    return 0;
+}
+
+int __cxa_atexit(aethercore_cxa_fn_t fn, void *arg, void *dso_handle) {
+    if (!fn || g_aethercore_cxa_count >= AETHERCORE_ATEXIT_SLOTS) {
+        g_aethercore_errno = 12;
+        return -1;
+    }
+    g_aethercore_cxa_slots[g_aethercore_cxa_count].fn = fn;
+    g_aethercore_cxa_slots[g_aethercore_cxa_count].arg = arg;
+    g_aethercore_cxa_slots[g_aethercore_cxa_count].dso_handle = dso_handle;
+    g_aethercore_cxa_slots[g_aethercore_cxa_count].active = 1;
+    ++g_aethercore_cxa_count;
+    return 0;
+}
+
+int __cxa_thread_atexit_impl(aethercore_cxa_fn_t fn, void *arg, void *dso_handle) {
+    return __cxa_atexit(fn, arg, dso_handle);
+}
+
+int pthread_atfork(aethercore_atfork_fn_t prepare, aethercore_atfork_fn_t parent, aethercore_atfork_fn_t child) {
+    return __register_atfork(prepare, parent, child, __dso_handle);
+}
+
+int __register_atfork(aethercore_atfork_fn_t prepare, aethercore_atfork_fn_t parent, aethercore_atfork_fn_t child, void *dso_handle) {
+    if (g_aethercore_atfork_count >= AETHERCORE_ATEXIT_SLOTS) {
+        g_aethercore_errno = 12;
+        return -1;
+    }
+    g_aethercore_atfork_slots[g_aethercore_atfork_count].prepare = prepare;
+    g_aethercore_atfork_slots[g_aethercore_atfork_count].parent = parent;
+    g_aethercore_atfork_slots[g_aethercore_atfork_count].child = child;
+    g_aethercore_atfork_slots[g_aethercore_atfork_count].dso_handle = dso_handle;
+    g_aethercore_atfork_slots[g_aethercore_atfork_count].active = 1;
+    ++g_aethercore_atfork_count;
+    return 0;
+}
+
+void aethercore_run_atfork_prepare(void) {
+    unsigned long i = g_aethercore_atfork_count;
+    while (i != 0) {
+        struct aethercore_atfork_slot *slot = &g_aethercore_atfork_slots[--i];
+        if (slot->active && slot->prepare) {
+            slot->prepare();
+        }
+    }
+}
+
+void aethercore_run_atfork_parent(void) {
+    unsigned long i = 0;
+    while (i < g_aethercore_atfork_count) {
+        struct aethercore_atfork_slot *slot = &g_aethercore_atfork_slots[i++];
+        if (slot->active && slot->parent) {
+            slot->parent();
+        }
+    }
+}
+
+void aethercore_run_atfork_child(void) {
+    unsigned long i = 0;
+    while (i < g_aethercore_atfork_count) {
+        struct aethercore_atfork_slot *slot = &g_aethercore_atfork_slots[i++];
+        if (slot->active && slot->child) {
+            slot->child();
+        }
+    }
+}
+
+void __cxa_finalize(void *dso_handle) {
+    unsigned long i = g_aethercore_cxa_count;
+    while (i != 0) {
+        struct aethercore_cxa_slot *slot = &g_aethercore_cxa_slots[--i];
+        if (!slot->active || !slot->fn) {
+            continue;
+        }
+        if (dso_handle && slot->dso_handle != dso_handle) {
+            continue;
+        }
+        slot->active = 0;
+        slot->fn(slot->arg);
+    }
+    if (!dso_handle) {
+        i = g_aethercore_on_exit_count;
+        while (i != 0) {
+            struct aethercore_on_exit_slot *slot = &g_aethercore_on_exit_slots[--i];
+            if (!slot->active || !slot->fn) {
+                continue;
+            }
+            slot->active = 0;
+            slot->fn(0, slot->arg);
+        }
+        g_aethercore_on_exit_count = 0;
+        i = g_aethercore_atexit_count;
+        while (i != 0) {
+            aethercore_atexit_fn_t fn = g_aethercore_atexit_slots[--i];
+            g_aethercore_atexit_slots[i] = (aethercore_atexit_fn_t)0;
+            if (fn) {
+                fn();
+            }
+        }
+        g_aethercore_atexit_count = 0;
+    }
+}
+
+void aethercore_run_on_exit_handlers(int status) {
+    unsigned long i = g_aethercore_on_exit_count;
+    while (i != 0) {
+        struct aethercore_on_exit_slot *slot = &g_aethercore_on_exit_slots[--i];
+        if (!slot->active || !slot->fn) {
+            continue;
+        }
+        slot->active = 0;
+        slot->fn(status, slot->arg);
+    }
+    g_aethercore_on_exit_count = 0;
+}
+
+void aethercore_run_quick_exit_handlers(void) {
+    unsigned long i = g_aethercore_quick_exit_count;
+    while (i != 0) {
+        aethercore_atexit_fn_t fn = g_aethercore_quick_exit_slots[--i];
+        g_aethercore_quick_exit_slots[i] = (aethercore_atexit_fn_t)0;
+        if (fn) {
+            fn();
+        }
+    }
+    g_aethercore_quick_exit_count = 0;
+}
+
+static unsigned long aethercore_parse_u64(const char *value) {
+    return strtoull(value, (char **)0, 0);
+}
+
+int aethercore_runtime_fini_present(void) {
+    char *value = aethercore_getenv("AETHERCORE_RUNTIME_FINI_TRAMPOLINE");
+    if (value && value[0] != 0 && strcmp(value, "0") != 0) {
+        return 1;
+    }
+    value = aethercore_getenv("AETHERCORE_RUNTIME_FINI_ENTRY");
+    if (value && value[0] != 0 && strcmp(value, "0") != 0) {
+        return 1;
+    }
+    value = aethercore_getenv("AETHERCORE_RUNTIME_FINI_HOOKS");
+    return value && value[0] != 0 && strcmp(value, "0") != 0;
+}
+
+int aethercore_runtime_fini_hook_count(void) {
+    char *value = aethercore_getenv("AETHERCORE_FINI_HOOKS");
+    if (!value || value[0] == 0) {
+        return 0;
+    }
+    return (int)aethercore_parse_u64(value);
+}
+
+void aethercore_run_runtime_fini(void) {
+    int hook_count = aethercore_runtime_fini_hook_count();
+    char *value = aethercore_getenv("AETHERCORE_RUNTIME_FINI_TRAMPOLINE");
+    if (!value || value[0] == 0 || strcmp(value, "0") == 0) {
+        value = aethercore_getenv("AETHERCORE_RUNTIME_FINI_ENTRY");
+    }
+    if (value && value[0] != 0 && strcmp(value, "0") != 0) {
+        unsigned long long addr = aethercore_parse_u64(value);
+        if (addr != 0ull) {
+            if (hook_count > 0) {
+                aethercore_kernel_print("[aethercore-libc] runtime fini trampoline execute\n");
+            }
+            ((aethercore_atexit_fn_t)(unsigned long)addr)();
+            return;
+        }
+    }
+    if (hook_count > 0 || aethercore_runtime_fini_present()) {
+        aethercore_kernel_print("[aethercore-libc] runtime fini hooks present but deferred\n");
+    }
+}
+
+void __assert_fail(const char *assertion, const char *file, unsigned int line, const char *function) {
+    printf("assertion failed: %s at %s:%u (%s)\n", assertion ? assertion : "?", file ? file : "?", line, function ? function : "?");
+    abort();
+}
+
+void __stack_chk_fail(void) {
+    __assert_fail("stack check failed", "<runtime>", 0u, "__stack_chk_fail");
+}
+
+int __libc_current_sigrtmin(void) {
+    return 32;
+}
+
+int __libc_current_sigrtmax(void) {
+    return 64;
+}

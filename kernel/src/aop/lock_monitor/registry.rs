@@ -51,10 +51,7 @@ lazy_static! {
 
 pub fn record_lock_stats(name: &'static str, wait_cycles: u64, hold_cycles: u64) {
     let mut registry = LOCK_REGISTRY.lock();
-    if !registry.contains_key(name) {
-        registry.insert(name, LockStats::new());
-    }
-    let stats = registry.get(name).unwrap();
+    let stats = registry.entry(name).or_insert_with(LockStats::new);
     stats.record_wait(wait_cycles);
     stats.record_hold(hold_cycles);
 }

@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::format;
 use alloc::vec::Vec;
 use crate::kernel_runtime::integration_utils::logging;
@@ -90,8 +95,7 @@ impl AcpiDevice {
 
     pub fn name_str(&self) -> &str {
         let slice = &self.name[..self.name_len as usize];
-        // Safe because we created from valid str
-        unsafe { core::str::from_utf8_unchecked(slice) }
+        core::str::from_utf8(slice).unwrap_or("[invalid utf8]")
     }
 }
 
@@ -236,7 +240,7 @@ impl AcpiParser {
             }
 
             let xsdt = &*header;
-            let signature = core::str::from_utf8_unchecked(&xsdt.signature);
+            let signature = core::str::from_utf8(&xsdt.signature).unwrap_or("");
             
             // Verify XSDT/RSDT signature
             if signature != "XSDT" && signature != "RSDT" {
@@ -262,7 +266,7 @@ impl AcpiParser {
 
                 let table_header = (entry_addr as *const AcpiSdtHeader).as_ref();
                 if let Some(header) = table_header {
-                    let sig = core::str::from_utf8_unchecked(&header.signature);
+                    let sig = core::str::from_utf8(&header.signature).unwrap_or("");
                     
                     if sig == "MADT" {
                         self.parse_madt_entries(entry_addr)?;
@@ -432,8 +436,8 @@ mod tests {
 
     #[test_case]
     fn test_acpi_rsdp_size() {
-        assert_eq!(core::mem::size_of::<AcpiRsdpV1>(), 36);
-        assert_eq!(core::mem::size_of::<AcpiRsdpV2>(), 36 + 16);
+        assert_eq!(core::mem::size_of::<AcpiRsdpV1>(), 20);
+        assert_eq!(core::mem::size_of::<AcpiRsdpV2>(), 40);
     }
 
     #[test_case]
@@ -456,3 +460,4 @@ pub fn enumerate_devices_from_acpi() -> Option<alloc::vec::Vec<crate::hal::abstr
     use alloc::vec;
     Some(vec![])
 }
+

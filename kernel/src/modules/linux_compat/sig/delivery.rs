@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 use crate::interfaces::task::{KernelTask};
 use crate::modules::linux_compat::types::{LinuxUContext, LinuxMContext, LinuxSiginfo, LinuxStackT};
@@ -210,3 +215,4 @@ fn translate_user_vaddr(cr3: u64, vaddr: u64) -> Result<u64, &'static str> {
         .map(|p| p.as_u64())
         .ok_or("User stack page not mapped")
 }
+

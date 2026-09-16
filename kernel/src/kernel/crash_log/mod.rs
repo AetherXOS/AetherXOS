@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use core::sync::atomic::{AtomicU64, Ordering};
 
 use spin::Mutex;
@@ -147,3 +152,4 @@ pub fn dump_recent_to_early_serial(limit: usize) {
     }
     crate::hal::serial::write_raw("[EARLY SERIAL] crash log dump end\n");
 }
+

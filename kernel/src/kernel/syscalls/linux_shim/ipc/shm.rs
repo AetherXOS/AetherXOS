@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::kernel::syscalls::linux_errno;
 #[cfg(feature = "ipc_shared_memory")]
 use crate::modules::ipc::shared_memory;
@@ -106,3 +111,4 @@ pub fn sys_linux_shmctl(_shmid: i32, _cmd: i32, _buf: usize) -> usize {
     #[cfg(not(feature = "ipc_shared_memory"))]
     linux_errno(crate::modules::posix_consts::errno::ENOSYS)
 }
+

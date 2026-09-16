@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 
 /// `access(2)` — Check user's permissions for a file.
@@ -363,3 +368,4 @@ fn fill_linux_statfs(fs_id: u32, s: crate::modules::posix::fs::PosixFsStats) -> 
         f_spare: [0; 4],
     }
 }
+

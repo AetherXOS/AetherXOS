@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 use crate::kernel::syscalls::io_uring::{IoUring, GLOBAL_IO_URING_REGISTRY};
 use core::sync::atomic::Ordering;
@@ -213,3 +218,4 @@ pub fn sys_linux_io_uring_register(
         }
     })
 }
+

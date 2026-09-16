@@ -5,19 +5,23 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  schedule:
+    - cron: '0 6 * * 1'  # weekly security audit
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust (nightly)
+        uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: stable
-          profile: minimal
-          components: clippy,rustfmt
+          components: clippy, rustfmt, rust-src
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -28,11 +32,74 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run formatter (check)
+      - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Clippy (default features)
+        run: cargo clippy --workspace --lib --bins
 
-      - name: Run tests (no run for kernel binaries on hosted runners)
-        run: cargo test --all-features --lib
+      - name: Clippy (all features)
+        run: cargo clippy --workspace --all-features --lib --bins
+
+      - name: Build (default features)
+        run: cargo build --workspace --lib --bins
+
+      - name: Build (all features)
+        run: cargo build --workspace --all-features --lib --bins
+
+      - name: Check unused dependencies
+        uses: bnjbvr/cargo-machete@main
+
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (nightly)
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-host-test-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run host tests
+        run: cargo test --workspace --all-features --lib --tests
+
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Run security audit
+        run: cargo audit
+
+  miri:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (nightly) with Miri
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri, rust-src
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-miri-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run Miri (host-only)
+        run: cargo miri test --workspace --features host_examples --lib --tests

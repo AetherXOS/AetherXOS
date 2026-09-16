@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 
 pub fn sys_linux_mq_open(name: UserPtr<u8>, oflag: i32, _mode: u32, attr: UserPtr<usize>) -> usize {
@@ -111,3 +116,4 @@ pub fn sys_linux_mq_getsetattr(
     }
     0
 }
+

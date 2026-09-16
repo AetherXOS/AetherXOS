@@ -42,7 +42,7 @@ fn test_tpoff32_image_writes_s32() {
     let written = i32::from_le_bytes(
         image[place_vaddr as usize..place_vaddr as usize + 4]
             .try_into()
-            .unwrap(),
+            .expect("unwrap failed - see module SAFETY docs"),
     );
     let expected = (sym_addr as i64 + addend as i64) as i32;
     assert_eq!(written, expected);
@@ -100,7 +100,7 @@ fn test_tpoff32_inplace_writes_s32() {
     let written = i32::from_le_bytes(
         mem[place_vaddr as usize..place_vaddr as usize + 4]
             .try_into()
-            .unwrap(),
+            .expect("unwrap failed - see module SAFETY docs"),
     );
     let expected = (sym_addr as i64 + addend as i64) as i32;
     assert_eq!(written, expected);
@@ -144,7 +144,7 @@ fn test_tpoff64_image_writes_u64() {
     let written = u64::from_le_bytes(
         image[place_vaddr as usize..place_vaddr as usize + 8]
             .try_into()
-            .unwrap(),
+            .expect("unwrap failed - see module SAFETY docs"),
     );
     let expected = (sym_addr as u64).wrapping_add(addend);
     assert_eq!(written, expected);
@@ -202,7 +202,7 @@ fn test_tpoff64_inplace_writes_u64() {
     let written = u64::from_le_bytes(
         mem[place_vaddr as usize..place_vaddr as usize + 8]
             .try_into()
-            .unwrap(),
+            .expect("unwrap failed - see module SAFETY docs"),
     );
     let expected = sym_addr.wrapping_add(addend);
     assert_eq!(written, expected);
@@ -246,7 +246,7 @@ fn test_globdat_image_writes_u64_with_addend() {
     let written = u64::from_le_bytes(
         image[place_vaddr as usize..place_vaddr as usize + 8]
             .try_into()
-            .unwrap(),
+            .expect("unwrap failed - see module SAFETY docs"),
     );
     assert_eq!(written, sym_addr.wrapping_add(addend));
 }
@@ -303,7 +303,7 @@ fn test_globdat_inplace_writes_u64_with_addend() {
     let written = u64::from_le_bytes(
         mem[place_vaddr as usize..place_vaddr as usize + 8]
             .try_into()
-            .unwrap(),
+            .expect("unwrap failed - see module SAFETY docs"),
     );
     assert_eq!(written, sym_addr.wrapping_add(addend));
 }
@@ -345,7 +345,7 @@ fn test_got32_image_writes_u32() {
     let written = u32::from_le_bytes(
         image[place_vaddr as usize..place_vaddr as usize + 4]
             .try_into()
-            .unwrap(),
+            .expect("unwrap failed - see module SAFETY docs"),
     );
     assert_eq!(written as u64, sym_addr);
 }
@@ -401,8 +401,9 @@ fn test_got32_inplace_writes_u32() {
     let written = u32::from_le_bytes(
         mem[place_vaddr as usize..place_vaddr as usize + 4]
             .try_into()
-            .unwrap(),
+            .expect("unwrap failed - see module SAFETY docs"),
     );
     assert_eq!(written as u64, sym_addr);
 }
+
 

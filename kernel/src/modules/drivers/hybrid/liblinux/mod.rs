@@ -1,3 +1,5 @@
+//! liblinux module.
+
 use super::LinuxIoRequestKind;
 
 pub mod bridge;
@@ -22,5 +24,7 @@ pub fn map_syscall_to_io_kind(syscall: LinuxSyscall) -> LinuxIoRequestKind {
         LinuxSyscall::OpenAt | LinuxSyscall::Socket => LinuxIoRequestKind::Control,
     }
 }
+
+
 
 

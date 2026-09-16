@@ -1,3 +1,5 @@
+//! macros module.
+
 #[macro_export]
 macro_rules! define_system_board {
     (
@@ -18,3 +20,5 @@ macro_rules! define_system_board {
 }
 
 pub use crate::define_system_board;
+
+

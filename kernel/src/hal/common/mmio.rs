@@ -143,7 +143,8 @@ pub fn read_phys_u32(phys: u64) -> Option<u32> {
 /// Write a u32 to physical address.
 pub fn write_phys_u32(phys: u64, val: u32) -> bool {
     let virt = phys_to_virt(phys);
-    unsafe { core::ptr::write_volatile(virt as *mut u32, val) };
+    // SAFETY: MMIO access to hardware register at a known-valid address.
+        unsafe { core::ptr::write_volatile(virt as *mut u32, val) };
     true
 }
 
@@ -156,6 +157,8 @@ pub fn read_phys_u64(phys: u64) -> Option<u64> {
 /// Write a u64 to physical address.
 pub fn write_phys_u64(phys: u64, val: u64) -> bool {
     let virt = phys_to_virt(phys);
-    unsafe { core::ptr::write_volatile(virt as *mut u64, val) };
+    // SAFETY: MMIO access to hardware register at a known-valid address.
+        unsafe { core::ptr::write_volatile(virt as *mut u64, val) };
     true
 }
+

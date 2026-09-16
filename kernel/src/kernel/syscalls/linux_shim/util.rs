@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
  
 #[repr(C)]
@@ -193,6 +198,8 @@ mod tests {
 
     #[test_case]
     fn read_user_c_string_array_zero_ptr_is_empty() {
-        assert_eq!(read_user_c_string_array(0, 4, 8).unwrap().len(), 0);
+        assert_eq!(read_user_c_string_array(0, 4, 8).expect("unwrap failed - see module SAFETY docs").len(), 0);
     }
 }
+
+

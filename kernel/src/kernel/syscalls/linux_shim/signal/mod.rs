@@ -1,3 +1,5 @@
+//! signal module.
+
 pub mod support;
 pub mod sigaction;
 pub mod sigprocmask;
@@ -18,3 +20,5 @@ pub use sigwait::*;
 pub use sigsuspend::*;
 pub use sigaltstack::*;
 pub use sigreturn::*;
+
+

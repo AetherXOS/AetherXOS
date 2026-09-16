@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use core::sync::atomic::{AtomicU64, Ordering};
 use spin::Mutex;
 
@@ -115,3 +120,4 @@ pub fn init() {
         core::arch::asm!("msr vbar_el1, {}", in(reg) vector_table::table_ptr());
     }
 }
+

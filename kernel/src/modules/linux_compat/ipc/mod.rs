@@ -1,3 +1,5 @@
+//! ipc module.
+
 pub mod shm;
 pub use shm::*;
 pub mod mq;
@@ -6,3 +8,5 @@ pub mod sem;
 pub use sem::*;
 pub mod msg;
 pub use msg::*;
+
+

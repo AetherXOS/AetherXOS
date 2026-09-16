@@ -1,3 +1,5 @@
+//! interrupt_guard module.
+
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 const IRQ_SLOTS: usize = 256;
@@ -66,3 +68,5 @@ pub fn dropped(vector: u8) -> u64 {
 pub fn dropped_for(vector: u8) -> u64 {
     dropped(vector)
 }
+
+

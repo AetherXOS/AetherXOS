@@ -1,3 +1,5 @@
+//! main_loop module.
+
 pub mod state;
 pub mod probe;
 pub mod bootstrap;
@@ -154,3 +156,5 @@ fn service_bootstrap_iteration(decision: MainLoopIterationDecision) {
 fn should_skip_idle_halt_for_linked_probe() -> bool {
     LINKED_PROBE_ENABLED.load(Ordering::Relaxed) && !LINKED_PROBE_VERIFIED.load(Ordering::Relaxed)
 }
+
+

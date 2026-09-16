@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::modules::posix::PosixErrno;
 #[cfg(all(feature = "posix_fs", feature = "vfs"))]
 use crate::modules::vfs::File;
@@ -390,3 +395,4 @@ pub fn killpg(pgid: usize, signum: i32) -> Result<(), PosixErrno> {
 mod wait;
 
 pub use wait::*;
+

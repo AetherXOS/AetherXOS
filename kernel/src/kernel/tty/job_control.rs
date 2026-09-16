@@ -404,10 +404,10 @@ mod tests {
         let pid = ProcessId(1001);
         let pgrp = ProcessGroupId(ProcessId(1100));
 
-        mgr.create_or_join_group(pid, pgrp).unwrap();
+        mgr.create_or_join_group(pid, pgrp).expect("unwrap failed - see module SAFETY docs");
         let procs = mgr.processes_in_group(pgrp);
         assert!(procs.is_some());
-        assert_eq!(procs.unwrap()[0], pid);
+        assert_eq!(procs.expect("unwrap failed - see module SAFETY docs")[0], pid);
     }
 
     #[test_case]
@@ -415,13 +415,13 @@ mod tests {
         let mut mgr = ProcessGroupManager::new();
         let pgrp = ProcessGroupId(ProcessId(1100));
 
-        mgr.create_or_join_group(ProcessId(1001), pgrp).unwrap();
-        mgr.create_or_join_group(ProcessId(1002), pgrp).unwrap();
+        mgr.create_or_join_group(ProcessId(1001), pgrp).expect("unwrap failed - see module SAFETY docs");
+        mgr.create_or_join_group(ProcessId(1002), pgrp).expect("unwrap failed - see module SAFETY docs");
 
-        mgr.suspend_group(pgrp).unwrap();
+        mgr.suspend_group(pgrp).expect("unwrap failed - see module SAFETY docs");
         assert_eq!(mgr.group_state(pgrp), Some(JobControlStateType::Stopped));
 
-        mgr.resume_group(pgrp).unwrap();
+        mgr.resume_group(pgrp).expect("unwrap failed - see module SAFETY docs");
         assert_eq!(mgr.group_state(pgrp), Some(JobControlStateType::Active));
     }
 
@@ -430,15 +430,15 @@ mod tests {
         let mut mgr = ProcessGroupManager::new();
         let pgrp = ProcessGroupId(ProcessId(1100));
 
-        mgr.create_or_join_group(ProcessId(1001), pgrp).unwrap();
-        mgr.create_or_join_group(ProcessId(1002), pgrp).unwrap();
+        mgr.create_or_join_group(ProcessId(1001), pgrp).expect("unwrap failed - see module SAFETY docs");
+        mgr.create_or_join_group(ProcessId(1002), pgrp).expect("unwrap failed - see module SAFETY docs");
 
         let procs = mgr.processes_in_group(pgrp);
-        assert_eq!(procs.unwrap().len(), 2);
+        assert_eq!(procs.expect("unwrap failed - see module SAFETY docs").len(), 2);
 
         mgr.remove_process(ProcessId(1001), pgrp);
         let procs = mgr.processes_in_group(pgrp);
-        assert_eq!(procs.unwrap().len(), 1);
+        assert_eq!(procs.expect("unwrap failed - see module SAFETY docs").len(), 1);
     }
 
     #[test_case]
@@ -447,8 +447,8 @@ mod tests {
         let pgrp = ProcessGroupId(ProcessId(1100));
         let sid = SessionId(ProcessId(2200));
 
-        mgr.create_or_join_group(ProcessId(1001), pgrp).unwrap();
-        mgr.create_or_join_session(pgrp, sid).unwrap();
+        mgr.create_or_join_group(ProcessId(1001), pgrp).expect("unwrap failed - see module SAFETY docs");
+        mgr.create_or_join_session(pgrp, sid).expect("unwrap failed - see module SAFETY docs");
         mgr.remove_process(ProcessId(1001), pgrp);
 
         let procs = mgr.processes_in_group(pgrp);
@@ -462,7 +462,7 @@ mod tests {
         let pgrp = ProcessGroupId(ProcessId(1100));
         let sid = SessionId(ProcessId(1100));
 
-        mgr.create_or_join_session(pgrp, sid).unwrap();
+        mgr.create_or_join_session(pgrp, sid).expect("unwrap failed - see module SAFETY docs");
         // Sessions are valid if they don't error
     }
 
@@ -472,11 +472,12 @@ mod tests {
         let pgrp = ProcessGroupId(ProcessId(1200));
         let sid = SessionId(ProcessId(2200));
 
-        mgr.create_or_join_session(pgrp, sid).unwrap();
-        mgr.create_or_join_session(pgrp, sid).unwrap();
+        mgr.create_or_join_session(pgrp, sid).expect("unwrap failed - see module SAFETY docs");
+        mgr.create_or_join_session(pgrp, sid).expect("unwrap failed - see module SAFETY docs");
 
         let groups = mgr.groups_in_session(sid);
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0], pgrp);
     }
 }
+

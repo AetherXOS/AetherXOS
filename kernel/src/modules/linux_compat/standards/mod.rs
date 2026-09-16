@@ -1,3 +1,5 @@
+//! standards module.
+
 pub mod legacy;
 pub mod linux;
 pub mod posix;
@@ -10,3 +12,5 @@ pub enum SyscallStandard {
     Linux,  // Linux specific extensions
     Legacy, // Obsolescent/Deprecated
 }
+
+

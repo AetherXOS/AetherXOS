@@ -1,3 +1,5 @@
+//! log module.
+
 use crate::kernel::sync::IrqSafeMutex;
 use alloc::vec::Vec;
 use core::fmt;
@@ -158,3 +160,5 @@ macro_rules! klog_trace {
         $crate::kernel::log::log($crate::kernel::log::Level::Trace, format_args!($($arg)*))
     };
 }
+
+

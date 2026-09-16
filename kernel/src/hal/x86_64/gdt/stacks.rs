@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use core::cell::UnsafeCell;
 use x86_64::VirtAddr;
 use crate::kernel::bit_utils::x86_64_arch::DOUBLE_FAULT_STACK_SIZE;
@@ -63,3 +68,4 @@ pub fn ap_double_fault_stack_ptr(slot: usize) -> *const u8 {
 pub fn ap_page_fault_stack_ptr(slot: usize) -> *const u8 {
     AP_PAGE_FAULT_IST_STACKS.slot_ptr(slot)
 }
+

@@ -178,7 +178,7 @@ fn p2_mixed_poll_select_epoll_timerfd_churn() {
     #[cfg(feature = "posix_net")]
     {
         let epfd = linux_shim_call(
-            crate::kernel::syscalls::syscalls_consts::linux_numbers::EPOLL_CREATE1,
+            linux_nr::EPOLL_CREATE1,
             0,
             0,
             0,
@@ -191,7 +191,7 @@ fn p2_mixed_poll_select_epoll_timerfd_churn() {
 
         for _ in 0..16usize {
             let tfd = linux_shim_call(
-                crate::kernel::syscalls::syscalls_consts::linux_numbers::TIMERFD_CREATE,
+                linux_nr::TIMERFD_CREATE,
                 crate::modules::posix_consts::time::CLOCK_MONOTONIC as usize,
                 0,
                 0,
@@ -214,7 +214,7 @@ fn p2_mixed_poll_select_epoll_timerfd_churn() {
             };
             assert_eq!(
                 linux_shim_call(
-                    crate::kernel::syscalls::syscalls_consts::linux_numbers::TIMERFD_SETTIME,
+                    linux_nr::TIMERFD_SETTIME,
                     tfd,
                     0,
                     (&spec as *const LinuxItimerspecCompat) as usize,
@@ -230,7 +230,7 @@ fn p2_mixed_poll_select_epoll_timerfd_churn() {
             };
             assert_eq!(
                 linux_shim_call(
-                    crate::kernel::syscalls::syscalls_consts::linux_numbers::EPOLL_CTL,
+                    linux_nr::EPOLL_CTL,
                     epfd,
                     crate::modules::posix_consts::net::EPOLL_CTL_ADD as usize,
                     tfd,
@@ -245,7 +245,7 @@ fn p2_mixed_poll_select_epoll_timerfd_churn() {
 
             let mut out = [LinuxEpollEventCompat::default(); 4];
             let ready = linux_shim_call(
-                crate::kernel::syscalls::syscalls_consts::linux_numbers::EPOLL_WAIT,
+                linux_nr::EPOLL_WAIT,
                 epfd,
                 out.as_mut_ptr() as usize,
                 out.len(),
@@ -255,7 +255,7 @@ fn p2_mixed_poll_select_epoll_timerfd_churn() {
             assert!(!is_linux_error(ready));
 
             let _ = linux_shim_call(
-                crate::kernel::syscalls::syscalls_consts::linux_numbers::EPOLL_CTL,
+                linux_nr::EPOLL_CTL,
                 epfd,
                 crate::modules::posix_consts::net::EPOLL_CTL_DEL as usize,
                 tfd,
@@ -263,7 +263,7 @@ fn p2_mixed_poll_select_epoll_timerfd_churn() {
                 0,
             );
             let _ = linux_shim_call(
-                crate::kernel::syscalls::syscalls_consts::linux_numbers::CLOSE,
+                linux_nr::CLOSE,
                 tfd,
                 0,
                 0,
@@ -273,7 +273,7 @@ fn p2_mixed_poll_select_epoll_timerfd_churn() {
         }
 
         let _ = linux_shim_call(
-            crate::kernel::syscalls::syscalls_consts::linux_numbers::CLOSE,
+            linux_nr::CLOSE,
             epfd,
             0,
             0,
@@ -288,7 +288,7 @@ fn p2_minecraft_java_game_like_epoll_socket_timerfd_soak() {
     #[cfg(feature = "posix_net")]
     {
         let epfd = linux_shim_call(
-            crate::kernel::syscalls::syscalls_consts::linux_numbers::EPOLL_CREATE1,
+            linux_nr::EPOLL_CREATE1,
             0,
             0,
             0,
@@ -301,7 +301,7 @@ fn p2_minecraft_java_game_like_epoll_socket_timerfd_soak() {
 
         for _ in 0..20usize {
             let tfd = linux_shim_call(
-                crate::kernel::syscalls::syscalls_consts::linux_numbers::TIMERFD_CREATE,
+                linux_nr::TIMERFD_CREATE,
                 crate::modules::posix_consts::time::CLOCK_MONOTONIC as usize,
                 0,
                 0,
@@ -323,7 +323,7 @@ fn p2_minecraft_java_game_like_epoll_socket_timerfd_soak() {
                 },
             };
             let _ = linux_shim_call(
-                crate::kernel::syscalls::syscalls_consts::linux_numbers::TIMERFD_SETTIME,
+                linux_nr::TIMERFD_SETTIME,
                 tfd,
                 0,
                 (&spec as *const LinuxItimerspecCompat) as usize,
@@ -333,7 +333,7 @@ fn p2_minecraft_java_game_like_epoll_socket_timerfd_soak() {
 
             let mut evs = [LinuxEpollEventCompat::default(); 8];
             let _ = linux_shim_call(
-                crate::kernel::syscalls::syscalls_consts::linux_numbers::EPOLL_PWAIT2,
+                linux_nr::EPOLL_PWAIT2,
                 epfd,
                 evs.as_mut_ptr() as usize,
                 evs.len(),

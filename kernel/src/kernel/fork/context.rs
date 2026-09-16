@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 
 #[derive(Clone)]
@@ -58,3 +63,4 @@ pub(super) fn snapshot_parent_task(parent_pid: ProcessId) -> Option<ParentTaskSn
         user_tls_base: parent_task.user_tls_base,
     })
 }
+

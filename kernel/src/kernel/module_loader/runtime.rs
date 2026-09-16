@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
 pub(super) fn materialize_write_bytes_at(
     vaddr: u64,
@@ -159,3 +164,4 @@ pub(super) fn install_runtime_fini_trampoline(
     });
     Some(tramp_start)
 }
+

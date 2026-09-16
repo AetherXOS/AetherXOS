@@ -1,3 +1,5 @@
+//! VFS control plane: mount management, ramfs operations, and filesystem registration.
+
 pub mod operations;
 pub mod registry;
 pub mod stats;
@@ -67,3 +69,4 @@ pub fn load_initrd_entries_typed(
 
 #[cfg(all(test, feature = "vfs"))]
 mod tests;
+

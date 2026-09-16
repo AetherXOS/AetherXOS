@@ -85,7 +85,7 @@ mod tests {
     #[test_case]
     fn getrlimit_invalid_pointer_returns_efault() {
         assert_eq!(
-            sys_linux_getrlimit(0, 0),
+            sys_linux_getrlimit(7, 0),
             linux_errno(crate::modules::posix_consts::errno::EFAULT)
         );
     }
@@ -93,7 +93,7 @@ mod tests {
     #[test_case]
     fn prlimit_invalid_old_pointer_returns_efault() {
         assert_eq!(
-            sys_linux_prlimit64(0, 0, 0, 0),
+            sys_linux_prlimit64(0, 7, 0, 1),
             linux_errno(crate::modules::posix_consts::errno::EFAULT)
         );
     }

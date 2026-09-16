@@ -1,3 +1,5 @@
+//! startup module.
+
 use crate::interfaces::task::{KernelTask, TaskId};
 use crate::kernel::sync::IrqSafeMutex;
 use alloc::vec::Vec;
@@ -288,3 +290,5 @@ extern "C" fn service_entry_telemetry() -> ! {
         core::hint::spin_loop();
     }
 }
+
+

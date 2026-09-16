@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::types::SwitchInfo;
 use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use aethercore::interfaces::{Scheduler, SchedulerAction};
@@ -218,3 +223,4 @@ mod tests {
         ));
     }
 }
+

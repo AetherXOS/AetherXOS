@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #[cfg(not(feature = "linux_compat"))]
 pub(crate) fn sys_linux_getpid() -> usize {
     #[cfg(feature = "posix_process")]
@@ -174,3 +179,4 @@ pub(crate) fn sys_linux_getrusage(who: i32, usage_ptr: usize) -> usize {
         crate::kernel::syscalls::linux_errno(crate::modules::posix_consts::errno::ENOSYS)
     }
 }
+

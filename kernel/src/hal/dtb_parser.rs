@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 /// Device Tree Binary (DTB) Parser for aarch64
 /// 
 /// Parses device tree blobs provided by bootloader (u-boot, QEMU, etc).
@@ -7,10 +12,10 @@
 /// 
 /// ```
 /// FDT Header
-///   ├─ Memory Reservation Block
-///   ├─ Device Tree Structure Block
-///   │   └─ Node tree with properties
-///   └─ Strings Block
+///   â”œâ”€ Memory Reservation Block
+///   â”œâ”€ Device Tree Structure Block
+///   â”‚   â””â”€ Node tree with properties
+///   â””â”€ Strings Block
 /// ```
 /// 
 /// # Entry Points
@@ -85,7 +90,7 @@ impl DtbDevice {
 
     pub fn name_str(&self) -> &str {
         let slice = &self.name[..self.name_len as usize];
-        unsafe { core::str::from_utf8_unchecked(slice) }
+        core::str::from_utf8(slice).unwrap_or("[invalid utf8]")
     }
 }
 
@@ -132,21 +137,30 @@ impl DtbParser {
                 return Err("DTB pointer invalid");
             }
 
-            let header = *ptr;
+            let mut header = *ptr;
 
-            // Check magic (handle both endianness)
-            let magic = match header.magic {
-                FDT_MAGIC => FDT_MAGIC, // Big-endian
-                0xedfe0dd0 => {
-                    // Little-endian - device tree on little-endian system
-                    logging::log_operation_success("dtb_validate", 0, "endianness=LE");
-                    0xedfe0dd0
-                }
-                _ => {
-                    logging::log_operation_failure("dtb_validate", 0, "magic_mismatch");
-                    return Err("FDT magic mismatch");
-                }
-            };
+            // Check magic (handle both endianness) and normalize fields
+            if header.magic == FDT_MAGIC {
+                // Big-endian - swap all fields to native CPU endianness
+                header.magic = u32::from_be(header.magic);
+                header.totalsize = u32::from_be(header.totalsize);
+                header.off_dt_struct = u32::from_be(header.off_dt_struct);
+                header.off_dt_strings = u32::from_be(header.off_dt_strings);
+                header.off_mem_rsvmap = u32::from_be(header.off_mem_rsvmap);
+                header.version = u32::from_be(header.version);
+                header.last_comp_version = u32::from_be(header.last_comp_version);
+                header.boot_cpuid_phys = u32::from_be(header.boot_cpuid_phys);
+                header.size_dt_strings = u32::from_be(header.size_dt_strings);
+                header.size_dt_struct = u32::from_be(header.size_dt_struct);
+                
+                logging::log_operation_success("dtb_validate", 0, "endianness=BE");
+            } else if header.magic == 0xedfe0dd0 {
+                // Little-endian
+                logging::log_operation_success("dtb_validate", 0, "endianness=LE");
+            } else {
+                logging::log_operation_failure("dtb_validate", 0, "magic_mismatch");
+                return Err("FDT magic mismatch");
+            }
 
             // Store validated header
             self.header = Some(header);
@@ -398,4 +412,5 @@ pub fn enumerate_devices_from_dtb() -> Option<alloc::vec::Vec<crate::hal::abstra
     use alloc::vec;
     Some(vec![])
 }
+
 

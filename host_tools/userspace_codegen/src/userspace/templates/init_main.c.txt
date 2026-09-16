@@ -1,0 +1,9 @@
+/* aethercore userspace program skeleton: init.elf */
+/* role: bootstrap_init */
+/* probe_features: startup_stack_scan,auxv_scan,vdso_probe,abi_surface_dump,exec_chain */
+#include "aethercore_runtime.h"
+
+int main(void) {
+    aethercore_kernel_print("[init-linked] userspace init main\n");
+    return aethercore_runtime_ready() ? 0 : 1;
+}

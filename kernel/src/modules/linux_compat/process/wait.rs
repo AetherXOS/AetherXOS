@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 use crate::modules::posix_consts::process::{RUSAGE_CHILDREN, WNOHANG};
 
@@ -117,3 +122,4 @@ pub fn sys_linux_waitid(
         }
     })
 }
+

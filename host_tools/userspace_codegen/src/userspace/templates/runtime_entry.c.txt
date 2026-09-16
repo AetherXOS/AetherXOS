@@ -1,0 +1,21 @@
+#include "aethercore_runtime.h"
+#include "aethercore_runtime_state.h"
+
+void __aethercore_crt0_start(void) {
+    __aethercore_auxv_init();
+    g_aethercore_runtime_init_flags |= AETHERCORE_RUNTIME_INIT_AUXV;
+    __aethercore_env_init();
+    g_aethercore_runtime_init_flags |= AETHERCORE_RUNTIME_INIT_ENV;
+    __aethercore_syscall_init();
+    g_aethercore_runtime_init_flags |= AETHERCORE_RUNTIME_INIT_SYSCALL;
+}
+
+unsigned long aethercore_runtime_init_flags(void) {
+    return g_aethercore_runtime_init_flags;
+}
+
+int aethercore_runtime_ready(void) {
+    return (g_aethercore_runtime_init_flags &
+        (AETHERCORE_RUNTIME_INIT_AUXV | AETHERCORE_RUNTIME_INIT_ENV | AETHERCORE_RUNTIME_INIT_SYSCALL))
+        == (AETHERCORE_RUNTIME_INIT_AUXV | AETHERCORE_RUNTIME_INIT_ENV | AETHERCORE_RUNTIME_INIT_SYSCALL);
+}

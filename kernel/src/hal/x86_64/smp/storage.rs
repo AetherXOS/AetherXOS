@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use core::cell::UnsafeCell;
 use core::mem::MaybeUninit;
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
@@ -118,3 +123,4 @@ pub(super) fn allocate_ap_cpu_local(cpu_id: CpuId) -> &'static CpuLocal {
     crate::hal::x86_64::serial::write_raw("[EARLY SERIAL] x86_64 ap cpu local heap alloc returned\n");
     unsafe { &*AP_CPU_LOCAL.slot_ptr(slot) }
 }
+

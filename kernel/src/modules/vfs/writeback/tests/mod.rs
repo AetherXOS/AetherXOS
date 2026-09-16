@@ -1,3 +1,5 @@
+//! tests module.
+
 mod sinks;
 mod helpers;
 mod basic;
@@ -28,3 +30,5 @@ use spin::Mutex as SpinMutex;
 
 pub use sinks::*;
 pub use helpers::*;
+
+

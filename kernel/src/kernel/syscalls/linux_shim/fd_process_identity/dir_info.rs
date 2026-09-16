@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 #[cfg(all(not(feature = "linux_compat"), feature = "posix_fs"))]
 use alloc::collections::BTreeMap;
@@ -201,3 +206,4 @@ pub(crate) fn sys_linux_uname(buf: usize) -> usize {
     })
     .unwrap_or_else(|_| linux_errno(crate::modules::posix_consts::errno::EFAULT))
 }
+

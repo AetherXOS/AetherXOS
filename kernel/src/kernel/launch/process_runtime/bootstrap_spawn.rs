@@ -2,6 +2,7 @@ use super::*;
 use core::sync::atomic::Ordering;
 use crate::interfaces::task::TaskId;
 use crate::kernel::launch::process_runtime::bootstrap_dispatch::record_launch_image_preview;
+use crate::observability_launch;
 
 #[cfg(feature = "process_abstraction")]
 pub fn spawn_bootstrap_from_image(
@@ -60,7 +61,7 @@ pub fn spawn_bootstrap_from_image_record(
     bootstrap_spawn_utils::validate_spawn_request(process_name, &boot_image)?;
 
     let name_str = alloc::string::String::from_utf8_lossy(process_name);
-    bootstrap_spawn_utils::log_spawn_record(&name_str, boot_image.as_slice().len(), priority, deadline, burst_time, kernel_stack_top);
+    bootstrap_spawn_utils::log_spawn_record(name_str.as_ref(), boot_image.as_slice().len(), priority, deadline, burst_time, kernel_stack_top);
 
     let (process, _) = bootstrap_spawn_helpers::create_process_with_cr3(name_str.as_bytes());
     let process_id = process.id;

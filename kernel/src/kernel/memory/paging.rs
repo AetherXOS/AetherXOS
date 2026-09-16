@@ -1,5 +1,13 @@
 //! Platform-agnostic Virtual Memory Manager (VMM).
-//! Delegated to the Hardware Abstraction Layer (HAL) for platform-specifics.
+//!
+//! Re-exports the HAL's arch-specific `PageManager` and adds generic
+//! helpers (`map_range`, `apply_mapping`). This is the single entry
+//! point for all paging operations in kernel code.
+//!
+//! Layer hierarchy:
+//!   `hal::paging` → arch-specific (x86_64 `OffsetPageTable`, aarch64 equivalent)
+//!   `kernel::memory::paging` → generic (this module)
+//!   `kernel::vmm` → higher-level VMM (page allocator, address space cloning)
 
 use crate::kernel::bit_utils::paging as bits;
 
@@ -206,6 +214,7 @@ impl PageManager {
     }
 }
 
+#[cfg(target_arch = "x86_64")]
 pub fn active_level_4_table(hhdm_offset: u64) -> &'static mut crate::hal::paging::PageTable {
     
 
@@ -221,7 +230,7 @@ pub fn active_level_4_table(hhdm_offset: u64) -> &'static mut crate::hal::paging
     #[cfg(not(target_os = "none"))]
     {
         let _ = hhdm_offset;
-        // Return a dummy page table for host tests
+        // SAFETY: Host-only test path; single-threaded, no concurrent access.
         static mut DUMMY_TABLE: crate::hal::paging::PageTable = crate::hal::paging::PageTable::new();
         #[allow(static_mut_refs)]
         unsafe { &mut DUMMY_TABLE }
@@ -233,18 +242,21 @@ pub fn active_level_4_table(hhdm_offset: u64) -> &'static mut crate::hal::paging
     #[cfg(target_os = "none")]
     {
         let ttbr1: u64;
+        // SAFETY: `mrs ttbr1_el1` reads the CPU's page table base register;
+        // it has no side effects and is safe on any AArch64 implementation.
         unsafe {
             core::arch::asm!("mrs {}, ttbr1_el1", out(reg) ttbr1, options(nomem, nostack));
         }
-        // TTBR1_EL1 layout: bits 1..47 contain the physical table base
-        let phys = ttbr1 & !0xFFFF000000000001; // mask out ASID and CnP
+        let phys = ttbr1 & !0xFFFF000000000001;
         let virt = (phys + hhdm_offset) as *mut crate::hal::paging::PageTable;
+        // SAFETY: `phys` is the actual TTBR1 address from the CPU register,
+        // and `hhdm_offset` maps physical memory into the virtual address space.
         unsafe { &mut *virt }
     }
     #[cfg(not(target_os = "none"))]
     {
         let _ = hhdm_offset;
-        // Return a dummy page table for host tests
+        // SAFETY: Host-only test path; single-threaded, no concurrent access.
         static mut DUMMY_TABLE: crate::hal::paging::PageTable = crate::hal::paging::PageTable::new();
         #[allow(static_mut_refs)]
         unsafe { &mut DUMMY_TABLE }

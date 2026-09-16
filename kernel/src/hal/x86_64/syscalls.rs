@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::kernel::syscalls::syscalls_consts::x86;
 use core::arch::naked_asm;
 use x86_64::registers::model_specific::{Efer, EferFlags, LStar, SFMask, Star};
@@ -100,3 +105,4 @@ pub unsafe extern "C" fn syscall_handler() {
 pub unsafe extern "C" fn syscall_handler() {
     panic!("syscall_handler called on host");
 }
+

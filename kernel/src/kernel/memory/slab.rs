@@ -16,6 +16,8 @@ struct Slab {
     allocated: u16,
     /// Total capacity (objects per slab).
     capacity: u16,
+    /// Bitmask of allocated slots to prevent double-free corruption.
+    allocated_mask: [u64; 8],
 }
 
 impl Slab {
@@ -39,15 +41,25 @@ impl Slab {
             free_head: prev,
             allocated: 0,
             capacity,
+            allocated_mask: [0; 8],
         }
     }
 
-    fn alloc(&mut self) -> Option<usize> {
+    fn alloc(&mut self, obj_size: usize) -> Option<usize> {
         let head = self.free_head?;
         // Read next pointer from the free cell.
         let next = unsafe { ptr::read(head as *const usize) };
         self.free_head = if next == 0 { None } else { Some(next) };
         self.allocated += 1;
+
+        // Set bit in mask
+        let idx = (head - self.base) / obj_size;
+        let word = idx / 64;
+        let bit = idx % 64;
+        if word < 8 {
+            self.allocated_mask[word] |= 1 << bit;
+        }
+
         Some(head)
     }
 
@@ -59,6 +71,20 @@ impl Slab {
         if (addr - self.base) % obj_size != 0 {
             return false;
         }
+
+        // Double-free protection: check if already freed.
+        let idx = (addr - self.base) / obj_size;
+        let word = idx / 64;
+        let bit = idx % 64;
+        if word < 8 {
+            if (self.allocated_mask[word] & (1 << bit)) == 0 {
+                // Already freed!
+                return false;
+            }
+            // Clear the bit.
+            self.allocated_mask[word] &= !(1 << bit);
+        }
+
         // Push onto free-list.
         unsafe {
             let cell = addr as *mut usize;
@@ -127,14 +153,14 @@ impl SlabCache {
         // 1. Fast-Path: Try to allocate from a partially full slab.
         for slab in self.slabs.iter_mut() {
             if !slab.is_full() {
-                return slab.alloc();
+                return slab.alloc(self.obj_size);
             }
         }
 
         // 2. Slow-Path: Allocate a new page if needed.
         let page = page_alloc()?;
         let mut slab = unsafe { Slab::init(page, self.obj_size) };
-        let addr = slab.alloc()?;
+        let addr = slab.alloc(self.obj_size)?;
         self.slabs.push(slab);
         Some(addr)
     }
@@ -246,3 +272,48 @@ impl SlabAllocator {
         self.caches.iter().map(|c| c.stats()).collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn test_slab_cache_allocation_and_free() {
+        let mut cache = SlabCache::new("test-cache", 16);
+        let mut pages = [0usize; 4];
+        let mut page_idx = 0;
+        let mut page_alloc = || {
+            if page_idx < pages.len() {
+                // Mock a page: allocate 4096 bytes aligned memory
+                let layout = core::alloc::Layout::from_size_align(4096, 4096).expect("unwrap failed - see module SAFETY docs");
+                let addr = unsafe { alloc::alloc::alloc_zeroed(layout) } as usize;
+                pages[page_idx] = addr;
+                page_idx += 1;
+                Some(addr)
+            } else {
+                None
+            }
+        };
+
+        let addr1 = cache.alloc(&mut page_alloc).expect("unwrap failed - see module SAFETY docs");
+        let addr2 = cache.alloc(&mut page_alloc).expect("unwrap failed - see module SAFETY docs");
+
+        assert!(addr1 != addr2);
+
+        // Freeing first time should succeed
+        assert!(cache.free(addr1));
+
+        // Freeing second time (double free) should fail
+        assert!(!cache.free(addr1));
+
+        // Freeing second address should succeed
+        assert!(cache.free(addr2));
+
+        // Clean up mock pages
+        for &page in &pages[..page_idx] {
+            let layout = core::alloc::Layout::from_size_align(4096, 4096).expect("unwrap failed - see module SAFETY docs");
+            unsafe { alloc::alloc::dealloc(page as *mut u8, layout) };
+        }
+    }
+}
+

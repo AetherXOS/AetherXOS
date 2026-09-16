@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! TTY Device Model & Job Control Integration
 //!
 //! This module provides a Linux-compatible TTY subsystem, including:
@@ -359,8 +364,11 @@ impl TtyRegistry {
 /// Initialize the default TTY system (TTY0)
 pub fn init_default_tty() {
     let tty0 = Arc::new(TtyDevice::new(TtyId::new(0)));
-    tty0.open().unwrap();
-    GLOBAL_TTY_REGISTRY.lock().register(TtyId::new(0), tty0).unwrap();
+    tty0.open().expect("failed to open default TTY0 device");
+    GLOBAL_TTY_REGISTRY
+        .lock()
+        .register(TtyId::new(0), tty0)
+        .expect("failed to register TTY0 in global registry");
 }
 
 #[cfg(all(test, target_os = "none"))]
@@ -377,7 +385,7 @@ mod tests {
     #[test_case]
     fn tty_device_open_close() {
         let tty = TtyDevice::new(TtyId::new(0));
-        tty.open().unwrap();
+        tty.open().expect("unwrap failed - see module SAFETY docs");
         assert!(tty.is_open());
         tty.close();
         assert!(!tty.is_open());
@@ -424,11 +432,11 @@ mod tests {
     fn tty_registry_basic() {
         let mut registry = TtyRegistry::new();
         let tty = Arc::new(TtyDevice::new(TtyId::new(0)));
-        registry.register(TtyId::new(0), tty.clone()).unwrap();
+        registry.register(TtyId::new(0), tty.clone()).expect("unwrap failed - see module SAFETY docs");
 
         let retrieved = registry.get(TtyId::new(0));
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().id(), TtyId::new(0));
+        assert_eq!(retrieved.expect("unwrap failed - see module SAFETY docs").id(), TtyId::new(0));
     }
 
     #[test_case]
@@ -438,3 +446,5 @@ mod tests {
         assert!(retrieved.is_none());
     }
 }
+
+

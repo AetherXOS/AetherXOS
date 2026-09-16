@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::support::*;
 
 #[cfg(not(feature = "linux_compat"))]
@@ -81,3 +86,4 @@ pub fn sys_linux_rt_sigaction_shim(
         0
     }
 }
+

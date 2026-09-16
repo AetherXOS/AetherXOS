@@ -1,3 +1,5 @@
+//! types module.
+
 mod enums;
 mod reports;
 
@@ -6,3 +8,5 @@ pub(crate) use self::enums::{DriftReasonCode, DriftThresholdProfile};
 pub use self::reports::{
     CoreRuntimePolicyDriftReport, CoreRuntimePolicySnapshot, RuntimePolicyContractReport,
 };
+
+

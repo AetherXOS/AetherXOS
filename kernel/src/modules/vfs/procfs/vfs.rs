@@ -211,8 +211,8 @@ impl FileSystem for ProcFs {
         );
         
         let is_pid_dir = clean.parse::<u64>().is_ok() 
-            || (clean.ends_with("/fd") && clean.split('/').next().unwrap().parse::<u64>().is_ok())
-            || (clean.ends_with("/ns") && clean.split('/').next().unwrap().parse::<u64>().is_ok());
+            || (clean.ends_with("/fd") && clean.split('/').next().expect("unwrap failed - see module SAFETY docs").parse::<u64>().is_ok())
+            || (clean.ends_with("/ns") && clean.split('/').next().expect("unwrap failed - see module SAFETY docs").parse::<u64>().is_ok());
 
         if is_dir || is_pid_dir {
             return Ok(FileStats {
@@ -321,3 +321,4 @@ impl FileSystem for ProcFs {
     fn mkdir(&self, _path: &str, _tid: TaskId) -> Result<(), &'static str> { Err("EROFS") }
     fn rmdir(&self, _path: &str, _tid: TaskId) -> Result<(), &'static str> { Err("EROFS") }
 }
+

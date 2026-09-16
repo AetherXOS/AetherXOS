@@ -1,3 +1,5 @@
+//! network module.
+
 pub mod ethernet;
 
 pub use crate::modules::drivers::network::{
@@ -12,3 +14,5 @@ pub use crate::modules::drivers::network::{
 pub use crate::modules::drivers::network_io_health::{
     evaluate_network_io_health_action, NetworkIoHealthAction, NetworkIoHealthHarness,
 };
+
+

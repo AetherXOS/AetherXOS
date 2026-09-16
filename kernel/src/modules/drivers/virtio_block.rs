@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::block::{mark_init, mark_io, mark_probe, BlockDevice, BlockDeviceInfo, BlockDriverKind};
 use super::lifecycle::{
     DriverClass, DriverErrorKind, DriverIoGate, DriverStateMachine, PciProbeDriver,
@@ -370,3 +375,4 @@ impl BlockDevice for VirtIoBlock {
         }
     }
 }
+

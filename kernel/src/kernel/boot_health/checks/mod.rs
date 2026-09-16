@@ -1,3 +1,5 @@
+//! checks module.
+
 mod aarch64;
 mod core;
 mod driver;
@@ -20,3 +22,5 @@ fn check(report: &mut BootHealthReport, code: u32, cond: bool, msg: &str) {
         crate::klog_error!("[BOOT SELFTEST] E{}: {}", code, msg);
     }
 }
+
+

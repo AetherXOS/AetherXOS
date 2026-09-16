@@ -1,0 +1,31 @@
+#include "aethercore_libc.h"
+#include "aethercore_runtime.h"
+
+static char *aethercore_basename(char *path) {
+    char *cursor = path;
+    char *last = path;
+    if (!path) return (char *)0;
+    while (*cursor) {
+        if (*cursor == '/' || *cursor == '\\') {
+            last = cursor + 1;
+        }
+        ++cursor;
+    }
+    return last;
+}
+
+int __libc_start_main(void) {
+    char *exec_path = aethercore_getenv("AETHERCORE_EXEC_PATH");
+    __aethercore_crt0_start();
+    if (!exec_path || exec_path[0] == 0) {
+        exec_path = (char *)aethercore_auxv_execfn();
+    }
+    program_invocation_name = exec_path;
+    program_invocation_short_name = aethercore_basename(exec_path);
+    __progname_full = program_invocation_name;
+    __progname = program_invocation_short_name;
+    __libc_enable_secure = (int)getauxval(23ul);
+    (void)aethercore_getenv("AETHERCORE_RUNTIME_ENTRY");
+    (void)aethercore_getenv("AETHERCORE_RUNTIME_FINI_ENTRY");
+    return (int)aethercore_runtime_probe_mask();
+}

@@ -13,7 +13,7 @@ pub fn run_smoke() -> Result<()> {
         &[("root", &root.to_string_lossy())],
     );
     let cargo_path = root.join("Cargo.toml");
-    let generated_path = root.join("generated_consts.rs");
+    let generated_path = root.join("kernel/src/generated_consts.rs");
 
     if !cargo_path.exists() || !generated_path.exists() {
         bail!("Missing Cargo.toml or kernel/src/generated_consts.rs at root");

@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 pub fn parse_sysv_hash_nchain(image: &[u8], hash_off: usize) -> Option<usize> {
     if hash_off.checked_add(8)? > image.len() {
         return None;

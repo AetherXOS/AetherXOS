@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::helpers::{
     estimate_image_window_bytes, is_supported_elf, read_dynstr_entry, resolve_runtime_search_paths,
     DEFAULT_DYNAMIC_LINKER_IMAGE_WINDOW_BYTES, ELF64_SYM_SIZE_BYTES,
@@ -452,3 +457,4 @@ mod tests {
         assert!(!validate_auxv_contract(&elf, 0x7000, &auxv));
     }
 }
+

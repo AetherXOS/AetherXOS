@@ -1,3 +1,5 @@
+//! rt_preemption module.
+
 use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 
 use crate::config::KernelConfig;
@@ -238,3 +240,5 @@ pub fn stats() -> RtPreemptionStats {
         max_continue_streak: MAX_CONTINUE_STREAK.load(Ordering::Relaxed),
     }
 }
+
+

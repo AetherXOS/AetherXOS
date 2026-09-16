@@ -1,3 +1,5 @@
+//! profiles module.
+
 use super::*;
 
 mod guest_profiles;
@@ -30,3 +32,5 @@ pub use types::{
     GuestExitFlags, GuestLaunchFlags, GuestOperationProfile, GuestRuntimeFlags, VirtOperationFlags,
     VirtOperationSummary,
 };
+
+

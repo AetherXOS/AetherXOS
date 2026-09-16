@@ -1,3 +1,5 @@
+//! watchdog module.
+
 use core::sync::atomic::{AtomicU64, Ordering};
 
 use crate::config::KernelConfig;
@@ -168,7 +170,13 @@ pub fn on_timer_tick(cpu: &'static CpuLocal) {
                     crate::kernel::fatal_halt("soft_watchdog");
                 }
                 crate::config::WatchdogAction::Panic => {
-                    panic!("soft watchdog panic");
+                    crate::klog_error!(
+                        "soft watchdog panic: cpu={} lag={} stall={}",
+                        cpu.cpu_id,
+                        lag,
+                        stall,
+                    );
+                    crate::kernel::fatal_halt("soft_watchdog");
                 }
                 crate::config::WatchdogAction::Log => {
                     crate::klog_warn!(
@@ -231,3 +239,5 @@ pub fn tick() {
     crate::kernel::launch::refresh_all_linux_runtime_vvar();
     update_load_avg();
 }
+
+

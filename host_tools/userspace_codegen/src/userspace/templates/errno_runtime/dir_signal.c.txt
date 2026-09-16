@@ -1,0 +1,217 @@
+    DIR *dirp;
+    if (fd < 0) {
+        g_aethercore_errno = 9;
+        return (DIR *)0;
+    }
+    dirp = (DIR *)malloc(sizeof(DIR));
+    if (!dirp) {
+        return (DIR *)0;
+    }
+    dirp->fd = fd;
+    dirp->pos = 0ul;
+    dirp->size = 0ul;
+    dirp->entry.d_name[0] = 0;
+    return dirp;
+}
+
+DIR *opendir(const char *path) {
+    int fd;
+    if (!path) {
+        g_aethercore_errno = 22;
+        return (DIR *)0;
+    }
+    fd = open(path, 0, 0ul);
+    if (fd < 0) {
+        return (DIR *)0;
+    }
+    return fdopendir(fd);
+}
+
+struct aethercore_dirent *readdir(DIR *dirp) {
+    struct aethercore_linux_dirent64_view *src;
+    unsigned long i;
+    long bytes;
+    if (!dirp) {
+        g_aethercore_errno = 22;
+        return (struct aethercore_dirent *)0;
+    }
+    for (;;) {
+        if (dirp->pos >= dirp->size) {
+            bytes = getdents64(dirp->fd, dirp->buffer, sizeof(dirp->buffer));
+            if (bytes <= 0) {
+                dirp->pos = 0ul;
+                dirp->size = 0ul;
+                return (struct aethercore_dirent *)0;
+            }
+            dirp->pos = 0ul;
+            dirp->size = (unsigned long)bytes;
+        }
+        src = (struct aethercore_linux_dirent64_view *)(dirp->buffer + dirp->pos);
+        if (!src->d_reclen) {
+            dirp->pos = dirp->size;
+            continue;
+        }
+        dirp->pos += (unsigned long)src->d_reclen;
+        dirp->entry.d_ino = src->d_ino;
+        dirp->entry.d_off = src->d_off;
+        dirp->entry.d_reclen = src->d_reclen;
+        dirp->entry.d_type = src->d_type;
+        for (i = 0ul; i + 1ul < sizeof(dirp->entry.d_name) && src->d_name[i] != 0; ++i) {
+            dirp->entry.d_name[i] = src->d_name[i];
+        }
+        dirp->entry.d_name[i] = 0;
+        return &dirp->entry;
+    }
+}
+
+void rewinddir(DIR *dirp) {
+    if (!dirp) {
+        return;
+    }
+    (void)lseek(dirp->fd, 0l, 0);
+    dirp->pos = 0ul;
+    dirp->size = 0ul;
+}
+
+int dirfd(DIR *dirp) {
+    if (!dirp) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    return dirp->fd;
+}
+
+int closedir(DIR *dirp) {
+    int fd;
+    int rc;
+    if (!dirp) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    fd = dirp->fd;
+    free(dirp);
+    rc = close(fd);
+    return rc;
+}
+
+int daemon(int nochdir, int noclose) {
+    if (fork() < 0) {
+        return -1;
+    }
+    if (setsid() < 0) {
+        return -1;
+    }
+    if (!nochdir) {
+        (void)chdir("/");
+    }
+    if (!noclose) {
+        int nullfd = openat(-100, "/dev/null", 2, 0ul);
+        if (nullfd >= 0) {
+            (void)dup2(nullfd, 0);
+            (void)dup2(nullfd, 1);
+            (void)dup2(nullfd, 2);
+            if (nullfd > 2) {
+                (void)close(nullfd);
+            }
+        }
+    }
+    return 0;
+}
+
+static int aethercore_sig_index(int sig, unsigned long *word_index, unsigned long *bit_index) {
+    unsigned long value;
+    if (!word_index || !bit_index || sig <= 0) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    value = (unsigned long)(sig - 1);
+    *word_index = value / (8ul * (unsigned long)sizeof(unsigned long));
+    *bit_index = value % (8ul * (unsigned long)sizeof(unsigned long));
+    if (*word_index >= 16ul) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    return 0;
+}
+
+int sigemptyset(struct aethercore_sigset *set) {
+    unsigned long i;
+    if (!set) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    for (i = 0; i < 16ul; ++i) {
+        set->__bits[i] = 0ul;
+    }
+    return 0;
+}
+
+int sigfillset(struct aethercore_sigset *set) {
+    unsigned long i;
+    if (!set) {
+        g_aethercore_errno = 22;
+        return -1;
+    }
+    for (i = 0; i < 16ul; ++i) {
+        set->__bits[i] = ~0ul;
+    }
+    return 0;
+}
+
+int sigaddset(struct aethercore_sigset *set, int sig) {
+    unsigned long word_index;
+    unsigned long bit_index;
+    if (!set || aethercore_sig_index(sig, &word_index, &bit_index) != 0) {
+        return -1;
+    }
+    set->__bits[word_index] |= (1ul << bit_index);
+    return 0;
+}
+
+int sigdelset(struct aethercore_sigset *set, int sig) {
+    unsigned long word_index;
+    unsigned long bit_index;
+    if (!set || aethercore_sig_index(sig, &word_index, &bit_index) != 0) {
+        return -1;
+    }
+    set->__bits[word_index] &= ~(1ul << bit_index);
+    return 0;
+}
+
+int sigismember(const struct aethercore_sigset *set, int sig) {
+    unsigned long word_index;
+    unsigned long bit_index;
+    if (!set || aethercore_sig_index(sig, &word_index, &bit_index) != 0) {
+        return -1;
+    }
+    return (set->__bits[word_index] & (1ul << bit_index)) ? 1 : 0;
+}
+
+int sigprocmask(int how, const struct aethercore_sigset *set, struct aethercore_sigset *oldset) {
+    return rt_sigprocmask(how, set, oldset, (unsigned long)sizeof(struct aethercore_sigset));
+}
+
+int sigaction(int sig, const struct aethercore_sigaction *act, struct aethercore_sigaction *oldact) {
+    return rt_sigaction(sig, act, oldact, (unsigned long)sizeof(struct aethercore_sigset));
+}
+
+void (*signal(int sig, void (*handler)(int)))(int) {
+    struct aethercore_sigaction act;
+    struct aethercore_sigaction oldact;
+    if (sigemptyset(&act.sa_mask) != 0) {
+        return AETHERCORE_SIG_ERR;
+    }
+    act.sa_handler = handler;
+    act.sa_flags = 0ul;
+    act.sa_restorer = (void (*)(void))0;
+    if (sigaction(sig, &act, &oldact) != 0) {
+        return AETHERCORE_SIG_ERR;
+    }
+    return oldact.sa_handler;
+}
+
+int raise(int sig) {
+    return kill((int)getpid(), sig);
+}
+
+int atexit(aethercore_atexit_fn_t fn) {

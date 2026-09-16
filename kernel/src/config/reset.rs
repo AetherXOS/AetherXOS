@@ -1,7 +1,19 @@
+﻿//! Runtime override reset functionality for KernelConfig.
+//!
+//! Uses a macro to reduce boilerplate when resetting atomic overrides.
+
+/// Macro to reset an atomic override to its default (zero) state.
+macro_rules! reset_override {
+    ($atomic:ident) => {
+        $atomic.store(0, Ordering::Relaxed);
+    };
+}
+
+pub(crate) use reset_override;
+
 use core::sync::atomic::Ordering;
 
 use super::{CoreRuntimeLimits, KernelConfig, *};
-
 impl KernelConfig {
     pub fn runtime_limits() -> CoreRuntimeLimits {
         CoreRuntimeLimits {

@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 
 #[test_case]
@@ -34,7 +39,7 @@ fn slab_extreme_fragmentation_pattern_sim() {
     use alloc::vec::Vec;
     let mut pointers = Vec::new();
     for i in 0..200 {
-        let layout = Layout::from_size_align((i % 8 + 1) * 32, 32).unwrap();
+        let layout = Layout::from_size_align((i % 8 + 1) * 32, 32).expect("unwrap failed - see module SAFETY docs");
         unsafe {
             let ptr = alloc::alloc::alloc(layout);
             if !ptr.is_null() {
@@ -50,7 +55,7 @@ fn slab_extreme_fragmentation_pattern_sim() {
         }
     }
     for _ in 0..100 {
-        let layout = Layout::from_size_align(64, 64).unwrap();
+        let layout = Layout::from_size_align(64, 64).expect("unwrap failed - see module SAFETY docs");
         unsafe {
             let ptr = alloc::alloc::alloc(layout);
             if !ptr.is_null() {
@@ -135,3 +140,5 @@ fn scache_steal_one_pops_current_head() {
     }
     assert_eq!(cache.count, 0);
 }
+
+

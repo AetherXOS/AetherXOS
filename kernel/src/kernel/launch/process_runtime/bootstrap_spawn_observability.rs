@@ -3,13 +3,13 @@ use crate::observability_launch;
 
 #[cfg(feature = "process_abstraction")]
 pub fn log_spawn_begin(
-    process_name: &[u8],
-    image_len: usize,
-    priority: u8,
-    deadline: u64,
-    burst_time: u64,
-    kernel_stack_top: u64,
-    interpreter_len: usize,
+    _process_name: &[u8],
+    _image_len: usize,
+    _priority: u8,
+    _deadline: u64,
+    _burst_time: u64,
+    _kernel_stack_top: u64,
+    _interpreter_len: usize,
 ) {
     observability_launch! {
         crate::kernel::debug_trace::record_optional(
@@ -33,9 +33,9 @@ pub fn log_spawn_begin(
 
 #[cfg(feature = "process_abstraction")]
 pub fn log_spawn_result(
-    process_name: &[u8],
-    result: &Result<(usize, usize), LaunchError>,
-    image_len: usize,
+    _process_name: &[u8],
+    _result: &Result<(usize, usize), LaunchError>,
+    _image_len: usize,
 ) {
     observability_launch! {
         if let Ok((process_id, task_id)) = result {

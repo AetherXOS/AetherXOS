@@ -1,10 +1,13 @@
 #[cfg(not(feature = "linux_compat"))]
 use super::linux_errno;
-use crate::kernel::syscalls::sys_yield;
-#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
-use super::{with_user_read_bytes, with_user_write_bytes};
 
-#[path = "poll_select/compat.rs"]
+use crate::kernel::syscalls::sys_yield;
+
+#[cfg(all(not(feature = "linux_compat"), feature = "posix_net"))]
+use crate::kernel::syscalls::{with_user_read_bytes, with_user_write_bytes};
+
+
+
 mod compat;
 #[path = "poll_select/poll.rs"]
 pub(crate) mod poll;

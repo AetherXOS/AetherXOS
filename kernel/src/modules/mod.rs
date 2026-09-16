@@ -1,21 +1,20 @@
+//! Kernel subsystems and loadable modules.
+//!
+//! Contains all major kernel subsystems: memory allocators, schedulers,
+//! IPC, VFS, networking, POSIX/Linux compatibility, drivers, security,
+//! and userspace graphics. Most modules are feature-gated and can be
+//! compiled selectively based on the desired kernel configuration.
+
 #[cfg(feature = "allocators")]
 pub mod allocators;
-pub mod benchmarks;
 #[cfg(feature = "dispatcher")]
 pub mod dispatcher;
-pub mod event_notification;
-pub mod fault_tolerance;
-pub mod formal_verification;
-pub mod gpu_compute;
-pub mod hardware_crypto;
 #[cfg(feature = "drivers")]
 pub mod drivers;
 #[cfg(feature = "governor")]
 pub mod governor;
-pub mod hotplug_migration;
 #[cfg(feature = "ipc")]
 pub mod ipc;
-pub mod logging;
 #[cfg(feature = "networking")]
 pub mod libnet;
 #[cfg(feature = "linux_compat")]
@@ -28,21 +27,11 @@ pub mod network;
     feature = "process_abstraction"
 ))]
 pub mod posix;
-pub mod persistent_memory;
 pub mod posix_consts;
-pub mod power_management;
 #[cfg(feature = "schedulers")]
 pub mod schedulers;
-pub mod memory_safety;
-pub mod resource_manager;
-pub mod realtime_scheduler;
-pub mod secure_boot;
 #[cfg(feature = "security")]
 pub mod security;
-pub mod syscall_inline;
-pub mod stability;
-pub mod adaptive_tuning;
-pub mod userspace_io;
 #[cfg(feature = "vfs")]
 pub mod vfs;
 #[cfg(feature = "linux_userspace_graphics")]

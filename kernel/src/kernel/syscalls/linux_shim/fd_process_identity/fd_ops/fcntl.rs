@@ -108,7 +108,7 @@ pub(crate) fn sys_linux_fcntl(fd: usize, cmd: usize, arg: usize) -> usize {
                 let flags = crate::modules::libnet::PosixFdFlags::from_bits_truncate(arg as u32);
                 match crate::modules::libnet::posix_fcntl_setfl_errno(fd as u32, flags) {
                     Ok(()) => return 0,
-                    Err(crate::modules::libnet::PosixFdFlags::BadFileDescriptor) => {}
+                    Err(crate::modules::libnet::PosixErrno::BadFileDescriptor) => {}
                     Err(err) => return linux_errno(err.code()),
                 }
             }

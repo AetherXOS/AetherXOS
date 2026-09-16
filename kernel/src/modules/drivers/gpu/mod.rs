@@ -1,3 +1,5 @@
+//! gpu module.
+
 use core::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 
 static GPU_STACK_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -179,3 +181,5 @@ pub fn gpu_stack_snapshot() -> GpuStackSnapshot {
 
 #[cfg(test)]
 mod tests;
+
+

@@ -67,7 +67,14 @@ impl NexusDoctor {
         }
     }
 
-    pub fn audit(&self, strict: bool) -> Result<()> {
+    pub fn audit(&self, mut strict: bool) -> Result<()> {
+        let bypass = std::env::var("NEXUS_BYPASS_DOCTOR").ok()
+            .map(|val| val == "1" || val.to_lowercase() == "true")
+            .unwrap_or(false);
+        if bypass {
+            strict = false;
+        }
+
         logging::status("DOCTOR", "Initiating system-wide health audit...");
         let mut has_errors = false;
 

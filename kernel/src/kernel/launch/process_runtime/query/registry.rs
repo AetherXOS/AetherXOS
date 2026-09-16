@@ -1,7 +1,4 @@
 use super::super::*;
-use alloc::sync::Arc;
-use crate::interfaces::task::{ProcessId, TaskId};
-use crate::kernel::process::Process;
 
 #[cfg(feature = "process_abstraction")]
 pub fn process_count() -> usize {

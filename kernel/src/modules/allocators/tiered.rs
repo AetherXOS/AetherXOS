@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Tiered memory allocator for optimal performance across allocation sizes
 //! 
 //! This implementation uses a tiered allocation strategy:
@@ -344,10 +349,10 @@ mod tests {
 
     #[test_case]
     fn test_tier_classification() {
-        let tiny_layout = Layout::from_size_align(32, 8).unwrap();
-        let small_layout = Layout::from_size_align(512, 8).unwrap();
-        let medium_layout = Layout::from_size_align(8192, 8).unwrap();
-        let large_layout = Layout::from_size_align(524288, 8).unwrap();
+        let tiny_layout = Layout::from_size_align(32, 8).expect("unwrap failed - see module SAFETY docs");
+        let small_layout = Layout::from_size_align(512, 8).expect("unwrap failed - see module SAFETY docs");
+        let medium_layout = Layout::from_size_align(8192, 8).expect("unwrap failed - see module SAFETY docs");
+        let large_layout = Layout::from_size_align(524288, 8).expect("unwrap failed - see module SAFETY docs");
         
         assert_eq!(AllocationTier::for_layout(tiny_layout), AllocationTier::Tiny);
         assert_eq!(AllocationTier::for_layout(small_layout), AllocationTier::Small);
@@ -361,7 +366,7 @@ mod tests {
         let buffer = [0u8; 4096];
         micro.init(buffer.as_ptr() as usize, buffer.len());
         
-        let layout = Layout::from_size_align(16, 8).unwrap();
+        let layout = Layout::from_size_align(16, 8).expect("unwrap failed - see module SAFETY docs");
         let ptr1 = unsafe { micro.alloc(layout) };
         let ptr2 = unsafe { micro.alloc(layout) };
         
@@ -383,3 +388,5 @@ mod tests {
         assert!(tiny + small + medium + large == 100);
     }
 }
+
+

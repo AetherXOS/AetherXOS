@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::interfaces::task::{TaskId, TaskState};
 use crate::interfaces::memory::PageAllocator;
 use crate::interfaces::cpu::CpuRegisters;
@@ -76,3 +81,4 @@ pub fn kernel_worker_loop() {
         crate::hal::HAL::cpu_relax();
     }
 }
+

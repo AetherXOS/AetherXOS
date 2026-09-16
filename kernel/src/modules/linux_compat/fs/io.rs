@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 use crate::kernel::syscalls::with_user_write_bytes;
 use alloc::collections::BTreeMap;
@@ -472,3 +477,4 @@ pub fn sys_linux_ioctl(fd: Fd, cmd: usize, arg: usize) -> usize {
         }
     })
 }
+

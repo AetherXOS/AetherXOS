@@ -51,8 +51,9 @@ mod tests {
 
     #[test_case]
     fn validate_page_aligned_range_outputs_expected_frame_count() {
-        let page_count = validate_page_aligned_range(0x1000, 0x3000).unwrap();
+        let page_count = validate_page_aligned_range(0x1000, 0x3000).expect("unwrap failed - see module SAFETY docs");
         assert_eq!(page_count, 2);
         assert!(page_count > 1);
     }
 }
+

@@ -1,3 +1,5 @@
+//! support module.
+
 use super::*;
 
 mod lifecycle_ops;
@@ -42,4 +44,6 @@ mod tests {
         assert_eq!(lifecycle_reason(4), "failed");
     }
 }
+
+
 

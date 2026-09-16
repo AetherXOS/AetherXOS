@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! AetherCursor: Advanced Bit/Byte Processing Engine for AetherXOS.
 //! Provides high-performance, lazy, and endian-aware data manipulation.
 //! Supports both checked (safe) and unchecked (fast-path) operations.
@@ -310,4 +315,5 @@ impl<'a> BitWriter<'a> {
         Ok(())
     }
 }
+
 

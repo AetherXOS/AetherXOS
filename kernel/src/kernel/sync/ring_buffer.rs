@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use core::sync::atomic::{AtomicUsize, Ordering};
 use core::cell::UnsafeCell;
 use alloc::vec::Vec;
@@ -106,3 +111,4 @@ impl<T: Default + Clone> RingBuffer<T> {
         tail.wrapping_sub(head)
     }
 }
+

@@ -1,3 +1,5 @@
+//! fs module.
+
 mod basic;
 mod extended;
 mod bulk;
@@ -8,3 +10,5 @@ use super::*;
 use crate::modules::posix::fs;
 use crate::modules::posix::time::PosixTimespec;
 use crate::modules::posix::PosixErrno;
+
+

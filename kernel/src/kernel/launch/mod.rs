@@ -1,3 +1,5 @@
+//! Process launch subsystem: bootstrapping, spawning, lifecycle handoff, and observability.
+
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::sync::atomic::Ordering;
@@ -26,3 +28,4 @@ pub use process_runtime::*;
 mod tests;
 
 // `stats()` moved to `stats.rs` for modularization.
+

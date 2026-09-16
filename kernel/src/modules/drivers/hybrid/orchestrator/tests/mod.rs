@@ -1,3 +1,5 @@
+//! tests module.
+
 mod planning;
 mod sidecar;
 mod audit;
@@ -47,3 +49,5 @@ fn sample_pe() -> Vec<u8> {
 
     image
 }
+
+

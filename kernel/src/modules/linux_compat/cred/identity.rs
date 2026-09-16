@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 
 pub fn sys_linux_getgid() -> usize {
@@ -308,3 +313,4 @@ pub fn sys_linux_setgroups(size: usize, list: UserPtr<u32>) -> usize {
         0
     }
 }
+

@@ -297,7 +297,7 @@ fn execve_stack_size_helper_includes_strings_pointers_and_alignment() {
         alloc::string::String::from("--flag"),
     ];
     let envp = alloc::vec![alloc::string::String::from("A=B")];
-    let required = execve_stack_required_bytes(&argv, &envp, &[]).unwrap();
+    let required = execve_stack_required_bytes(&argv, &envp, &[]).expect("unwrap failed - see module SAFETY docs");
     let string_bytes = ("prog".len() + 1) + ("--flag".len() + 1) + ("A=B".len() + 1);
     assert!(required > string_bytes);
 }
@@ -305,7 +305,7 @@ fn execve_stack_size_helper_includes_strings_pointers_and_alignment() {
 #[cfg(not(feature = "linux_compat"))]
 #[test_case]
 fn c_string_array_reader_allows_null_pointer_as_empty_vector() {
-    let items = read_user_c_string_array(0, 16, USER_CSTRING_MAX_LEN).unwrap();
+    let items = read_user_c_string_array(0, 16, USER_CSTRING_MAX_LEN).expect("unwrap failed - see module SAFETY docs");
     assert!(items.is_empty());
 }
 
@@ -456,3 +456,4 @@ fn core_pressure_snapshot_word_layout_is_stable() {
 
 #[path = "tests_stress.rs"]
 mod tests_stress;
+

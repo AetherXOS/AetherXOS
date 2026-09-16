@@ -1,3 +1,5 @@
+//! support module.
+
 use super::*;
 
 mod arch_utils;
@@ -25,3 +27,5 @@ pub(super) use profiles::{
 };
 #[allow(unused_imports)]
 pub(super) use status::status;
+
+

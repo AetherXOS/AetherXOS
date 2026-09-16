@@ -280,12 +280,12 @@ mod tests {
         }).ok();
 
         assert_eq!(
-            registry.get_device(dev_id).unwrap().state,
+            registry.get_device(dev_id).expect("unwrap failed - see module SAFETY docs").state,
             DeviceState::Discovered
         );
 
         registry.set_device_state(dev_id, DeviceState::Ready).ok();
-        assert_eq!(registry.get_device(dev_id).unwrap().state, DeviceState::Ready);
+        assert_eq!(registry.get_device(dev_id).expect("unwrap failed - see module SAFETY docs").state, DeviceState::Ready);
     }
 
     #[test_case]
@@ -305,9 +305,10 @@ mod tests {
 
         assert!(mgr.init_device(dev_id).is_ok());
         assert_eq!(
-            mgr.registry().get_device(dev_id).unwrap().state,
+            mgr.registry().get_device(dev_id).expect("unwrap failed - see module SAFETY docs").state,
             DeviceState::Ready
         );
     }
 }
+
 

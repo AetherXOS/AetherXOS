@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 use crate::kernel::syscalls::{
     current_process_id, execve_stack_required_bytes, prepare_execve_user_stack,
@@ -284,3 +289,4 @@ mod tests {
         assert_eq!(res, Err(linux_inval()));
     }
 }
+

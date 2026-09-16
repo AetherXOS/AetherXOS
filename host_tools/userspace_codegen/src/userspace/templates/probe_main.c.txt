@@ -1,0 +1,22 @@
+/* aethercore userspace program skeleton: probe.elf */
+/* role: runtime_probe */
+/* probe_features: runtime_probe_mask,runtime_probe_status_word,runtime_probe_summary,auxv_ready_check,env_tracking_check */
+#include "aethercore_runtime.h"
+#include "aethercore_libc.h"
+
+int main(void) {
+    const char *summary = aethercore_runtime_probe_summary();
+    const char *status = aethercore_runtime_probe_status_word();
+    unsigned long mask = aethercore_runtime_probe_mask();
+    aethercore_kernel_print("[probe-linked] entered main\n");
+    if (status) {
+        aethercore_kernel_print(status);
+        aethercore_kernel_print("\n");
+    }
+    if (summary) {
+        aethercore_kernel_print(summary);
+        aethercore_kernel_print("\n");
+    }
+    (void)mask;
+    return aethercore_auxv_ready() ? 0 : 1;
+}

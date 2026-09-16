@@ -72,8 +72,7 @@ mod boot_observability_examples {
 
         // Code only emits if enabled
         if KernelConfig::is_observability_category_enabled(ObservabilityCategory::Fault) {
-            // This block won't execute since we disabled Fault category
-            panic!("Should not reach here");
+            unreachable!("Fault observability should be disabled at this point");
         }
 
         // Now enable it for debugging

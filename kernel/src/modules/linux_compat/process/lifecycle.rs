@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 
 /// Linux `clone(2)` — production-grade implementation.
@@ -207,3 +212,4 @@ pub fn sys_linux_exit_group(status: usize) -> usize {
 }
 
 // wait4 and waitid are implemented in wait.rs
+

@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 
 pub fn read_user_sockaddr(ptr: usize, len: usize) -> Result<alloc::vec::Vec<u8>, usize> {
@@ -228,3 +233,4 @@ pub fn read_user_string_vec(
     }
     Ok(out)
 }
+

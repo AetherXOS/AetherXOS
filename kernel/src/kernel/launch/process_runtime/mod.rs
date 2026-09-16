@@ -1,3 +1,5 @@
+//! process_runtime module.
+
 use super::*;
 
 pub mod support;
@@ -15,6 +17,7 @@ pub mod bootstrap_spawn_materialize;
 pub mod bootstrap_spawn_utils;
 pub mod bootstrap_spawn_observability;
 pub mod bootstrap_spawn_task;
+pub mod bootstrap_spawn_paging;
 pub mod bootstrap_publish;
 
 #[cfg(feature = "process_abstraction")]
@@ -31,9 +34,11 @@ pub use bootstrap_dispatch::{
 };
 #[cfg(feature = "process_abstraction")]
 pub use support::{
-    process_prepare_error_code, process_register_mapping_typed, process_materialize_mapping_typed,
+    process_prepare_error_code, process_register_mapping_typed,
     process_launch_context_typed, process_boot_image_typed, refresh_all_linux_runtime_vvar,
 };
+#[cfg(all(feature = "process_abstraction", feature = "paging_enable"))]
+pub use support::process_materialize_mapping_typed;
 #[cfg(feature = "process_abstraction")]
 pub use query::{
     process_count, process_ids_snapshot, launch_registry_snapshot, process_image_state,
@@ -66,3 +71,5 @@ const PROCESS_LOOKUP_NOT_FOUND: &str = "not found";
 const PROCESS_MATERIALIZE_FAILED: &str = "materialize failed";
 
 // helper functions moved to `support.rs`
+
+

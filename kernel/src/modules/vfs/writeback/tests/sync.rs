@@ -12,8 +12,8 @@ fn sync_all_flushes_each_registered_mount() {
     register_inode(401, 21);
     register_inode(402, 22);
 
-    let mut inode_a = cache::Inode::new(401, 0o100644);
-    let mut inode_b = cache::Inode::new(402, 0o100644);
+    let inode_a = cache::Inode::new(401, 0o100644);
+    let inode_b = cache::Inode::new(402, 0o100644);
     assert_eq!(inode_a.write_cached(0, b"a"), 1);
     assert_eq!(inode_b.write_cached(0, b"b"), 1);
     cache::GLOBAL_INODE_CACHE.insert(Arc::new(inode_a));
@@ -49,7 +49,7 @@ fn unregister_sink_flushes_resident_dirty_pages_before_removal() {
     register_writable_mount(31, sink.clone());
     register_inode(501, 31);
 
-    let mut inode = cache::Inode::new(501, 0o100644);
+    let inode = cache::Inode::new(501, 0o100644);
     assert_eq!(inode.write_cached(0, b"persist me"), 10);
     cache::GLOBAL_INODE_CACHE.insert(Arc::new(inode));
 

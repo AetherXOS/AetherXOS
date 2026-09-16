@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::PosixErrno;
 use crate::modules::vfs::File;
 use alloc::collections::BTreeMap;
@@ -189,3 +194,4 @@ pub fn post_event(path: &str, mask: u32) {
         }
     }
 }
+

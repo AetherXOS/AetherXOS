@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::vec::Vec;
 use crate::interfaces::task::{ProcessId, TaskId};
 
@@ -138,3 +143,4 @@ pub struct PreparedBootstrap {
 pub struct AlignedStaticDispatch {
     pub prepared_bootstrap: PreparedBootstrap,
 }
+

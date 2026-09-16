@@ -1,0 +1,29 @@
+#include "aethercore_runtime.h"
+#include "aethercore_runtime_state.h"
+
+void __aethercore_auxv_init(void) {
+    g_aethercore_auxv_view.execfn = 0x00400000u;
+    g_aethercore_auxv_view.sysinfo_ehdr = 0x70000000u;
+    g_aethercore_auxv_view.pagesz = 4096u;
+    g_aethercore_auxv_view.random = 0x71000000u;
+}
+
+unsigned long aethercore_auxv_execfn(void) {
+    return g_aethercore_auxv_view.execfn;
+}
+
+unsigned long aethercore_auxv_sysinfo_ehdr(void) {
+    return g_aethercore_auxv_view.sysinfo_ehdr;
+}
+
+unsigned long aethercore_auxv_pagesz(void) {
+    return g_aethercore_auxv_view.pagesz;
+}
+
+unsigned long aethercore_auxv_random(void) {
+    return g_aethercore_auxv_view.random;
+}
+
+int aethercore_auxv_ready(void) {
+    return g_aethercore_auxv_view.pagesz != 0 || g_aethercore_auxv_view.execfn != 0;
+}

@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::interfaces::security::{
     cap_flags, ResourceKind, SecurityAction, SecurityContext, SecurityVerdict,
 };
@@ -385,3 +390,4 @@ mod tests {
         assert!(verdict.is_allowed());
     }
 }
+

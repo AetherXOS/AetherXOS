@@ -1,3 +1,5 @@
+//! Process abstraction: creation, lifecycle, VDSO, and runtime contract management.
+
 mod runtime;
 mod types;
 #[cfg(feature = "posix_mman")]
@@ -27,3 +29,4 @@ impl ProcessId {
         ProcessId(NEXT_ID.fetch_add(1, Ordering::Relaxed))
     }
 }
+

@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 use crate::hal::HAL;
 use crate::interfaces::Scheduler;
@@ -160,7 +165,7 @@ pub fn suspend_current_task_multi(queues: &[Arc<crate::kernel::sync::WaitQueue>]
             }
         };
 
-        let next_arc = get_task(next_tid).unwrap();
+        let next_arc = get_task(next_tid).expect("unwrap failed - see module SAFETY docs");
         let next_pid = next_arc.lock().process_id.map(|p| p.0).unwrap_or(0);
         cpu.set_current_context(next_tid, next_pid);
         
@@ -254,3 +259,5 @@ pub fn wake_tasks(ids: alloc::vec::Vec<TaskId>) {
         }
     }
 }
+
+

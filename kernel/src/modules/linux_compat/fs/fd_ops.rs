@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 use crate::modules::linux_compat::fs::io as fs_io;
 use crate::modules::linux_compat::{Fd, UserPtr, linux, linux_errno, linux_fault, linux_inval};
@@ -165,3 +170,4 @@ pub fn sys_linux_dup3(oldfd: Fd, newfd: Fd, flags: usize) -> usize {
         }
     })
 }
+

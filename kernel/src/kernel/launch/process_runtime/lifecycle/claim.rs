@@ -2,8 +2,7 @@ use super::super::*;
 use super::super::support::*;
 
 use core::sync::atomic::Ordering;
-use crate::interfaces::task::{ProcessId, TaskId};
-use crate::klog_info;
+use crate::interfaces::task::ProcessId;
 use crate::observability_launch;
 
 #[cfg(feature = "process_abstraction")]

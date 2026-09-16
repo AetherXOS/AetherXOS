@@ -9,6 +9,9 @@ pub mod liblinux;
 pub mod reactos;
 pub mod driverkit;
 pub mod orchestrator;
+pub mod enclave;
+
+pub use enclave::{DriverEnclave, EnclaveConfig, EnclaveManager, EnclaveState};
 
 pub use driverkit::{
     DriverBindingRecord, DriverKitClass, DriverKitEvent, DriverKitEventQueue,

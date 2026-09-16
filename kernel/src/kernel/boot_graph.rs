@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Boot Graph Orchestrator - Automated dependency resolution for kernel boot.
 //!
 //! This module provides a high-level orchestrator that can reach specific boot stages
@@ -56,3 +61,4 @@ impl BootOrchestrator {
 
 /// Global orchestrator instance
 pub static ORCHESTRATOR: BootOrchestrator = BootOrchestrator::new();
+

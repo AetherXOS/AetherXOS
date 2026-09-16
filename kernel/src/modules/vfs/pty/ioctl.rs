@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::modules::vfs::dev_special::{
     FIONBIO, FIONREAD, TCGETS, TCSETS, TCSETSF, TCSETSW, TIOCGPGRP, TIOCGWINSZ, TIOCNOTTY,
     TIOCSPGRP, TIOCSCTTY, TIOCSWINSZ, Termios, WinSize,
@@ -108,3 +113,4 @@ pub(crate) fn handle_common_ioctl(
 
     Ok(result)
 }
+

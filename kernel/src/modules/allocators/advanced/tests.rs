@@ -31,7 +31,7 @@ fn oom_threshold_filters_candidates() {
 #[test_case]
 fn hotplug_pending_drain_counts_pages() {
     let before = HOTPLUG_TOTAL_PAGES.load(Ordering::Relaxed);
-    hotplug_add_memory(0x4000_0000, 64).unwrap();
+    hotplug_add_memory(0x4000_0000, 64).expect("unwrap failed - see module SAFETY docs");
     let drained = drain_hotplug_pending();
     assert!(drained >= 64);
     let after = HOTPLUG_TOTAL_PAGES.load(Ordering::Relaxed);
@@ -48,3 +48,4 @@ fn numa_prefer_local_returns_local_node() {
     assert_eq!(preferred_numa_node(3, 4), 3);
     assert_eq!(preferred_numa_node(7, 4), 3);
 }
+

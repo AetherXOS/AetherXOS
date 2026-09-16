@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use limine::{DtbRequest, FramebufferRequest, HhdmRequest, MemmapRequest, RsdpRequest};
 
 #[used]
@@ -43,3 +48,4 @@ pub fn framebuffer() -> Option<&'static limine::Framebuffer> {
                 .map(|ptr| unsafe { &*ptr.as_ptr() })
         })
 }
+

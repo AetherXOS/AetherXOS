@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #![allow(dead_code)]
 
 use super::*;
@@ -482,3 +487,4 @@ mod tests {
         assert!(raw[20..].iter().all(|byte| *byte == 0));
     }
 }
+

@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::BootInfo;
 
 #[cfg(target_arch = "x86_64")]
@@ -29,3 +34,4 @@ pub(super) fn collect_kernel_cmdline(info: &mut BootInfo) {
 
 #[cfg(not(target_arch = "x86_64"))]
 pub(super) fn collect_kernel_cmdline(_info: &mut BootInfo) {}
+

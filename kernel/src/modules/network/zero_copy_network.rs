@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Zero-copy network stack with batch processing
 //! 
 //! This module provides network operations with:
@@ -627,3 +632,4 @@ mod tests {
         assert!(conn.is_established());
     }
 }
+

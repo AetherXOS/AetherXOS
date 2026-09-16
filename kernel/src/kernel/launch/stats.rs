@@ -1,10 +1,5 @@
-use alloc::sync::Arc;
-use alloc::vec::Vec;
 use core::sync::atomic::Ordering;
 use crate::interfaces::task::TaskId;
-
-#[cfg(feature = "process_abstraction")]
-use crate::kernel::process::Process;
 
 use super::state::*;
 use super::types::*;

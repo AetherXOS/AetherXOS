@@ -310,16 +310,16 @@ mod tests {
         assert_eq!(device.state(), DeviceState::Uninitialized);
 
         unsafe {
-            device.init().unwrap();
+            device.init().expect("unwrap failed - see module SAFETY docs");
             assert_eq!(device.state(), DeviceState::Ready);
 
-            device.enable().unwrap();
+            device.enable().expect("unwrap failed - see module SAFETY docs");
             assert_eq!(device.state(), DeviceState::Enabled);
 
-            device.disable().unwrap();
+            device.disable().expect("unwrap failed - see module SAFETY docs");
             assert_eq!(device.state(), DeviceState::Disabled);
 
-            device.reset().unwrap();
+            device.reset().expect("unwrap failed - see module SAFETY docs");
             assert_eq!(device.state(), DeviceState::Uninitialized);
         }
     }
@@ -337,12 +337,13 @@ mod tests {
         assert!(!device.is_ready());
 
         unsafe {
-            device.init().unwrap();
+            device.init().expect("unwrap failed - see module SAFETY docs");
             assert!(device.is_ready());
 
-            device.enable().unwrap();
+            device.enable().expect("unwrap failed - see module SAFETY docs");
             assert!(device.is_ready());
         }
     }
 }
+
 

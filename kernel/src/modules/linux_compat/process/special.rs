@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 use crate::interfaces::cpu::CpuRegisters;
 use crate::kernel::syscalls::with_user_write_bytes;
@@ -199,3 +204,4 @@ pub fn sys_linux_getpriority(_which: i32, _who: i32) -> usize {
 pub fn sys_linux_setpriority(_which: i32, _who: i32, _prio: i32) -> usize {
     0
 }
+

@@ -1,3 +1,5 @@
+//! cgroups module.
+
 pub mod cpu;
 pub mod freezer;
 pub mod io;
@@ -361,3 +363,5 @@ pub fn cgroup_uncharge_memory(id: CgroupId, bytes: u64) {
 pub fn cgroup_reset_all_periods() {
     CGROUP_MANAGER.lock().reset_cpu_periods();
 }
+
+

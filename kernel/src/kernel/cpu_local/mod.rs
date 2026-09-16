@@ -1,3 +1,5 @@
+//! cpu_local module.
+
 use crate::interfaces::task::{CpuId, TaskId};
 use crate::modules::selector::ActiveScheduler;
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
@@ -178,3 +180,5 @@ impl CpuLocal {
         }
     }
 }
+
+

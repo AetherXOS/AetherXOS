@@ -2,7 +2,8 @@ use super::*;
 
 #[test]
 fn integration_gated_host_tests_pin_host_target() {
-    let specs = integration_specs(false, "x86_64-unknown-linux-gnu");
+    let test_features = crate::utils::features::test_feature_csv();
+    let specs = integration_specs(false, "x86_64-unknown-linux-gnu", &test_features);
 
     let kasan = specs.iter().find(|spec| spec.label == "kasan").unwrap();
     let kmsan = specs.iter().find(|spec| spec.label == "kmsan").unwrap();
@@ -33,8 +34,9 @@ fn integration_gated_host_tests_pin_host_target() {
 
 #[test]
 fn nextest_ci_profile_is_opt_in_and_host_scoped() {
-    let dev = nextest_spec("fast", false, "aarch64-unknown-linux-gnu");
-    let ci = nextest_spec("fast", true, "aarch64-unknown-linux-gnu");
+    let test_features = crate::utils::features::test_feature_csv();
+    let dev = nextest_spec("fast", false, "aarch64-unknown-linux-gnu", &test_features);
+    let ci = nextest_spec("fast", true, "aarch64-unknown-linux-gnu", &test_features);
 
     assert!(!dev.args.windows(2).any(|pair| pair == ["--profile", "ci"]));
     assert!(ci.args.windows(2).any(|pair| pair == ["--profile", "ci"]));

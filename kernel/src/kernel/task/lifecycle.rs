@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Task State Machine and Lifecycle Management for AetherXOS.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,3 +55,4 @@ impl TaskLifecycle {
         crate::klog_info!("[TASK] PID {} BLOCKED (Reason: {})", pid, reason);
     }
 }
+

@@ -1,0 +1,8 @@
+/* aethercore userspace program skeleton: probe.elf */
+/* role: runtime_probe */
+/* probe_features: runtime_probe_mask,runtime_probe_status_word,runtime_probe_summary,auxv_ready_check,env_tracking_check */
+#include "aethercore_runtime.h"
+
+const char *aethercore_probe_report_line(void) {
+    return aethercore_runtime_probe_summary();
+}

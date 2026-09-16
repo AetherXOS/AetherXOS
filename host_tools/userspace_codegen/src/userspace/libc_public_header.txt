@@ -1,0 +1,534 @@
+/* aethercore libc public header */
+#pragma once
+
+struct aethercore_timespec {
+    long tv_sec;
+    long tv_nsec;
+};
+
+struct aethercore_timeval {
+    long tv_sec;
+    long tv_usec;
+};
+
+struct aethercore_itimerval {
+    struct aethercore_timeval it_interval;
+    struct aethercore_timeval it_value;
+};
+
+struct aethercore_itimerspec {
+    struct aethercore_timespec it_interval;
+    struct aethercore_timespec it_value;
+};
+
+struct aethercore_iovec {
+    void *iov_base;
+    unsigned long iov_len;
+};
+
+struct aethercore_pollfd {
+    int fd;
+    short events;
+    short revents;
+};
+
+struct aethercore_fd_set {
+    unsigned long fds_bits[16];
+};
+
+struct aethercore_sigset {
+    unsigned long __bits[16];
+};
+
+struct aethercore_sigaction {
+    void (*sa_handler)(int);
+    unsigned long sa_flags;
+    void (*sa_restorer)(void);
+    struct aethercore_sigset sa_mask;
+};
+
+struct aethercore_msghdr {
+    void *msg_name;
+    unsigned int msg_namelen;
+    unsigned int __pad0;
+    struct aethercore_iovec *msg_iov;
+    unsigned long msg_iovlen;
+    void *msg_control;
+    unsigned long msg_controllen;
+    unsigned int msg_flags;
+    unsigned int __pad1;
+};
+
+struct aethercore_epoll_event {
+    unsigned int events;
+    unsigned int __pad0;
+    unsigned long data;
+};
+
+struct aethercore_rlimit {
+    unsigned long rlim_cur;
+    unsigned long rlim_max;
+};
+
+struct aethercore_utsname {
+    char sysname[65];
+    char nodename[65];
+    char release[65];
+    char version[65];
+    char machine[65];
+    char domainname[65];
+};
+
+struct aethercore_rusage {
+    struct aethercore_timeval ru_utime;
+    struct aethercore_timeval ru_stime;
+    long ru_maxrss;
+    long ru_ixrss;
+    long ru_idrss;
+    long ru_isrss;
+    long ru_minflt;
+    long ru_majflt;
+    long ru_nswap;
+    long ru_inblock;
+    long ru_oublock;
+    long ru_msgsnd;
+    long ru_msgrcv;
+    long ru_nsignals;
+    long ru_nvcsw;
+    long ru_nivcsw;
+};
+
+struct aethercore_sysinfo {
+    long uptime;
+    unsigned long loads[3];
+    unsigned long totalram;
+    unsigned long freeram;
+    unsigned long sharedram;
+    unsigned long bufferram;
+    unsigned long totalswap;
+    unsigned long freeswap;
+    unsigned short procs;
+    unsigned short __pad;
+    unsigned long totalhigh;
+    unsigned long freehigh;
+    unsigned int mem_unit;
+    char _f[20];
+};
+
+struct aethercore_stat {
+    unsigned long st_dev;
+    unsigned long st_ino;
+    unsigned long st_nlink;
+    unsigned int st_mode;
+    unsigned int st_uid;
+    unsigned int st_gid;
+    unsigned int __pad0;
+    unsigned long st_rdev;
+    long st_size;
+    long st_blksize;
+    long st_blocks;
+};
+
+struct aethercore_statx {
+    unsigned int stx_mask;
+    unsigned int stx_blksize;
+    unsigned long stx_attributes;
+    unsigned int stx_nlink;
+    unsigned int stx_uid;
+    unsigned int stx_gid;
+    unsigned short stx_mode;
+    unsigned long long stx_ino;
+    unsigned long long stx_size;
+    unsigned long long stx_blocks;
+    unsigned long long stx_attributes_mask;
+};
+
+struct aethercore_statfs {
+    long f_type;
+    long f_bsize;
+    unsigned long f_blocks;
+    unsigned long f_bfree;
+    unsigned long f_bavail;
+    unsigned long f_files;
+    unsigned long f_ffree;
+    struct { int __val[2]; } f_fsid;
+    long f_namelen;
+    long f_frsize;
+    long f_flags;
+    long f_spare[4];
+};
+
+struct aethercore_dirent {
+    unsigned long long d_ino;
+    long long d_off;
+    unsigned short d_reclen;
+    unsigned char d_type;
+    char d_name[256];
+};
+
+typedef struct aethercore_DIR {
+    int fd;
+    unsigned long pos;
+    unsigned long size;
+    char buffer[1024];
+    struct aethercore_dirent entry;
+} DIR;
+
+typedef struct aethercore_FILE {
+    int fd;
+    int eof;
+    int error;
+    int owned;
+} FILE;
+
+#define AETHERCORE_AT_UID 11
+#define AETHERCORE_AT_EUID 12
+#define AETHERCORE_AT_GID 13
+#define AETHERCORE_AT_EGID 14
+#define AETHERCORE_AT_PAGESZ 6
+#define AETHERCORE_AT_CLKTCK 17
+#define AETHERCORE_AT_RANDOM 25
+#define AETHERCORE_AT_EXECFN 31
+#define AETHERCORE_AT_SYSINFO_EHDR 33
+
+#define AETHERCORE_SC_ARG_MAX 0
+#define AETHERCORE_SC_PAGESIZE 30
+#define AETHERCORE_SC_PAGE_SIZE 30
+#define AETHERCORE_SC_CLK_TCK 2
+#define AETHERCORE_SC_NPROCESSORS_ONLN 84
+#define AETHERCORE_SC_NPROCESSORS_CONF 83
+
+#define AETHERCORE_SIG_BLOCK 0
+#define AETHERCORE_SIG_UNBLOCK 1
+#define AETHERCORE_SIG_SETMASK 2
+#define AETHERCORE_SIG_DFL ((void (*)(int))0)
+#define AETHERCORE_SIG_IGN ((void (*)(int))1)
+#define AETHERCORE_SIG_ERR ((void (*)(int))-1)
+
+#define AETHERCORE_AT_FDCWD -100
+#define AETHERCORE_AT_SYMLINK_NOFOLLOW 0x100
+#define AETHERCORE_AT_REMOVEDIR 0x200
+
+#define AETHERCORE_ATEXIT_SLOTS 32
+
+typedef void (*aethercore_atexit_fn_t)(void);
+typedef void (*aethercore_cxa_fn_t)(void *);
+typedef void (*aethercore_on_exit_fn_t)(int, void *);
+typedef void (*aethercore_atfork_fn_t)(void);
+
+long syscall(long nr, ...);
+long read(int fd, void *buf, unsigned long count);
+long pread(int fd, void *buf, unsigned long count, unsigned long offset);
+long pread64(int fd, void *buf, unsigned long count, unsigned long offset);
+long write(int fd, const void *buf, unsigned long count);
+long pwrite(int fd, const void *buf, unsigned long count, unsigned long offset);
+long pwrite64(int fd, const void *buf, unsigned long count, unsigned long offset);
+int ioctl(int fd, unsigned long request, unsigned long arg);
+int rt_sigaction(int sig, const void *act, void *oldact, unsigned long sigsetsize);
+int rt_sigprocmask(int how, const void *set, void *oldset, unsigned long sigsetsize);
+int sigemptyset(struct aethercore_sigset *set);
+int sigfillset(struct aethercore_sigset *set);
+int sigaddset(struct aethercore_sigset *set, int sig);
+int sigdelset(struct aethercore_sigset *set, int sig);
+int sigismember(const struct aethercore_sigset *set, int sig);
+int sigprocmask(int how, const struct aethercore_sigset *set, struct aethercore_sigset *oldset);
+int sigaction(int sig, const struct aethercore_sigaction *act, struct aethercore_sigaction *oldact);
+void (*signal(int sig, void (*handler)(int)))(int);
+int raise(int sig);
+int access(const char *path, int mode);
+long readv(int fd, const struct aethercore_iovec *iov, int iovcnt);
+long writev(int fd, const struct aethercore_iovec *iov, int iovcnt);
+int close(int fd);
+int poll(struct aethercore_pollfd *fds, unsigned long nfds, int timeout);
+int socket(int domain, int type, int protocol);
+int socketpair(int domain, int type, int protocol, int sv[2]);
+int connect(int fd, const void *addr, unsigned long addrlen);
+int bind(int fd, const void *addr, unsigned long addrlen);
+int listen(int fd, int backlog);
+int accept(int fd, void *addr, unsigned int *addrlen);
+int accept4(int fd, void *addr, unsigned int *addrlen, int flags);
+long send(int fd, const void *buf, unsigned long len, int flags);
+long sendto(int fd, const void *buf, unsigned long len, int flags, const void *dest_addr, unsigned long addrlen);
+long recv(int fd, void *buf, unsigned long len, int flags);
+long recvfrom(int fd, void *buf, unsigned long len, int flags, void *src_addr, unsigned int *addrlen);
+long sendmsg(int fd, const struct aethercore_msghdr *msg, int flags);
+long recvmsg(int fd, struct aethercore_msghdr *msg, int flags);
+int shutdown(int fd, int how);
+int getsockname(int fd, void *addr, unsigned int *addrlen);
+int getpeername(int fd, void *addr, unsigned int *addrlen);
+int setsockopt(int fd, int level, int optname, const void *optval, unsigned int optlen);
+int getsockopt(int fd, int level, int optname, void *optval, unsigned int *optlen);
+int fstat(int fd, struct aethercore_stat *st);
+int statfs(const char *path, struct aethercore_statfs *buf);
+int fstatfs(int fd, struct aethercore_statfs *buf);
+int fsync(int fd);
+int fdatasync(int fd);
+long sendfile(int out_fd, int in_fd, unsigned long *offset, unsigned long count);
+long splice(int fd_in, long long *off_in, int fd_out, long long *off_out, unsigned long len, unsigned int flags);
+long tee(int fd_in, int fd_out, unsigned long len, unsigned int flags);
+long vmsplice(int fd, const struct aethercore_iovec *iov, unsigned long nr_segs, unsigned int flags);
+long copy_file_range(int fd_in, long long *off_in, int fd_out, long long *off_out, unsigned long len, unsigned int flags);
+long lseek(int fd, long offset, int whence);
+long lseek64(int fd, long offset, int whence);
+int truncate(const char *path, long length);
+int truncate64(const char *path, long length);
+int ftruncate(int fd, long length);
+int ftruncate64(int fd, long length);
+int fcntl(int fd, int cmd, unsigned long arg);
+int dup(int fd);
+int dup2(int oldfd, int newfd);
+int dup3(int oldfd, int newfd, int flags);
+int pipe(int pipefd[2]);
+int pipe2(int pipefd[2], int flags);
+int close_range(unsigned int first, unsigned int last, unsigned int flags);
+int open(const char *path, int flags, unsigned long mode);
+int open64(const char *path, int flags, unsigned long mode);
+int creat(const char *path, unsigned long mode);
+int creat64(const char *path, unsigned long mode);
+DIR *opendir(const char *path);
+DIR *fdopendir(int fd);
+struct aethercore_dirent *readdir(DIR *dirp);
+void rewinddir(DIR *dirp);
+int closedir(DIR *dirp);
+int dirfd(DIR *dirp);
+extern FILE *stdin;
+extern FILE *stdout;
+extern FILE *stderr;
+FILE *fopen(const char *path, const char *mode);
+FILE *fdopen(int fd, const char *mode);
+int fclose(FILE *stream);
+unsigned long fread(void *ptr, unsigned long size, unsigned long nmemb, FILE *stream);
+unsigned long fwrite(const void *ptr, unsigned long size, unsigned long nmemb, FILE *stream);
+int fgetc(FILE *stream);
+int getc(FILE *stream);
+int getchar(void);
+int fputc(int ch, FILE *stream);
+int putc(int ch, FILE *stream);
+int putchar(int ch);
+char *fgets(char *s, int size, FILE *stream);
+int ungetc(int ch, FILE *stream);
+int fputs(const char *s, FILE *stream);
+int fflush(FILE *stream);
+int fileno(FILE *stream);
+int feof(FILE *stream);
+int ferror(FILE *stream);
+void clearerr(FILE *stream);
+int openat(int dirfd, const char *path, int flags, unsigned long mode);
+int chdir(const char *path);
+char *getcwd(char *buf, unsigned long size);
+unsigned int umask(unsigned int mask);
+int chmod(const char *path, unsigned int mode);
+int fchmod(int fd, unsigned int mode);
+int fchmodat(int dirfd, const char *path, unsigned int mode, int flags);
+int chown(const char *path, unsigned int owner, unsigned int group);
+int lchown(const char *path, unsigned int owner, unsigned int group);
+int fchown(int fd, unsigned int owner, unsigned int group);
+int fchownat(int dirfd, const char *path, unsigned int owner, unsigned int group, int flags);
+int mkdir(const char *path, unsigned long mode);
+int mkdirat(int dirfd, const char *path, unsigned long mode);
+int link(const char *oldpath, const char *newpath);
+int linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags);
+int faccessat(int dirfd, const char *path, int mode, int flags);
+int stat(const char *path, struct aethercore_stat *st);
+int stat64(const char *path, struct aethercore_stat *st);
+int lstat(const char *path, struct aethercore_stat *st);
+int lstat64(const char *path, struct aethercore_stat *st);
+int fstatat(int dirfd, const char *path, struct aethercore_stat *st, int flags);
+int fstatat64(int dirfd, const char *path, struct aethercore_stat *st, int flags);
+int newfstatat(int dirfd, const char *path, struct aethercore_stat *st, int flags);
+int symlink(const char *target, const char *linkpath);
+int symlinkat(const char *target, int newdirfd, const char *linkpath);
+int unlink(const char *path);
+int rmdir(const char *path);
+int unlinkat(int dirfd, const char *path, int flags);
+int rename(const char *oldpath, const char *newpath);
+int renameat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath);
+long readlink(const char *path, char *buf, unsigned long bufsz);
+long readlinkat(int dirfd, const char *path, char *buf, unsigned long bufsz);
+int utimensat(int dirfd, const char *path, const struct aethercore_timespec times[2], int flags);
+int syncfs(int fd);
+long getdents64(int fd, void *dirp, unsigned long count);
+long getrandom(void *buf, unsigned long buflen, unsigned int flags);
+int statx(int dirfd, const char *path, int flags, unsigned int mask, struct aethercore_statx *stx);
+int fstat64(int fd, struct aethercore_stat *st);
+long arch_prctl(int code, unsigned long addr);
+long getpid(void);
+long gettid(void);
+long getppid(void);
+long getuid(void);
+int getrusage(int who, struct aethercore_rusage *ru);
+long geteuid(void);
+long getgid(void);
+long getegid(void);
+int getgroups(int size, unsigned int *list);
+int setgroups(int size, const unsigned int *list);
+int setresuid(unsigned int ruid, unsigned int euid, unsigned int suid);
+int getresuid(unsigned int *ruid, unsigned int *euid, unsigned int *suid);
+int setresgid(unsigned int rgid, unsigned int egid, unsigned int sgid);
+int getresgid(unsigned int *rgid, unsigned int *egid, unsigned int *sgid);
+int setpgid(int pid, int pgid);
+int getpgrp(void);
+int setsid(void);
+int getpgid(int pid);
+int getsid(int pid);
+int getpriority(int which, int who);
+int setpriority(int which, int who, int prio);
+long time(long *out);
+long set_tid_address(int *tidptr);
+long futex(int *uaddr, int op, int val, const struct aethercore_timespec *timeout, int *uaddr2, int val3);
+int clock_gettime(int clock_id, struct aethercore_timespec *ts);
+int clock_getres(int clock_id, struct aethercore_timespec *ts);
+int gettimeofday(struct aethercore_timeval *tv, void *tz);
+int getitimer(int which, struct aethercore_itimerval *curr_value);
+int setitimer(int which, const struct aethercore_itimerval *new_value, struct aethercore_itimerval *old_value);
+int nanosleep(const struct aethercore_timespec *req, struct aethercore_timespec *rem);
+unsigned int sleep(unsigned int seconds);
+int usleep(unsigned long usec);
+int pause(void);
+int sched_yield(void);
+int sched_setaffinity(int pid, unsigned long cpusetsize, const void *mask);
+int sched_getaffinity(int pid, unsigned long cpusetsize, void *mask);
+int select(int nfds, struct aethercore_fd_set *readfds, struct aethercore_fd_set *writefds, struct aethercore_fd_set *exceptfds, struct aethercore_timeval *timeout);
+int ppoll(struct aethercore_pollfd *fds, unsigned long nfds, const struct aethercore_timespec *timeout, const void *sigmask);
+int pselect6(int nfds, struct aethercore_fd_set *readfds, struct aethercore_fd_set *writefds, struct aethercore_fd_set *exceptfds, const struct aethercore_timespec *timeout, const void *sigmask);
+int epoll_create1(int flags);
+int epoll_ctl(int epfd, int op, int fd, struct aethercore_epoll_event *event);
+int epoll_wait(int epfd, struct aethercore_epoll_event *events, int maxevents, int timeout);
+int epoll_pwait(int epfd, struct aethercore_epoll_event *events, int maxevents, int timeout, const void *sigmask);
+int eventfd2(unsigned int initval, int flags);
+int eventfd(unsigned int initval);
+int signalfd4(int fd, const void *mask, unsigned long sizemask, int flags);
+int signalfd(int fd, const void *mask, unsigned long sizemask);
+int timerfd_create(int clockid, int flags);
+int timerfd_settime(int fd, int flags, const struct aethercore_itimerspec *new_value, struct aethercore_itimerspec *old_value);
+int timerfd_gettime(int fd, struct aethercore_itimerspec *curr_value);
+int inotify_init1(int flags);
+int inotify_add_watch(int fd, const char *path, unsigned int mask);
+int inotify_rm_watch(int fd, int wd);
+int memfd_create(const char *name, unsigned int flags);
+int sethostname(const char *name, unsigned long len);
+int getcpu(unsigned int *cpu, unsigned int *node, void *tcache);
+int membarrier(int cmd, unsigned int flags, int cpu_id);
+int rseq(void *rseq_area, unsigned int rseq_len, int flags, unsigned int sig);
+int set_robust_list(const void *head, unsigned long len);
+int get_robust_list(int pid, void **head_ptr, unsigned long *len_ptr);
+int sigaltstack(const void *ss, void *old_ss);
+int kill(int pid, int sig);
+int tgkill(int tgid, int tid, int sig);
+long wait4(int pid, int *status, int options, void *rusage);
+int waitid(int idtype, int id, void *infop, int options, void *rusage);
+int uname(struct aethercore_utsname *buf);
+int sysinfo(struct aethercore_sysinfo *info);
+int getrlimit(int resource, struct aethercore_rlimit *rlim);
+int prlimit64(int pid, int resource, const struct aethercore_rlimit *new_limit, struct aethercore_rlimit *old_limit);
+long prctl(int option, unsigned long arg2, unsigned long arg3, unsigned long arg4, unsigned long arg5);
+void *mmap(void *addr, unsigned long len, int prot, int flags, int fd, unsigned long off);
+void *mmap64(void *addr, unsigned long len, int prot, int flags, int fd, unsigned long off);
+void *mremap(void *old_addr, unsigned long old_size, unsigned long new_size, unsigned long flags, void *new_addr);
+int madvise(void *addr, unsigned long len, int advice);
+int msync(void *addr, unsigned long len, int flags);
+int munmap(void *addr, unsigned long len);
+int mprotect(void *addr, unsigned long len, int prot);
+void *brk(void *addr);
+long clone(unsigned long flags, void *child_stack, int *ptid, int *ctid, unsigned long tls);
+long fork(void);
+int pthread_atfork(aethercore_atfork_fn_t prepare, aethercore_atfork_fn_t parent, aethercore_atfork_fn_t child);
+int __register_atfork(aethercore_atfork_fn_t prepare, aethercore_atfork_fn_t parent, aethercore_atfork_fn_t child, void *dso_handle);
+int execve(const char *path, const char *const *argv, const char *const *envp);
+int execveat(int dirfd, const char *path, const char *const *argv, const char *const *envp, int flags);
+void abort(void);
+void exit(int status);
+int at_quick_exit(aethercore_atexit_fn_t fn);
+void quick_exit(int status);
+int on_exit(aethercore_on_exit_fn_t fn, void *arg);
+void exit_group(int status);
+void _Exit(int status);
+void _exit(int status);
+char *getenv(const char *name);
+char *secure_getenv(const char *name);
+extern char **environ;
+extern char *program_invocation_name;
+extern char *program_invocation_short_name;
+extern char *__progname;
+extern char *__progname_full;
+extern int __libc_enable_secure;
+extern unsigned long __stack_chk_guard;
+int setenv(const char *name, const char *value, int overwrite);
+int unsetenv(const char *name);
+int putenv(char *string);
+int clearenv(void);
+int getentropy(void *buf, unsigned long len);
+unsigned long getauxval(unsigned long type);
+int getpagesize(void);
+int daemon(int nochdir, int noclose);
+unsigned long confstr(int name, char *buf, unsigned long len);
+long sysconf(int name);
+int __libc_current_sigrtmin(void);
+int __libc_current_sigrtmax(void);
+void __assert_fail(const char *assertion, const char *file, unsigned int line, const char *function);
+void __stack_chk_fail(void);
+unsigned long strlen(const char *s);
+unsigned long strnlen(const char *s, unsigned long maxlen);
+int strcmp(const char *lhs, const char *rhs);
+int strcasecmp(const char *lhs, const char *rhs);
+int strncmp(const char *lhs, const char *rhs, unsigned long n);
+int strncasecmp(const char *lhs, const char *rhs, unsigned long n);
+char *strcpy(char *dst, const char *src);
+char *stpcpy(char *dst, const char *src);
+char *strncpy(char *dst, const char *src, unsigned long n);
+char *strchr(const char *src, int ch);
+char *strrchr(const char *src, int ch);
+char *basename(char *path);
+char *dirname(char *path);
+unsigned long strspn(const char *src, const char *accept);
+unsigned long strcspn(const char *src, const char *reject);
+char *strstr(const char *haystack, const char *needle);
+char *strsignal(int sig);
+int atoi(const char *src);
+long atol(const char *src);
+long strtol(const char *src, char **endptr, int base);
+unsigned long strtoul(const char *src, char **endptr, int base);
+unsigned long long strtoull(const char *src, char **endptr, int base);
+char *strtok(char *src, const char *delim);
+int isspace(int ch);
+int isdigit(int ch);
+int isalpha(int ch);
+int isalnum(int ch);
+char *strdup(const char *src);
+void bzero(void *dst, unsigned long n);
+void *malloc(unsigned long size);
+int posix_memalign(void **memptr, unsigned long alignment, unsigned long size);
+void *aligned_alloc(unsigned long alignment, unsigned long size);
+void free(void *ptr);
+void *calloc(unsigned long count, unsigned long size);
+void *realloc(void *ptr, unsigned long size);
+void *memcpy(void *dst, const void *src, unsigned long n);
+void *memset(void *dst, int value, unsigned long n);
+void *memmove(void *dst, const void *src, unsigned long n);
+int memcmp(const void *lhs, const void *rhs, unsigned long n);
+void *memchr(const void *src, int value, unsigned long n);
+int *__errno_location(void);
+int aethercore_errno_value(void);
+char *strerror(int err);
+int strerror_r(int err, char *buf, unsigned long buflen);
+int atexit(aethercore_atexit_fn_t fn);
+int __cxa_atexit(aethercore_cxa_fn_t fn, void *arg, void *dso_handle);
+int __cxa_thread_atexit_impl(aethercore_cxa_fn_t fn, void *arg, void *dso_handle);
+void aethercore_run_atfork_prepare(void);
+void aethercore_run_atfork_parent(void);
+void aethercore_run_atfork_child(void);
+void __cxa_finalize(void *dso_handle);
+void aethercore_run_on_exit_handlers(int status);
+void aethercore_run_quick_exit_handlers(void);
+int aethercore_runtime_fini_present(void);
+int aethercore_runtime_fini_hook_count(void);
+unsigned long aethercore_runtime_fini_attempt_count(void);
+unsigned long aethercore_runtime_fini_completed_count(void);
+unsigned long aethercore_runtime_fini_deferred_count(void);
+void aethercore_run_runtime_fini(void);
+int __libc_start_main(void);
+int puts(const char *s);
+void perror(const char *prefix);
+int vsnprintf(char *dst, unsigned long size, const char *fmt, __builtin_va_list ap);
+int snprintf(char *dst, unsigned long size, const char *fmt, ...);
+int printf(const char *fmt, ...);

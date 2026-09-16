@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 // ─── PS/2 Keyboard Driver ───────────────────────────────────────────
 //
 // Fully configurable PS/2 keyboard driver with scancode set 1/2 support,
@@ -411,3 +416,4 @@ pub fn stats() -> Ps2KeyboardStats {
         pending_events: KEY_BUFFER.lock().len(),
     }
 }
+

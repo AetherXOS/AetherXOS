@@ -1,3 +1,5 @@
+//! platforms module.
+
 // --- PLATFORM IMPLEMENTATIONS MODULE ---
 // Concrete implementations of platform traits for supported architectures
 
@@ -29,3 +31,5 @@ fn platform() -> &'static dyn crate::interfaces::platform::Platform {
 pub fn get_platform() -> &'static dyn crate::interfaces::platform::Platform {
     platform()
 }
+
+

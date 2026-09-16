@@ -1,3 +1,5 @@
+//! ipc module.
+
 pub(crate) mod common;
 pub mod lockfree_ring;
 pub mod logind;
@@ -117,3 +119,5 @@ pub mod selector {
     #[cfg(feature = "ipc_signal_only")]
     pub type ActiveIpc = SignalOnly;
 }
+
+

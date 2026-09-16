@@ -1,3 +1,5 @@
+//! net module.
+
 mod epoll;
 mod msg;
 mod socket;
@@ -201,3 +203,5 @@ pub(crate) fn userspace_display_epoll_revents(fd: u32, requested: u32) -> u32 {
         timerfd_revents
     }
 }
+
+

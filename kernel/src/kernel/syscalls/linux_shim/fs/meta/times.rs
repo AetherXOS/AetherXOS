@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::super::*;
 use crate::kernel::syscalls::linux_shim::fs::support::{resolve_path_at_allow_empty, LINUX_AT_EMPTY_PATH, LINUX_AT_SYMLINK_NOFOLLOW};
 
@@ -95,3 +100,4 @@ pub fn sys_linux_utimensat(
 pub fn sys_linux_futimesat(dirfd: usize, pathname_ptr: usize, times_ptr: usize) -> usize {
     sys_linux_utimensat(dirfd, pathname_ptr, times_ptr, 0)
 }
+

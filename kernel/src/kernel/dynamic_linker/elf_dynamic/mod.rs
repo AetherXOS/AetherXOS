@@ -1,5 +1,6 @@
+//! elf_dynamic module.
+
 use crate::{klog_debug, klog_warn};
-use alloc::string::String;
 
 /// x86_64 Relocation types (partial, for demonstration)
 #[repr(u32)]
@@ -59,3 +60,5 @@ impl RelocationTable {
 
 #[cfg(all(test, any()))]
 mod tests;
+
+

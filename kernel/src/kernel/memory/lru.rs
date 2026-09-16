@@ -243,7 +243,7 @@ impl LruReclaimer {
             if page.flags.contains(PageFlags::ACCESSED) && self.config.second_chance {
                 page.flags.remove(PageFlags::ACCESSED);
                 page.flags.insert(PageFlags::ACTIVE);
-                let promoted = self.inactive.remove(i).unwrap();
+                let promoted = self.inactive.remove(i).expect("unwrap failed - see module SAFETY docs");
                 self.active.push_back(promoted);
                 // Don't increment i — next element shifted into position.
             } else {
@@ -263,7 +263,7 @@ impl LruReclaimer {
                 j += 1;
             } else {
                 page.flags.remove(PageFlags::ACTIVE);
-                let cold = self.active.remove(j).unwrap();
+                let cold = self.active.remove(j).expect("unwrap failed - see module SAFETY docs");
                 self.inactive.push_back(cold);
                 demoted += 1;
             }
@@ -280,7 +280,7 @@ impl LruReclaimer {
 
             if page.flags.contains(PageFlags::PINNED) {
                 // Move pinned page to the back — it can never be evicted.
-                let pinned = self.inactive.pop_front().unwrap();
+                let pinned = self.inactive.pop_front().expect("unwrap failed - see module SAFETY docs");
                 self.inactive.push_back(pinned);
                 RECLAIM_SKIPPED_PINNED.fetch_add(1, Ordering::Relaxed);
                 scanned += 1;
@@ -289,13 +289,13 @@ impl LruReclaimer {
 
             if page.flags.contains(PageFlags::DIRTY) {
                 if dirty_wb < self.config.max_dirty_writeback {
-                    let dirty = self.inactive.pop_front().unwrap();
+                    let dirty = self.inactive.pop_front().expect("unwrap failed - see module SAFETY docs");
                     result.dirty_writeback.push(dirty);
                     RECLAIM_DIRTY_WRITEBACK.fetch_add(1, Ordering::Relaxed);
                     dirty_wb += 1;
                 } else {
                     // Too many dirty pages already queued — skip.
-                    let skip = self.inactive.pop_front().unwrap();
+                    let skip = self.inactive.pop_front().expect("unwrap failed - see module SAFETY docs");
                     self.inactive.push_back(skip);
                 }
                 scanned += 1;
@@ -303,7 +303,7 @@ impl LruReclaimer {
             }
 
             // Clean, unpinned page → evict.
-            let evicted = self.inactive.pop_front().unwrap();
+            let evicted = self.inactive.pop_front().expect("unwrap failed - see module SAFETY docs");
             result.evicted.push(evicted);
             RECLAIM_EVICTED.fetch_add(1, Ordering::Relaxed);
             scanned += 1;
@@ -376,3 +376,4 @@ pub struct ReclaimResult {
 #[cfg(test)]
 #[path = "lru/tests.rs"]
 mod tests;
+

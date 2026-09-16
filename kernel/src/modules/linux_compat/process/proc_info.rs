@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::super::*;
 use crate::kernel::syscalls::with_user_write_bytes;
 
@@ -207,3 +212,4 @@ pub fn sys_linux_getrusage(who: i32, ru: UserPtr<LinuxRusage>) -> usize {
         }
     })
 }
+

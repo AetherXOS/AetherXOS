@@ -1,3 +1,5 @@
+//! opengl module.
+
 use core::sync::atomic::{AtomicBool, AtomicU16, AtomicU32, Ordering};
 
 static OPENGL_CONTEXT_PATH_READY: AtomicBool = AtomicBool::new(false);
@@ -97,3 +99,5 @@ mod tests {
         assert!(opengl_runtime_contract_supported());
     }
 }
+
+

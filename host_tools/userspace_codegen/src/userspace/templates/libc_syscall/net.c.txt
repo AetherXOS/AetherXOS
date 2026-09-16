@@ -1,0 +1,164 @@
+int socket(int domain, int type, int protocol) {
+    return (int)syscall(AETHERCORE_NR_SOCKET, (unsigned long)domain, (unsigned long)type, (unsigned long)protocol, 0ul, 0ul, 0ul);
+}
+
+int socketpair(int domain, int type, int protocol, int sv[2]) {
+    return (int)syscall(AETHERCORE_NR_SOCKETPAIR, (unsigned long)domain, (unsigned long)type, (unsigned long)protocol, (unsigned long)sv, 0ul, 0ul);
+}
+
+int connect(int fd, const void *addr, unsigned long addrlen) {
+    return (int)syscall(AETHERCORE_NR_CONNECT, (unsigned long)fd, (unsigned long)addr, addrlen, 0ul, 0ul, 0ul);
+}
+
+int bind(int fd, const void *addr, unsigned long addrlen) {
+    return (int)syscall(AETHERCORE_NR_BIND, (unsigned long)fd, (unsigned long)addr, addrlen, 0ul, 0ul, 0ul);
+}
+
+int listen(int fd, int backlog) {
+    return (int)syscall(AETHERCORE_NR_LISTEN, (unsigned long)fd, (unsigned long)backlog, 0ul, 0ul, 0ul, 0ul);
+}
+
+int accept(int fd, void *addr, unsigned int *addrlen) {
+    return accept4(fd, addr, addrlen, 0);
+}
+
+int accept4(int fd, void *addr, unsigned int *addrlen, int flags) {
+    return (int)syscall(AETHERCORE_NR_ACCEPT4, (unsigned long)fd, (unsigned long)addr, (unsigned long)addrlen, (unsigned long)flags, 0ul, 0ul);
+}
+
+long send(int fd, const void *buf, unsigned long len, int flags) {
+    return sendto(fd, buf, len, flags, (const void *)0, 0ul);
+}
+
+long sendto(int fd, const void *buf, unsigned long len, int flags, const void *dest_addr, unsigned long addrlen) {
+    return syscall(AETHERCORE_NR_SENDTO, (unsigned long)fd, (unsigned long)buf, len, (unsigned long)flags, (unsigned long)dest_addr, addrlen);
+}
+
+long recv(int fd, void *buf, unsigned long len, int flags) {
+    return recvfrom(fd, buf, len, flags, (void *)0, (unsigned int *)0);
+}
+
+long recvfrom(int fd, void *buf, unsigned long len, int flags, void *src_addr, unsigned int *addrlen) {
+    return syscall(AETHERCORE_NR_RECVFROM, (unsigned long)fd, (unsigned long)buf, len, (unsigned long)flags, (unsigned long)src_addr, (unsigned long)addrlen);
+}
+
+long sendmsg(int fd, const struct aethercore_msghdr *msg, int flags) {
+    return syscall(AETHERCORE_NR_SENDMSG, (unsigned long)fd, (unsigned long)msg, (unsigned long)flags, 0ul, 0ul, 0ul);
+}
+
+long recvmsg(int fd, struct aethercore_msghdr *msg, int flags) {
+    return syscall(AETHERCORE_NR_RECVMSG, (unsigned long)fd, (unsigned long)msg, (unsigned long)flags, 0ul, 0ul, 0ul);
+}
+
+int shutdown(int fd, int how) {
+    return (int)syscall(AETHERCORE_NR_SHUTDOWN, (unsigned long)fd, (unsigned long)how, 0ul, 0ul, 0ul, 0ul);
+}
+
+int getsockname(int fd, void *addr, unsigned int *addrlen) {
+    return (int)syscall(AETHERCORE_NR_GETSOCKNAME, (unsigned long)fd, (unsigned long)addr, (unsigned long)addrlen, 0ul, 0ul, 0ul);
+}
+
+int getpeername(int fd, void *addr, unsigned int *addrlen) {
+    return (int)syscall(AETHERCORE_NR_GETPEERNAME, (unsigned long)fd, (unsigned long)addr, (unsigned long)addrlen, 0ul, 0ul, 0ul);
+}
+
+int setsockopt(int fd, int level, int optname, const void *optval, unsigned int optlen) {
+    return (int)syscall(AETHERCORE_NR_SETSOCKOPT, (unsigned long)fd, (unsigned long)level, (unsigned long)optname, (unsigned long)optval, (unsigned long)optlen, 0ul);
+}
+
+int getsockopt(int fd, int level, int optname, void *optval, unsigned int *optlen) {
+    return (int)syscall(AETHERCORE_NR_GETSOCKOPT, (unsigned long)fd, (unsigned long)level, (unsigned long)optname, (unsigned long)optval, (unsigned long)optlen, 0ul);
+}
+
+int fstat(int fd, struct aethercore_stat *st) {
+    return (int)syscall(AETHERCORE_NR_FSTAT, (unsigned long)fd, (unsigned long)st, 0ul, 0ul, 0ul, 0ul);
+}
+
+int statfs(const char *path, struct aethercore_statfs *buf) {
+    return (int)syscall(AETHERCORE_NR_STATFS, (unsigned long)path, (unsigned long)buf, 0ul, 0ul, 0ul, 0ul);
+}
+
+int fstatfs(int fd, struct aethercore_statfs *buf) {
+    return (int)syscall(AETHERCORE_NR_FSTATFS, (unsigned long)fd, (unsigned long)buf, 0ul, 0ul, 0ul, 0ul);
+}
+
+int fsync(int fd) {
+    return (int)syscall(AETHERCORE_NR_FSYNC, (unsigned long)fd, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int fdatasync(int fd) {
+    return (int)syscall(AETHERCORE_NR_FDATASYNC, (unsigned long)fd, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+long sendfile(int out_fd, int in_fd, unsigned long *offset, unsigned long count) {
+    return syscall(AETHERCORE_NR_SENDFILE, (unsigned long)out_fd, (unsigned long)in_fd, (unsigned long)offset, count, 0ul, 0ul);
+}
+
+long splice(int fd_in, long long *off_in, int fd_out, long long *off_out, unsigned long len, unsigned int flags) {
+    return syscall(AETHERCORE_NR_SPLICE, (unsigned long)fd_in, (unsigned long)off_in, (unsigned long)fd_out, (unsigned long)off_out, len, (unsigned long)flags);
+}
+
+long tee(int fd_in, int fd_out, unsigned long len, unsigned int flags) {
+    return syscall(AETHERCORE_NR_TEE, (unsigned long)fd_in, (unsigned long)fd_out, len, (unsigned long)flags, 0ul, 0ul);
+}
+
+long vmsplice(int fd, const struct aethercore_iovec *iov, unsigned long nr_segs, unsigned int flags) {
+    return syscall(AETHERCORE_NR_VMSPLICE, (unsigned long)fd, (unsigned long)iov, nr_segs, (unsigned long)flags, 0ul, 0ul);
+}
+
+long copy_file_range(int fd_in, long long *off_in, int fd_out, long long *off_out, unsigned long len, unsigned int flags) {
+    return syscall(AETHERCORE_NR_COPY_FILE_RANGE, (unsigned long)fd_in, (unsigned long)off_in, (unsigned long)fd_out, (unsigned long)off_out, len, (unsigned long)flags);
+}
+
+long lseek(int fd, long offset, int whence) {
+    return syscall(AETHERCORE_NR_LSEEK, (unsigned long)fd, (unsigned long)offset, (unsigned long)whence, 0ul, 0ul, 0ul);
+}
+
+long lseek64(int fd, long offset, int whence) {
+    return lseek(fd, offset, whence);
+}
+
+int truncate(const char *path, long length) {
+    return (int)syscall(AETHERCORE_NR_TRUNCATE, (unsigned long)path, (unsigned long)length, 0ul, 0ul, 0ul, 0ul);
+}
+
+int truncate64(const char *path, long length) {
+    return truncate(path, length);
+}
+
+int ftruncate(int fd, long length) {
+    return (int)syscall(AETHERCORE_NR_FTRUNCATE, (unsigned long)fd, (unsigned long)length, 0ul, 0ul, 0ul, 0ul);
+}
+
+int ftruncate64(int fd, long length) {
+    return ftruncate(fd, length);
+}
+
+int fcntl(int fd, int cmd, unsigned long arg) {
+    return (int)syscall(AETHERCORE_NR_FCNTL, (unsigned long)fd, (unsigned long)cmd, arg, 0ul, 0ul, 0ul);
+}
+
+int dup(int fd) {
+    return (int)syscall(AETHERCORE_NR_DUP, (unsigned long)fd, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int dup2(int oldfd, int newfd) {
+    return (int)syscall(AETHERCORE_NR_DUP2, (unsigned long)oldfd, (unsigned long)newfd, 0ul, 0ul, 0ul, 0ul);
+}
+
+int dup3(int oldfd, int newfd, int flags) {
+    return (int)syscall(AETHERCORE_NR_DUP3, (unsigned long)oldfd, (unsigned long)newfd, (unsigned long)flags, 0ul, 0ul, 0ul);
+}
+
+int pipe(int pipefd[2]) {
+    return (int)syscall(AETHERCORE_NR_PIPE, (unsigned long)pipefd, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int pipe2(int pipefd[2], int flags) {
+    return (int)syscall(AETHERCORE_NR_PIPE2, (unsigned long)pipefd, (unsigned long)flags, 0ul, 0ul, 0ul, 0ul);
+}
+
+int close_range(unsigned int first, unsigned int last, unsigned int flags) {
+    return (int)syscall(AETHERCORE_NR_CLOSE_RANGE, (unsigned long)first, (unsigned long)last, (unsigned long)flags, 0ul, 0ul, 0ul);
+}
+

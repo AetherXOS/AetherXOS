@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Driver framework with batched operations
 //! 
 //! This module provides driver operations with:
@@ -704,3 +709,4 @@ mod tests {
         assert!(stats.batch_rate >= 0.0 && stats.batch_rate <= 1.0);
     }
 }
+

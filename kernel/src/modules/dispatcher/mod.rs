@@ -1,3 +1,5 @@
+//! dispatcher module.
+
 #[cfg(feature = "dispatcher_buffered")]
 pub mod buffered;
 #[cfg(feature = "dispatcher_direct")]
@@ -80,3 +82,5 @@ pub mod selector {
     )))]
     pub type ActiveDispatcher = internal_fallback::Fallback;
 }
+
+

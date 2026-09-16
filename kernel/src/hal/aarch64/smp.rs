@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 /// AArch64 Symmetric Multi-Processing initialisation.
 ///
 /// On AArch64 with PSCI, application processors (APs) are brought online via
@@ -17,7 +22,7 @@ use crate::interfaces::task::CpuId;
 use crate::kernel::cpu_local::CpuLocal;
 use crate::kernel::sync::IrqSafeMutex;
 
-// ── GIC SGI vector for TLB shootdown ─────────────────────────────────────────
+// â”€â”€ GIC SGI vector for TLB shootdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /// SGI 15 is reserved for TLB invalidation IPIs.
 pub const SGI_TLB_SHOOTDOWN: u8 = 15;
 const ICC_SGI1R_IRM_BIT: u64 = 1u64 << 40;
@@ -26,7 +31,7 @@ const GICD_SGIR_TARGET_ALL_BUT_SELF: u32 = 0b01u32 << 24;
 const MPIDR_AFF0_MASK: u64 = 0xFF;
 const DAIFCLR_UNMASK_ALL: u8 = 0xF;
 
-// ── Global CPU state ──────────────────────────────────────────────────────────
+// â”€â”€ Global CPU state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 lazy_static::lazy_static! {
     /// Number of cores that have successfully initialised.
@@ -35,7 +40,7 @@ lazy_static::lazy_static! {
     pub static ref CPUS: IrqSafeMutex<Vec<&'static CpuLocal>> = IrqSafeMutex::new(Vec::new());
 }
 
-// ── Kernel stack allocation ───────────────────────────────────────────────────
+// â”€â”€ Kernel stack allocation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(feature = "ring_protection")]
 const KERNEL_STACK_BYTES: usize = crate::generated_consts::STACK_SIZE_PAGES * 4096;
@@ -85,7 +90,7 @@ pub fn allocate_kernel_stack_top() -> usize {
     0
 }
 
-// ── AP registry ──────────────────────────────────────────────────────────────
+// â”€â”€ AP registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub fn register_cpu(local: &'static CpuLocal) {
     CPUS.lock().push(local);
@@ -96,7 +101,7 @@ pub fn cpu_count() -> usize {
     *ACCESSIBLE_CORES.lock()
 }
 
-// ── AArch64 TLB Shootdown ─────────────────────────────────────────────────────
+// â”€â”€ AArch64 TLB Shootdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Supports two GIC generations:
 //   GICv2: Write to GICD_SGIR MMIO (offset 0xF00 from GICD base).
@@ -198,7 +203,7 @@ unsafe fn tlbi_vaae1is(addr: u64) {
     };
 }
 
-/// SGI 15 interrupt handler — called on each remote core.
+/// SGI 15 interrupt handler â€” called on each remote core.
 ///
 /// Must be invoked by the exception handler after the SGI has been
 /// acknowledged via GICC_IAR / ICC_IAR1_EL1.
@@ -214,7 +219,7 @@ pub fn handle_tlb_shootdown_ipi() {
     acknowledge_pending(&SHOOTDOWN_PENDING);
 }
 
-// ── PSCI helpers ─────────────────────────────────────────────────────────────
+// â”€â”€ PSCI helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// PSCI function IDs (SMC32 / HVC32 convention).
 #[allow(dead_code)]
@@ -222,7 +227,7 @@ const PSCI_CPU_ON_32: u32 = 0x8400_0003;
 const PSCI_CPU_ON_64: u64 = 0xC400_0003;
 
 /// Call PSCI `CPU_ON` via HVC (Hypervisor Call).
-/// `mpidr` – target CPU affinity, `entry` – physical entry address.
+/// `mpidr` â€“ target CPU affinity, `entry` â€“ physical entry address.
 unsafe fn psci_cpu_on_hvc(mpidr: u64, entry: usize) -> i32 {
     let ret: i64;
     unsafe {
@@ -238,7 +243,7 @@ unsafe fn psci_cpu_on_hvc(mpidr: u64, entry: usize) -> i32 {
     ret as i32
 }
 
-/// Call PSCI `CPU_ON` via SMC (Secure Monitor Call — bare-metal / TrustZone).
+/// Call PSCI `CPU_ON` via SMC (Secure Monitor Call â€” bare-metal / TrustZone).
 unsafe fn psci_cpu_on_smc(mpidr: u64, entry: usize) -> i32 {
     let ret: i64;
     unsafe {
@@ -254,7 +259,7 @@ unsafe fn psci_cpu_on_smc(mpidr: u64, entry: usize) -> i32 {
     ret as i32
 }
 
-// ── AP boot flag ─────────────────────────────────────────────────────────────
+// â”€â”€ AP boot flag â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Set to `1` by the AP once it has completed its own init.
 static AP_READY: AtomicU32 = AtomicU32::new(0);
@@ -298,7 +303,7 @@ pub fn wait_stats() -> SmpWaitStats {
     )
 }
 
-// ── AP entry point ────────────────────────────────────────────────────────────
+// â”€â”€ AP entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Entry point jumped to by every Application Processor.
 /// Must be `extern "C"` and at a known physical address.
@@ -351,7 +356,7 @@ pub extern "C" fn aarch64_ap_entry() -> ! {
     }
 }
 
-// ── BSP SMP initialisation ────────────────────────────────────────────────────
+// â”€â”€ BSP SMP initialisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 lazy_static::lazy_static! {
     /// Known MPIDR values to try waking.
@@ -412,3 +417,4 @@ pub fn init() {
     let online = AP_READY.load(Ordering::Relaxed);
     crate::klog_info!("AArch64 SMP: {}/{} APs online", online, expected);
 }
+

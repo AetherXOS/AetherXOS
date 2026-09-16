@@ -1,3 +1,5 @@
+//! handlers module.
+
 pub mod fs;
 pub mod process;
 pub mod memory;
@@ -7,3 +9,5 @@ pub use fs::*;
 pub use process::*;
 pub use memory::*;
 pub use network::*;
+
+

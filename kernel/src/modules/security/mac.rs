@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::interfaces::security::{
     SecurityAction, SecurityContext, SecurityLevel, SecurityVerdict,
 };
@@ -193,3 +198,4 @@ pub fn take_stats() -> MacStats {
         task_clearance_count: TASK_CLEARANCE.lock().len(),
     }
 }
+

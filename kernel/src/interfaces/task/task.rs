@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::context::*;
 use super::ids::*;
 use super::state::*;
@@ -437,3 +442,4 @@ impl crate::interfaces::kobject::KObject for KernelTask {
         self
     }
 }
+

@@ -48,6 +48,7 @@ pub static LAST_TASK_ID: AtomicUsize = AtomicUsize::new(0);
 pub static HANDOFF_EPOCH: AtomicU64 = AtomicU64::new(1);
 
 #[cfg(feature = "process_abstraction")]
+#[derive(Clone)]
 pub struct LaunchRegistryEntry {
     pub process_id: crate::interfaces::task::ProcessId,
     pub task_id: crate::interfaces::task::TaskId,

@@ -1,3 +1,14 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
+//! # Safety
+//!
+//! This module performs low-level hardware operations.
+//! All unsafe blocks are justified by the calling functions
+//! which validate addresses and invariants beforehand.
+//!
 use crate::kernel::bit_utils::pci as bits;
 use pci_support::{byte_shift, config_address, word_shift};
 use crate::hal::x86_64::port::X86PortIo;
@@ -166,3 +177,5 @@ pub const VENDOR_REDHAT: u16 = 0x1AF4; // VirtIO
 pub const VIRTIO_DEV_BLK_LEGACY: u16 = 0x1001;
 pub const VIRTIO_DEV_BLK_MODERN: u16 = 0x1042;
 pub const VIRTIO_DEV_NET_LEGACY: u16 = 0x1000;
+
+

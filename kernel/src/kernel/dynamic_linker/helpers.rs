@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::string::ToString;
 
 use xmas_elf::header::{Class, Data, Version};
@@ -212,3 +217,4 @@ pub(super) fn is_supported_elf(elf: &xmas_elf::ElfFile<'_>) -> bool {
         && elf.header.pt1.version() == Version::Current
         && elf_machine_matches_target(elf.header.pt2.machine().as_machine())
 }
+

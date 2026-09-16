@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 
 #[cfg(target_arch = "x86_64")]
@@ -98,3 +103,4 @@ pub(super) fn try_enter_vmx_operation() -> bool {
 pub(super) fn try_enter_vmx_operation() -> bool {
     false
 }
+

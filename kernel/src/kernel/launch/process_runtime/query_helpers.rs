@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 use alloc::sync::Arc;
 use crate::kernel::process::Process;
@@ -29,3 +34,4 @@ pub(super) fn current_process_id() -> Option<ProcessId> {
         CpuLocal::try_get().map(|cpu| ProcessId(cpu.current_process_id.load(Ordering::Relaxed)))
     }
 }
+

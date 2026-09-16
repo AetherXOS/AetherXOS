@@ -1,3 +1,5 @@
+//! linux_misc module.
+
 pub mod bpf;
 pub mod eventfd;
 pub mod fanotify;
@@ -111,3 +113,5 @@ mod modern_syscall_policy_tests {
         );
     }
 }
+
+

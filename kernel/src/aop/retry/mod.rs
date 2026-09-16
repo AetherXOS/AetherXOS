@@ -1,6 +1,9 @@
+//! retry module.
+
 use aop_macros::retry;
 use alloc::format;
 
+#[cfg(feature = "host_examples")]
 #[retry(retries = 3)]
 pub fn example_retry() -> Result<(), &'static str> {
     static mut ATTEMPTS: u32 = 0;
@@ -13,7 +16,7 @@ pub fn example_retry() -> Result<(), &'static str> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "host_examples"))]
 mod tests {
     use super::*;
 

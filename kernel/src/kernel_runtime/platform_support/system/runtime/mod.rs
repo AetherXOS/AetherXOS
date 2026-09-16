@@ -1,3 +1,5 @@
+//! runtime module.
+
 mod allocators;
 mod loader;
 mod power;
@@ -17,3 +19,5 @@ pub(crate) use self::allocators::{log_allocator_diagnostics, log_slab_runtime};
 
 #[cfg(feature = "ring_protection")]
 pub(crate) use self::syscalls::log_syscall_runtime;
+
+

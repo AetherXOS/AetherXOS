@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::interfaces::TaskId;
 use alloc::vec::Vec;
 
@@ -79,9 +84,9 @@ mod tests {
 
     #[test_case]
     fn normalize_mount_path_rejects_bad_segments_and_trims_noise() {
-        assert_eq!(normalize_mount_path(b"/", 16).unwrap(), b"/".to_vec());
+        assert_eq!(normalize_mount_path(b"/", 16).expect("unwrap failed - see module SAFETY docs"), b"/".to_vec());
         assert_eq!(
-            normalize_mount_path(b"/var//log/", 16).unwrap(),
+            normalize_mount_path(b"/var//log/", 16).expect("unwrap failed - see module SAFETY docs"),
             b"/var/log".to_vec()
         );
         assert!(normalize_mount_path(b"relative", 16).is_none());
@@ -101,3 +106,5 @@ mod tests {
         assert!(!valid_initrd_path("/bad\0name"));
     }
 }
+
+

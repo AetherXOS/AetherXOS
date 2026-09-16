@@ -434,10 +434,10 @@ mod tests {
         acct.set_memory_limit(pid, 1_000_000).ok();
         acct.record_allocation(pid, 100_000).ok();
 
-        assert_eq!(acct.get_memory_usage(pid).unwrap(), 100_000);
+        assert_eq!(acct.get_memory_usage(pid).expect("unwrap failed - see module SAFETY docs"), 100_000);
 
         acct.record_deallocation(pid, 50_000);
-        assert_eq!(acct.get_memory_usage(pid).unwrap(), 50_000);
+        assert_eq!(acct.get_memory_usage(pid).expect("unwrap failed - see module SAFETY docs"), 50_000);
     }
 
     #[test_case]
@@ -447,7 +447,7 @@ mod tests {
 
         mgr.set_process_qos(pid, MemoryQoS::Interactive).ok();
         assert_eq!(
-            mgr.get_process_qos(pid).unwrap(),
+            mgr.get_process_qos(pid).expect("unwrap failed - see module SAFETY docs"),
             MemoryQoS::Interactive
         );
     }
@@ -455,8 +455,9 @@ mod tests {
     #[test_case]
     fn test_shrink_memory() {
         let handler = ConcreteMemoryPressureHandler::new();
-        let freed = handler.shrink_memory(1000).unwrap();
+        let freed = handler.shrink_memory(1000).expect("unwrap failed - see module SAFETY docs");
         assert!(freed > 0);
     }
 }
+
 

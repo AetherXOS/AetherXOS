@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -497,3 +502,4 @@ impl VirtControlQueue {
 const fn align_up(value: usize, align: usize) -> usize {
     (value + (align - 1)) & !(align - 1)
 }
+

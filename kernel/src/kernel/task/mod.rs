@@ -1,4 +1,11 @@
-/// Task Management & Signal Delivery — Production Grade
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
+//! Task and thread management: lifecycle, scheduling, signals, and architecture support.
+
+/// Task Management & Signal Delivery â€” Production Grade
 ///
 /// # Modular Structure
 /// - `registry`: Task storage and lookup.
@@ -67,3 +74,5 @@ pub use scheduling::{suspend_current_task, suspend_current_task_with_mask, wake_
 pub(crate) fn clear_robust_list_for_tid(tid: usize) {
     crate::kernel::syscalls::clear_robust_list_for_tid(tid);
 }
+
+

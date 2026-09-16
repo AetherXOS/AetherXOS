@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::vec::Vec;
 use core::cmp;
 
@@ -458,3 +463,4 @@ impl_lifecycle_adapter!(
     service: lifecycle_service,
     teardown: lifecycle_teardown,
 );
+

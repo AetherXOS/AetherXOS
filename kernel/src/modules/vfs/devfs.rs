@@ -433,11 +433,11 @@ mod tests {
         assert!(devfs.register_device("tty0", Box::new(|_| Box::new(DummyFile))));
         assert!(devfs.register_device("net/virtio0", Box::new(|_| Box::new(DummyFile))));
 
-        let root_entries = devfs.readdir("/", TaskId(0)).unwrap();
+        let root_entries = devfs.readdir("/", TaskId(0)).expect("unwrap failed - see module SAFETY docs");
         assert!(root_entries.iter().any(|e| e.name == "tty0"));
         assert!(root_entries.iter().any(|e| e.name == "net"));
 
-        let net_entries = devfs.readdir("/net", TaskId(0)).unwrap();
+        let net_entries = devfs.readdir("/net", TaskId(0)).expect("unwrap failed - see module SAFETY docs");
         assert!(net_entries.iter().any(|e| e.name == "virtio0"));
     }
 
@@ -473,3 +473,4 @@ mod tests {
         assert_eq!(events[3].kind, DevFsEventKind::NodeRemoved);
     }
 }
+

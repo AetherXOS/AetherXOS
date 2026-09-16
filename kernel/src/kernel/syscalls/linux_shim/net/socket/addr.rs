@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #[cfg(feature = "posix_net")]
 use super::super::super::*;
 #[cfg(feature = "posix_net")]
@@ -171,3 +176,4 @@ mod tests {
         assert_eq!(u16::from_be(written.sin_port), 8080);
     }
 }
+

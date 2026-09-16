@@ -1,3 +1,5 @@
+//! schedulers module.
+
 #[cfg(feature = "sched_cfs")]
 pub mod cfs;
 #[cfg(feature = "sched_cooperative")]
@@ -138,3 +140,5 @@ pub use config::{
     set_mlfq_runtime_config, set_rt_runtime_config, set_scheduler_runtime_config, CfsRuntimeConfig,
     EdfRuntimeConfig, MlfqRuntimeConfig, RtRuntimeConfig, SchedulerRuntimeConfig,
 };
+
+

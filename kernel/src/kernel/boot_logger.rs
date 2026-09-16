@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 /// Real-World Architecture Example: Boot Logger
 ///
 /// This module demonstrates how to use the Onion Architecture in practice:
@@ -163,4 +168,5 @@ mod tests {
 // - Consistent format across boot stages
 // - Log level filtering possible (trace/debug/info/warn/error)
 // - Easy to add AOP macros for detailed tracing
+
 

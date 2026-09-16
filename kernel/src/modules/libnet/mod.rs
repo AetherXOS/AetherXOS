@@ -1,3 +1,5 @@
+//! libnet module.
+
 #[cfg(all(feature = "libnet_l7_http2", not(feature = "network_http")))]
 compile_error!("feature 'libnet_l7_http2' requires feature 'network_http'");
 
@@ -265,3 +267,5 @@ mod tests {
         assert!(report.l2_frames_ingested <= l2::core_to_libnet_batch_size());
     }
 }
+
+

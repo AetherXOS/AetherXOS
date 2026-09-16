@@ -1,3 +1,5 @@
+//! fd_ops module.
+
 pub mod duplication;
 pub mod fcntl;
 pub mod pidfd;
@@ -134,3 +136,5 @@ mod pidfd_tests {
         assert!(!linux_pidfd_getfd_access_allowed(33, 77));
     }
 }
+
+

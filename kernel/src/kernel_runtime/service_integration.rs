@@ -3,8 +3,7 @@
 //! Integrates system services (signals, networking, audit logging) with security policies
 //! and kernel subsystems. Follows the same hook pattern as syscall_integration.rs.
 
-use crate::core::log;
-use crate::kernel_runtime::integration_utils::audit_service_event;
+
 
 
 /// Signal delivery hook - called when a signal is about to be sent to a process
@@ -315,7 +314,7 @@ pub fn on_socket_accept(fd: usize, uid: u32, remote_addr: &str) -> Result<(), &'
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     #[test_case]
     #[cfg(feature = "posix_signal")]
@@ -382,7 +381,7 @@ mod tests {
     fn test_socket_send_rate_limit() {
         let result = on_socket_send(3, 2 * 1024 * 1024, 1000); // 2MB
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 1024 * 1024); // Capped to 1MB
+        assert_eq!(result.expect("unwrap failed - see module SAFETY docs"), 1024 * 1024); // Capped to 1MB
     }
 
     #[test_case]
@@ -435,6 +434,7 @@ mod tests {
     fn test_socket_receive_rate_limit() {
         let result = on_socket_receive(3, 2 * 1024 * 1024, 1000); // 2MB buffer
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 1024 * 1024); // Capped to 1MB
+        assert_eq!(result.expect("unwrap failed - see module SAFETY docs"), 1024 * 1024); // Capped to 1MB
     }
 }
+

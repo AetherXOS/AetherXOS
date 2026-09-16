@@ -1,3 +1,5 @@
+//! accel module.
+
 use crate::modules::vfs::types::File;
 use crate::modules::posix::fs::register_handle;
 use alloc::sync::Arc;
@@ -67,3 +69,5 @@ pub struct AccelContext {
     pub xcr0: u64,
     pub tile_data: [u8; 8192], // Large buffer for AMX tiles
 }
+
+

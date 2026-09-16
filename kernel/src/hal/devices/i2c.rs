@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 /// I2C (Inter-Integrated Circuit) device abstraction.
 ///
 /// Provides a type-safe interface for I2C bus communication with
@@ -240,4 +245,5 @@ mod tests {
         let _device: I2cDevice<0x40005000> = I2cDevice::new(I2cSpeed::Fast, I2cAddress::new(0x50));
     }
 }
+
 

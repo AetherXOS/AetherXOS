@@ -1,3 +1,5 @@
+//! x11 module.
+
 use super::status;
 use super::transport;
 mod protocol;
@@ -207,3 +209,5 @@ mod tests {
         assert!(!validate_core_opcode_dispatch_prefix(&req, &setup));
     }
 }
+
+

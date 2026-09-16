@@ -1,3 +1,5 @@
+//! wayland module.
+
 use super::status;
 use super::transport;
 mod protocol;
@@ -156,3 +158,5 @@ mod tests {
         assert!(validate_surface_commit_prefix(&bytes));
     }
 }
+
+

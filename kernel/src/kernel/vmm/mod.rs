@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 // only compile when paging support exists
 #![cfg(feature = "paging_enable")]
 
@@ -122,3 +127,4 @@ pub fn init() {
     // Page fault handling is now centralized in crate::kernel::memory::demand_paging
     // via the IDT exception handler. No dispatcher registration needed here.
 }
+

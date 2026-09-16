@@ -1,3 +1,5 @@
+//! boot_flow module.
+
 mod devices;
 mod irq;
 mod memory;
@@ -75,3 +77,5 @@ mod tests {
         super::finalize_runtime_interrupt_enablement();
     }
 }
+
+

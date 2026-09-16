@@ -1,0 +1,174 @@
+#include "aethercore_libc.h"
+
+struct aethercore_alloc_header {
+    unsigned long size;
+};
+
+static unsigned char g_aethercore_heap_pool[16384];
+static unsigned long g_aethercore_heap_pool_used;
+static unsigned char g_aethercore_strdup_pool[4096];
+static unsigned long g_aethercore_strdup_pool_used;
+
+static unsigned long aethercore_align_up(unsigned long value, unsigned long align) {
+    return (value + align - 1) & ~(align - 1);
+}
+
+void *malloc(unsigned long size) {
+    struct aethercore_alloc_header *header;
+    unsigned long total;
+    unsigned long offset;
+    if (size == 0) {
+        size = 1;
+    }
+    total = sizeof(struct aethercore_alloc_header) + size;
+    offset = aethercore_align_up(g_aethercore_heap_pool_used, sizeof(unsigned long));
+    if (offset + total > sizeof(g_aethercore_heap_pool)) {
+        *__errno_location() = 12;
+        return 0;
+    }
+    header = (struct aethercore_alloc_header *)(g_aethercore_heap_pool + offset);
+    header->size = size;
+    g_aethercore_heap_pool_used = offset + total;
+    return (void *)(header + 1);
+}
+
+int posix_memalign(void **memptr, unsigned long alignment, unsigned long size) {
+    struct aethercore_alloc_header *header;
+    unsigned long total;
+    unsigned long offset;
+    unsigned long payload;
+    if (!memptr || alignment < sizeof(void *) || (alignment & (alignment - 1)) != 0) {
+        *__errno_location() = 22;
+        return 22;
+    }
+    if (size == 0) {
+        size = 1;
+    }
+    total = sizeof(struct aethercore_alloc_header) + size + alignment;
+    offset = aethercore_align_up(g_aethercore_heap_pool_used, sizeof(unsigned long));
+    if (offset + total > sizeof(g_aethercore_heap_pool)) {
+        *__errno_location() = 12;
+        return 12;
+    }
+    payload = aethercore_align_up((unsigned long)(g_aethercore_heap_pool + offset + sizeof(struct aethercore_alloc_header)), alignment);
+    header = ((struct aethercore_alloc_header *)payload) - 1;
+    header->size = size;
+    g_aethercore_heap_pool_used = offset + total;
+    *memptr = (void *)payload;
+    return 0;
+}
+
+void *aligned_alloc(unsigned long alignment, unsigned long size) {
+    void *ptr = 0;
+    if (alignment == 0 || (size % alignment) != 0) {
+        *__errno_location() = 22;
+        return 0;
+    }
+    if (posix_memalign(&ptr, alignment, size) != 0) {
+        return 0;
+    }
+    return ptr;
+}
+
+void free(void *ptr) {
+    (void)ptr;
+}
+
+void *calloc(unsigned long count, unsigned long size) {
+    unsigned long total = count * size;
+    void *ptr = malloc(total);
+    if (ptr) {
+        memset(ptr, 0, total);
+    }
+    return ptr;
+}
+
+void *realloc(void *ptr, unsigned long size) {
+    struct aethercore_alloc_header *header;
+    void *new_ptr;
+    unsigned long copy_size;
+    if (!ptr) {
+        return malloc(size);
+    }
+    if (size == 0) {
+        free(ptr);
+        return 0;
+    }
+    header = ((struct aethercore_alloc_header *)ptr) - 1;
+    new_ptr = malloc(size);
+    if (!new_ptr) {
+        return 0;
+    }
+    copy_size = header->size < size ? header->size : size;
+    memcpy(new_ptr, ptr, copy_size);
+    return new_ptr;
+}
+
+void *memcpy(void *dst, const void *src, unsigned long n) {
+    unsigned char *d = (unsigned char *)dst;
+    const unsigned char *s = (const unsigned char *)src;
+    unsigned long i;
+    for (i = 0; i < n; ++i) d[i] = s[i];
+    return dst;
+}
+
+void *memset(void *dst, int value, unsigned long n) {
+    unsigned char *d = (unsigned char *)dst;
+    unsigned long i;
+    for (i = 0; i < n; ++i) d[i] = (unsigned char)value;
+    return dst;
+}
+
+void bzero(void *dst, unsigned long n) {
+    (void)memset(dst, 0, n);
+}
+
+void *memmove(void *dst, const void *src, unsigned long n) {
+    unsigned char *d = (unsigned char *)dst;
+    const unsigned char *s = (const unsigned char *)src;
+    if (d == s) return dst;
+    if (d < s) return memcpy(dst, src, n);
+    while (n--) d[n] = s[n];
+    return dst;
+}
+
+int memcmp(const void *lhs, const void *rhs, unsigned long n) {
+    const unsigned char *a = (const unsigned char *)lhs;
+    const unsigned char *b = (const unsigned char *)rhs;
+    unsigned long i;
+    for (i = 0; i < n; ++i) {
+        if (a[i] != b[i]) {
+            return (int)a[i] - (int)b[i];
+        }
+    }
+    return 0;
+}
+
+void *memchr(const void *src, int value, unsigned long n) {
+    const unsigned char *p = (const unsigned char *)src;
+    unsigned long i;
+    for (i = 0; i < n; ++i) {
+        if (p[i] == (unsigned char)value) {
+            return (void *)(p + i);
+        }
+    }
+    return 0;
+}
+
+char *strdup(const char *src) {
+    unsigned long len;
+    char *dst;
+    if (!src) return 0;
+    len = strlen(src) + 1;
+    dst = (char *)malloc(len);
+    if (!dst) {
+        if (g_aethercore_strdup_pool_used + len > sizeof(g_aethercore_strdup_pool)) {
+            *__errno_location() = 12;
+            return 0;
+        }
+        dst = (char *)(g_aethercore_strdup_pool + g_aethercore_strdup_pool_used);
+        g_aethercore_strdup_pool_used += len;
+    }
+    memcpy(dst, src, len);
+    return dst;
+}

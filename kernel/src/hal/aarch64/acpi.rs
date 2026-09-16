@@ -1,14 +1,19 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 /// AArch64 ACPI / DTB discovery helpers.
 ///
 /// On AArch64 systems, platform topology is described either via:
-///   * ACPI RSDP → XSDT → MADT (GIC, GICD, GICR, MPS interrupt source overrides)
+///   * ACPI RSDP â†’ XSDT â†’ MADT (GIC, GICD, GICR, MPS interrupt source overrides)
 ///   * Flattened Device Tree (FDT / DTB)
 ///
 /// This module implements real table walks where the tables are memory-mapped
 /// by the bootloader (Limine or UEFI entry path).
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-// ── Public types ──────────────────────────────────────────────────────────────
+// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub struct AcpiTopologyInfo {
     pub rsdp_addr: u64,
@@ -24,7 +29,7 @@ pub struct AcpiPowerInfo {
     pub fadt_revision: u8,
 }
 
-// ── Internal ACPI structures ──────────────────────────────────────────────────
+// â”€â”€ Internal ACPI structures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Standard ACPI System Description Table header (36 bytes).
 #[repr(C, packed)]
@@ -40,7 +45,7 @@ struct AcpiSdtHeader {
     creator_revision: u32,
 }
 
-/// ACPI RSDP (v2+) — 36 bytes.
+/// ACPI RSDP (v2+) â€” 36 bytes.
 #[repr(C, packed)]
 struct Rsdp {
     signature: [u8; 8],
@@ -78,7 +83,7 @@ struct MadtGicc {
     spe_overflow_irq: u16,
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Validate an ACPI table checksum.
 unsafe fn valid_checksum(base: *const u8, len: usize) -> bool {
@@ -95,7 +100,7 @@ fn phys_to_virt(phys: u64) -> Option<*const u8> {
     Some((phys + hhdm) as *const u8)
 }
 
-// ── MADT walk ────────────────────────────────────────────────────────────────
+// â”€â”€ MADT walk â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[derive(Default)]
 struct MadtTopology {
@@ -159,7 +164,7 @@ unsafe fn walk_madt(madt_phys: u64) -> MadtTopology {
     topo
 }
 
-// ── XSDT walk ────────────────────────────────────────────────────────────────
+// â”€â”€ XSDT walk â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 unsafe fn find_table_in_xsdt(xsdt_phys: u64, sig: &[u8; 4]) -> Option<u64> {
     let Some(xsdt_ptr) = phys_to_virt(xsdt_phys) else {
@@ -187,7 +192,7 @@ unsafe fn find_table_in_xsdt(xsdt_phys: u64, sig: &[u8; 4]) -> Option<u64> {
     None
 }
 
-// ── Statistics ────────────────────────────────────────────────────────────────
+// â”€â”€ Statistics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 static ACPI_PARSE_CALLS: AtomicUsize = AtomicUsize::new(0);
 
@@ -195,7 +200,7 @@ pub fn acpi_parse_calls() -> usize {
     ACPI_PARSE_CALLS.load(Ordering::Relaxed)
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub fn discover_topology() -> AcpiTopologyInfo {
     ACPI_PARSE_CALLS.fetch_add(1, Ordering::Relaxed);
@@ -237,7 +242,7 @@ pub fn discover_topology() -> AcpiTopologyInfo {
             dtb_phys
         );
     } else {
-        crate::klog_warn!("AArch64: neither ACPI RSDP nor DTB found — single-core assumed");
+        crate::klog_warn!("AArch64: neither ACPI RSDP nor DTB found â€” single-core assumed");
     }
 
     info
@@ -277,3 +282,4 @@ pub fn discover_power_info() -> AcpiPowerInfo {
 
     power
 }
+

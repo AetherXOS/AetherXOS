@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 #[cfg(target_os = "none")]
 use crate::kernel::syscalls::syscalls_consts::x86;
 #[cfg(target_os = "none")]
@@ -65,3 +70,4 @@ pub fn init() {}
 
 #[cfg(target_os = "none")]
 use crate::hal::smp::tlb_shootdown_handler;
+

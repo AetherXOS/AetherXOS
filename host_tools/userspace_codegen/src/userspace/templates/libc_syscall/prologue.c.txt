@@ -1,0 +1,379 @@
+#include "aethercore_libc.h"
+
+#include <stdarg.h>
+
+enum {
+    AETHERCORE_NR_READ = 0,
+    AETHERCORE_NR_WRITE = 1,
+    AETHERCORE_NR_PREAD64 = 17,
+    AETHERCORE_NR_PWRITE64 = 18,
+    AETHERCORE_NR_IOCTL = 16,
+    AETHERCORE_NR_GETITIMER = 36,
+    AETHERCORE_NR_SETITIMER = 38,
+    AETHERCORE_NR_RT_SIGACTION = 13,
+    AETHERCORE_NR_RT_SIGPROCMASK = 14,
+    AETHERCORE_NR_READV = 19,
+    AETHERCORE_NR_WRITEV = 20,
+    AETHERCORE_NR_ACCESS = 21,
+    AETHERCORE_NR_FSTAT = 5,
+    AETHERCORE_NR_CLOSE = 3,
+    AETHERCORE_NR_LSEEK = 8,
+    AETHERCORE_NR_FSYNC = 74,
+    AETHERCORE_NR_FDATASYNC = 75,
+    AETHERCORE_NR_TRUNCATE = 76,
+    AETHERCORE_NR_FTRUNCATE = 77,
+    AETHERCORE_NR_SENDFILE = 40,
+    AETHERCORE_NR_CHMOD = 90,
+    AETHERCORE_NR_FCHMOD = 91,
+    AETHERCORE_NR_CHOWN = 92,
+    AETHERCORE_NR_FCHOWN = 93,
+    AETHERCORE_NR_LCHOWN = 94,
+    AETHERCORE_NR_DUP = 32,
+    AETHERCORE_NR_DUP2 = 33,
+    AETHERCORE_NR_PAUSE = 34,
+    AETHERCORE_NR_NANOSLEEP = 35,
+    AETHERCORE_NR_FCNTL = 72,
+    AETHERCORE_NR_PIPE = 22,
+    AETHERCORE_NR_STATFS = 137,
+    AETHERCORE_NR_FSTATFS = 138,
+    AETHERCORE_NR_MREMAP = 25,
+    AETHERCORE_NR_MSYNC = 26,
+    AETHERCORE_NR_MADVISE = 28,
+    AETHERCORE_NR_MMAP = 9,
+    AETHERCORE_NR_MPROTECT = 10,
+    AETHERCORE_NR_MUNMAP = 11,
+    AETHERCORE_NR_BRK = 12,
+    AETHERCORE_NR_GETTIMEOFDAY = 96,
+    AETHERCORE_NR_POLL = 7,
+    AETHERCORE_NR_SCHED_YIELD = 24,
+    AETHERCORE_NR_SCHED_SETAFFINITY = 203,
+    AETHERCORE_NR_SCHED_GETAFFINITY = 204,
+    AETHERCORE_NR_SOCKET = 41,
+    AETHERCORE_NR_CONNECT = 42,
+    AETHERCORE_NR_ACCEPT4 = 288,
+    AETHERCORE_NR_SENDTO = 44,
+    AETHERCORE_NR_RECVFROM = 45,
+    AETHERCORE_NR_SENDMSG = 46,
+    AETHERCORE_NR_RECVMSG = 47,
+    AETHERCORE_NR_SHUTDOWN = 48,
+    AETHERCORE_NR_BIND = 49,
+    AETHERCORE_NR_LISTEN = 50,
+    AETHERCORE_NR_GETSOCKNAME = 51,
+    AETHERCORE_NR_GETPEERNAME = 52,
+    AETHERCORE_NR_SOCKETPAIR = 53,
+    AETHERCORE_NR_SETSOCKOPT = 54,
+    AETHERCORE_NR_GETSOCKOPT = 55,
+    AETHERCORE_NR_TIME = 201,
+    AETHERCORE_NR_WAIT4 = 61,
+    AETHERCORE_NR_KILL = 62,
+    AETHERCORE_NR_UNAME = 63,
+    AETHERCORE_NR_SYSINFO = 99,
+    AETHERCORE_NR_PRCTL = 157,
+    AETHERCORE_NR_ARCH_PRCTL = 158,
+    AETHERCORE_NR_SETHOSTNAME = 170,
+    AETHERCORE_NR_GETPID = 39,
+    AETHERCORE_NR_GETTID = 186,
+    AETHERCORE_NR_GETPPID = 110,
+    AETHERCORE_NR_GETUID = 102,
+    AETHERCORE_NR_GETRUSAGE = 98,
+    AETHERCORE_NR_GETGID = 104,
+    AETHERCORE_NR_SETPGID = 109,
+    AETHERCORE_NR_GETEUID = 107,
+    AETHERCORE_NR_GETEGID = 108,
+    AETHERCORE_NR_GETGROUPS = 115,
+    AETHERCORE_NR_SETGROUPS = 116,
+    AETHERCORE_NR_SETRESUID = 117,
+    AETHERCORE_NR_GETRESUID = 118,
+    AETHERCORE_NR_SETRESGID = 119,
+    AETHERCORE_NR_GETRESGID = 120,
+    AETHERCORE_NR_GETPGRP = 111,
+    AETHERCORE_NR_SETSID = 112,
+    AETHERCORE_NR_GETPGID = 121,
+    AETHERCORE_NR_GETSID = 124,
+    AETHERCORE_NR_GETPRIORITY = 140,
+    AETHERCORE_NR_SETPRIORITY = 141,
+    AETHERCORE_NR_CLOCK_GETTIME = 228,
+    AETHERCORE_NR_CLOCK_GETRES = 229,
+    AETHERCORE_NR_GETRLIMIT = 97,
+    AETHERCORE_NR_SIGALTSTACK = 131,
+    AETHERCORE_NR_SET_TID_ADDRESS = 218,
+    AETHERCORE_NR_FUTEX = 202,
+    AETHERCORE_NR_TGKILL = 234,
+    AETHERCORE_NR_WAITID = 247,
+    AETHERCORE_NR_EXECVE = 59,
+    AETHERCORE_NR_OPENAT = 257,
+    AETHERCORE_NR_CHDIR = 80,
+    AETHERCORE_NR_GETCWD = 79,
+    AETHERCORE_NR_UMASK = 95,
+    AETHERCORE_NR_MKDIRAT = 258,
+    AETHERCORE_NR_FCHOWNAT = 260,
+    AETHERCORE_NR_LINKAT = 265,
+    AETHERCORE_NR_NEWFSTATAT = 262,
+    AETHERCORE_NR_FCHMODAT = 268,
+    AETHERCORE_NR_SYMLINKAT = 266,
+    AETHERCORE_NR_UNLINKAT = 263,
+    AETHERCORE_NR_RENAMEAT = 264,
+    AETHERCORE_NR_READLINKAT = 267,
+    AETHERCORE_NR_FACCESSAT = 269,
+    AETHERCORE_NR_SET_ROBUST_LIST = 273,
+    AETHERCORE_NR_GET_ROBUST_LIST = 274,
+    AETHERCORE_NR_SPLICE = 275,
+    AETHERCORE_NR_TEE = 276,
+    AETHERCORE_NR_VMSPLICE = 278,
+    AETHERCORE_NR_PSELECT6 = 270,
+    AETHERCORE_NR_PPOLL = 271,
+    AETHERCORE_NR_UTIMENSAT = 280,
+    AETHERCORE_NR_SELECT = 23,
+    AETHERCORE_NR_STATX = 332,
+    AETHERCORE_NR_GETDENTS64 = 217,
+    AETHERCORE_NR_EPOLL_WAIT = 232,
+    AETHERCORE_NR_EPOLL_CTL = 233,
+    AETHERCORE_NR_EPOLL_PWAIT = 281,
+    AETHERCORE_NR_EPOLL_CREATE1 = 291,
+    AETHERCORE_NR_PRLIMIT64 = 302,
+    AETHERCORE_NR_TIMERFD_CREATE = 283,
+    AETHERCORE_NR_TIMERFD_SETTIME = 286,
+    AETHERCORE_NR_TIMERFD_GETTIME = 287,
+    AETHERCORE_NR_SIGNALFD4 = 289,
+    AETHERCORE_NR_EVENTFD2 = 290,
+    AETHERCORE_NR_INOTIFY_ADD_WATCH = 254,
+    AETHERCORE_NR_INOTIFY_RM_WATCH = 255,
+    AETHERCORE_NR_INOTIFY_INIT1 = 294,
+    AETHERCORE_NR_MEMFD_CREATE = 319,
+    AETHERCORE_NR_DUP3 = 292,
+    AETHERCORE_NR_PIPE2 = 293,
+    AETHERCORE_NR_SYNCFS = 306,
+    AETHERCORE_NR_GETCPU = 309,
+    AETHERCORE_NR_GETRANDOM = 318,
+    AETHERCORE_NR_COPY_FILE_RANGE = 326,
+    AETHERCORE_NR_MEMBARRIER = 324,
+    AETHERCORE_NR_RSEQ = 334,
+    AETHERCORE_NR_CLONE = 56,
+    AETHERCORE_NR_FORK = 57,
+    AETHERCORE_NR_EXIT_GROUP = 231,
+    AETHERCORE_NR_EXECVEAT = 322,
+    AETHERCORE_NR_CLOSE_RANGE = 436,
+    AETHERCORE_NR_EXIT = 60,
+};
+
+long aethercore_syscall_passthrough(long nr) {
+    return syscall(nr, 0ul, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+long read(int fd, void *buf, unsigned long count) {
+    return syscall(AETHERCORE_NR_READ, (unsigned long)fd, (unsigned long)buf, count, 0ul, 0ul, 0ul);
+}
+
+long pread(int fd, void *buf, unsigned long count, unsigned long offset) {
+    return pread64(fd, buf, count, offset);
+}
+
+long pread64(int fd, void *buf, unsigned long count, unsigned long offset) {
+    return syscall(AETHERCORE_NR_PREAD64, (unsigned long)fd, (unsigned long)buf, count, offset, 0ul, 0ul);
+}
+
+long write(int fd, const void *buf, unsigned long count) {
+    return syscall(AETHERCORE_NR_WRITE, (unsigned long)fd, (unsigned long)buf, count, 0ul, 0ul, 0ul);
+}
+
+long pwrite(int fd, const void *buf, unsigned long count, unsigned long offset) {
+    return pwrite64(fd, buf, count, offset);
+}
+
+long pwrite64(int fd, const void *buf, unsigned long count, unsigned long offset) {
+    return syscall(AETHERCORE_NR_PWRITE64, (unsigned long)fd, (unsigned long)buf, count, offset, 0ul, 0ul);
+}
+
+int ioctl(int fd, unsigned long request, unsigned long arg) {
+    return (int)syscall(AETHERCORE_NR_IOCTL, (unsigned long)fd, request, arg, 0ul, 0ul, 0ul);
+}
+
+int rt_sigaction(int sig, const void *act, void *oldact, unsigned long sigsetsize) {
+    return (int)syscall(AETHERCORE_NR_RT_SIGACTION, (unsigned long)sig, (unsigned long)act, (unsigned long)oldact, sigsetsize, 0ul, 0ul);
+}
+
+int rt_sigprocmask(int how, const void *set, void *oldset, unsigned long sigsetsize) {
+    return (int)syscall(AETHERCORE_NR_RT_SIGPROCMASK, (unsigned long)how, (unsigned long)set, (unsigned long)oldset, sigsetsize, 0ul, 0ul);
+}
+
+int access(const char *path, int mode) {
+    return (int)syscall(AETHERCORE_NR_ACCESS, (unsigned long)path, (unsigned long)mode, 0ul, 0ul, 0ul, 0ul);
+}
+
+long readv(int fd, const struct aethercore_iovec *iov, int iovcnt) {
+    return syscall(AETHERCORE_NR_READV, (unsigned long)fd, (unsigned long)iov, (unsigned long)iovcnt, 0ul, 0ul, 0ul);
+}
+
+long writev(int fd, const struct aethercore_iovec *iov, int iovcnt) {
+    return syscall(AETHERCORE_NR_WRITEV, (unsigned long)fd, (unsigned long)iov, (unsigned long)iovcnt, 0ul, 0ul, 0ul);
+}
+
+static unsigned long aethercore_append_char(char *dst, unsigned long pos, unsigned long cap, char ch) {
+    if (cap != 0 && pos + 1 < cap) {
+        dst[pos] = ch;
+    }
+    return pos + 1;
+}
+
+static unsigned long aethercore_append_str(char *dst, unsigned long pos, unsigned long cap, const char *src) {
+    unsigned long i = 0;
+    if (!src) src = "(null)";
+    while (src[i] != 0) {
+        pos = aethercore_append_char(dst, pos, cap, src[i]);
+        ++i;
+    }
+    return pos;
+}
+
+static unsigned long aethercore_append_uint(char *dst, unsigned long pos, unsigned long cap, unsigned long value, unsigned base, int uppercase) {
+    char tmp[32];
+    unsigned long i = 0;
+    const char *digits = uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
+    if (base < 2) base = 10;
+    do {
+        tmp[i++] = digits[value % base];
+        value /= base;
+    } while (value != 0 && i < sizeof(tmp));
+    while (i != 0) {
+        pos = aethercore_append_char(dst, pos, cap, tmp[--i]);
+    }
+    return pos;
+}
+
+int vsnprintf(char *dst, unsigned long size, const char *fmt, va_list ap) {
+    unsigned long pos = 0;
+    unsigned long i = 0;
+    if (!fmt) {
+        if (size != 0 && dst) dst[0] = 0;
+        return 0;
+    }
+    while (fmt[i] != 0) {
+        if (fmt[i] != '%') {
+            pos = aethercore_append_char(dst, pos, size, fmt[i++]);
+            continue;
+        }
+        ++i;
+        switch (fmt[i]) {
+        case '%':
+            pos = aethercore_append_char(dst, pos, size, '%');
+            break;
+        case 's':
+            pos = aethercore_append_str(dst, pos, size, va_arg(ap, const char *));
+            break;
+        case 'c':
+            pos = aethercore_append_char(dst, pos, size, (char)va_arg(ap, int));
+            break;
+        case 'd':
+        case 'i': {
+            long value = va_arg(ap, int);
+            if (value < 0) {
+                pos = aethercore_append_char(dst, pos, size, '-');
+                pos = aethercore_append_uint(dst, pos, size, (unsigned long)(-value), 10, 0);
+            } else {
+                pos = aethercore_append_uint(dst, pos, size, (unsigned long)value, 10, 0);
+            }
+            break;
+        }
+        case 'u':
+            pos = aethercore_append_uint(dst, pos, size, va_arg(ap, unsigned int), 10, 0);
+            break;
+        case 'x':
+            pos = aethercore_append_uint(dst, pos, size, va_arg(ap, unsigned int), 16, 0);
+            break;
+        case 'X':
+            pos = aethercore_append_uint(dst, pos, size, va_arg(ap, unsigned int), 16, 1);
+            break;
+        case 'p': {
+            unsigned long value = (unsigned long)va_arg(ap, void *);
+            pos = aethercore_append_str(dst, pos, size, "0x");
+            pos = aethercore_append_uint(dst, pos, size, value, 16, 0);
+            break;
+        }
+        default:
+            pos = aethercore_append_char(dst, pos, size, '%');
+            if (fmt[i] != 0) {
+                pos = aethercore_append_char(dst, pos, size, fmt[i]);
+            }
+            break;
+        }
+        if (fmt[i] != 0) ++i;
+    }
+    if (size != 0 && dst) {
+        dst[pos < size ? pos : size - 1] = 0;
+    }
+    return (int)pos;
+}
+
+int snprintf(char *dst, unsigned long size, const char *fmt, ...) {
+    va_list ap;
+    int ret;
+    va_start(ap, fmt);
+    ret = vsnprintf(dst, size, fmt, ap);
+    va_end(ap);
+    return ret;
+}
+
+int printf(const char *fmt, ...) {
+    char buffer[1024];
+    va_list ap;
+    int len;
+    va_start(ap, fmt);
+    len = vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    va_end(ap);
+    if (len < 0) {
+        return -1;
+    }
+    if (write(1, buffer, (unsigned long)len) < 0) {
+        return -1;
+    }
+    return len;
+}
+
+int puts(const char *s) {
+    long ret;
+    if (!s) {
+        *__errno_location() = 22;
+        return -1;
+    }
+    ret = write(1, s, strlen(s));
+    if (ret < 0) {
+        return -1;
+    }
+    if (write(1, "\n", 1) < 0) {
+        return -1;
+    }
+    return (int)(ret + 1);
+}
+
+int aethercore_write_cstr_fd(const char *s, int fd) {
+    long ret;
+    if (!s) {
+        *__errno_location() = 22;
+        return -1;
+    }
+    ret = write(fd, s, strlen(s));
+    return ret < 0 ? -1 : (int)ret;
+}
+
+void perror(const char *prefix) {
+    const char *message = strerror(*__errno_location());
+    if (prefix && prefix[0] != 0) {
+        (void)aethercore_write_cstr_fd(prefix, 2);
+        (void)aethercore_write_cstr_fd(": ", 2);
+    }
+    (void)aethercore_write_cstr_fd(message, 2);
+    (void)write(2, "\n", 1);
+}
+
+int close(int fd) {
+    return (int)syscall(AETHERCORE_NR_CLOSE, (unsigned long)fd, 0ul, 0ul, 0ul, 0ul, 0ul);
+}
+
+int poll(struct aethercore_pollfd *fds, unsigned long nfds, int timeout) {
+    return (int)syscall(AETHERCORE_NR_POLL, (unsigned long)fds, nfds, (unsigned long)timeout, 0ul, 0ul, 0ul);
+}
+
+int select(int nfds, struct aethercore_fd_set *readfds, struct aethercore_fd_set *writefds, struct aethercore_fd_set *exceptfds, struct aethercore_timeval *timeout) {
+    return (int)syscall(AETHERCORE_NR_SELECT, (unsigned long)nfds, (unsigned long)readfds, (unsigned long)writefds, (unsigned long)exceptfds, (unsigned long)timeout, 0ul);
+}
+

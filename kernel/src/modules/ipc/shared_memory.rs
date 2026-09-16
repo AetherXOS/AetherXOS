@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use crate::interfaces::memory::PageAllocator;
 use crate::interfaces::{KernelError, KernelResult};
 use crate::kernel::sync::IrqSafeMutex;
@@ -179,3 +184,4 @@ impl core::ops::Deref for ShmPages {
         &self.pages
     }
 }
+

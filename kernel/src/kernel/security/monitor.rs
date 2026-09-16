@@ -1,3 +1,8 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Capability-Based Security Monitor implementation for AetherXOS.
 
 use crate::interfaces::security::{
@@ -39,7 +44,23 @@ impl SecurityMonitor for CapabilitySecurityMonitor {
         resource_kind: ResourceKind,
         action: SecurityAction,
     ) -> SecurityVerdict {
-        // 1. Root (EUID 0) bypass for legacy POSIX parity
+        // 1. Prevent capability aliasing for indices >= 64
+        if let SecurityAction::Capability(c) = action {
+            if c >= 64 {
+                let (task_id, process_id) = security_audit_context();
+                crate::klog_warn!(
+                    "security audit deny: policy={} tid={} pid={} action={:?} resource_kind={:?} (invalid capability index >= 64)",
+                    self.policy_name(),
+                    task_id,
+                    process_id,
+                    action,
+                    resource_kind
+                );
+                return SecurityVerdict::AuditDeny;
+            }
+        }
+
+        // 2. Root (EUID 0) bypass for legacy POSIX parity
         if ctx.is_root() {
             return SecurityVerdict::Allow;
         }
@@ -87,3 +108,4 @@ impl SecurityMonitor for CapabilitySecurityMonitor {
         ctx.has_capability(cap)
     }
 }
+

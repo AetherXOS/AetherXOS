@@ -1,3 +1,5 @@
+//! process module.
+
 use super::*;
 
 mod dynamic_link;
@@ -153,3 +155,5 @@ pub fn materialize_process_image(
 
     Ok(prepared)
 }
+
+

@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use core::sync::atomic::Ordering;
@@ -80,4 +85,5 @@ pub fn suspend_on(wait_queue: &crate::kernel::sync::WaitQueue) {
 pub fn suspend_on_with_mask(wait_queue: &crate::kernel::sync::WaitQueue, mask: u32) {
     crate::kernel::task::suspend_current_task_with_mask(wait_queue, mask);
 }
+
 

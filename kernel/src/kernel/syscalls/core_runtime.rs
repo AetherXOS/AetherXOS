@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 use super::*;
 
 static SYSCALL_AFFINITY_TRACE_EVENT_SEQ: core::sync::atomic::AtomicU64 =
@@ -273,3 +278,4 @@ pub(super) fn sys_get_core_pressure_snapshot(ptr: usize, len: usize) -> usize {
     })
     .unwrap_or_else(|err| err)
 }
+

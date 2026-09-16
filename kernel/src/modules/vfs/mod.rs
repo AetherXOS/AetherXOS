@@ -1,3 +1,5 @@
+//! vfs module.
+
 /// Virtual File System (VFS) module.
 ///
 /// Exokernel boundary stays in kernel mount control and raw block/device access,
@@ -100,3 +102,5 @@ pub use xattr::{
 pub fn library_backend_inventory() -> alloc::vec::Vec<library_backends::LibraryBackendDescriptor> {
     library_backends::library_backend_inventory()
 }
+
+

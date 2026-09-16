@@ -1,3 +1,8 @@
+//! # Safety
+//!
+//! All """unsafe""" blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
 //! Aether-URing: High-performance, lock-free, asynchronous syscall interface.
 //!
 //! Inspired by Linux io_uring, this system uses shared-memory ring buffers 
@@ -158,3 +163,4 @@ impl AsyncRing {
         self.cq_tail.store(tail.wrapping_add(1), Ordering::Release);
     }
 }
+

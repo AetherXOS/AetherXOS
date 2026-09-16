@@ -1,3 +1,5 @@
+//! predicates module.
+
 mod dispatch;
 mod effective;
 mod mapping;
@@ -10,3 +12,5 @@ pub use self::effective::{
 };
 pub use self::mapping::{execution_profile_matches_status, expected_runtime_governor_class};
 pub use self::runtime_mode::virtualization_runtime_mode_contract_holds;
+
+

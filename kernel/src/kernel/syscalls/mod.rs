@@ -1,9 +1,17 @@
+﻿//! # Safety
+//!
+//! All `unsafe` blocks in this module are justified by the calling
+//! functions which validate addresses, alignment, and invariants beforehand.
+//!
+//! Syscall dispatch and handling layer.
+//!
+//! Routes system calls from user-space to kernel handlers.
+//! Supports POSIX/Linux compat, IPC, VFS, and control-plane interfaces.
+
 #[cfg(target_arch = "x86_64")]
 use crate::interfaces::cpu::CpuRegisters;
 use crate::interfaces::Scheduler;
 use core::sync::atomic::Ordering;
-// use x86_64::registers::control::Cr3;
-// Removed x86 specific imports
 
 mod control_plane;
 mod core_runtime;
@@ -330,3 +338,4 @@ mod linux_errno_for_tests {
 
 #[cfg(test)]
 mod tests;
+

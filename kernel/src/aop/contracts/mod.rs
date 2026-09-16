@@ -1,3 +1,5 @@
+//! contracts module.
+
 use aop_macros::precondition;
 use alloc::format;
 
@@ -16,3 +18,5 @@ mod tests {
         assert_eq!(example_contracts(10), 10);
     }
 }
+
+

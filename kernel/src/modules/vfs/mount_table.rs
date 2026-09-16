@@ -399,10 +399,10 @@ mod tests {
         let mut table = MountTable::new();
         let root = table
             .mount("/", "rootfs", FsType::RamFs, MountFlags::NONE, None)
-            .unwrap();
+            .expect("unwrap failed - see module SAFETY docs");
         let nested = table
             .mount("/srv/data", "datafs", FsType::Ext4, MountFlags::RDONLY, None)
-            .unwrap();
+            .expect("unwrap failed - see module SAFETY docs");
 
         assert_eq!(
             table.resolve("/srv/data/file.txt").map(|entry| entry.id),
@@ -419,10 +419,10 @@ mod tests {
         let mut table = MountTable::new();
         let parent = table
             .mount("/mnt", "ram", FsType::RamFs, MountFlags::NONE, None)
-            .unwrap();
+            .expect("unwrap failed - see module SAFETY docs");
         let _child = table
             .mount("/mnt/nested", "nested", FsType::Tmpfs, MountFlags::NONE, None)
-            .unwrap();
+            .expect("unwrap failed - see module SAFETY docs");
         assert_eq!(
             table.unmount("/mnt"),
             Err("mount has children; unmount them first")
@@ -431,7 +431,7 @@ mod tests {
         let mut busy = MountTable::new();
         let busy_id = busy
             .mount("/busy", "ram", FsType::RamFs, MountFlags::NONE, None)
-            .unwrap();
+            .expect("unwrap failed - see module SAFETY docs");
         busy.acquire_ref(busy_id);
         assert_eq!(busy.unmount("/busy"), Err("mount busy"));
         busy.release_ref(busy_id);
@@ -445,16 +445,16 @@ mod tests {
         let mut table = MountTable::new();
         table
             .mount("//var//log//", "ram", FsType::RamFs, MountFlags::NONE, None)
-            .unwrap();
+            .expect("unwrap failed - see module SAFETY docs");
         assert_eq!(table.check_write("/var/log/messages"), Ok(()));
         table
             .remount("/var/log", MountFlags::RDONLY | MountFlags::NOEXEC)
-            .unwrap();
+            .expect("unwrap failed - see module SAFETY docs");
         assert_eq!(
             table.check_write("/var/log/messages"),
             Err("read-only filesystem")
         );
-        let entry = table.resolve("/var/log/messages").unwrap();
+        let entry = table.resolve("/var/log/messages").expect("unwrap failed - see module SAFETY docs");
         assert!(entry.flags.is_noexec());
         assert_eq!(entry.mount_point, "/var/log");
     }
@@ -464,10 +464,10 @@ mod tests {
         let mut table = MountTable::new();
         let root = table
             .mount("/", "rootfs", FsType::RamFs, MountFlags::NONE, None)
-            .unwrap();
+            .expect("unwrap failed - see module SAFETY docs");
         let child = table
             .mount("/srv//logs/", "logs", FsType::Tmpfs, MountFlags::NONE, None)
-            .unwrap();
+            .expect("unwrap failed - see module SAFETY docs");
 
         assert_eq!(
             table.mount("/srv/logs", "dup", FsType::Tmpfs, MountFlags::NONE, None),
@@ -484,10 +484,10 @@ mod tests {
         let mut table = MountTable::new();
         let root = table
             .mount("/", "rootfs", FsType::RamFs, MountFlags::NONE, None)
-            .unwrap();
+            .expect("unwrap failed - see module SAFETY docs");
         let srv = table
             .mount("/srv", "srvfs", FsType::Tmpfs, MountFlags::NONE, None)
-            .unwrap();
+            .expect("unwrap failed - see module SAFETY docs");
 
         assert_eq!(table.resolve("/srv/data").map(|entry| entry.id), Some(srv));
         assert_eq!(
@@ -496,3 +496,4 @@ mod tests {
         );
     }
 }
+

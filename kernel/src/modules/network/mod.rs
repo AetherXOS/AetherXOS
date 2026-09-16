@@ -1,3 +1,5 @@
+//! network module.
+
 pub mod bridge;
 pub mod protocols;
 pub mod epoll;
@@ -55,3 +57,5 @@ use support::{
 };
 #[cfg(test)]
 mod tests;
+
+
